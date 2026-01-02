@@ -13,10 +13,10 @@ export class RoomEntity extends EntityBase {
         () => UserEntity,
         (user) => user.rooms
     )
+    @JoinTable()
     participants: UserEntity[];
 
     // Chats in the rooms
-    @JoinTable()
     @OneToMany(
         () => ChatEntity,
         (room) => room.room,

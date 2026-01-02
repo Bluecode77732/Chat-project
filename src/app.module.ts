@@ -7,7 +7,7 @@ import * as Joi from 'joi'
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
-import { RoomEntity } from './chat/entities/chat.room.entity';
+import { RoomEntity } from './chat/entities/room.entity';
 import { EntityBase } from './base/base.entity';
 
 @Module({

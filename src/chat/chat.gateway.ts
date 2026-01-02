@@ -65,7 +65,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     qr: QueryRunner[],
   ) {
     const payload = client.data.user;
-    this.chatService. (payload, )
+    await this.chatService. (payload, )
   }
 
 

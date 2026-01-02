@@ -6,10 +6,10 @@ export class EntityBase {
     @CreateDateColumn()
     @ApiHideProperty()
     @Exclude()
-    created: Date;
+    created?: Date;
     
     @UpdateDateColumn()
     @ApiHideProperty()
     @Exclude()
-    updated: Date;
+    updated?: Date;
 }

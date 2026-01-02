@@ -20,5 +20,5 @@ export class CreateChatDto {
     })
     @IsOptional()
     @IsNumber()
-    room?: Number;
+    room?: number;
 }

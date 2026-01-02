@@ -5,7 +5,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { ChatEntity } from './entities/chat.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
-import { RoomEntity } from './entities/chat.room.entity';
+import { RoomEntity } from './entities/room.entity';
 
 @Module({
   imports: [
