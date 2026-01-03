@@ -8,6 +8,7 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
+import { plainToClass } from 'class-transformer';
 
 @Injectable()
 export class ChatService {
@@ -58,14 +59,40 @@ export class ChatService {
     }
 
 
-    async createMessage(payload: { sub: number }, { message, room }: CreateChatDto, qr: QueryRunner) {
-        const client = this.chatRepository.findOne({
+    async createMessage(payload: { sub: number }, { message, room: roomId }: CreateChatDto, qr: QueryRunner) {
+        // const client = await qr.manager.findOne(UserEntity, {
+        const client = await this.userRepository.findOne({
             where: {
                 id: payload.sub,
             },
         });
 
-        const chatRoom = await this.createRoom(client, qr, room)
+        // 
+        const getRoom = await this.getRoom(client!, qr, roomId);
+
+        // 
+        if (!getRoom) {
+            throw new WsException("Cannot Find Room");
+        } else {
+            await this.createRoom(client!, qr, roomId);
+        };
+
+        // Send and Save message in the chat
+        const messageSchema = await qr.manager.save(ChatEntity, {
+            participant: client!,
+            message,
+            getRoom,
+        });
+
+        // 
+        const getClientId = this.clientConnection.get(client!.id);
+
+        // 
+        getClientId?.to(getRoom.id.toString()).emit('Message sent', messageSchema);
+        // getClientId?.to(getRoom.id.toString()).emit('Message sent', plainToClass(ChatEntity, messageSchema));
+
+        // Final return
+        return message;
     }
 
 
@@ -90,10 +117,12 @@ export class ChatService {
 
     async createRoom(user: UserEntity, qr: QueryRunner, room?: number) {
 
+        await this.validateUser(user, room);
+
         const getChatRoom = await this.getRoom(user, qr, room);
 
         if (getChatRoom) {
-            let room : RoomEntity | null = await qr.manager
+            let room: RoomEntity | null = await qr.manager
                 .createQueryBuilder(RoomEntity, 'room')
                 .innerJoin('room.participants', 'participant')
                 .where('participant.id = :participantId', { participantId: user.id })
@@ -115,7 +144,7 @@ export class ChatService {
                 [user.id, admin.id].forEach((participantId) => {
                     // Client connection
                     const client = this.clientConnection.get(participantId);
-                    
+
                     if (client) {
                         // Notifying successful connection
                         client.emit("The room is created", room?.id);

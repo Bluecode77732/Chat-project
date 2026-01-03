@@ -41,7 +41,7 @@ export class UserEntity extends EntityBase {
     )
     chats: ChatEntity[];
     
-    @OneToMany(
+    @ManyToMany(
         () => RoomEntity,
         (room) => room.participants,
     )
