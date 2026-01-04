@@ -6,6 +6,7 @@ import { UserEntity } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
+import { UserRole } from 'src/auth/role/role';
 
 @Injectable()
 export class UserService {
@@ -38,6 +39,7 @@ export class UserService {
     await this.userRepository.save({
       email,
       password: hash,
+      role: UserRole.participant,
     });
 
     return await this.userRepository.findOne({
@@ -101,6 +103,7 @@ export class UserService {
       {
         email: updateUserDto.email,
         password: updateUserDto.password,
+        role: updateUserDto.role,
       },
     );
 

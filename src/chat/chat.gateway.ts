@@ -4,8 +4,9 @@ import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
-import { QueryRunner } from 'typeorm';
+import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
+import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,7 +29,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         console.log(`Succeed : Connected, payload on data.user`);
 
-        // Remember the specific client with a centain key
+        // Remember the specific client with a certain key
         this.chatService.registerClient(payload.sub, client);
 
         // Connect user into a room
@@ -62,10 +63,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleMessage(
     @MessageBody() data: CreateChatDto,
     @ConnectedSocket() client: Socket,
-    qr: QueryRunner[],
+    @WebSocketQueryRunner() qr: QueryRunner,
   ) {
     const payload = client.data.user;
-    await this.chatService. (payload, )
+    await this.chatService.createMessage(payload, data, qr);
   }
 
 

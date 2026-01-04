@@ -37,15 +37,17 @@ export class ChatService {
 
 
     async joinRooms(user: { sub: number }, client: Socket) {
-        const chatRooms = await this.roomRepository.createQueryBuilder('chatRoomEntity')
-            .innerJoin('chatRoomEntity.users', 'user', 'user.id = :userId', {
-                userId: user.sub,
+        const rooms = await this.roomRepository.createQueryBuilder('chatRoomEntity')
+            .innerJoin('chatRoomEntity.participants', 'participant', 'participant.id = :participantId', {
+                participantId: user.sub,
             })
             .getMany();
 
-        chatRooms.forEach((room) => {
+        rooms.forEach((room) => {
             client.join(room.id.toString());
         });
+
+        console.log("Rooms are connected to DB.");
     };
 
 
@@ -68,27 +70,28 @@ export class ChatService {
         });
 
         // 
-        const getRoom = await this.getRoom(client!, qr, roomId);
+        const room = await this.getRoom(client!, qr, roomId);
 
         // 
-        if (!getRoom) {
+        if (!room) {
             throw new WsException("Cannot Find Room");
         } else {
             await this.createRoom(client!, qr, roomId);
         };
 
-        // Send and Save message in the chat
+        // Save message in the chat database permanently
+        // Let's say as the internet is disconnected, using transaction is a bright solution for undo the transferring data.
         const messageSchema = await qr.manager.save(ChatEntity, {
             participant: client!,
             message,
-            getRoom,
+            getRoom: room,
         });
 
         // 
         const getClientId = this.clientConnection.get(client!.id);
 
         // 
-        getClientId?.to(getRoom.id.toString()).emit('Message sent', messageSchema);
+        getClientId?.to(room.id.toString()).emit('Message sent', messageSchema);
         // getClientId?.to(getRoom.id.toString()).emit('Message sent', plainToClass(ChatEntity, messageSchema));
 
         // Final return
@@ -122,13 +125,13 @@ export class ChatService {
         const getChatRoom = await this.getRoom(user, qr, room);
 
         if (getChatRoom) {
-            let room: RoomEntity | null = await qr.manager
+            let chatRoom = await qr.manager
                 .createQueryBuilder(RoomEntity, 'room')
                 .innerJoin('room.participants', 'participant')
                 .where('participant.id = :participantId', { participantId: user.id })
                 .getOne();
 
-            if (!room) {
+            if (!chatRoom) {
                 const admin = await qr.manager.findOne(UserEntity, {
                     where: { role: UserRole.admin },
                 });
@@ -137,7 +140,7 @@ export class ChatService {
                     throw new WsException("Admin user not found");
                 }
 
-                room = await this.roomRepository.save({
+                chatRoom = await this.roomRepository.save({
                     participants: [user, admin],
                 });
 
@@ -147,10 +150,10 @@ export class ChatService {
 
                     if (client) {
                         // Notifying successful connection
-                        client.emit("The room is created", room?.id);
-                        client.join(room!.id.toString());
+                        client.emit("The room is created", chatRoom?.id);
+                        client.join(chatRoom?.id[""]);
                     };
-                })
+                });
             };
         }
 

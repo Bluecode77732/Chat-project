@@ -11,27 +11,28 @@ export class WebSocketTransaction implements NestInterceptor {
     // This logic processes logic for response before core functions are called.
     async intercept(ctx: ExecutionContext, next: CallHandler<string>): Promise<Observable<string>> {
         const client = ctx.switchToWs().getClient();
-        const qr = this.dataSource.createQueryRunner();
+        const queryRunner = this.dataSource.createQueryRunner();
 
-        await qr.connect();
-        await qr.startTransaction();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-        client.data.client = qr;
+        // The `client.body.queryRunner` accesses the `queryRunner` which creates connection of DB.
+        client.data.qr = queryRunner;
 
         return next
             .handle()
             .pipe(
                 catchError(
                     async (error) => {
-                        await qr.rollbackTransaction();
-                        await qr.release();
+                        await queryRunner.rollbackTransaction();
+                        await queryRunner.release();
 
                         throw error;
                     },
                 ),
                 tap(async () => {
-                    await qr.rollbackTransaction();
-                    await qr.release();
+                    await queryRunner.rollbackTransaction();
+                    await queryRunner.release();
                 }),
             );
     };
