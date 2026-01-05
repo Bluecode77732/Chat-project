@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
-import { UserEntity } from 'src/user/entities/user.entity'; 
+import { UserEntity } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Payload } from 'src/auth/interface/payload.interface';
+import { UserRole } from './role/role';
 
 @Injectable()
 export class AuthService {
@@ -115,7 +116,7 @@ export class AuthService {
     };
 
 
-    async issueToken(user: UserEntity, isRefreshToken: boolean) {
+    async issueToken(user: { id: number, role: UserRole }, isRefreshToken: boolean) {
 
         // Bring refreshToken and accessToken to issue token for creating user accessing validation.
         const refreshToken = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
@@ -124,6 +125,7 @@ export class AuthService {
         const payload: Payload = {
             sub: user.id,
             type: isRefreshToken ? 'refresh' : 'access',
+            role: user.role,
         };
 
         // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.

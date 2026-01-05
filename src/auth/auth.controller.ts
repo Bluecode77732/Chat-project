@@ -14,7 +14,7 @@ export class AuthController {
     private readonly authService: AuthService,
   ) { }
 
-  // A Rroute handler decorator, Routes (Get, Post, Patch, Put, Delete) HTTP request to the specific path.
+  // A route handler decorator, Routes (Get, Post, Patch, Put, Delete) HTTP request to the specific path.
   @Post('register')
   @ApiBasicAuth()
   @ApiBody({ type: CreateUserDto })
@@ -37,7 +37,7 @@ export class AuthController {
   @ApiBasicAuth()
   @ApiResponse({
     status: 201,
-    description: "Sign In Successed.",
+    description: "Sign In Succeed.",
     type: tokenType,
     schema: {
       example: {
@@ -97,7 +97,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: 401,
-    description: "Invalid Credentaials.",
+    description: "Invalid Credentials.",
   })
   @ApiBody({
     type: CreateUserDto,

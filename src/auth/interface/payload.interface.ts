@@ -1,10 +1,15 @@
-// Minimal JWT payload.
+import { UserRole } from "../role/role";
+
+// Minimal JWT payload interface.
 export interface Payload {
     // User ID for lookup.
     sub: number,
 
-    // Distinguishes access/refresh tokens.
+    // Distinguish access/refresh tokens
     type: "refresh" | "access",
 
-    // JWT library handles automatically the `iat/exp`.
+    // Distinguish Authorization Level
+    role: UserRole.admin | UserRole.participant,
+
+    // JWT library handles automatically the `iat/exp` dates.
 };

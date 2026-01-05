@@ -17,7 +17,7 @@ export class WebSocketTransaction implements NestInterceptor {
         await queryRunner.startTransaction();
 
         // The `client.body.queryRunner` accesses the `queryRunner` which creates connection of DB.
-        client.data.qr = queryRunner;
+        client.data.queryRunner = queryRunner;
 
         return next
             .handle()

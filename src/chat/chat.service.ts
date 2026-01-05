@@ -57,7 +57,9 @@ export class ChatService {
                 // This exception is listened for event-listening in the real-time chat
                 throw new WsException("Admin must create a room first.");
             };
-        }
+        } else {
+            throw new WsException("Only admin can create a room.");
+        };
     }
 
 
@@ -146,12 +148,19 @@ export class ChatService {
 
                 [user.id, admin.id].forEach((participantId) => {
                     // Client connection
-                    const client = this.clientConnection.get(participantId);
+                    const connect = this.clientConnection.get(participantId);
 
-                    if (client) {
-                        // Notifying successful connection
-                        client.emit("The room is created", chatRoom?.id);
-                        client.join(chatRoom?.id[""]);
+                    if (connect) {
+                        if (!chatRoom?.id) {
+                            throw new WsException({
+                                status: "error:400 - BadRequestException",
+                                message: "Cannot Find Room",
+                            });
+                        } else {
+                            // Notifying successful connection
+                            connect.emit("The room is created", chatRoom?.id);
+                            connect.join(chatRoom.id.toString());
+                        };
                     };
                 });
             };

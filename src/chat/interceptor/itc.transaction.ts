@@ -10,28 +10,28 @@ export class Transaction implements NestInterceptor {
 
     // This logic processes logic for response before core functions are called.
     async intercept(ctx: ExecutionContext, next: CallHandler<string>): Promise<Observable<string>> {
-        const reqeust = ctx.switchToHttp().getRequest();
-        const qr = this.dataSource.createQueryRunner();
+        const request = ctx.switchToHttp().getRequest();
+        const queryRunner = this.dataSource.createQueryRunner();
 
-        await qr.connect();
-        await qr.startTransaction();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-        reqeust.qr = qr;
+        request.queryRunner = queryRunner;
 
         return next
             .handle()
             .pipe(
                 catchError(
                     async (error) => {
-                        await qr.rollbackTransaction();
-                        await qr.release();
+                        await queryRunner.rollbackTransaction();
+                        await queryRunner.release();
                         
                         throw error;
                     },
                 ),
                 tap(async () => {
-                    await qr.rollbackTransaction();
-                    await qr.release();
+                    await queryRunner.rollbackTransaction();
+                    await queryRunner.release();
                 }),
             );
     };

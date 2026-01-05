@@ -5,7 +5,7 @@ export const QueryRunnerDecorator = createParamDecorator(
         const request = ctx.switchToHttp().getRequest();
 
         if (!request || !request.queryRunner) {
-            throw new InternalServerErrorException("Cannot find QueryRunner.")
+            throw new InternalServerErrorException("Cannot find QueryRunner.");
         };
 
         return request.queryRunner;
