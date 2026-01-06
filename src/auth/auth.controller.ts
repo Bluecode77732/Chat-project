@@ -59,7 +59,7 @@ export class AuthController {
   };
 
 
-  // Issueing a refresh access token to let not users redo login
+  // Issuing a refresh access token to let not users redo login
   @Post('token/refreshaccess')
   @ApiBearerAuth()
   @ApiResponse({
