@@ -47,7 +47,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(client: Socket) {
-    const user = client.data.user;
+    const user = await client.data.user;
 
     if (user) {
       this.chatService.removeClient(user.sub);
@@ -61,12 +61,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('send')
   @UseInterceptors(WebSocketTransaction)
   async handleMessage(
-    @MessageBody() data: CreateChatDto,
     @ConnectedSocket() client: Socket,
+    @MessageBody() dto: CreateChatDto,
     @WebSocketQueryRunner() qr: QueryRunner,
   ) {
     const payload = client.data.user;
-    await this.chatService.createMessage(payload, data, qr);
+    await this.chatService.createMessage(payload, dto, qr);
   }
 
 
