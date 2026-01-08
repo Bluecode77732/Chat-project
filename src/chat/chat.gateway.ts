@@ -58,7 +58,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
 
   // Connect socket
-  @SubscribeMessage('send')
+  @SubscribeMessage('sendMsg')
   @UseInterceptors(WebSocketTransaction)
   async handleMessage(
     @ConnectedSocket() client: Socket,
