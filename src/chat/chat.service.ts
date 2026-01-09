@@ -82,7 +82,7 @@ export class ChatService {
 
 
         // Get a chat room
-        let chatRoom = await this.findRoom(client, qr, room);
+        // let chatRoom = await this.findRoom(client, qr, room);
 
         // Check if chat room exist
         // if (!chatRoom) {
@@ -91,7 +91,7 @@ export class ChatService {
         // Create a chat room if doesn't exist
         // chatRoom = await this.createRoom(client, qr, room);
         // Recheck if chat room exist
-        
+
 
         // const findChatRoom = await this.roomRepository.findOne({
         //     where: {
@@ -101,9 +101,10 @@ export class ChatService {
         // if (!findChatRoom) {
         //     throw new WsException("Cannot Find Room");
         // };
-        
 
-        const chatRoom = await this.createRoom(client, qr, room);
+
+        // Create a chat room
+        const chatRoom = await this.getAndCreateRoom(client, qr, room);
         if (!chatRoom)
             throw new WsException("Cannot Find Room");
 
@@ -176,84 +177,92 @@ export class ChatService {
         }
 
         console.log("got a room");
-        return qr.manager.findOne(RoomEntity, {
-            // Find which room
-            where: { id: room },
-            // Find which room is the participant in
-            relations: ['participants'],
-        });
+
+        return await qr.manager
+            .createQueryBuilder(RoomEntity, 'chatRoom')
+            .innerJoin('chatRoom.participants', 'participant')
+            .where('participant.id = :participantId', { participantId: user.id })
+            // .where('participant.id IN(:...ids)', {
+            //     ids: user.role === UserRole.admin ? [user.id] : [user.id],
+            // })
+            .getOne();
+
+        // return qr.manager.findOne(RoomEntity, {
+        //     // Find which room
+        //     where: { id: room },
+        //     // Find which room is the participant in
+        //     relations: ['participants'],
+        // });
     };
 
 
-    async createRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+    async getAndCreateRoom(user: UserEntity, qr: QueryRunner, room?: number) {
 
         // * Separated functions *
         await this.validateUser(user, room);
-        const getChatRoom = await this.findRoom(user, qr, room);
-        if (getChatRoom) {
+        // const getChatRoom = await this.findRoom(user, qr, room);
+        // if (getChatRoom) {
 
-            if (user.role === UserRole.admin) {
-                if (!room) {
-                    // This exception is listened for event-listening in the real-time chat
-                    throw new WsException("Admin must create a room first.");
+        if (user.role === UserRole.admin) {
+            if (!room) {
+                // This exception is listened for event-listening in the real-time chat
+                throw new WsException("Admin must create a room first.");
+            };
+
+            return qr.manager.findOne(RoomEntity, {
+                where: { id: room },
+                relations: ['participants'],
+            });
+        };
+
+        // if (!chatRoom) {
+        const admin = await qr.manager.findOne(UserEntity, {
+            where: { role: UserRole.admin },
+        });
+
+        if (!admin) {
+            throw new WsException("Admin Not Found");
+        };
+
+        return await qr.manager.save(RoomEntity, {
+            participants: [user, admin],
+        });
+
+        // chatRoom = await this.roomRepository.save({
+        //     participants: [user, admin],
+        // });
+
+        // [user.id, admin.id].forEach((participantId) => {
+
+    };
+
+    // console.log("created a room");
+    // return chatRoom;
+
+    // }
+
+    roomCreateNotification(chatRoom: RoomEntity, userIds: number[]) {
+        userIds.forEach((participantId) => {
+            // Get Client ID
+            const connect = this.clientConnection.get(participantId);
+
+            if (connect) {
+                if (!chatRoom?.id) {
+                    throw new WsException({
+                        status: "error:400 - BadRequestException",
+                        message: "Cannot Find Room",
+                    });
+                } else {
+                    // Notifying successful connection
+                    connect.emit("CreateRoom", chatRoom.id);
+                    connect.join(chatRoom.id.toString());
                 };
-                // if (!room) {
-                //     return null;
-                // };
-
-                return qr.manager.findOne(RoomEntity, {
-                    where: { id: room },
-                    relations: ['participants'],
-                });
             };
+        })
 
-            let chatRoom = await qr.manager
-                .createQueryBuilder(RoomEntity, 'chatRoom')
-                .innerJoin('chatRoom.participants', 'participant')
-                .where('participant.id = :participantId', { participantId: user.id })
-                // .where('participant.id IN(:...ids)', {
-                //     ids: user.role === UserRole.admin ? [user.id] : [user.id],
-                // })
-                .getOne();
+        // [user.id, admin.id].forEach((participantId) => {
 
-            if (!chatRoom) {
-                const admin = await qr.manager.findOne(UserEntity, {
-                    where: { role: UserRole.admin },
-                });
-
-                if (!admin) {
-                    throw new WsException("Admin Not Found");
-                }
-
-                // chatRoom = await this.roomRepository.save({
-                //     participants: [user, admin],
-                // });
-                chatRoom = await qr.manager.save(RoomEntity, {
-                    participants: [user, admin],
-                });
-
-                [user.id, admin.id].forEach((participantId) => {
-
-                    // Get Client ID
-                    const connect = this.clientConnection.get(participantId);
-
-                    if (connect) {
-                        if (!chatRoom?.id) {
-                            throw new WsException({
-                                status: "error:400 - BadRequestException",
-                                message: "Cannot Find Room",
-                            });
-                        } else {
-                            // Notifying successful connection
-                            connect.emit("CreateRoom", chatRoom.id);
-                            connect.join(chatRoom.id.toString());
-                        };
-                    };
-                });
-            };
-
-            console.log("created a room");
-            return chatRoom;
-        }
+        //     // Get Client ID
+        // });
     }
 }
