@@ -96,12 +96,14 @@ export class ChatService {
             participants: [user1, user2],
         });
 
-        if (!room?.id) {
+        const saved = await qr.manager.save(room);
+
+        if (!saved?.id) {
             throw new WsException("Cannot Find Room");
         };
 
         console.log("Saved users into a room");
-        return await qr.manager.save(room);
+        return saved;
     };
 
     
