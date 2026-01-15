@@ -23,5 +23,5 @@ export class ChatEntity extends EntityBase {
         () => RoomEntity,
         (room) => room.chats,
     )
-    chatRoom: RoomEntity;
+    room: RoomEntity;
 }

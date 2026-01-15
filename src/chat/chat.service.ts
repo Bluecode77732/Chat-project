@@ -53,56 +53,49 @@ export class ChatService {
     };
 
 
-    async findRoom(user1: number, user2: number, manager: EntityManager) {
-        // Using `await` for ensuring exceptions properly to be caught by WebSocket exception handlers
-        // if (!(user || room)) {
-        //     throw new WsException("User or Room Cannot Found.");
-        // } else {
-        //     await this.validateUser(user, room);
-        // }
+    async validateUser(user: UserEntity, room?: number) {
+        if (user.role === UserRole.admin) {
+            if (!room) {
+                // This exception is listened for event-listening in the real-time chat
+                throw new WsException("Admin must create a room first.");
+            };
+        } else {
+            throw new WsException("Only admin can create a room.");
+        };
 
-        if (!user1 || !user2) {
-            console.log("Invalid IDs:", { user1, user2 });
-            return null;
-        }
+        console.log("validated a user");
+        return user;
+    }
 
-        const ids = [user1, user2].sort((a, b) => a - b);
-        // const [id1, id2] = [user1, user2].sort((a, b) => a - b);
-        console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
 
-        console.log("finding a room");
-        // ? Can this code run?
-        // return qr.manager.findOne(RoomEntity, {
-        //     where: [
-        //         { participants: { id: id1 } },
-        //         { participants: { id: id2 } },
-        //     ],
-        //     relations: ['participants'],
-        // });
+    async createMessage(payload: { sub: number }, { message, room }: CreateChatDto, qr: QueryRunner) {
+        // Find a client
+        // const client = await qr.manager.findOne(UserEntity, {
+        const client = await this.userRepository.findOne({
+            where: {
+                id: payload.sub,
+            },
+        });
 
-        // const room = await manager
-        //     // return manager
-        //     .createQueryBuilder(RoomEntity, "room")
-        //     .leftJoinAndSelect("room.participants", "participant")
-        //     // .innerJoin("room.participants", "participant")
-        //     .where("participant.id IN(:...ids)", { ids })
-        //     // .limit(1)
-        //     .getOne();
+        // Check if client exist
+        if (!client) {
+            throw new WsException("Cannot Find User");
+        };
 
-        // return room?.participants?.length === 2 ? room : console.log('room is null.');
 
-        return manager
-            .createQueryBuilder(RoomEntity, "room")
-            .innerJoin("room.participants", "participant1")
-            .innerJoin("room.participants", "participant2")
-            .where("participant1.id = :id1", { id1: ids[0] })
-            .andWhere("participant2.id = :id2", { id2: ids[1] })
-            // .andWhere("participant1.id != participant2.id")
-            // .limit(1)
-            .getOne();
+        // Get a chat room
+        let chatRoom = await this.findRoom(client, qr, room);
 
-        // return manager.findOne(RoomEntity, {
-        //     // Find which room
+        // Check if chat room exist
+        // if (!chatRoom) {
+        // throw new WsException("Cannot Find Room");
+        // };
+        // Create a chat room if doesn't exist
+        // chatRoom = await this.createRoom(client, qr, room);
+        // Recheck if chat room exist
+        
+
+        // const findChatRoom = await this.roomRepository.findOne({
         //     where: {
         //         // Find which room is the participant in
         //         participants: {
@@ -117,228 +110,162 @@ export class ChatService {
         //         },
         //     },
         // });
+        // if (!findChatRoom) {
+        //     throw new WsException("Cannot Find Room");
+        // };
+        
 
-        // // Variant 1 – count how many rooms contain both
-        // const count = await manager
-        //     .createQueryBuilder(RoomEntity, "room")
-        //     .innerJoin("room.participants", "p")
-        //     .where("p.id IN (:...ids)", { ids })
-        //     .getCount();
+        const chatRoom = await this.createRoom(client, qr, room);
+        if (!chatRoom)
+            throw new WsException("Cannot Find Room");
 
-        // console.log(`Rooms containing both users: ${count}`);
+        // Save message in the chat database permanently
+        // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
+        const messageSchema = await qr.manager.save(ChatEntity, {
+            participant: client,
+            message,
+            chatRoom,
+        });
 
-        // // Variant 2 – load one candidate + participants
-        // const room = await manager
-        //     .createQueryBuilder(RoomEntity, "room")
-        //     .leftJoinAndSelect("room.participants", "p")
-        //     .where("p.id IN (:...ids)", { ids })
-        //     .getOne();
+        // Getting the client ID from Socket
+        const clientId = this.clientConnection.get(client.id);
 
-        // if (room) {
-        //     console.log(`Found room ${room.id} with participants:`, room.participants.map(u => u.id));
-        //     return room.participants.length === 2 ? room : null;
+        if (!clientId) {
+            throw new WsException("Cannot Find Client ID");
+        }
+
+        // Why is this code had written here again
+        // if (chatRoom?.id) {
+        //     chatRoom = await this.createRoom(client, qr, room);
+        // }
+        // if (!chatRoom) {
+        //     throw new WsException("room hasn't created.")
         // }
 
-        // console.log("No room found with either user");
-        // return null;
+        // Targets which room to connect
+        // getClientId.to(room.id.toString()).emit('Message Sent', messageSchema);
+        clientId.to(chatRoom.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+
+        // Final return
+        // console.log("created a msg");
+        // return message;
+
+
+        // Targets which room to connect
+        // getClientId.to(room.id.toString()).emit('Message Sent', messageSchema);
+
+        // Claude modification
+        // this.clientConnection.get(client.id)?.to(chatRoom?.id.toString()).emit('Message sent', plainToClass(ChatEntity, messageSchema));
+
+        // Final return
+        console.log("created a msg");
+        // return message;
+        return messageSchema;
+    }
+
+
+    async findRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+        // if (user.role === UserRole.admin) {
+        //     if (!room) {
+        //         // This exception is listened for event-listening in the real-time chat
+        //         throw new WsException("Admin must create a room first.");
+        //     };
+        //     // if (!room) {
+        //     //     return null;
+        //     // };
+
+        //     // return qr.manager.findOne(RoomEntity, {
+        //     //     where: { id: room },
+        //     //     relations: ['participants'],
+        //     // });
+        // };
+
+        // Using `await` for ensuring exceptions properly to be caught by WebSocket exception handlers
+        if (!(user || room)) {
+            throw new WsException("User or Room Cannot Found.");
+        } else {
+            await this.validateUser(user, room);
+        }
+
+        console.log("got a room");
+        return qr.manager.findOne(RoomEntity, {
+            // Find which room
+            where: { id: room },
+            // Find which room is the participant in
+            relations: ['participants'],
+        });
     };
 
 
-    async createRoom(user1: UserEntity, user2: UserEntity, manager: EntityManager) {
-        const room = manager.create(RoomEntity, {
-            participants: [user1, user2],
-        });
+    async createRoom(user: UserEntity, qr: QueryRunner, room?: number) {
 
-        const saved = await manager.save(room);
+        // * Separated functions *
+        await this.validateUser(user, room);
+        const getChatRoom = await this.findRoom(user, qr, room);
+        if (getChatRoom) {
 
-        if (!saved?.id) {
-            throw new WsException("Cannot Find Room");
-        };
-
-        console.log("Saved users into a room");
-        return saved;
-    };
-
-
-    async getAndCreateRoom(sender: UserEntity, recipientId: number, qr?: QueryRunner) {
-
-        // // let chatRoom = await qr.manager
-        // //     .createQueryBuilder(RoomEntity, 'chatRoom')
-        // //     .innerJoin('chatRoom.participants', 'participant')
-        // //     .where('participant.id = :participantId', { participantId: user.id })
-        // //     .getOne();
-
-        const manager = qr?.manager ?? this.roomRepository.manager;
-
-        console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
-
-        let room = await this.findRoom(sender.id, recipientId, manager);
-
-        console.log("Found existing room?", room ? room.id : "NO ROOM FOUND");
-
-        if (room) {
-            console.log("Reusing room ID:", room.id);
-            return room;
-        };
-
-        // Find recipient
-        const recipient = await this.userRepository.findOneBy({
-            id: recipientId,
-        });
-
-        if (!recipient) {
-            throw new WsException("Cannot Find Recipient");
-        };
-
-        // Store users into a room
-        room = await this.createRoom(sender, recipient, manager);
-
-        // // room = await qr.manager.save(RoomEntity, {
-        // //     participants: [user1, user2],
-        // // });
-
-        [sender.id, recipient.id].forEach((id) => {
-
-            // Get Client ID
-            const connect = this.clientConnection.get(id);
-
-            if (connect) {
-                if (!room?.id) {
-                    throw new WsException({
-                        status: "error:400 - BadRequestException",
-                        message: "Cannot Find Room",
-                    });
-                } else {
-                    // Notifying successful connection
-                    connect.emit("CreateRoom", room.id.toString());
-                    connect.join(room.id.toString());
+            if (user.role === UserRole.admin) {
+                if (!room) {
+                    // This exception is listened for event-listening in the real-time chat
+                    throw new WsException("Admin must create a room first.");
                 };
-            };
-        });
+                // if (!room) {
+                //     return null;
+                // };
 
-        console.log("created a room");
-        return room;
+                return qr.manager.findOne(RoomEntity, {
+                    where: { id: room },
+                    relations: ['participants'],
+                });
+            };
+
+            let chatRoom = await qr.manager
+                .createQueryBuilder(RoomEntity, 'chatRoom')
+                .innerJoin('chatRoom.participants', 'participant')
+                .where('participant.id = :participantId', { participantId: user.id })
+                // .where('participant.id IN(:...ids)', {
+                //     ids: user.role === UserRole.admin ? [user.id] : [user.id],
+                // })
+                .getOne();
+
+            if (!chatRoom) {
+                const admin = await qr.manager.findOne(UserEntity, {
+                    where: { role: UserRole.admin },
+                });
+
+                if (!admin) {
+                    throw new WsException("Admin Not Found");
+                }
+
+                // chatRoom = await this.roomRepository.save({
+                //     participants: [user, admin],
+                // });
+                chatRoom = await qr.manager.save(RoomEntity, {
+                    participants: [user, admin],
+                });
+
+                [user.id, admin.id].forEach((participantId) => {
+
+                    // Get Client ID
+                    const connect = this.clientConnection.get(participantId);
+
+                    if (connect) {
+                        if (!chatRoom?.id) {
+                            throw new WsException({
+                                status: "error:400 - BadRequestException",
+                                message: "Cannot Find Room",
+                            });
+                        } else {
+                            // Notifying successful connection
+                            connect.emit("CreateRoom", chatRoom.id);
+                            connect.join(chatRoom.id.toString());
+                        };
+                    };
+                });
+            };
+
+            console.log("created a room");
+            return chatRoom;
+        }
     }
-
-
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, qr: QueryRunner) {
-
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        // Find a client
-        const sender = await this.userRepository.findOneByOrFail({
-            id: payload.sub,
-        });
-
-        // Check if client exist
-        if (!sender) {
-            throw new WsException("Cannot Find User");
-        };
-
-        if (!recipientId || isNaN(recipientId)) {
-            throw new WsException("Recipient ID is required and must be a number");
-        };
-
-        try {
-            // Find a recipient
-            const recipient = await this.userRepository.findOneBy({
-                id: recipientId,
-            });
-
-            if (!recipient) {
-                throw new WsException("Cannot Find Recipient");
-            };
-
-
-            // Get and create a chat room
-            const room = await this.getAndCreateRoom(sender, recipientId, queryRunner);
-
-            // Check if room exist
-            if (!room)
-                throw new WsException("Cannot Find Room");
-
-            // Save message in the chat database permanently
-            // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
-            // const messageSchema = await this.chatRepository.save({
-            const messageSchema = await queryRunner.manager.save(ChatEntity, {
-                participant: sender,
-                message,
-                chatRoom: room,
-            });
-
-            // const saved = await qr.manager.save(messageSchema);
-
-            // Get client ID from Socket
-            const clientSocket = this.clientConnection.get(sender.id);
-            // Get recipient ID from Socket
-            const recipientSocket = this.clientConnection.get(recipient.id);
-
-            if (!clientSocket) {
-                throw new WsException("Cannot Find Sender ID");
-            } else {
-                // Targets which room to broadcast
-                clientSocket.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-            };
-
-            if (!recipientSocket) {
-                throw new WsException("Cannot Find Recipient ID");
-            } else {
-                console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
-                console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
-
-                const senderSocket = this.clientConnection.get(sender.id);
-                console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
-
-                const recipientSocket = this.clientConnection.get(recipient.id);
-                console.log("Recipient joined rooms:", recipientSocket?.rooms);
-                // Emit which room to send
-                clientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-            };
-
-            await queryRunner.commitTransaction();
-            console.log("Message committed to DB with ID:", messageSchema.id);
-
-            // Final return
-            // console.log("returning a msg");
-            // return message;
-
-            console.log("returning a msg schema");
-            return messageSchema;
-
-        } catch (error) {
-            console.log(`ERROR: ${error}`)
-            await queryRunner.rollbackTransaction();
-        } finally {
-            await queryRunner.release()
-        };
-    }
-
-    // Todo: What's next?
-    // Todo: The participant2 cannot see the participant1's message. Debug in the another-side client to send msg.
-    // Todo: The chat isn't stored in DB. Debug needed here as well.
-
-    // async getAndCreateRoom(user: UserEntity, qr: QueryRunner, room?: number) {
-    //     const user1 = await this.findRoom(user, qr, room);
-    //     const user2 = await this.userRepository.findOne({
-    //         where: {
-    //             id: user.id,
-    //         },
-    //     });
-
-    //     if (!user1) {
-    //         throw new WsException("");
-    //     };
-    //     if (!user2) {
-    //         throw new WsException("");
-    //     };
-
-    //     // Todo 1: Save users in room entity
-    //     // Todo 2: Consider extracting few lines from `createMessage` into `getAndCreateRoom`
-    //     return qr.manager.save(RoomEntity, {
-    //         participants: [user1, user2],
-    //     });
-
-    // }
 }
