@@ -53,6 +53,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.chatService.removeClient(user.sub);
     }
 
+    // This is fun when disconnected lol
     // throw new Error('Method not implemented.');
   }
 

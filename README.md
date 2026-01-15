@@ -64,15 +64,18 @@
 - pipe
 - JWT Authentication
 - Role Based Access: differ levels of user by authorization class
-- Chat: major impletation
+- Chat: major implementation
 - filter: exception handlers
-- 
+- Cache
+- Prisma
+- Logger
+- Swagger
 
 
 
 ## Chat
 Websocket
-  A real-time, bidirectional communication protocol, connects betweeen a web browser(clients) and server.
+  A real-time, bidirectional communication protocol, connects between a web browser(clients) and server.
   It creates persistent connections for instant data exchange, replacing slow HTTP polling for dynamic, low-latency experiences.
 
 Lifecycle Hooks
@@ -86,7 +89,6 @@ Lifecycle Hooks
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
 
 - Postman Log
-
-
 ```
 ```
+

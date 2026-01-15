@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Socket } from 'socket.io';
-import { DataSource, In, QueryRunner, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -39,8 +39,8 @@ export class ChatService {
 
 
     async joinRooms(user: { sub: number }, client: Socket) {
-        const rooms = await this.roomRepository.createQueryBuilder('roomEntity')
-            .innerJoin('roomEntity.participants', 'participant', 'participant.id = :participantId', {
+        const rooms = await this.roomRepository.createQueryBuilder('room_Entity')
+            .innerJoin('room_Entity.participants', 'participant', 'participant.id = :participantId', {
                 participantId: user.sub,
             })
             .getMany();
@@ -53,7 +53,7 @@ export class ChatService {
     };
 
 
-    async findRoom(user1: number, user2: number, qr: QueryRunner) {
+    async findRoom(user1: number, user2: number, manager: EntityManager) {
         // Using `await` for ensuring exceptions properly to be caught by WebSocket exception handlers
         // if (!(user || room)) {
         //     throw new WsException("User or Room Cannot Found.");
@@ -61,9 +61,16 @@ export class ChatService {
         //     await this.validateUser(user, room);
         // }
 
-        const [id1, id2] = [user1, user2].sort((a, b) => a - b);
+        if (!user1 || !user2) {
+            console.log("Invalid IDs:", { user1, user2 });
+            return null;
+        }
 
-        console.log("got a room");
+        const ids = [user1, user2].sort((a, b) => a - b);
+        // const [id1, id2] = [user1, user2].sort((a, b) => a - b);
+        console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
+
+        console.log("finding a room");
         // ? Can this code run?
         // return qr.manager.findOne(RoomEntity, {
         //     where: [
@@ -72,31 +79,77 @@ export class ChatService {
         //     ],
         //     relations: ['participants'],
         // });
-        return qr.manager.findOne(RoomEntity, {
-            // Find which room
-            where: {
-                // Find which room is the participant in
-                participants: {
-                    id: In([id1, id2]),
-                },
-            },
-            relations: ['participants'],
-            join: {
-                alias: 'room',
-                innerJoinAndSelect: {
-                    participants: 'room.participants',
-                },
-            },
-        });
+
+        // const room = await manager
+        //     // return manager
+        //     .createQueryBuilder(RoomEntity, "room")
+        //     .leftJoinAndSelect("room.participants", "participant")
+        //     // .innerJoin("room.participants", "participant")
+        //     .where("participant.id IN(:...ids)", { ids })
+        //     // .limit(1)
+        //     .getOne();
+
+        // return room?.participants?.length === 2 ? room : console.log('room is null.');
+
+        return manager
+            .createQueryBuilder(RoomEntity, "room")
+            .innerJoin("room.participants", "participant1")
+            .innerJoin("room.participants", "participant2")
+            .where("participant1.id = :id1", { id1: ids[0] })
+            .andWhere("participant2.id = :id2", { id2: ids[1] })
+            // .andWhere("participant1.id != participant2.id")
+            // .limit(1)
+            .getOne();
+
+        // return manager.findOne(RoomEntity, {
+        //     // Find which room
+        //     where: {
+        //         // Find which room is the participant in
+        //         participants: {
+        //             id: In([id1, id2]),
+        //         },
+        //     },
+        //     relations: ['participants'],
+        //     join: {
+        //         alias: 'room',
+        //         innerJoinAndSelect: {
+        //             participants: 'room.participants',
+        //         },
+        //     },
+        // });
+
+        // // Variant 1 – count how many rooms contain both
+        // const count = await manager
+        //     .createQueryBuilder(RoomEntity, "room")
+        //     .innerJoin("room.participants", "p")
+        //     .where("p.id IN (:...ids)", { ids })
+        //     .getCount();
+
+        // console.log(`Rooms containing both users: ${count}`);
+
+        // // Variant 2 – load one candidate + participants
+        // const room = await manager
+        //     .createQueryBuilder(RoomEntity, "room")
+        //     .leftJoinAndSelect("room.participants", "p")
+        //     .where("p.id IN (:...ids)", { ids })
+        //     .getOne();
+
+        // if (room) {
+        //     console.log(`Found room ${room.id} with participants:`, room.participants.map(u => u.id));
+        //     return room.participants.length === 2 ? room : null;
+        // }
+
+        // console.log("No room found with either user");
+        // return null;
     };
 
 
-    async createRoom(user1: UserEntity, user2: UserEntity, qr: QueryRunner) {
-        const room = qr.manager.create(RoomEntity, {
+    async createRoom(user1: UserEntity, user2: UserEntity, manager: EntityManager) {
+        const room = manager.create(RoomEntity, {
             participants: [user1, user2],
         });
 
-        const saved = await qr.manager.save(room);
+        const saved = await manager.save(room);
 
         if (!saved?.id) {
             throw new WsException("Cannot Find Room");
@@ -106,8 +159,8 @@ export class ChatService {
         return saved;
     };
 
-    
-    async getAndCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
+
+    async getAndCreateRoom(sender: UserEntity, recipientId: number, qr?: QueryRunner) {
 
         // // let chatRoom = await qr.manager
         // //     .createQueryBuilder(RoomEntity, 'chatRoom')
@@ -115,11 +168,16 @@ export class ChatService {
         // //     .where('participant.id = :participantId', { participantId: user.id })
         // //     .getOne();
 
-        const manager = qr ? qr.manager : this.roomRepository.manager;
+        const manager = qr?.manager ?? this.roomRepository.manager;
 
-        let room = await this.findRoom(sender.id, recipientId, qr);
+        console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
+
+        let room = await this.findRoom(sender.id, recipientId, manager);
+
+        console.log("Found existing room?", room ? room.id : "NO ROOM FOUND");
 
         if (room) {
+            console.log("Reusing room ID:", room.id);
             return room;
         };
 
@@ -133,7 +191,7 @@ export class ChatService {
         };
 
         // Store users into a room
-        room = await this.createRoom(sender, recipient, qr);
+        room = await this.createRoom(sender, recipient, manager);
 
         // // room = await qr.manager.save(RoomEntity, {
         // //     participants: [user1, user2],
@@ -179,8 +237,12 @@ export class ChatService {
             throw new WsException("Cannot Find User");
         };
 
+        if (!recipientId || isNaN(recipientId)) {
+            throw new WsException("Recipient ID is required and must be a number");
+        };
+
         try {
-            // // Find a recipient
+            // Find a recipient
             const recipient = await this.userRepository.findOneBy({
                 id: recipientId,
             });
@@ -191,7 +253,7 @@ export class ChatService {
 
 
             // Get and create a chat room
-            const room = await this.getAndCreateRoom(sender, recipientId, qr);
+            const room = await this.getAndCreateRoom(sender, recipientId, queryRunner);
 
             // Check if room exist
             if (!room)
@@ -199,11 +261,14 @@ export class ChatService {
 
             // Save message in the chat database permanently
             // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
-            const messageSchema = await qr.manager.save(ChatEntity, {
+            // const messageSchema = await this.chatRepository.save({
+            const messageSchema = await queryRunner.manager.save(ChatEntity, {
                 participant: sender,
                 message,
                 chatRoom: room,
             });
+
+            // const saved = await qr.manager.save(messageSchema);
 
             // Get client ID from Socket
             const clientSocket = this.clientConnection.get(sender.id);
@@ -220,9 +285,20 @@ export class ChatService {
             if (!recipientSocket) {
                 throw new WsException("Cannot Find Recipient ID");
             } else {
+                console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
+                console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
+
+                const senderSocket = this.clientConnection.get(sender.id);
+                console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
+
+                const recipientSocket = this.clientConnection.get(recipient.id);
+                console.log("Recipient joined rooms:", recipientSocket?.rooms);
                 // Emit which room to send
                 clientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
+
+            await queryRunner.commitTransaction();
+            console.log("Message committed to DB with ID:", messageSchema.id);
 
             // Final return
             // console.log("returning a msg");
@@ -239,6 +315,9 @@ export class ChatService {
         };
     }
 
+    // Todo: What's next?
+    // Todo: The participant2 cannot see the participant1's message. Debug in the another-side client to send msg.
+    // Todo: The chat isn't stored in DB. Debug needed here as well.
 
     // async getAndCreateRoom(user: UserEntity, qr: QueryRunner, room?: number) {
     //     const user1 = await this.findRoom(user, qr, room);
