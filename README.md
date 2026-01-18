@@ -1,5 +1,6 @@
 # Chat Project
-- An application that validated users to chat between them.
+- An classical private One-to-One chatting server-side management that validated users to chat between the other user.
+- This project is for understanding how using socket.io can make two entities communicate each other and save their chat logs in server.
 
 ## Quick Start
 - Prerequisites
@@ -59,18 +60,18 @@
 
 
 ## Implementation
-- guard: allow validated only types of data
-- interceptor: , to log user's data
-- pipe
-- JWT Authentication
-- Role Based Access: differ levels of user by authorization class
-- Chat: major implementation
-- filter: exception handlers
-- Cache
-- Prisma
-- Logger
-- Swagger
-
+- guard: allow validated only types of data ✔
+- interceptor: a middleware to manipulate user's data ✔
+- pipe: 
+- JWT Authentication: 
+- Role Based Access: differ levels of user by authorization class 
+- Chat: major websocket implementation ✔
+- filter: exception handlers ✔
+- Cache: 
+- Prisma: 
+- Logger: 
+- Swagger: 
+- Test: 
 
 
 ## Chat
@@ -92,3 +93,16 @@ Lifecycle Hooks
 ```
 ```
 
+
+## Debug
+- Fix incorrect queries
+- Fix missing `commitTransaction()` to messages will appear in DB
+- Do not create new rooms repeatedly
+- Send recipient ID from frontend
+
+
+## Scale Up In Future
+- Store conversation list per user (last message, unread count, etc)
+- Return `roomId` to frontend instead of recalculating it
+- Let frontend send messages to `roomId` instead of to recipientId
+- Use `roomId` everywhere to scale to group chats later
