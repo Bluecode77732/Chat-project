@@ -9,7 +9,7 @@ export interface Payload {
     type: "refresh" | "access",
 
     // Distinguish Authorization Level
-    role: UserRole.admin | UserRole.participant,
+    role: UserRole.signedIn | UserRole.signedOut,
 
     // JWT library handles automatically the `iat/exp` dates.
 };

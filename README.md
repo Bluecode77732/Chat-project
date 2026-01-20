@@ -95,14 +95,14 @@ Lifecycle Hooks
 
 
 ## Debug
-- Fix incorrect queries
-- Fix missing `commitTransaction()` to messages will appear in DB
-- Do not create new rooms repeatedly
-- Send recipient ID from frontend
+- Incorrect queries in TypeORM
+- Missing `commitTransaction()` to messages will appear in DB
+- Creating new rooms repeatedly when send message each time
+- Sending wrong recipient ID from frontend
 
 
 ## Scale Up In Future
 - Store conversation list per user (last message, unread count, etc)
 - Return `roomId` to frontend instead of recalculating it
 - Let frontend send messages to `roomId` instead of to recipientId
-- Use `roomId` everywhere to scale to group chats later
+- Use `roomId` to scale to group chats later

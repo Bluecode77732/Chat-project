@@ -74,10 +74,10 @@ export class AuthService {
 
         // Verifies if user exist or not
         if (user) {
-            throw new BadRequestException("User Aleady Exist.");
+            throw new BadRequestException("User Already Exist.");
         };
 
-        // Hashing the password by bcrypt in secret hashig rounds
+        // Hashing the password by bcrypt in secret hashing rounds
         const hash = await bcrypt.hash(password, this.configService.getOrThrow<number>('HASH_ROUNDS'));
 
         // Stores user email and hashed password by TypeORM method
@@ -127,6 +127,7 @@ export class AuthService {
             type: isRefreshToken ? 'refresh' : 'access',
             role: user.role,
         };
+        console.log("Payload being signed:", payload);
 
         // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
         return await this.jwtService.signAsync(

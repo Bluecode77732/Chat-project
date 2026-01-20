@@ -2,12 +2,14 @@ import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
-import { UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Chat')
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
@@ -27,7 +29,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         // Put bearer token into data.user to be extracted by 
         client.data.user = payload;
 
-        console.log(`Succeed : Connected, payload on data.user`);
+        // console.log(`Succeed : Connected, payload on data.user`);
+        
+        const userId = Number(payload.sub);           // enforce number
+        console.log("Registering user ID type:", typeof userId, userId);
 
         // Remember the specific client with a certain key
         this.chatService.registerClient(payload.sub, client);
@@ -69,6 +74,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const payload = client.data.user;
     await this.chatService.sendMessage(payload, dto, qr);
   }
+
+
+  // @Get(':id')
+  // async getUserConversation(@Param('id') userId: number) {
+  //   return await this.chatService.getUserConversation(userId);
+  // }
 
 
   // @SubscribeMessage('send')

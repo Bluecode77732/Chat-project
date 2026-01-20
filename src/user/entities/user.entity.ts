@@ -31,7 +31,7 @@ export class UserEntity extends EntityBase {
     // Access level
     @Column({
         enum: UserRole,
-        default: UserRole.participant,
+        default: UserRole.signedIn,
     })
     @IsNumber()
     @IsNotEmpty()

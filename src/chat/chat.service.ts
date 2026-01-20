@@ -210,15 +210,22 @@ export class ChatService {
             });
 
             // Get client ID from Socket
-            const clientSocket = this.clientConnection.get(sender.id);
+            const getClientSocket = this.clientConnection.get(sender.id);
+
+            console.log("clientSocket found?", !!getClientSocket);
+            if (!getClientSocket) {
+                console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                throw new WsException("Cannot Find Sender ID");
+            }
+
             // Get recipient ID from Socket
             const recipientSocket = this.clientConnection.get(recipient.id);
 
-            if (!clientSocket) {
+            if (!getClientSocket) {
                 throw new WsException("Cannot Find Sender ID");
             } else {
                 // Targets which room to broadcast
-                clientSocket.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                getClientSocket.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
 
             if (!recipientSocket) {
@@ -232,9 +239,9 @@ export class ChatService {
 
                 const recipientSocket = this.clientConnection.get(recipient.id);
                 console.log("Recipient joined rooms:", recipientSocket?.rooms);
-                
-                // Emit on room to send
-                clientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+
+                // Emit message in the room
+                getClientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
 
             await queryRunner.commitTransaction();
@@ -251,7 +258,7 @@ export class ChatService {
             console.log(`ERROR: ${error}`)
             await queryRunner.rollbackTransaction();
         } finally {
-            await queryRunner.release()
+            await queryRunner.release();
         };
-    }
+    };
 }
