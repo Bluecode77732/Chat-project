@@ -9,6 +9,9 @@ import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import { EntityBase } from './base/base.entity';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'node:path';
 
 @Module({
   imports: [
@@ -52,6 +55,15 @@ import { EntityBase } from './base/base.entity';
       }),
       // It tells IOC container what dependency injection to be injected with.
       inject: [ConfigService],
+    }),
+    // Configure GraphQL with the forRoot() static method.
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      subscriptions: {
+        "graphql-ws": true,
+      },
+      playground: false,
     }),
     UserModule,
     ChatModule,
