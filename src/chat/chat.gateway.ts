@@ -7,9 +7,8 @@ import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
-import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('Chat')
+
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(

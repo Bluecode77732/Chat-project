@@ -102,7 +102,8 @@ Lifecycle Hooks
 
 
 ## Scale Up In Future
-- Store conversation list per user (last message, unread count, etc)
-- Return `roomId` to frontend instead of recalculating it
+- Store conversation list per user (last message, unread message, etc)
+- Return `roomId` to frontend instead of recalculating(mid of queries) it
 - Let frontend send messages to `roomId` instead of to recipientId
 - Use `roomId` to scale to group chats later
+- Let users delete rooms and conversation
