@@ -4,29 +4,63 @@
 // or as a promise that resolves to a result of that shape.
 
 
-import { Resolver, Subscription, Mutation, Args, Query } from '@nestjs/graphql';
+import { Resolver, Subscription, Mutation, Args, Query, Context, ID, Int } from '@nestjs/graphql';
 import { PubSub } from 'graphql-subscriptions'; // or use own injectable PubSub
-import { MessageType } from './type/message-Type.dto';
+import { CreateChatInput } from 'src/graphql/create-chat-input.type';
+import { MessageType } from 'src/graphql/message-type.dto';
+import { ChatService } from './chat.service';
+import { UseGuards } from '@nestjs/common';
+import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
+
 
 const pubSub = new PubSub(); // simple in-memory (for dev/single instance)
 
+
 @Resolver()
 export class ChatResolver {
+    constructor(
+        private readonly chatService: ChatService,
+    ) { }
 
-    @Query(() => String)
-    hello(): string {
-        return 'Hello World'; // <= fixes the error (GraphQL requires at least one @Query)
+    // A dummy query to satisfy root Query requirement
+    @Query(() => MessageType)
+    ping(): string {
+        return 'ping has returned.'; // <= fixes the error (GraphQL requires at least one @Query)
     }
 
-    @Mutation(() => String)
-    async sendMessage(@Args('text') text: string): Promise<string> {
-        const message = { id: Date.now(), text, createdAt: new Date() };
-        pubSub.publish('messageAdded', { messageAdded: message });
-        return 'Message sent!';
-    }
+    @Mutation(() => MessageType)
+    @UseGuards(GraphQLAuthGuard)
+    async sendMessage(
+        @Context() ctx: any,
+        // @Args('message') message: string,
+        @Args('input') input: CreateChatInput,
+        @Args('recipientId', { type: () => Int }) recipientId: number,
+    ): Promise<string | null> {
+        const userId = ctx.req?.user?.sub || 1;
+        const savedMessage = await this.chatService.sendMessage(
+            { sub: userId },
+            {
+                message: input.message,
+                recipientId
+            },
+            // {
+            //     message: input.message,
+            //     recipientId: input.recipientId
+            // },
+        );
+        const roomId = input.roomId;
+
+        pubSub.publish(`messageAdded:${roomId}`, { messageAdded: savedMessage });
+
+        console.log('Message sent!');
+        return savedMessage || null;
+    };
 
     @Subscription(() => MessageType) // define your ObjectType
-    messageAdded() {
-        return pubSub.asyncIterableIterator('messageAdded');
-    }
+    @UseGuards(GraphQLAuthGuard)
+    messageAdded(
+        @Args('roomId', { type: () => ID }) roomId: number,
+    ) {
+        return pubSub.asyncIterableIterator(`messageAdded:${roomId}`);
+    };
 }

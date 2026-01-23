@@ -7,9 +7,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { RoomEntity } from './entities/room.entity';
 import { ChatResolver } from './chat.resolver';
-import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { join } from 'node:path';
 
 @Module({
   imports: [
@@ -21,5 +18,6 @@ import { join } from 'node:path';
     ]),
   ],
   providers: [ChatGateway, ChatService, ChatResolver],
+  exports: [ChatService],
 })
 export class ChatModule { }
