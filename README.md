@@ -63,15 +63,15 @@
 - guard: allow validated only types of data ✔
 - interceptor: a middleware to manipulate user's data ✔
 - pipe: 
-- JWT Authentication: 
+- JWT Authentication: authenticate user validation for using the application
 - Role Based Access: differ levels of user by authorization class 
 - Chat: major websocket implementation ✔
 - filter: exception handlers ✔
+- Logger: records events, error, debug infos while executing the application
+- Test: 
 - Cache: 
 - Prisma: 
-- Logger: 
 - Swagger: 
-- Test: 
 
 
 ## Chat
