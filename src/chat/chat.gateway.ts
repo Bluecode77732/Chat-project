@@ -2,16 +2,19 @@ import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
-import { Controller, Get, Param, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Inject, LoggerService, Param, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
+    // @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    // private readonly logger: LoggerService,
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
   ) { }

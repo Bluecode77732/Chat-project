@@ -1,4 +1,4 @@
-import { EntityBase } from "src/base/base.entity";
+import { EntityBase } from "src/base/entity/base.entity";
 import { UserEntity } from "src/user/entities/user.entity"
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { RoomEntity } from "./room.entity";
