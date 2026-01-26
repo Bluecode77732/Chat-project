@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Payload } from 'src/auth/interface/payload.interface';
 import { UserRole } from './role/role';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class AuthService {
@@ -52,6 +53,8 @@ export class AuthService {
         // 8. Extract email and password for returning to client.
         const [email, password] = tokenSplit;
 
+        logger.info(`User '${email}' parsed a basic token: ${basicToken}`);
+
         // 9. Return result.
         return {
             email,
@@ -86,6 +89,8 @@ export class AuthService {
             password: hash,
         });
 
+        logger.info(`User '${email}' is registered`);
+
         // Finds user's email returning to client by TypeORM method
         return await this.userRepository.findOne({
             where: {
@@ -112,6 +117,7 @@ export class AuthService {
             throw new BadRequestException("Invalid User.");
         };
 
+        logger.info(`User '${email}' is authenticated`);
         return user;
     };
 
@@ -129,6 +135,8 @@ export class AuthService {
         };
         console.log("Payload being signed:", payload);
 
+        logger.info(`User '${user.id}' issued refresh and access tokens`);
+        
         // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
         return await this.jwtService.signAsync(
             payload,
@@ -175,10 +183,11 @@ export class AuthService {
                 }
             };
 
+            logger.info(`User parsed '${rawToken}' to get a bearer token: ${bearer} ${token}`);
             return payload;
 
         } catch (err) {
-
+            logger.error(err.message, { timestamp: new Date().toISOString() });
             throw new UnauthorizedException("Token Expired");
         }
     }
@@ -191,6 +200,8 @@ export class AuthService {
 
         // Authenticates email and password
         const user = await this.validateUser(email, password);
+
+        logger.info(`User '${email}' signed in. Say Hi.`);
 
         return {
             refreshToken: await this.issueToken(user, true),

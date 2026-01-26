@@ -40,15 +40,15 @@ export class ChatService {
     registerClient(participantId: number, client: Socket) {
         this.clientConnection.set(participantId, client);
         // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
-        logger.info(`${Date.now()} - User ${participantId} has connected`);
+        logger.info(`User ${participantId} has connected`);
     };
 
 
     // Disconnect Socket
     removeClient(participantId: number) {
         this.clientConnection.delete(participantId);
-        // this.logger.log(`${Date.now()} - User ${participantId} has disconnected`);
-        logger.info(`${Date.now()} - User ${participantId} has disconnected`);
+        // this.logger.log(`User ${participantId} has disconnected`);
+        logger.info(`User ${participantId} has disconnected`);
     };
 
 
@@ -66,8 +66,8 @@ export class ChatService {
             client.join(room.id.toString());
         });
 
-        // this.logger.log(`${Date.now()} - User ${user.sub} has registered`);
-        logger.info(`${Date.now()} - User ${user.sub} has registered`);
+        // this.logger.log(`User ${user.sub} has registered`);
+        logger.info(`User ${user.sub} has registered`);
         // console.log("User are connected to DB and joined into a room.");
     };
 
@@ -86,8 +86,8 @@ export class ChatService {
 
         // console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
 
-        // this.logger.log(`${Date.now()} - User ${ids} found a room`);
-        logger.info(`${Date.now()} - User ${ids} found a room`);
+        // this.logger.log(`User ${ids} found a room`);
+        logger.info(`User ${ids} found a room`);
         // console.log("finding a room");
 
         return manager
@@ -114,8 +114,8 @@ export class ChatService {
         };
 
         // console.log("Saved users into a room");
-        // this.logger.log(`${Date.now()} - User ${user1.id}, ${user2.id} are saved into a room`);
-        logger.info(`${Date.now()} - User ${user1.id}, ${user2.id} are saved into a room`);
+        // this.logger.log(`User ${user1.id}, ${user2.id} are saved into a room`);
+        logger.info(`User ${user1.id}, ${user2.id} are saved into a room`);
         return saved;
     };
 
@@ -172,8 +172,8 @@ export class ChatService {
         });
 
         // console.log("created a room");
-        // this.logger.log(`${Date.now()} - User ${sender.id}, ${recipient.id} created a room`);
-        logger.info(`${Date.now()} - User ${sender.id}, ${recipient.id} created a room`);
+        // this.logger.log(`User ${sender.id}, ${recipient.id} created a room`);
+        logger.info(`User ${sender.id}, ${recipient.id} created a room`);
         return room;
     }
 
@@ -264,23 +264,22 @@ export class ChatService {
             };
 
             await queryRunner.commitTransaction();
-            // this.logger.log(`${Date.now()} - User ${payload.sub}'s message is saved in the chat room`);
-            logger.info(`${Date.now()} - User ${payload.sub}'s message is saved in the chat room`);
+            // this.logger.log(`User ${payload.sub}'s message is saved in the chat room`);
+            logger.info(`User ${payload.sub}'s message is saved in the chat room`);
             // console.log("Message committed to DB with ID:", messageSchema.id);
 
             // Final return
             // console.log("returning a msg");
-            // this.logger.log(`${Date.now()} - User ${payload.sub} sent a message`);
-            logger.info(`${Date.now()} - User ${payload.sub} sent a message`);
+            // this.logger.log(`User ${payload.sub} sent a message`);
+            logger.info(`User ${payload.sub} sent a message`);
             return message;
 
-            console.log("returning a msg schema");
+            // console.log("returning a msg schema");
             // return messageSchema;
 
         } catch (error) {
             // console.log(`ERROR: ${error}`);
-            // this.logger.error(`${Date.now()} - ERROR: ${error}`);
-            logger.error(`${Date.now()} - ERROR: ${error}`);
+            logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
             await queryRunner.rollbackTransaction();
         } finally {
             await queryRunner.release();
