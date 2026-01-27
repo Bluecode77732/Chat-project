@@ -3,10 +3,10 @@ import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { Controller, Get, Inject, LoggerService, Param, UseInterceptors } from '@nestjs/common';
-import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
+import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
+import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 
 

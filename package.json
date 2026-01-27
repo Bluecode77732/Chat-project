@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "chat-app",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -81,7 +81,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "roots": ["src"],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -90,6 +90,24 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "coveragePathIgnorePatterns": [
+      "main.ts",
+      "module.ts",
+      "dto.ts",
+      "entity.ts",
+      "decorator.ts",
+      "dec.ts",
+      "strategy.ts",
+      "guard.ts",
+      "controller.ts",
+      "gateway.ts",
+      "interceptor.ts",
+      "itc.ts"
+    ],
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "COMMENT": "It means Typescript compiles src",
+      "src/(.*)": "<rootDir>/src/$1"
+    }
   }
 }

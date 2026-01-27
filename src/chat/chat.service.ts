@@ -1,5 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-// import type { LoggerService } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Socket } from 'socket.io';
 import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
@@ -10,7 +9,6 @@ import { CreateChatDto } from './entities/dto/create-chat.dto';
 // import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
-// import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { logger } from 'src/base/logger/logger';
 
 @Injectable()
@@ -30,9 +28,6 @@ export class ChatService {
 
         // Injecting DataSource for transactions
         private readonly dataSource: DataSource,
-
-        // @Inject(WINSTON_MODULE_NEST_PROVIDER)
-        // private readonly logger: LoggerService,
     ) { };
 
 
