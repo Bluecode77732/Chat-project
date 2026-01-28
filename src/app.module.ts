@@ -10,8 +10,6 @@ import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import { EntityBase } from './base/entity/base.entity';
 import { WinstonModule } from 'nest-winston';
-import * as winston from 'winston';
-import { join } from 'node:path';
 
 @Module({
   imports: [

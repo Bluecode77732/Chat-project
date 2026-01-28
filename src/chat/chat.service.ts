@@ -55,12 +55,14 @@ export class ChatService {
                 participantId: user.sub,
             })
             .getMany();
-
+        // console.log(rooms);
+        // console.log(client);
         // Join each room by its string ID (Socket.IO room names are strings)
         rooms.forEach((room) => {
             client.join(room.id.toString());
         });
-
+        
+        console.log(`This is result: ${rooms}`);
         // this.logger.log(`User ${user.sub} has registered`);
         logger.info(`User ${user.sub} has registered`);
         // console.log("User are connected to DB and joined into a room.");
@@ -248,10 +250,10 @@ export class ChatService {
                 // console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
                 // console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
 
-                const senderSocket = this.clientConnection.get(sender.id);
+                // const senderSocket = this.clientConnection.get(sender.id);
                 // console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
 
-                const recipientSocket = this.clientConnection.get(recipient.id);
+                // const recipientSocket = this.clientConnection.get(recipient.id);
                 // console.log("Recipient joined rooms:", recipientSocket?.rooms);
 
                 // Emit message in the room

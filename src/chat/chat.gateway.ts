@@ -33,8 +33,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         // console.log(`Succeed : Connected, payload on data.user`);
         
-        const userId = Number(payload.sub);           // enforce number
-        console.log("Registering user ID type:", typeof userId, userId);
+        // const userId = Number(payload.sub);           // enforce number
+        // console.log("Registering user ID type:", typeof userId, userId);
 
         // Remember the specific client with a certain key
         this.chatService.registerClient(payload.sub, client);
