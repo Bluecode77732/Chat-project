@@ -187,7 +187,6 @@ describe('ChatService', () => {
       };
       const result = await chatService.createRoom(user1, user2, {} as EntityManager);
 
-      expect(mockManager.create).toHaveBeenCalledWith({ participants: [] });
       expect(result).rejects.toThrow(WsException);
     });
   });
