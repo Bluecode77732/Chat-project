@@ -119,7 +119,7 @@ export class ChatService {
 
     // Find existing room between sender and recipient => or create new one
     // Also notifies both users (if online) about the new room and joins them
-    async getAndCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
+    async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
 
         //?! Fix: The queryRunner type should be its manager, so it does not conflict
         const manager = qr.manager ?? this.roomRepository.manager;
@@ -211,7 +211,7 @@ export class ChatService {
             };
 
             // Get and create a chat room : transactional
-            const room = await this.getAndCreateRoom(sender, recipientId, queryRunner);
+            const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
 
             // Check if room exist
             if (!room)

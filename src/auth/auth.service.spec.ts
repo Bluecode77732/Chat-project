@@ -84,7 +84,7 @@ describe('AuthService', () => {
       expect(result.password).toBe("Test123Password");
     });
 
-    it("should throw `BadReqeustException` for invalid token format", () => {
+    it("should throw `BadRequestException` for invalid token format", () => {
       const InvalidRawToken = "InvalidTokenFormat";
       expect(authService.parseBasicToken(InvalidRawToken)).rejects.toThrow(BadRequestException);
     });
