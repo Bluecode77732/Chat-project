@@ -161,8 +161,8 @@ describe('ChatService', () => {
 
   describe("createRoom", () => {
     it("should create and save a room", async () => {
-      const user1 = { id: 1, email: "email@gmail.com", role: 0 } as UserEntity;
-      const user2 = { id: 2, email: "email@gmail.com", role: 0 } as UserEntity;
+      const user1 = { id: 1, email: "user1@gmail.com", role: 0 } as UserEntity;
+      const user2 = { id: 2, email: "user1@gmail.com", role: 0 } as UserEntity;
       const mockRooms = [
         { id: 1, participants: 1, chats: 1 },
         { id: 2, participants: 2, chats: 2 },
@@ -180,8 +180,8 @@ describe('ChatService', () => {
     });
 
     it("should throw WebSocket exception if the room id does not exist", async () => {
-      const user1 = { id: 1, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
-      const user2 = { id: 2, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const user1 = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const user2 = { id: 2, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockManager = {
         create: jest.fn(),
         save: jest.fn(),
@@ -198,55 +198,43 @@ describe('ChatService', () => {
   describe("getOrCreateRoom", () => {
     it("should get a created room", async () => {
       //* the mock family
-      const mockSender = { id: 1, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockRecipientId = 2;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-      const mockManager = {
-        createQueryBuilder: jest.fn(),
-        create: jest.fn(),
-        innerJoin: jest.fn(),
-        where: jest.fn(),
-        andWhere: jest.fn(),
-        getOne: jest.fn(),
-      } as Partial<EntityManager>;
-
-      const mockRecipient = await userRepository.findOneBy({
-        id: mockRecipientId,
-      }) as UserEntity;
+      const mockRecipient = { id: 1 } as UserEntity;
 
       jest.spyOn(chatService, 'findRoom').mockResolvedValue(mockRooms);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
 
-      const result = await chatService.findRoom(mockSender.id, mockRecipientId, mockManager as EntityManager);
+      const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
 
-      expect(result).toEqual(mockRooms);
       expect(chatService.findRoom).toHaveBeenCalledWith(mockSender.id, mockSender.id, mockManager as EntityManager);
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: mockRecipientId });
+      expect(result).toEqual(mockRooms);
     });
 
 
     it("should create a room if it's non-existing", async () => {
-      const mockSender = { id: 1, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockRecipientId = 2;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-      const mockRecipient = await userRepository.findOneBy({
-        id: mockRecipientId,
-      }) as UserEntity;
-      
+      const mockRecipient = ({ id: 1 }) as UserEntity;
+
       jest.spyOn(chatService, 'findRoom').mockResolvedValue(null);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
       jest.spyOn(chatService, 'createRoom').mockResolvedValue(mockRooms);
 
-      let result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
+      const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
 
       expect(chatService.findRoom).toHaveBeenCalledWith(1, 2, mockManager as EntityManager);
-      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: mockRecipientId});
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: mockRecipientId });
       expect(chatService.createRoom).toHaveBeenCalledWith(mockSender, mockRecipient, mockManager as EntityManager);
       expect(result).toEqual(mockRooms);
     });
 
 
     it("should throw WebSocket exception if recipient does not exist", async () => {
-      const mockSender = { id: 1, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockRecipientId = 2;
 
       jest.spyOn(chatService, 'findRoom').mockResolvedValue(null);
@@ -254,6 +242,7 @@ describe('ChatService', () => {
 
       const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
 
+      expect()
       // WsException returned with promise in service
       await expect(result).rejects.toThrow(WsException);
     });
@@ -270,15 +259,13 @@ describe('ChatService', () => {
       const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockRecipientId = 2;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-      
-      const mockRecipient = await userRepository.findOneBy({
-        id: mockRecipientId,
-      }) as UserEntity;
-      
+      const mockRecipient = { id: 1 } as UserEntity;
+
+
       jest.spyOn(chatService, 'createRoom').mockResolvedValue(mockRooms);
-      
-      const room = await chatService.findRoom(1, 2, mockManager as EntityManager);
-      
+
+      const room = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
+
       expect(chatService.createRoom).toHaveBeenCalledWith(mockSender, mockRecipient, mockManager);
       // WsException returned with promise in service
       await expect(room?.id).rejects.toThrow(WsException);
@@ -290,10 +277,10 @@ describe('ChatService', () => {
       const mockSenderSocket = {} as Socket;
       const mockRecipientSocket = {} as Socket;
 
-      const mockSender = { id: 1, email: "email@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
       const mockRecipientId = 2;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-      const mockRecipient = await userRepository.findOneBy({ id: mockRecipientId }) as UserEntity;      
+      const mockRecipient = await userRepository.findOneBy({ id: mockRecipientId }) as UserEntity;
 
       //* [sender.id, recipient.id].forEach((id) => {
       //*    const connect = clientConnection.get(id);
@@ -311,7 +298,7 @@ describe('ChatService', () => {
       jest.spyOn(chatService, 'createRoom').mockResolvedValue(mockRooms);
 
       const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
-      
+
       //* Notify and connect two of users
       //* connect?.join(room.id.toString());
       //* connect?.emit("CreateRoom", room.id.toString());
@@ -380,7 +367,6 @@ describe('ChatService', () => {
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(recipientId);
 
       const result = await chatService.sendMessage(payload, createChatDto, mockQueryRunner as QueryRunner);
-      // await chatService.sendMessage(payload, createChatDto, mockQueryRunner as QueryRunner);
 
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
