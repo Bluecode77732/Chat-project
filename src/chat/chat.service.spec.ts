@@ -469,7 +469,7 @@ describe('ChatService', () => {
       jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(sender);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(recipient as UserEntity);
 
-      await chatService.sendMessage(payload, createChatDto);
+      await chatService.(payload, createChatDto);
 
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
@@ -479,7 +479,7 @@ describe('ChatService', () => {
 
     it("should throw null if connect to socket", async () => {
       const payload = { sub: 1 };
-      const createChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
+      const CreateChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
       const sender = { id: 1 } as UserEntity;
       const recipientId = { id: 2 } as UserEntity;
       const recipient = { id: 2 };
