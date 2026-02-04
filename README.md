@@ -69,7 +69,7 @@
 - filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application
 - Test: 
-- Cache: 
+- Cache: `Redis` for message rate-limit and store user's data efficiently.
 - Prisma: 
 - Swagger: 
 
