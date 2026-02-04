@@ -1,63 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Socket } from 'socket.io';
-import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
+import { QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-// import { UserRole } from 'src/auth/role/role';
+import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
-import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class ChatService {
-    // Maps authenticated userId to get their current Socket instance (1-to-1)
     private readonly clientConnection = new Map<number, Socket>();
 
-    // TypeORM repositories for Room and User with DataSource
     constructor(
-        // Injecting TypeORM dependencies for repository
         @InjectRepository(RoomEntity)
         private readonly roomRepository: Repository<RoomEntity>,
 
-        // Injecting TypeORM dependencies for repository
+        @InjectRepository(ChatEntity)
+        private readonly chatRepository: Repository<ChatEntity>,
+
         @InjectRepository(UserEntity)
         private readonly userRepository: Repository<UserEntity>,
-
-        // Injecting DataSource for transactions
-        private readonly dataSource: DataSource,
     ) { };
 
 
-    // Connect Socket
     registerClient(participantId: number, client: Socket) {
         this.clientConnection.set(participantId, client);
-        // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
-        logger.info(`User ${participantId} has connected`);
     };
 
 
-    // Disconnect Socket
     removeClient(participantId: number) {
         this.clientConnection.delete(participantId);
-        // this.logger.log(`User ${participantId} has disconnected`);
-        logger.info(`User ${participantId} has disconnected`);
     };
 
 
-    // Makes the user join all chat rooms they are already a member of
-    // Called right after successful authentication during socket connection
     async joinRooms(user: { sub: number }, client: Socket) {
-        const rooms = await this.roomRepository.createQueryBuilder('room_Entity')
-            .innerJoin('room_Entity.participants', 'participant', 'participant.id = :participantId', {
+        const rooms = await this.roomRepository.createQueryBuilder('chatRoomEntity')
+            .innerJoin('chatRoomEntity.participants', 'participant', 'participant.id = :participantId', {
                 participantId: user.sub,
             })
             .getMany();
-        // console.log(rooms);
-        // console.log(client);
-        // Join each room by its string ID (Socket.IO room names are strings)
+
         rooms.forEach((room) => {
             client.join(room.id.toString());
         });
@@ -66,17 +51,29 @@ export class ChatService {
     };
 
 
-    async validateUser(user: UserEntity, room?: number) {
-        if (user.role === UserRole.admin) {
-            if (!room) {
-                // This exception is listened for event-listening in the real-time chat
-                throw new WsException("Admin must create a room first.");
-            };
-        } else {
-            throw new WsException("Only admin can create a room.");
-        };
+    // async validateUser(user: UserEntity, room?: number) {
+    //     if (user.role === UserRole.admin) {
+    //         if (!room) {
+    //             // This exception is listened for event-listening in the real-time chat
+    //             throw new WsException("Admin must create a room first.");
+    //         };
+    //     } else {
+    //         throw new WsException("Only admin can create a room.");
+    //     };
 
-        console.log("validated a user");
+    //     console.log("validated a user");
+    //     return user;
+    // }
+
+
+    async findUserById(userId: number): Promise<UserEntity> {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+        });
+
+        if (!user)
+            throw new WsException('User not found');
+
         return user;
     }
 
@@ -97,7 +94,7 @@ export class ChatService {
 
 
         // Get a chat room
-        let chatRoom = await this.findRoom(client, qr, room);
+        // let chatRoom = await this.findRoom(client, qr, room);
 
         // Check if chat room exist
         // if (!chatRoom) {
@@ -106,7 +103,7 @@ export class ChatService {
         // Create a chat room if doesn't exist
         // chatRoom = await this.createRoom(client, qr, room);
         // Recheck if chat room exist
-        
+
 
         // const findChatRoom = await this.roomRepository.findOne({
         //     where: {
@@ -116,26 +113,31 @@ export class ChatService {
         // if (!findChatRoom) {
         //     throw new WsException("Cannot Find Room");
         // };
-        
 
-        const chatRoom = await this.createRoom(client, qr, room);
+
+        // Create a chat room
+
+        const participant = await this.findUserById(payload.sub);
+        const chatRoom = await this.getOrCreateRoom(client, qr, room);
         if (!chatRoom)
             throw new WsException("Cannot Find Room");
+        const messageSchema = await this.messageSchema(client, message, chatRoom, qr);
+
 
         // Save message in the chat database permanently
         // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
-        const messageSchema = await qr.manager.save(ChatEntity, {
-            participant: client,
-            message,
-            chatRoom,
-        });
+        // const messageSchema = await qr.manager.save(ChatEntity, {
+        //     participant: client,
+        //     message,
+        //     chatRoom,
+        // });
 
         // Getting the client ID from Socket
-        const clientId = this.clientConnection.get(client.id);
+        // const clientId = this.clientConnection.get(client.id);
 
-        if (!clientId) {
-            throw new WsException("Cannot Find Client ID");
-        }
+        // if (!clientId) {
+        //     throw new WsException("Cannot Find Client ID");
+        // };
 
         // Why is this code had written here again
         // if (chatRoom?.id) {
@@ -147,27 +149,27 @@ export class ChatService {
 
         // Targets which room to connect
         // getClientId.to(room.id.toString()).emit('Message Sent', messageSchema);
-        clientId.to(chatRoom.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+        // clientId.to(chatRoom.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+
+        // 
+        this.broadcastMessage(participant.id, chatRoom.id, messageSchema);
 
         // Final return
-        // console.log("created a msg");
-        // return message;
+        console.log("created a msg");
+        return message;
 
 
         // Targets which room to connect
         // getClientId.to(room.id.toString()).emit('Message Sent', messageSchema);
 
-        // Claude modification
-        // this.clientConnection.get(client.id)?.to(chatRoom?.id.toString()).emit('Message sent', plainToClass(ChatEntity, messageSchema));
-
         // Final return
-        console.log("created a msg");
+        // console.log("created a msg");
         // return message;
-        return messageSchema;
+        // return messageSchema;
     }
 
 
-    async findRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+    async findUserRoom(userId: number, qr: QueryRunner, room?: number) {
         // if (user.role === UserRole.admin) {
         //     if (!room) {
         //         // This exception is listened for event-listening in the real-time chat
@@ -184,91 +186,159 @@ export class ChatService {
         // };
 
         // Using `await` for ensuring exceptions properly to be caught by WebSocket exception handlers
-        if (!(user || room)) {
-            throw new WsException("User or Room Cannot Found.");
-        } else {
-            await this.validateUser(user, room);
+        // if (!(user || room)) {
+        //     throw new WsException("User or Room Cannot Found.");
+        // } else {
+        //     await this.validateUser(user, room);
+        // }
+
+        console.log("Found a room");
+
+        return await qr.manager
+            .createQueryBuilder(RoomEntity, 'chatRoom')
+            .innerJoin('chatRoom.participants', 'participant')
+            .where('participant.id = :participantId', { participantId: userId })
+            .getOne();
+        // .where('participant.id IN(:...ids)', {
+        //     ids: user.role === UserRole.admin ? [user.id] : [user.id],
+        // })
+    };
+
+
+    // async getAndCreateRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+    async findAdminRoom(roomId: number, qr: QueryRunner) {
+        if (!roomId) {
+            throw new WsException("Admin Must Insert A Room ID");
         }
 
-        console.log("got a room");
+        // * Separated Orchestrations *
+        // if (await this.validateUser(user, room)) {
         return qr.manager.findOne(RoomEntity, {
             // Find which room
-            where: { id: room },
+            where: { id: roomId },
             // Find which room is the participant in
             relations: ['participants'],
+        });
+        // };
+    }
+
+
+    async getRoom(user: UserEntity, qr: QueryRunner) {
+        // Get a chat room
+        let room = await this.findUserRoom(user.id, qr);
+
+        if (!room) {
+            room = await this.createRoom(user, qr);
+
+            const adminUser = await qr.manager.findOne(UserEntity, {
+                where: {
+                    role: UserRole.admin,
+                },
+            });
+
+            if (!adminUser) {
+                throw new WsException("User Cannot Find");
+            };
+
+            this.roomCreateNotification(room, [user.id, adminUser?.id]);
+        }
+
+        return room;
+        // return qr.manager.findOne(RoomEntity, {
+        //     where: { id: }
+        // })
+    }
+
+
+    async createRoom(user: UserEntity, qr: QueryRunner) {
+        // const chatRoom = await this.findRoom(user.id, qr, room);
+
+        // chatRoom = await this.createRoom(client, qr, room);
+        // if (!chatRoom) {
+
+
+        const admin = await this.userRepository.findOne({
+            where: {
+                role: UserRole.admin
+            },
+        });
+
+        if (!admin) {
+            throw new WsException("Admin Not Found");
+        };
+
+        return await qr.manager.save(RoomEntity, {
+            participants: [user, admin],
+        });
+
+
+        // chatRoom = await this.roomRepository.save({
+        //     participants: [user, admin],
+        // });
+
+        // [user.id, admin.id].forEach((participantId) => {
+
+    };
+
+    // console.log("created a room");
+    // return chatRoom;
+
+    // }
+
+    getOrCreateRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+
+        if (!room)
+            throw new WsException("Admin Not Found");
+
+        return user.role === UserRole.admin
+            ? this.findAdminRoom(room, qr)
+            : this.findUserRoom(user.id, qr);
+    }
+
+
+    async messageSchema(participant: UserEntity, message: string, room: RoomEntity, qr: QueryRunner) {
+        // Using transaction to abort when internet disconnected
+        return await qr.manager.save(ChatEntity, {
+            participant,
+            message,
+            room,
         });
     };
 
 
-    async createRoom(user: UserEntity, qr: QueryRunner, room?: number) {
+    roomCreateNotification(chatRoom: RoomEntity, userIds: number[]) {
+        userIds.forEach((participantId) => {
+            // Get Client ID
+            const connect = this.clientConnection.get(participantId);
 
-        // * Separated functions *
-        await this.validateUser(user, room);
-        const getChatRoom = await this.findRoom(user, qr, room);
-        if (getChatRoom) {
-
-            if (user.role === UserRole.admin) {
-                if (!room) {
-                    // This exception is listened for event-listening in the real-time chat
-                    throw new WsException("Admin must create a room first.");
+            if (connect) {
+                if (!chatRoom?.id) {
+                    throw new WsException({
+                        status: "error:400 - BadRequestException",
+                        message: "Cannot Find Room",
+                    });
+                } else {
+                    // Notifying successful connection
+                    connect.emit("CreateRoom", chatRoom.id);
+                    connect.join(chatRoom.id.toString());
                 };
-                // if (!room) {
-                //     return null;
-                // };
-
-                return qr.manager.findOne(RoomEntity, {
-                    where: { id: room },
-                    relations: ['participants'],
-                });
             };
+        })
 
-            let chatRoom = await qr.manager
-                .createQueryBuilder(RoomEntity, 'chatRoom')
-                .innerJoin('chatRoom.participants', 'participant')
-                .where('participant.id = :participantId', { participantId: user.id })
-                // .where('participant.id IN(:...ids)', {
-                //     ids: user.role === UserRole.admin ? [user.id] : [user.id],
-                // })
-                .getOne();
+        // [user.id, admin.id].forEach((participantId) => {
 
-            if (!chatRoom) {
-                const admin = await qr.manager.findOne(UserEntity, {
-                    where: { role: UserRole.admin },
-                });
+        //     // Get Client ID
+        // });
+    };
 
-                if (!admin) {
-                    throw new WsException("Admin Not Found");
-                }
 
-                // chatRoom = await this.roomRepository.save({
-                //     participants: [user, admin],
-                // });
-                chatRoom = await qr.manager.save(RoomEntity, {
-                    participants: [user, admin],
-                });
+    broadcastMessage(participantId: number, roomId: number, message: ChatEntity) {
+        const connect = this.clientConnection.get(participantId);
 
-                [user.id, admin.id].forEach((participantId) => {
+        if (!connect) {
+            throw new WsException("Connection Failed");
+        };
 
-                    // Get Client ID
-                    const connect = this.clientConnection.get(participantId);
-
-                    if (connect) {
-                        if (!chatRoom?.id) {
-                            throw new WsException({
-                                status: "error:400 - BadRequestException",
-                                message: "Cannot Find Room",
-                            });
-                        } else {
-                            // Notifying successful connection
-                            connect.emit("CreateRoom", chatRoom.id);
-                            connect.join(chatRoom.id.toString());
-                        };
-                    };
-                });
-            };
-
-            console.log("created a room");
-            return chatRoom;
-        }
-    }
+        connect.to(roomId.toString()).emit("sendMsg", plainToClass(ChatEntity, message));
+    };
 }
