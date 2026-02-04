@@ -2,15 +2,19 @@ import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
-import { UseInterceptors } from '@nestjs/common';
-import { WebSocketTransaction } from './interceptor/itc.ws.transaction';
+import { Controller, Get, Inject, LoggerService, Param, UseInterceptors } from '@nestjs/common';
+import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { WebSocketQueryRunner } from './decorator/dec.ws-query-runner';
+import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
+    // @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    // private readonly logger: LoggerService,
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
   ) { }
@@ -27,7 +31,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         // Put bearer token into data.user to be extracted by 
         client.data.user = payload;
 
-        console.log(`Succeed : Connected, payload on data.user`);
+        // console.log(`Succeed : Connected, payload on data.user`);
+        
+        // const userId = Number(payload.sub);           // enforce number
+        // console.log("Registering user ID type:", typeof userId, userId);
 
         // Remember the specific client with a certain key
         this.chatService.registerClient(payload.sub, client);
@@ -53,21 +60,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.chatService.removeClient(user.sub);
     }
 
+    // This is fun when disconnected lol
     // throw new Error('Method not implemented.');
   }
 
 
   // Connect socket
-  @SubscribeMessage('sendMsg')
+  @SubscribeMessage('sendMessage')
   @UseInterceptors(WebSocketTransaction)
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
-    @WebSocketQueryRunner() qr: QueryRunner,
+    // @WebSocketQueryRunner() qr: QueryRunner,
   ) {
     const payload = client.data.user;
-    await this.chatService.createMessage(payload, dto, qr);
+    await this.chatService.sendMessage(payload, dto);
   }
+
+
+  // @Get(':id')
+  // async getUserConversation(@Param('id') userId: number) {
+  //   return await this.chatService.getUserConversation(userId);
+  // }
 
 
   // @SubscribeMessage('send')

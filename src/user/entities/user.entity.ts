@@ -2,7 +2,7 @@ import { ChatEntity } from "src/chat/entities/chat.entity";
 import { Column, Entity, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Exclude } from "class-transformer";
 import { IsEmail, IsNotEmpty, IsNumber, IsString } from "class-validator";
-import { EntityBase } from "src/base/base.entity";
+import { EntityBase } from "src/base/entity/base.entity";
 import { UserRole } from "src/auth/role/role";
 import { RoomEntity } from "src/chat/entities/room.entity";
 
@@ -31,7 +31,7 @@ export class UserEntity extends EntityBase {
     // Access level
     @Column({
         enum: UserRole,
-        default: UserRole.participant,
+        default: UserRole.signedIn,
     })
     @IsNumber()
     @IsNotEmpty()

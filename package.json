@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "chat-app",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -38,6 +38,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "joi": "^18.0.2",
+    "nest-winston": "^1.10.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -45,7 +46,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -57,6 +59,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
+    "@types/winston": "^2.4.4",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -78,7 +81,7 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "roots": ["src"],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
@@ -86,7 +89,25 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "coverageDirectory": "./coverage",
+    "coveragePathIgnorePatterns": [
+      "main.ts",
+      "module.ts",
+      "dto.ts",
+      "entity.ts",
+      "decorator.ts",
+      "dec.ts",
+      "strategy.ts",
+      "guard.ts",
+      "controller.ts",
+      "gateway.ts",
+      "interceptor.ts",
+      "itc.ts"
+    ],
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "COMMENT": "It saves subsides under current positioning root directories Typescript compiles src",
+      "src/(.*)": "<rootDir>/src/$1"
+    }
   }
 }

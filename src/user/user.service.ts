@@ -39,7 +39,7 @@ export class UserService {
     await this.userRepository.save({
       email,
       password: hash,
-      role: UserRole.participant,
+      role: UserRole.signedIn,
     });
 
     return await this.userRepository.findOne({

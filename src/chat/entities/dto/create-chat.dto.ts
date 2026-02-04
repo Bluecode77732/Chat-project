@@ -12,6 +12,15 @@ export class CreateChatDto {
     @IsString()
     message: string;
 
+    @ApiProperty({
+        description: "A recipient ID who receives sender's message with",
+        example: "Receive message",
+        type: Number,
+    })
+    @IsNumber()
+    recipientId: number;
+
+    
     // An admin can join in many rooms, while a user join individually.
     @ApiProperty({
         description: "A room where user can join in",

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
@@ -8,7 +8,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
-import { EntityBase } from './base/base.entity';
+import { EntityBase } from './base/entity/base.entity';
+import { WinstonModule } from 'nest-winston';
 
 @Module({
   imports: [
@@ -57,5 +58,6 @@ import { EntityBase } from './base/base.entity';
     ChatModule,
     AuthModule,
   ],
+  providers: [Logger],
 })
 export class AppModule { }

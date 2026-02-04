@@ -1,5 +1,6 @@
 # Chat Project
-- An application that validated users to chat between them.
+- An classical private One-to-One chatting server-side management that validated users to chat between the other user.
+- This project is for understanding how using socket.io can make two entities communicate each other and save their chat logs in server.
 
 ## Quick Start
 - Prerequisites
@@ -59,20 +60,32 @@
 
 
 ## Implementation
-- guard: allow validated only types of data
-- interceptor: , to log user's data
-- pipe
-- JWT Authentication
-- Role Based Access: differ levels of user by authorization class
-- Chat: major impletation
-- filter: exception handlers
-- 
+- guard: allow validated only types of data ✔
+- interceptor: a middleware to manipulate user's data ✔
+- pipe: 
+- JWT Authentication: authenticate user validation for using the application
+- Role Based Access: differ levels of user by authorization class 
+- Chat: major websocket implementation ✔
+- filter: exception handlers ✔
+- Logger: records events, error, debug infos while executing the application
+- Test: 
+- Cache: 
+- Prisma: 
+- Swagger: 
 
+## Flow
+1. Validate users
+2. Join Users 
+3. Find room 
+4. Create room 
+5. Send message 
+6. Save message 
+7. Broadcast to sockets
 
 
 ## Chat
 Websocket
-  A real-time, bidirectional communication protocol, connects betweeen a web browser(clients) and server.
+  A real-time, bidirectional communication protocol, connects between a web browser(clients) and server.
   It creates persistent connections for instant data exchange, replacing slow HTTP polling for dynamic, low-latency experiences.
 
 Lifecycle Hooks
@@ -86,7 +99,20 @@ Lifecycle Hooks
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
 
 - Postman Log
-
-
 ```
 ```
+
+
+## Debug
+- Incorrect queries in TypeORM
+- Missing `commitTransaction()` to messages will appear in DB
+- Creating new rooms repeatedly when send message each time
+- Sending wrong recipient ID from frontend
+
+
+## Scale Up In Future
+- Store conversation list per user (last message, unread message, etc)
+- Return `roomId` to frontend instead of recalculating(mid of queries) it
+- Let frontend send messages to `roomId` instead of to recipientId
+- Use `roomId` to scale to group chats later
+- Let users delete rooms and conversation
