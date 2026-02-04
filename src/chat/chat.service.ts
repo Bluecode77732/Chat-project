@@ -180,7 +180,7 @@ export class ChatService {
     // - Finds or creates room
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, qr: QueryRunner) {
+    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
 
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();

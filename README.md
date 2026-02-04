@@ -73,6 +73,15 @@
 - Prisma: 
 - Swagger: 
 
+## Flow
+1. Validate users
+2. Join Users 
+3. Find room 
+4. Create room 
+5. Send message 
+6. Save message 
+7. Broadcast to sockets
+
 
 ## Chat
 Websocket
