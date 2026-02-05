@@ -222,7 +222,7 @@ export class ChatService {
             const messageSchema = await queryRunner.manager.save(ChatEntity, {
                 participant: sender,
                 message,
-                chatRoom: room,
+                room,
             });
 
             // Get client ID from Socket
