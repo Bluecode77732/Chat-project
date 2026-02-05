@@ -2,12 +2,12 @@ import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect,
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
-import { Controller, Get, Inject, LoggerService, Param, UseInterceptors } from '@nestjs/common';
+import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
-import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { RateLimitGuard } from './guard/rate-limit.guard';
 
 
 @WebSocketGateway()
@@ -20,19 +20,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) { }
 
   async handleConnection(client: Socket) {
+    console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
       const rawToken = client.handshake.headers.authorization;
+      console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload
       const payload = await this.authService.parseBearerToken(String(rawToken), false);
+      console.log('🔍 Payload:', payload);
 
       if (payload) {
         // Put bearer token into data.user to be extracted by 
         client.data.user = payload;
 
         // console.log(`Succeed : Connected, payload on data.user`);
-        
+
         // const userId = Number(payload.sub);           // enforce number
         // console.log("Registering user ID type:", typeof userId, userId);
 
@@ -68,6 +71,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Connect socket
   @SubscribeMessage('sendMessage')
   @UseInterceptors(WebSocketTransaction)
+  @UseGuards(RateLimitGuard)
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
