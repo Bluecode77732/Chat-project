@@ -94,8 +94,8 @@ Lifecycle Hooks
 - OnGatewayDisconnect
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
-## Docker
-### Build
+### Docker
+#### Build
 - Using Docker to run Redis server
 
 Run Redis Container
@@ -108,7 +108,7 @@ Verify Redis Connection
 `docker exec -it redis-chat redis-cli ping` => PONG
 
 
-### Usage
+#### Usage
 Start Redis
 `docker start redis-chat`
 

@@ -181,10 +181,12 @@ export class ChatService {
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
     async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
-
+        console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
+        console.log('📨 QueryRunner connected');
         await queryRunner.startTransaction();
+        console.log('📨 Transaction started');
 
         try {
             // 1. Find a client
@@ -212,6 +214,7 @@ export class ChatService {
 
             // Get and create a chat room : transactional
             const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
+            console.log('📨 room obtain', { roomId: room.id });
 
             // Check if room exist
             if (!room)
@@ -222,8 +225,9 @@ export class ChatService {
             const messageSchema = await queryRunner.manager.save(ChatEntity, {
                 participant: sender,
                 message,
-                chatRoom: room,
+                room,
             });
+            console.log('📨 Message saved', { messageId: messageSchema.id, roomId: room.id });
 
             // Get client ID from Socket
             const getClientSocket = this.clientConnection.get(sender.id);
@@ -263,7 +267,7 @@ export class ChatService {
             await queryRunner.commitTransaction();
             // this.logger.log(`User ${payload.sub}'s message is saved in the chat room`);
             logger.info(`User ${payload.sub}'s message is saved in the chat room`);
-            // console.log("Message committed to DB with ID:", messageSchema.id);
+            console.log("Message committed to DB with ID:", messageSchema.id);
 
             // Final return
             // console.log("returning a msg");
