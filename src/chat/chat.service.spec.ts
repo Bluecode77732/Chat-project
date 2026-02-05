@@ -321,7 +321,10 @@ describe('ChatService', () => {
     it("should send message through successfully commit transaction", async () => {
       const mockClientConnection = new Map<number, Socket>();
       const mockPayload = { sub: 1 };
-      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
+      const mockCreateChatDto: CreateChatDto = {
+        message: "a message", recipientId: 2,
+        room: 0
+      };
       const mockSender = { id: 1 } as UserEntity;
       const mockSenderSocket = { id: '1' } as Socket;
       const mockRecipient = { id: 1 } as UserEntity;
@@ -438,7 +441,10 @@ describe('ChatService', () => {
 
     it("should throw WebSocket exception if sender does not exist then rollback to release", async () => {
       const mockPayload = { sub: 1 };
-      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
+      const mockCreateChatDto: CreateChatDto = {
+        message: "a message", recipientId: 2,
+        room: 0
+      };
       const mockSender = { id: 1 } as UserEntity;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity
       const mockMessageSchema = {
@@ -463,7 +469,10 @@ describe('ChatService', () => {
 
     it("should throw WebSocket exception if recipient does not exist then rollback to release", async () => {
       const payload = { sub: 1 };
-      const createChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
+      const createChatDto: CreateChatDto = {
+        message: "a message", recipientId: 2,
+        room: 0
+      };
       const sender = { id: 1 } as UserEntity;
       const recipient = { id: 2 };
 
@@ -480,7 +489,10 @@ describe('ChatService', () => {
 
     it("should throw null if connect to socket", async () => {
       const payload = { sub: 1 };
-      const createChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
+      const createChatDto: CreateChatDto = {
+        message: "a message", recipientId: 2,
+        room: 0
+      };
       const sender = { id: 1 } as UserEntity;
       const recipientId = { id: 2 } as UserEntity;
       const recipient = { id: 2 };

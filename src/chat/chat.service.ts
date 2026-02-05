@@ -61,7 +61,7 @@ export class ChatService {
         rooms.forEach((room) => {
             client.join(room.id.toString());
         });
-        
+
         console.log(`This is result: ${rooms}`);
         // this.logger.log(`User ${user.sub} has registered`);
         logger.info(`User ${user.sub} has registered`);
@@ -216,7 +216,7 @@ export class ChatService {
             // Check if room exist
             if (!room)
                 throw new WsException("Cannot Find Room");
-            
+
             // Save message in the chat database permanently
             // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
             const messageSchema = await queryRunner.manager.save(ChatEntity, {

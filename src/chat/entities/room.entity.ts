@@ -19,7 +19,7 @@ export class RoomEntity extends EntityBase {
     // Chats in the rooms
     @OneToMany(
         () => ChatEntity,
-        (room) => room.chatRoom,
+        (room) => room.room,
     )
     chats: ChatEntity[]
 }

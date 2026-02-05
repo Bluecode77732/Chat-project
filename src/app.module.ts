@@ -9,7 +9,7 @@ import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import { EntityBase } from './base/entity/base.entity';
-import { WinstonModule } from 'nest-winston';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -57,6 +57,7 @@ import { WinstonModule } from 'nest-winston';
     UserModule,
     ChatModule,
     AuthModule,
+    // RedisModule,
   ],
   providers: [Logger],
 })

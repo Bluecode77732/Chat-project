@@ -94,6 +94,32 @@ Lifecycle Hooks
 - OnGatewayDisconnect
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
+## Docker
+### Build
+- Using Docker to run Redis server
+
+Run Redis Container
+`docker run -d -p 6379:6379 --name redis-chat redis:latest`
+
+Show 'redis-chat' container
+`docker ps`
+
+Verify Redis Connection
+`docker exec -it redis-chat redis-cli ping` => PONG
+
+
+### Usage
+Start Redis
+`docker start redis-chat`
+
+Stop Redis
+`docker stop redis-chat`
+
+Remove container (keeps image)
+`docker rm redis-chat`
+
+
+
 - Terminal Log
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "send" message -->
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
