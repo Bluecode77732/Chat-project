@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class UserService {
@@ -30,6 +31,7 @@ export class UserService {
     });
 
     if (user) {
+      logger.error(`User '${user}' failed to register`, { timestamp: new Date().toISOString() });
       throw new BadRequestException('Registration failed');
     };
 
@@ -41,6 +43,7 @@ export class UserService {
       password: hash,
       role: UserRole.signedIn,
     });
+    logger.info(`User '${user}' is created`, { timestamp: new Date().toISOString() });
 
     return await this.userRepository.findOne({
       where: {
@@ -106,6 +109,7 @@ export class UserService {
         role: updateUserDto.role,
       },
     );
+    logger.info(`User '${user.id}' is updated`, { timestamp: new Date().toISOString() });
 
     // Returning result to client
     return await this.userRepository.findOne({
@@ -128,6 +132,7 @@ export class UserService {
     }
 
     await this.userRepository.delete(id);
+    logger.info(`User '${user.id}' is deleted`, { timestamp: new Date().toISOString() });
 
     return `The user ${id} is deleted`;
   };

@@ -68,12 +68,13 @@
 - Chat: major websocket implementation ✔
 - filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application
-- Test: 
-- Cache: 
+- Unit Test: Testing service methods by each unit
+- Cache: `Redis` for message rate-limit and store user's data efficiently.
 - Prisma: 
 - Swagger: 
 
 ## Flow
+### Chat
 1. Validate users
 2. Join Users 
 3. Find room 
@@ -94,8 +95,8 @@ Lifecycle Hooks
 - OnGatewayDisconnect
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
-## Docker
-### Build
+### Docker
+#### Build
 - Using Docker to run Redis server
 
 Run Redis Container
@@ -108,7 +109,7 @@ Verify Redis Connection
 `docker exec -it redis-chat redis-cli ping` => PONG
 
 
-### Usage
+#### Usage
 Start Redis
 `docker start redis-chat`
 

@@ -321,10 +321,7 @@ describe('ChatService', () => {
     it("should send message through successfully commit transaction", async () => {
       const mockClientConnection = new Map<number, Socket>();
       const mockPayload = { sub: 1 };
-      const mockCreateChatDto: CreateChatDto = {
-        message: "a message", recipientId: 2,
-        room: 0
-      };
+      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 1 };
       const mockSender = { id: 1 } as UserEntity;
       const mockSenderSocket = { id: '1' } as Socket;
       const mockRecipient = { id: 1 } as UserEntity;
@@ -334,18 +331,19 @@ describe('ChatService', () => {
         id: 100,
         message: 'a message',
         participant: mockSender,
-        chatRoom: mockRooms,
+        room: mockRooms,
       };
       const mockMessageSchema = {
         participant: mockSender,
-        chatRoom: mockRooms,
+        room: mockRooms,
       };
 
       // Mock all dependencies
       jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
       jest.spyOn(chatService as any, 'getAndCreateRoom').mockResolvedValue(mockRooms);
-      mockQueryRunner.manager!.save = jest.fn().mockResolvedValue(mockMessage);
+      jest.spyOn(mockManager as EntityManager, 'save').mockResolvedValue(mockMessage);
+      // mockQueryRunner.manager.save = jest.fn().mockResolvedValue(mockMessage);
 
       // Register both user's sockets
       mockClientConnection.set(1, mockSocket as Socket);
@@ -357,10 +355,10 @@ describe('ChatService', () => {
       // Message sent successfully
       expect(userRepository.findOneByOrFail).toHaveBeenCalledWith({ id: 1 });
       expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: 2 });
-      expect(mockQueryRunner.manager!.save).toHaveBeenCalledWith(ChatEntity, expect.objectContaining({
+      expect(mockQueryRunner.manager?.save).toHaveBeenCalledWith(ChatEntity, expect.objectContaining({
         message: 'Hello World!',
         participant: mockSender,
-        chatRoom: mockRooms,
+        room: mockRooms,
       }));
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
@@ -389,7 +387,7 @@ describe('ChatService', () => {
     //   };
     //   const mockMessageSchema = {
     //     participant: mockSender,
-    //     chatRoom: mockRooms,
+    //     room: mockRooms,
     //   };
     //   // const mockQueryRunner = {
     //   //   createQueryRunner: {
@@ -441,16 +439,13 @@ describe('ChatService', () => {
 
     it("should throw WebSocket exception if sender does not exist then rollback to release", async () => {
       const mockPayload = { sub: 1 };
-      const mockCreateChatDto: CreateChatDto = {
-        message: "a message", recipientId: 2,
-        room: 0
-      };
+      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 0 };
       const mockSender = { id: 1 } as UserEntity;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity
       const mockMessageSchema = {
         message: 'a message',
         participant: mockSender,
-        chatRoom: mockRooms,
+        room: mockRooms,
       };
 
       jest.spyOn(userRepository, 'findOneByOrFail').mockRejectedValue(new WsException("Cannot Find Sender"));
@@ -470,7 +465,8 @@ describe('ChatService', () => {
     it("should throw WebSocket exception if recipient does not exist then rollback to release", async () => {
       const payload = { sub: 1 };
       const createChatDto: CreateChatDto = {
-        message: "a message", recipientId: 2,
+        message: "a message",
+        recipientId: 2,
         room: 0
       };
       const sender = { id: 1 } as UserEntity;
@@ -490,7 +486,8 @@ describe('ChatService', () => {
     it("should throw null if connect to socket", async () => {
       const payload = { sub: 1 };
       const createChatDto: CreateChatDto = {
-        message: "a message", recipientId: 2,
+        message: "a message",
+        recipientId: 2,
         room: 0
       };
       const sender = { id: 1 } as UserEntity;

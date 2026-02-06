@@ -11,7 +11,7 @@ export class ChatEntity extends EntityBase {
     @Column()
     message: string
 
-    @JoinTable()
+    // @JoinTable()
     @ManyToOne(
         () => UserEntity,
         (user) => user.chats
