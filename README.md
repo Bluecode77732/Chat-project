@@ -68,12 +68,13 @@
 - Chat: major websocket implementation ✔
 - filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application
-- Test: 
+- Unit Test: Testing service methods by each unit
 - Cache: `Redis` for message rate-limit and store user's data efficiently.
 - Prisma: 
 - Swagger: 
 
 ## Flow
+### Chat
 1. Validate users
 2. Join Users 
 3. Find room 

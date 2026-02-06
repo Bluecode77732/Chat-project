@@ -160,6 +160,7 @@ export class ChatService {
                         status: "error:400 - BadRequestException",
                         message: "Cannot Find Room",
                     });
+                    
                 } else {
                     // Notifying successful connection
                     connect.emit("CreateRoom", room.id.toString());
