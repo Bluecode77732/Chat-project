@@ -7,10 +7,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { RoomEntity } from './entities/room.entity';
 import { createClient } from 'redis';
+import { RedisModule } from 'src/redis/redis.module';
 
 @Module({
   imports: [
     AuthModule,
+    RedisModule,
     TypeOrmModule.forFeature([
       UserEntity,
       ChatEntity,

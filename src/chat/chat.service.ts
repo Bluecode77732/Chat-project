@@ -10,11 +10,13 @@ import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class ChatService {
     // Maps authenticated userId to get their current Socket instance (1-to-1)
-    private readonly clientConnection = new Map<number, Socket>();
+    private readonly clientConnection = new Map<string, Socket>();
+    // private readonly clientConnection = new Map<number, Socket>();
 
     // TypeORM repositories for Room and User with DataSource
     constructor(
@@ -28,23 +30,40 @@ export class ChatService {
 
         // Injecting DataSource for transactions
         private readonly dataSource: DataSource,
+
+        // Injecting redisService to replace current in-memory storage Socket instance
+        private readonly redisService: SessionCacheService,
     ) { };
 
 
     // Connect Socket
-    registerClient(participantId: number, client: Socket) {
-        this.clientConnection.set(participantId, client);
-        // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
+    async registerClient(participantId: number, client: Socket) {
+        await this.redisService.sethUserOnline(participantId, client.id);
+        this.clientConnection.set(client.id, client);
+
         logger.info(`User ${participantId} has connected`);
+        // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
     };
+
+    // registerClient(participantId: number, client: Socket) {
+    //     this.clientConnection.set(participantId, client);
+    //     // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
+    //     logger.info(`User ${participantId} has connected`);
+    // };
 
 
     // Disconnect Socket
-    removeClient(participantId: number) {
-        this.clientConnection.delete(participantId);
-        // this.logger.log(`User ${participantId} has disconnected`);
+    async removeClient(participantId: number, client: Socket) {
+        await this.redisService.sethUserOffline(participantId);
+        this.clientConnection.delete(client.id);
+
         logger.info(`User ${participantId} has disconnected`);
     };
+
+    // removeClient(participantId: number) {
+    //     this.clientConnection.delete(participantId);
+    //     logger.info(`User ${participantId} has disconnected`);
+    // };
 
 
     // Makes the user join all chat rooms they are already a member of
@@ -149,10 +168,13 @@ export class ChatService {
         room = await this.createRoom(sender, recipient, manager);
 
         // Notify and join users when they connected
-        [sender.id, recipient.id].forEach((id) => {
+        [sender.id, recipient.id].forEach(async (id) => {
 
             // Get Client ID
-            const connect = this.clientConnection.get(id);
+            // New code along with Redis cache
+            const getUserSocketId = await this.redisService.getUserStatus(id);
+            const connect = getUserSocketId?.socketId ? this.clientConnection.get(getUserSocketId.socketId) : null;
+            // const connect = getUserSocketId ? this.clientConnection.get(getUserSocketId);
 
             if (connect) {
                 if (!room?.id) {
@@ -160,7 +182,7 @@ export class ChatService {
                         status: "error:400 - BadRequestException",
                         message: "Cannot Find Room",
                     });
-                    
+
                 } else {
                     // Notifying successful connection
                     connect.emit("CreateRoom", room.id.toString());
@@ -230,40 +252,88 @@ export class ChatService {
             });
             console.log('📨 Message saved', { messageId: messageSchema.id, roomId: room.id });
 
+
+            //* Redis adoption #5 *//
             // Get client ID from Socket
-            const getClientSocket = this.clientConnection.get(sender.id);
+            const getSenderStatusId = await this.redisService.getUserStatus(sender.id);
+            // const getSenderSocketId = this.clientConnection.get(sender.id);
 
             // console.log("clientSocket found?", !!getClientSocket);
-            if (!getClientSocket) {
+            if (!getSenderStatusId?.socketId) {
                 // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 throw new WsException("Cannot Find Sender ID");
             }
 
             // Get recipient ID from Socket
-            const recipientSocket = this.clientConnection.get(recipient.id);
-
-            if (!getClientSocket) {
+            const senderSocketId = this.clientConnection.get(getSenderStatusId.socketId);
+            // const recipientSocket = this.clientConnection.get(recipient.id);
+            if (!senderSocketId) {
+                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 throw new WsException("Cannot Find Sender ID");
-            } else {
-                // Targets which room to broadcast
-                getClientSocket.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
 
-            if (!recipientSocket) {
-                throw new WsException("Cannot Find Recipient ID");
-            } else {
-                // console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
-                // console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
 
-                // const senderSocket = this.clientConnection.get(sender.id);
-                // console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
+            //* Redis adoption #6 *//
+            /** 
+             *? Why Recipient Socket Isn't Needed
+             * `senderSocket.emit()` sends the message back to the sender for confirmation.
+             * The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
+             * `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
+            */
+            // redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
+            //? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
+            
+            // redis.service : return data.socketId ? data : null;
+            //? const recipientSocketId = getRecipientStatusId?.socketId ? this.clientConnection.get(getRecipientStatusId.socketId) : null;
 
-                // const recipientSocket = this.clientConnection.get(recipient.id);
-                // console.log("Recipient joined rooms:", recipientSocket?.rooms);
 
-                // Emit message in the room
-                getClientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-            };
+            //* Redis adoption #7 *//
+            // if (!getSenderStatusId) {
+            //     throw new WsException("Cannot Find Sender ID");
+            // } else {
+            // Targets which room to broadcast
+            senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // };
+
+            // if (!recipientSocket) {
+            //     throw new WsException("Cannot Find Recipient ID");
+            // } else {
+            // console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
+            // console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
+
+            // const senderSocket = this.clientConnection.get(sender.id);
+            // console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
+
+            // const recipientSocket = this.clientConnection.get(recipient.id);
+            // console.log("Recipient joined rooms:", recipientSocket?.rooms);
+
+            // Emit message in the room
+            senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // };
+
+            // if (!getSenderStatusId) {
+            //     throw new WsException("Cannot Find Sender ID");
+            // } else {
+            //     // Targets which room to broadcast
+            //     getSenderStatusId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // };
+
+            // if (!recipientSocket) {
+            //     throw new WsException("Cannot Find Recipient ID");
+            // } else {
+            //     // console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
+            //     // console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
+
+            //     // const senderSocket = this.clientConnection.get(sender.id);
+            //     // console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
+
+            //     // const recipientSocket = this.clientConnection.get(recipient.id);
+            //     // console.log("Recipient joined rooms:", recipientSocket?.rooms);
+
+            //     // Emit message in the room
+            //     getSenderStatusId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // };
+
 
             await queryRunner.commitTransaction();
             // this.logger.log(`User ${payload.sub}'s message is saved in the chat room`);

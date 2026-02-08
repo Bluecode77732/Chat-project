@@ -1,10 +1,12 @@
 import { Global, Module } from "@nestjs/common";
 import { createClient } from "redis";
+import { SessionCacheService } from "./redis.service";
 
 @Global()
 @Module({
     providers: [
-        // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
+        SessionCacheService,
+        // Implementing Redis module, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
         {
             // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
             provide: 'REDIS_CLIENT',
@@ -33,6 +35,6 @@ import { createClient } from "redis";
             // },
         },
     ],
-    exports: ['REDIS_CLIENT'],
+    exports: ['REDIS_CLIENT', SessionCacheService],
 })
 export class RedisModule { }

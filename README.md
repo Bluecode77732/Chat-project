@@ -95,17 +95,46 @@ Lifecycle Hooks
 - OnGatewayDisconnect
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
+
+## Redis
+An efficient way to store user's metadata, and able to horizontal scale up the server.
+
+### Check User Data
+
+- Terminal command
+`docker exec -it redis-chat redis-cli`
+
+- Check keys
+`KEYS user:*`
+
+- Check data
+`HGETALL user:<user_number>`
+
+Result:
+`HGETALL user:1`
+1) "socketId"
+2) "5Ktdy8PO-CbS2sa4AAAD"
+3) "status"
+4) "online"
+
+`HGETALL user:2`
+1) "socketId"
+2) "fFyW-wbprFGKtBfkAAAB"
+3) "status"
+4) "online"
+
+
 ### Docker
 #### Build
-- Using Docker to run Redis server
+Using Docker to run Redis server
 
-Run Redis Container
+- Run Redis Container
 `docker run -d -p 6379:6379 --name redis-chat redis:latest`
 
-Show 'redis-chat' container
+- Show 'redis-chat' container
 `docker ps`
 
-Verify Redis Connection
+- Verify Redis Connection
 `docker exec -it redis-chat redis-cli ping` => PONG
 
 

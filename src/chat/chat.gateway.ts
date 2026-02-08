@@ -40,7 +40,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         // console.log("Registering user ID type:", typeof userId, userId);
 
         // Remember the specific client with a certain key
-        this.chatService.registerClient(payload.sub, client);
+        await this.chatService.registerClient(payload.sub, client);
 
         // Connect user into a room
         await this.chatService.joinRooms(payload, client);
@@ -55,14 +55,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.disconnect();
     }
   }
-
+  
   async handleDisconnect(client: Socket) {
-    const user = await client.data.user;
-
-    if (user) {
-      this.chatService.removeClient(user.sub);
-    }
-
+    const participant = await client.data.user;
+    
+    if (participant) {
+      await this.chatService.removeClient(participant.sub, client);
+    };
+    
+    console.log(`User: ${participant} disconnected`);
+    return `User: ${participant} disconnected`;
     // This is fun when disconnected lol
     // throw new Error('Method not implemented.');
   }
