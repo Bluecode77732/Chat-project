@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
@@ -11,6 +11,9 @@ import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
+// import type { Server } from 'node_modules/graphql-ws/dist';
+// import * as Server from 'graphql-ws';
+// import type { Server } from 'graphql-ws';
 
 @Injectable()
 export class ChatService {
@@ -33,6 +36,9 @@ export class ChatService {
 
         // Injecting redisService to replace current in-memory storage Socket instance
         private readonly redisService: SessionCacheService,
+
+        // GraphQL socket connection
+        // private readonly server: Server,
     ) { };
 
 
@@ -203,7 +209,7 @@ export class ChatService {
     // - Finds or creates room
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
+    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, server?: Server) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
                 
         const queryRunner = this.dataSource.createQueryRunner();
@@ -228,13 +234,14 @@ export class ChatService {
             };
 
             // Find a recipient
-            const recipient = await this.userRepository.findOneBy({
-                id: recipientId,
-            });
+            //?! Why isn't this code used when `senderSocketId` exist?
+            // const recipient = await this.userRepository.findOneBy({
+            //     id: recipientId,
+            // });
 
-            if (!recipient) {
-                throw new WsException("Cannot Find Recipient");
-            };
+            // if (!recipient) {
+            //     throw new WsException("Cannot Find Recipient");
+            // };
 
             // Get and create a chat room : transactional
             const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
@@ -260,18 +267,33 @@ export class ChatService {
             // const getSenderSocketId = this.clientConnection.get(sender.id);
 
             // console.log("clientSocket found?", !!getClientSocket);
-            if (!getSenderStatusId?.socketId) {
+            // if (!getSenderStatusId?.socketId) {
+            //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+            //     throw new WsException("Cannot Find Sender ID");
+            // }
+            if (!getSenderStatusId?.socketId && server) {
                 // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                throw new WsException("Cannot Find Sender ID");
-            }
-
-            // Get recipient ID from Socket
-            const senderSocketId = this.clientConnection.get(getSenderStatusId.socketId);
-            // const recipientSocket = this.clientConnection.get(recipient.id);
-            if (!senderSocketId) {
-                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                throw new WsException("Cannot Find Sender ID");
+                // throw new WsException("Cannot Find Sender ID");
+                
+                // Get recipient ID from Socket
+                const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
+                // const recipientSocket = this.clientConnection.get(recipient.id);
+                if (senderSocketId) {
+                    // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                    // throw new WsException("Cannot Find Sender ID");
+                    senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                    server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                    senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                };
             };
+
+            // // Get recipient ID from Socket
+            // const senderSocketId = this.clientConnection.get(getSenderStatusId.socketId);
+            // // const recipientSocket = this.clientConnection.get(recipient.id);
+            // if (!senderSocketId) {
+            //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+            //     throw new WsException("Cannot Find Sender ID");
+            // };
 
 
             //* Redis adoption #6 *//
@@ -293,7 +315,8 @@ export class ChatService {
             //     throw new WsException("Cannot Find Sender ID");
             // } else {
             // Targets which room to broadcast
-            senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             // };
 
             // if (!recipientSocket) {
@@ -309,7 +332,7 @@ export class ChatService {
             // console.log("Recipient joined rooms:", recipientSocket?.rooms);
 
             // Emit message in the room
-            senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            // senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             // };
 
             // if (!getSenderStatusId) {

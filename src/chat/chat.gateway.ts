@@ -1,17 +1,22 @@
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { ChatService } from './chat.service';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
-import type { QueryRunner } from 'typeorm';
+// import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 import { RateLimitGuard } from './guard/rate-limit.guard';
+// import type { Server } from 'graphql-ws';
 
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  // GraphQL connection
+  @WebSocketServer()
+  server: Server
+  
   constructor(
     // @Inject(WINSTON_MODULE_NEST_PROVIDER)
     // private readonly logger: LoggerService,
@@ -78,9 +83,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
     // @WebSocketQueryRunner() qr: QueryRunner,
+    // @WebSocketServer() server: Server,
   ) {
     const payload = client.data.user;
-    await this.chatService.sendMessage(payload, dto);
+    await this.chatService.sendMessage(payload, dto, this.server);
   }
 
 

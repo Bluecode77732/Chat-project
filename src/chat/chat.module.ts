@@ -9,6 +9,7 @@ import { RoomEntity } from './entities/room.entity';
 import { createClient } from 'redis';
 // import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
+import { Server } from 'socket.io';
 
 @Module({
   imports: [
@@ -23,6 +24,8 @@ import { RedisModule } from 'src/redis/redis.module';
   providers: [
     ChatGateway,
     ChatService,
+    // GraphQL connection
+    Server,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
       // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
