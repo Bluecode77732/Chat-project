@@ -63,15 +63,25 @@
 - guard: allow validated only types of data ✔
 - interceptor: a middleware to manipulate user's data ✔
 - pipe: 
-- JWT Authentication: 
+- JWT Authentication: authenticate user validation for using the application
 - Role Based Access: differ levels of user by authorization class 
 - Chat: major websocket implementation ✔
 - filter: exception handlers ✔
-- Cache: 
+- Logger: records events, error, debug infos while executing the application
+- Unit Test: Testing service methods by each unit
+- Cache: `Redis` for message rate-limit and store user's data efficiently.
 - Prisma: 
-- Logger: 
 - Swagger: 
-- Test: 
+
+## Flow
+### Chat
+1. Validate users
+2. Join Users 
+3. Find room 
+4. Create room 
+5. Send message 
+6. Save message 
+7. Broadcast to sockets
 
 
 ## Chat
@@ -84,6 +94,32 @@ Lifecycle Hooks
   Forces to implement the handleConnection() method. Takes library-specific client socket instance as an argument.
 - OnGatewayDisconnect
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
+
+### Docker
+#### Build
+- Using Docker to run Redis server
+
+Run Redis Container
+`docker run -d -p 6379:6379 --name redis-chat redis:latest`
+
+Show 'redis-chat' container
+`docker ps`
+
+Verify Redis Connection
+`docker exec -it redis-chat redis-cli ping` => PONG
+
+
+#### Usage
+Start Redis
+`docker start redis-chat`
+
+Stop Redis
+`docker stop redis-chat`
+
+Remove container (keeps image)
+`docker rm redis-chat`
+
+
 
 - Terminal Log
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "send" message -->
@@ -102,7 +138,8 @@ Lifecycle Hooks
 
 
 ## Scale Up In Future
-- Store conversation list per user (last message, unread count, etc)
-- Return `roomId` to frontend instead of recalculating it
+- Store conversation list per user (last message, unread message, etc)
+- Return `roomId` to frontend instead of recalculating(mid of queries) it
 - Let frontend send messages to `roomId` instead of to recipientId
 - Use `roomId` to scale to group chats later
+- Let users delete rooms and conversation

@@ -1,7 +1,7 @@
 import { UserEntity } from "src/user/entities/user.entity";
 import { Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { ChatEntity } from "./chat.entity";
-import { EntityBase } from "src/base/base.entity";
+import { EntityBase } from "src/base/entity/base.entity";
 
 @Entity()
 export class RoomEntity extends EntityBase {
@@ -19,7 +19,7 @@ export class RoomEntity extends EntityBase {
     // Chats in the rooms
     @OneToMany(
         () => ChatEntity,
-        (room) => room.chatRoom,
+        (room) => room.room,
     )
     chats: ChatEntity[]
 }

@@ -38,6 +38,7 @@ export class RBACguard implements CanActivate {
 
         // Compare user's role level with required role level
         // It means user's role level <= required level, can access smaller or equal than required level
-        return accessLevel[user.role] <= accessLevel[role];
+        return accessLevel[user.role] == accessLevel[role];
+        // return accessLevel[user.role] <= accessLevel[role];
     };
 }

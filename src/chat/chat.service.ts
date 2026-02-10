@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Socket } from 'socket.io';
 import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
@@ -6,9 +6,10 @@ import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { UserRole } from 'src/auth/role/role';
+// import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class ChatService {
@@ -33,12 +34,16 @@ export class ChatService {
     // Connect Socket
     registerClient(participantId: number, client: Socket) {
         this.clientConnection.set(participantId, client);
+        // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
+        logger.info(`User ${participantId} has connected`);
     };
 
 
     // Disconnect Socket
     removeClient(participantId: number) {
         this.clientConnection.delete(participantId);
+        // this.logger.log(`User ${participantId} has disconnected`);
+        logger.info(`User ${participantId} has disconnected`);
     };
 
 
@@ -50,13 +55,17 @@ export class ChatService {
                 participantId: user.sub,
             })
             .getMany();
-
+        // console.log(rooms);
+        // console.log(client);
         // Join each room by its string ID (Socket.IO room names are strings)
         rooms.forEach((room) => {
             client.join(room.id.toString());
         });
 
-        console.log("Users are connected to DB and joined into a room.");
+        console.log(`This is result: ${rooms}`);
+        // this.logger.log(`User ${user.sub} has registered`);
+        logger.info(`User ${user.sub} has registered`);
+        // console.log("User are connected to DB and joined into a room.");
     };
 
 
@@ -66,15 +75,17 @@ export class ChatService {
     async findRoom(user1: number, user2: number, manager: EntityManager) {
 
         if (!user1 || !user2) {
-            console.log("Invalid IDs:", { user1, user2 });
+            // console.log("Invalid IDs:", { user1, user2 });
             return null;
         }
 
         const ids = [user1, user2].sort((a, b) => a - b);
 
-        console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
+        // console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
 
-        console.log("finding a room");
+        // this.logger.log(`User ${ids} found a room`);
+        logger.info(`User ${ids} found a room`);
+        // console.log("finding a room");
 
         return manager
             .createQueryBuilder(RoomEntity, "room")
@@ -99,25 +110,28 @@ export class ChatService {
             throw new WsException("Cannot Find Room");
         };
 
-        console.log("Saved users into a room");
+        // console.log("Saved users into a room");
+        // this.logger.log(`User ${user1.id}, ${user2.id} are saved into a room`);
+        logger.info(`User ${user1.id}, ${user2.id} are saved into a room`);
         return saved;
     };
 
 
     // Find existing room between sender and recipient => or create new one
     // Also notifies both users (if online) about the new room and joins them
-    async getAndCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
+    async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
 
+        //?! Fix: The queryRunner type should be its manager, so it does not conflict
         const manager = qr.manager ?? this.roomRepository.manager;
 
-        console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
+        // console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
 
         let room = await this.findRoom(sender.id, recipientId, manager);
 
-        console.log("Found existing room?", room ? room.id : "NO ROOM FOUND");
+        // console.log("Found existing room?", room ? room.id : "NO ROOM FOUND");
 
         if (room) {
-            console.log("Reusing room ID:", room.id);
+            // console.log("Reusing room ID:", room.id);
             // reuse existing room
             return room;
         };
@@ -146,6 +160,7 @@ export class ChatService {
                         status: "error:400 - BadRequestException",
                         message: "Cannot Find Room",
                     });
+
                 } else {
                     // Notifying successful connection
                     connect.emit("CreateRoom", room.id.toString());
@@ -154,7 +169,9 @@ export class ChatService {
             };
         });
 
-        console.log("created a room");
+        // console.log("created a room");
+        // this.logger.log(`User ${sender.id}, ${recipient.id} created a room`);
+        logger.info(`User ${sender.id}, ${recipient.id} created a room`);
         return room;
     }
 
@@ -164,11 +181,14 @@ export class ChatService {
     // - Finds or creates room
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, qr?: QueryRunner) {
-
+    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
+        console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
+                
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
+        console.log('📨 QueryRunner connected');
         await queryRunner.startTransaction();
+        console.log('📨 Transaction started');
 
         try {
             // 1. Find a client
@@ -195,7 +215,8 @@ export class ChatService {
             };
 
             // Get and create a chat room : transactional
-            const room = await this.getAndCreateRoom(sender, recipientId, queryRunner);
+            const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
+            console.log('📨 room obtain', { roomId: room.id });
 
             // Check if room exist
             if (!room)
@@ -206,15 +227,16 @@ export class ChatService {
             const messageSchema = await queryRunner.manager.save(ChatEntity, {
                 participant: sender,
                 message,
-                chatRoom: room,
+                room,
             });
+            console.log('📨 Message saved', { messageId: messageSchema.id, roomId: room.id });
 
             // Get client ID from Socket
             const getClientSocket = this.clientConnection.get(sender.id);
 
-            console.log("clientSocket found?", !!getClientSocket);
+            // console.log("clientSocket found?", !!getClientSocket);
             if (!getClientSocket) {
-                console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 throw new WsException("Cannot Find Sender ID");
             }
 
@@ -231,31 +253,36 @@ export class ChatService {
             if (!recipientSocket) {
                 throw new WsException("Cannot Find Recipient ID");
             } else {
-                console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
-                console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
+                // console.log("Sender socket exists:", !!this.clientConnection.get(sender.id));
+                // console.log("Recipient socket exists:", !!this.clientConnection.get(recipient.id));
 
-                const senderSocket = this.clientConnection.get(sender.id);
-                console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
+                // const senderSocket = this.clientConnection.get(sender.id);
+                // console.log("Sender joined rooms:", senderSocket?.rooms);  // Set of room names
 
-                const recipientSocket = this.clientConnection.get(recipient.id);
-                console.log("Recipient joined rooms:", recipientSocket?.rooms);
+                // const recipientSocket = this.clientConnection.get(recipient.id);
+                // console.log("Recipient joined rooms:", recipientSocket?.rooms);
 
                 // Emit message in the room
                 getClientSocket.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
 
             await queryRunner.commitTransaction();
+            // this.logger.log(`User ${payload.sub}'s message is saved in the chat room`);
+            logger.info(`User ${payload.sub}'s message is saved in the chat room`);
             console.log("Message committed to DB with ID:", messageSchema.id);
 
             // Final return
-            console.log("returning a msg");
+            // console.log("returning a msg");
+            // this.logger.log(`User ${payload.sub} sent a message`);
+            logger.info(`User ${payload.sub} sent a message`);
             return message;
 
             // console.log("returning a msg schema");
             // return messageSchema;
 
         } catch (error) {
-            console.log(`ERROR: ${error.message}`)
+            // console.log(`ERROR: ${error}`);
+            logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
             await queryRunner.rollbackTransaction();
             throw new Error(`Failed to send message: ${error.message}`)
         } finally {

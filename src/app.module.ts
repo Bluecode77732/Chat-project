@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
@@ -8,7 +8,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
-import { EntityBase } from './base/base.entity';
+import { EntityBase } from './base/entity/base.entity';
+import { RedisModule } from './redis/redis.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
@@ -68,6 +69,8 @@ import { join } from 'node:path';
     UserModule,
     ChatModule,
     AuthModule,
+    // RedisModule,
   ],
+  providers: [Logger],
 })
 export class AppModule { }

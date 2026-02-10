@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Payload } from 'src/auth/interface/payload.interface';
 import { UserRole } from './role/role';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
 
         // 2. If the token length `[Basic token]` isn't 2, throw `BadRequestException` since it's wrong approach for parsing token.
         if (basicToken.length !== 2) {
+            logger.error(`Bad Token Format - rawToken: ${rawToken}}`, { timestamp: new Date().toISOString() });
             throw new BadRequestException('Bad Token Format.');
         };
 
@@ -35,6 +37,7 @@ export class AuthService {
 
         // 4. Verifies the token.
         if (basic.toLowerCase() !== 'basic') {
+            logger.error(`Bad Token Format - rawToken: ${rawToken}}`, { timestamp: new Date().toISOString() });
             throw new BadRequestException('Bad Token Format.');
         };
 
@@ -46,11 +49,14 @@ export class AuthService {
 
         // 7. Verifies if the token includes basic.
         if (!(tokenSplit.length == 2)) {
+            logger.error(`Bad Token Format - rawToken: ${rawToken}, decoded token ${decoded}, splitted token: ${tokenSplit}`, { timestamp: new Date().toISOString() });
             throw new BadRequestException('Bad Token Format.');
         };
 
         // 8. Extract email and password for returning to client.
         const [email, password] = tokenSplit;
+
+        logger.info(`User '${email}' parsed a basic token: ${basicToken}`);
 
         // 9. Return result.
         return {
@@ -74,6 +80,7 @@ export class AuthService {
 
         // Verifies if user exist or not
         if (user) {
+            logger.error(`User cannot found - ${user} has token: ${rawToken}`, { timestamp: new Date().toISOString() });
             throw new BadRequestException("User Already Exist.");
         };
 
@@ -85,6 +92,8 @@ export class AuthService {
             email,
             password: hash,
         });
+
+        logger.info(`User '${email}' is registered`);
 
         // Finds user's email returning to client by TypeORM method
         return await this.userRepository.findOne({
@@ -103,15 +112,18 @@ export class AuthService {
         });
 
         if (!user) {
+            logger.error(`User '${email}' isn't found`, { timestamp: new Date().toISOString() });
             throw new BadRequestException("Invalid User.");
         };
 
         const verification = await bcrypt.compare(password, user.password);
 
         if (!verification) {
+            logger.error(`User '${email}' verification isn't working`, { timestamp: new Date().toISOString() });
             throw new BadRequestException("Invalid User.");
         };
 
+        logger.info(`User '${email}' is authenticated`);
         return user;
     };
 
@@ -128,6 +140,8 @@ export class AuthService {
             role: user.role,
         };
         console.log("Payload being signed:", payload);
+
+        logger.info(`User '${user.id}' issued refresh and access tokens`);
 
         // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
         return await this.jwtService.signAsync(
@@ -175,10 +189,11 @@ export class AuthService {
                 }
             };
 
+            logger.info(`User parsed '${rawToken}' to get a bearer token: ${bearer} ${token}`);
             return payload;
 
         } catch (err) {
-
+            logger.error(err.message, { timestamp: new Date().toISOString() });
             throw new UnauthorizedException("Token Expired");
         }
     }
@@ -191,6 +206,8 @@ export class AuthService {
 
         // Authenticates email and password
         const user = await this.validateUser(email, password);
+
+        logger.info(`User '${email}' signed in. Say Hi.`);
 
         return {
             refreshToken: await this.issueToken(user, true),
