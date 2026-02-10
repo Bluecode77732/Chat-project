@@ -24,7 +24,7 @@ import { Server } from 'socket.io';
   providers: [
     ChatGateway,
     ChatService,
-    // GraphQL connection
+    // Todo: GraphQL connection
     Server,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {

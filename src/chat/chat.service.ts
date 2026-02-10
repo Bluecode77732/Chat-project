@@ -281,6 +281,7 @@ export class ChatService {
                 if (senderSocketId) {
                     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                     // throw new WsException("Cannot Find Sender ID");
+                    // Todo: GraphQL connection
                     senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                     server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                     senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));

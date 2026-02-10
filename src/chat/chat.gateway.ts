@@ -13,7 +13,7 @@ import { RateLimitGuard } from './guard/rate-limit.guard';
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  // GraphQL connection
+  // Todo: GraphQL connection
   @WebSocketServer()
   server: Server
   
