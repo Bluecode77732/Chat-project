@@ -19,4 +19,5 @@ export class CreateChatInput {
     @IsNumber()
     @IsOptional()
     room?: number;
+    
 }
