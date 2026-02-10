@@ -6,7 +6,7 @@ import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 @InputType()
 export class CreateChatInput {
-    @Field()
+    @Field(() => String)
     @IsString()
     @IsNotEmpty()
     message: string;
