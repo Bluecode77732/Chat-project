@@ -15,7 +15,6 @@ import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 
 const pubSub = new PubSub(); // simple in-memory (for dev/single instance)
 
-
 @Resolver()
 export class ChatResolver {
     constructor(
@@ -41,18 +40,18 @@ export class ChatResolver {
             { sub: userId },
             {
                 message: input.message,
-                recipientId
+                recipientId,
             },
             // {
             //     message: input.message,
             //     recipientId: input.recipientId
             // },
         );
-        const roomId = input.roomId;
+        const roomId = input.room;
 
         pubSub.publish(`messageAdded:${roomId}`, { messageAdded: savedMessage });
 
-        console.log('Message sent!');
+        console.log('From chat.resolver: Message sent!');
         return savedMessage || null;
     };
 

@@ -33,7 +33,7 @@ type Mutation {
 input CreateChatInput {
   message: String!
   recipientId: ID!
-  roomId: Int
+  room: Int
 }
 
 type Subscription {

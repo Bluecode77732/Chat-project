@@ -13,6 +13,7 @@ import { RedisModule } from './redis/redis.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
+import { ChatResolver } from './chat/chat.resolver';
 
 @Module({
   imports: [
@@ -71,6 +72,6 @@ import { join } from 'node:path';
     AuthModule,
     // RedisModule,
   ],
-  providers: [Logger],
+  providers: [Logger, ChatResolver],
 })
 export class AppModule { }

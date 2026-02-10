@@ -18,5 +18,5 @@ export class CreateChatInput {
     @Field(() => Int, { nullable: true })
     @IsNumber()
     @IsOptional()
-    roomId?: number;
+    room?: number;
 }
