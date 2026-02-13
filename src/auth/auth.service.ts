@@ -111,6 +111,8 @@ export class AuthService {
             },
         });
 
+        console.log('User found in validateUser:', user);
+
         if (!user) {
             logger.error(`User '${email}' isn't found`, { timestamp: new Date().toISOString() });
             throw new BadRequestException("Invalid User.");
@@ -129,23 +131,28 @@ export class AuthService {
 
 
     async issueToken(user: { id: number, role: UserRole }, isRefreshToken: boolean) {
+        console.log('issueToken received user:', user);
 
         // Bring refreshToken and accessToken to issue token for creating user accessing validation.
         const refreshToken = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
         const accessToken = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
 
-        const payload: Payload = {
-            sub: user.id,
-            type: isRefreshToken ? 'refresh' : 'access',
-            role: user.role,
-        };
-        console.log("Payload being signed:", payload);
+        // const payload: Payload = {
+        //     sub: user.id,
+        //     type: isRefreshToken ? 'refresh' : 'access',
+        //     role: user.role,
+        // };
+        // console.log("Payload being signed:", payload);
 
         logger.info(`User '${user.id}' issued refresh and access tokens`);
 
         // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
         return await this.jwtService.signAsync(
-            payload,
+            {
+                sub: user.id,
+                type: isRefreshToken ? 'refresh' : 'access',
+                role: user.role,
+            },
             // `JwtSignOptions` Can also be set in `auth.module.ts` file, since it requires separated tokens, the options should be set manually.
             {
                 secret: isRefreshToken ? refreshToken : accessToken,
@@ -210,8 +217,10 @@ export class AuthService {
         logger.info(`User '${email}' signed in. Say Hi.`);
 
         return {
-            refreshToken: await this.issueToken(user, true),
-            accessToken: await this.issueToken(user, false),
+            // refreshToken: await this.issueToken(user, true),
+            // accessToken: await this.issueToken(user, false),
+            refreshToken: await this.issueToken({ id: user.id, role: user.role }, true),
+            accessToken: await this.issueToken({ id: user.id, role: user.role }, false),
         };
     };
 }

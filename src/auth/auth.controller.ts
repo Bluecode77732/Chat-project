@@ -31,7 +31,7 @@ export class AuthController {
     return this.authService.register(rawToken);
   };
 
-  
+
   // Sign in route
   @Post('signin')
   @ApiBasicAuth()
@@ -78,7 +78,7 @@ export class AuthController {
     const payload = await this.authService.parseBearerToken(rawToken, true);
 
     return {
-      accessToken: await this.authService.issueToken(payload, false)
+      accessToken: await this.authService.issueToken({ id: payload.sub, role: payload.role }, false)
     };
   };
 

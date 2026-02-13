@@ -6,6 +6,14 @@ import { AuthGuard } from "@nestjs/passport";
 export class GraphQLAuthGuard extends AuthGuard('jwt-auth-guard') {
     getRequest(context: ExecutionContext) {
         const GqlCtx = GqlExecutionContext.create(context);
-        return GqlCtx.getContext().req;
+        const ctx = GqlCtx.getContext()
+        const req = ctx.req || { headers: { authorization: ctx.authorization } };
+
+        // Flow logging
+        console.log('GraphQL Context:', ctx);
+        console.log('Request object:', req);
+        console.log('Authorization header:', req?.headers?.authorization);
+
+        return req;
     };
 };

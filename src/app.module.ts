@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, Module, UnauthorizedException } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
@@ -63,7 +63,33 @@ import { ChatResolver } from './chat/chat.resolver';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       subscriptions: {
-        "graphql-ws": true,
+        "graphql-ws": {
+          onConnect: (context) => {
+            console.log('WebSocket connectionParams:', context.connectionParams);
+            const token = context.connectionParams?.authorization;
+            console.log('Token:', token);
+            context.extra = { authorization: token };
+            return { authorization: token };
+          },
+        },
+      },
+      context: ({ req, extra, connection }) => {
+        console.log('Context extra:', extra);
+        console.log('Context connection:', connection);
+        // Returns HTTP request
+        if (req) {
+          return { req };
+        };
+        const auth = extra?.authorization || connection?.context?.authorization;
+        console.log('Final auth:', auth);
+        // Returns Subscription WebSocket
+        return {
+          req: {
+            headers: { 
+              authorization: extra?.authorization 
+            },
+          },
+        };
       },
       playground: false,
     }),
