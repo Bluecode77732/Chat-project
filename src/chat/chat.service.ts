@@ -219,7 +219,7 @@ export class ChatService {
         console.log('📨 Transaction started');
 
         try {
-            // 1. Find a client
+            // Todo: Find a client
             const sender = await this.userRepository.findOneByOrFail({
                 id: payload.sub,
             });
@@ -233,7 +233,7 @@ export class ChatService {
                 throw new WsException("Recipient ID is required and must be a number");
             };
 
-            // Find a recipient
+            // Todo: Find a recipient
             //?! Why isn't this code used when `senderSocketId` exist?
             // const recipient = await this.userRepository.findOneBy({
             //     id: recipientId,
@@ -243,7 +243,7 @@ export class ChatService {
             //     throw new WsException("Cannot Find Recipient");
             // };
 
-            // Get and create a chat room : transactional
+            // Todo: Get and create a chat room : transactional
             const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
             console.log('📨 room obtain', { roomId: room.id });
 
@@ -251,8 +251,8 @@ export class ChatService {
             if (!room)
                 throw new WsException("Cannot Find Room");
 
-            // Save message in the chat database permanently
-            // As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
+            // Todo: Save message in the chat database permanently
+            // Todo: As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
             const messageSchema = await queryRunner.manager.save(ChatEntity, {
                 participant: sender,
                 message,
@@ -262,7 +262,7 @@ export class ChatService {
 
 
             //* Redis adoption #5 *//
-            // Get client ID from Socket
+            // Todo: Get client ID from Socket
             const getSenderStatusId = await this.redisService.getUserStatus(sender.id);
             // const getSenderSocketId = this.clientConnection.get(sender.id);
 
@@ -275,7 +275,7 @@ export class ChatService {
                 // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 // throw new WsException("Cannot Find Sender ID");
                 
-                // Get recipient ID from Socket
+                // Todo: Get recipient ID from Socket
                 const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
                 // const recipientSocket = this.clientConnection.get(recipient.id);
                 if (senderSocketId) {
@@ -365,14 +365,14 @@ export class ChatService {
             logger.info(`User ${payload.sub}'s message is saved in the chat room`);
             console.log("Message committed to DB with ID:", messageSchema.id);
 
-            // Final return
+            // Todo: Final return
             // console.log("returning a msg");
             // this.logger.log(`User ${payload.sub} sent a message`);
             logger.info(`User ${payload.sub} sent a message`);
-            return message;
+            // return message;
 
-            // console.log("returning a msg schema");
-            // return messageSchema;
+            console.log("returning a msg schema");
+            return messageSchema;
 
         } catch (error) {
             // console.log(`ERROR: ${error}`);

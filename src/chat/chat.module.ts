@@ -10,6 +10,7 @@ import { createClient } from 'redis';
 // import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
 import { Server } from 'socket.io';
+import { PubSubService } from 'src/graphql/pubsub.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { Server } from 'socket.io';
     ChatService,
     // Todo: GraphQL connection
     Server,
+    PubSubService,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
       // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
@@ -40,6 +42,6 @@ import { Server } from 'socket.io';
       },
     },
   ],
-  exports: ['REDIS_CLIENT', ChatService],
+  exports: ['REDIS_CLIENT', ChatService, PubSubService],
 })
 export class ChatModule { }
