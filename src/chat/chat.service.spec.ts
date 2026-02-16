@@ -8,6 +8,7 @@ import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { ChatEntity } from './entities/chat.entity';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 
 describe('ChatService', () => {
@@ -19,6 +20,7 @@ describe('ChatService', () => {
   let userRepository: Repository<UserEntity>;
   let roomRepository: Repository<RoomEntity>;
   let dataSource: DataSource;
+  let redisService: SessionCacheService;
 
 
   beforeEach(async () => {
@@ -81,13 +83,22 @@ describe('ChatService', () => {
             createQueryRunner: jest.fn(),
           },
         },
+        {
+          provide: SessionCacheService,
+          useValue: {
+            sethUserOnline: jest.fn(),
+            sethUserOffline: jest.fn(),
+            getUserStatus: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     chatService = module.get<ChatService>(ChatService);
     userRepository = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
     roomRepository = module.get<Repository<RoomEntity>>(getRepositoryToken(RoomEntity));
-    dataSource = module.get<DataSource>(DataSource);
+    dataSource = module.get(DataSource);
+    redisService = module.get(SessionCacheService);
   });
 
   //* Basic service initialization test
@@ -98,6 +109,24 @@ describe('ChatService', () => {
   //* Clear each mocks after testing execution
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+
+  describe("registerClient", () => {
+    it("should stores client as Redis hash", async () => {
+      await chatService.registerClient(1, mockSocket as Socket);
+
+      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+    });
+  });
+  
+  
+  describe("removeClient", () => {
+    it("should removes client as Redis hash", async () => {
+      await chatService.removeClient(1, mockSocket as Socket);
+    
+      expect(redisService.sethUserOffline).toHaveBeenCalledWith(1);
+    });
   });
 
 
@@ -343,6 +372,7 @@ describe('ChatService', () => {
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
       jest.spyOn(chatService as any, 'getAndCreateRoom').mockResolvedValue(mockRooms);
       jest.spyOn(mockManager as EntityManager, 'save').mockResolvedValue(mockMessage);
+      jest.spyOn(redisService, 'getUserStatus').mockResolvedValue(null);
       // mockQueryRunner.manager.save = jest.fn().mockResolvedValue(mockMessage);
 
       // Register both user's sockets

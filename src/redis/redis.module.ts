@@ -26,13 +26,8 @@ import { SessionCacheService } from "./redis.service";
                 } catch (error) {
                     console.error('Redis connection failed:', error);
                     throw error;
-                }
-            }
-            // useFactory: async () => {
-            //     const client = createClient({ url: 'redis://localhost:6379' }) // default Redis port:6379
-            //     await client.connect();
-            //     return client;
-            // },
+                };
+            },
         },
     ],
     exports: ['REDIS_CLIENT', SessionCacheService],
