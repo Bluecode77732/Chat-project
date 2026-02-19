@@ -8,18 +8,15 @@ import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 import { RateLimitGuard } from './guard/rate-limit.guard';
-// import type { Server } from 'graphql-ws';
 
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Todo: GraphQL connection
   @WebSocketServer()
-  server: Server
+  server: Server;
   
   constructor(
-    // @Inject(WINSTON_MODULE_NEST_PROVIDER)
-    // private readonly logger: LoggerService,
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
   ) { }

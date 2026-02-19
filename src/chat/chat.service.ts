@@ -283,8 +283,10 @@ export class ChatService {
                     // throw new WsException("Cannot Find Sender ID");
                     // Todo: GraphQL connection
                     senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-                    server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                     senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                    
+                    //! What if this server doesn't exist?
+                    server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                 };
             };
 
