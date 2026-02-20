@@ -61,19 +61,20 @@
 - Backend: `Node.Js`, this javascript runtime built with chrome V8 engine, provides ecosystem where the applications run smoothly. ✔
 - Framework: `Nest.Js`, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
 - Architecture:  `Monolithic Architecture`, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
-- Cache: `Socket.io`, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
+- Socket: `Socket.io`, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
 - Authentication: JWT Authentication; authenticate user validation for using the application
 - Guard: allow validated only types of data ✔
 - Interceptor: a middleware to manipulate user's data ✔
 - Pipe: 
 - Role Based Access: differ levels of user by authorization class 
 - Chat: major websocket implementation ✔
+- Cache: `Redis` for message rate-limit and store user's data efficiently. ✔
 - Filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application ✔
 - Unit Test: Testing service methods by each unit
-- Cache: `Redis` for message rate-limit and store user's data efficiently. ✔
 - Prisma: 
 - Swagger: 
+
 
 ## Features
 - Real-time bidirectional messaging
@@ -82,6 +83,7 @@
 - Private chat rooms between users
 - Transaction-safe message storage & delivery
 - Horizontal scaling ready - Redis-backed session
+
 
 ## Flow
 ### Chat
@@ -93,19 +95,47 @@
 6. Broadcast to sockets
 
 ### Auth
-Client connects WebSocket (Chat.gateway: handleConnection)
-Client calls 'sendMessage' event
-Retrieves sender Socket
-Emit to Socket.io room
-Recipient receives Sender's message
-Client Disconnects
+1. Client connects WebSocket with handleConnection in `chat.gateway`
+  1.1. Authenticate JWT token
+  2.2. Store userId => socketId in Redis
+  2.3. Store socketId => Socket in Map
+  2.4. Join user to existing rooms
 
-RateLimitGuard checks Redis counter
-ChatService finds/creates room
-Save to PostgreSQL
-Emit to Socket.IO room
-Broadcast to recipient
-Client sends message
+2. Client calls `sendMessage` function
+  2.1. RateLimitGuard: Redis INCR user: ${userId}
+  2.2. Condition: `count > 10? Throw 'WsException' : Continue`
+  2.3. Set TTL for 60s if first message per user
+
+3. Process of `sendMessage`
+  3.1. Start QueryRunner transaction
+  3.2. Validate sender and recipient existence
+  3.3. Execute `findRoom` or `createRoom`
+  3.4. Save ChatEntity to DB with room foreign key
+  3.5. Commit transaction in rollback if errors
+
+4. Retrieve sender Socket
+  4.1. Redis: `getUserStatus` gets `socketId`
+  4.2. Map: `clientConnection.get(getUserSocketId.socketId)` gets Socket object`
+
+5. Emit to Socket.io room
+  5.1. `senderSocketId.to(room.id.toString())`, then `emit("SendMessage")` to `(ChatEntity, messageSchema)`, broadcasts to all in room through  `room.id`
+  5.2. `senderSocketId.emit("SendMessage")` confirms delivery to sender in `(ChatEntity, messageSchema)`
+  <!-- 5.3. Redis sends  -->
+
+6. Recipient receives Sender's message
+  6.1. Client receives 'SendMessage' with message schema
+  6.2. 
+
+7. Client Disconnects
+  7.1 Clients disconnects from socket in `chat.gateway`
+
+
+? RateLimitGuard checks Redis counter
+? ChatService finds/creates room
+? Save to PostgreSQL
+? Emit to Socket.IO room
+? Broadcast to recipient
+? Client sends message
 
 1. registerClient
 2. removeClient
@@ -185,7 +215,7 @@ Redis memory
   }
 ```
 
-### Check User Data
+#### Check User Data
 
 - Terminal command
 `docker exec -it redis-chat redis-cli`
@@ -235,7 +265,6 @@ Remove container (keeps image)
 `docker rm redis-chat`
 
 
-
 - Terminal Log
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "send" message -->
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
@@ -255,6 +284,6 @@ Remove container (keeps image)
 ## Scale Up In Future
 - Store conversation list per user (last message, unread message, etc)
 - Return `roomId` to frontend instead of recalculating(mid of queries) it
-- Let frontend send messages to `roomId` instead of to recipientId
 - Use `roomId` to scale to group chats later
 - Let users delete rooms and conversation
+- Restore by load up previous chat logs when user disconnected from Socket

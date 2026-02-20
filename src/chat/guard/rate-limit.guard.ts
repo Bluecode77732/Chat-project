@@ -32,6 +32,7 @@ export class RateLimitGuard implements CanActivate {
             if (count === 1) {
                 // Expires key in 60 seconds
                 await this.redis.expire(key, 60);
+                console.log('Redis key expired');
             };
             if (count > 10) {
                 // Error when exceeds 10 messages in a per minute.

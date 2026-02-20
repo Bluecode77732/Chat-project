@@ -209,9 +209,10 @@ export class ChatService {
     // - Finds or creates room
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
+    //?! Note: Is this parameter correct way? getOrCreateRoom = queryRunner => sendMessage = server?: Server
     async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, server?: Server) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
-                
+
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         console.log('📨 QueryRunner connected');
@@ -282,7 +283,7 @@ export class ChatService {
                     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                     // throw new WsException("Cannot Find Sender ID");
                     // Todo: GraphQL connection
-                    senderSocketId.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                    senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                     senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                     
                     //! What if this server doesn't exist?
