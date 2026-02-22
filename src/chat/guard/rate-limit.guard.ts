@@ -16,7 +16,8 @@ export class RateLimitGuard implements CanActivate {
             console.log('RateLimitGuard executing');
 
             const client = context.switchToWs().getClient();
-            console.log('Client data:', client.data);
+            console.log('Client data:');
+            // console.log('Client data:', client.data);
 
             const userId = client.data.user.sub;
             console.log('User ID:', userId);

@@ -37,7 +37,7 @@ export class ChatService {
         private readonly redisService: SessionCacheService,
 
         // GraphQL socket connection
-        private readonly server: Server,
+        // private readonly server: Server,
     ) { };
 
 
@@ -176,7 +176,8 @@ export class ChatService {
         room = await this.createRoom(sender, recipient, manager);
 
         // Notify and join users when they connected
-        [sender.id, recipient.id].forEach(async (id) => {
+        // [sender.id, recipient.id].forEach(async (id) => {
+        for (const id of [sender.id, recipient.id]) {
 
             // Get Client ID
             // New code along with Redis cache
@@ -197,7 +198,7 @@ export class ChatService {
                     connect.join(room.id.toString());
                 };
             };
-        });
+        };
 
         // console.log("created a room");
         // this.logger.log(`User ${sender.id}, ${recipient.id} created a room`);
@@ -265,7 +266,7 @@ export class ChatService {
 
 
             //* Redis adoption #5 *//
-            // Todo: Get client ID from Socket
+            // Todo: Get client ID from Redis
             const getSenderStatusId = await this.redisService.getUserStatus(sender.id);
             // const getSenderSocketId = this.clientConnection.get(sender.id);
 
@@ -274,24 +275,28 @@ export class ChatService {
             //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
             //     throw new WsException("Cannot Find Sender ID");
             // }
-            if (!getSenderStatusId?.socketId && this.server) {
+            if (!getSenderStatusId?.socketId) {
+                console.log('🔍 Redis socketId:', getSenderStatusId?.socketId);
+                console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
+                throw new WsException("Sender isn't online");
+            };
+
+            // Todo: Get recipient ID from Socket
+            const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
+            // const recipientSocket = this.clientConnection.get(recipient.id);
+            if (senderSocketId) {
                 // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 // throw new WsException("Cannot Find Sender ID");
+                // Todo: GraphQL connection
+                // Broadcast to the rooms
+                senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                // Send back to the sender to check if the message was sent
+                senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
 
-                // Todo: Get recipient ID from Socket
-                const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
-                // const recipientSocket = this.clientConnection.get(recipient.id);
-                if (senderSocketId) {
-                    // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                    // throw new WsException("Cannot Find Sender ID");
-                    // Todo: GraphQL connection
-                    senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-                    senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-
-                    //! What if this server doesn't exist?
-                    this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-                };
+                //! What if this server doesn't exist?
+                // this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
             };
+
 
             // // Get recipient ID from Socket
             // const senderSocketId = this.clientConnection.get(getSenderStatusId.socketId);
