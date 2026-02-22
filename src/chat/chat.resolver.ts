@@ -15,7 +15,7 @@ import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 
 // Todo: GraphQL connection - Comment Out
-// const pubSub = new PubSub(); // simple in-memory (for dev/single instance)
+// const pubSub = new PubSub(); // simple in-memory (for dev environment/single instance)
 
 @Resolver()
 export class ChatResolver {
@@ -41,7 +41,6 @@ export class ChatResolver {
         console.log('🔵 Mutation received:', { input, recipientId });
         console.log('🔵 PubSub instance in mutation:', this.pubSub.constructor.name);
 
-        // const userId = 1;
         const userId = ctx.req?.user?.sub || 1;
         const savedMessage = await this.chatService.sendMessage(
             { sub: userId },

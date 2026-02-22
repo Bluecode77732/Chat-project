@@ -66,8 +66,10 @@ import { ChatResolver } from './chat/chat.resolver';
         "graphql-ws": {
           onConnect: (context) => {
             console.log('WebSocket connectionParams:', context.connectionParams);
+            
             const token = context.connectionParams?.authorization;
             console.log('Token:', token);
+            
             context.extra = { authorization: token };
             return { authorization: token };
           },

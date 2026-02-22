@@ -13,8 +13,8 @@ import { RateLimitGuard } from './guard/rate-limit.guard';
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Todo: GraphQL connection
-  @WebSocketServer()
-  server: Server;
+  // @WebSocketServer()
+  // server: Server;
   
   constructor(
     private readonly chatService: ChatService,
@@ -81,7 +81,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() dto: CreateChatDto,
   ) {
     const payload = client.data.user;
-    await this.chatService.sendMessage(payload, dto, this.server);
+    await this.chatService.sendMessage(payload, dto);
   }
 
 

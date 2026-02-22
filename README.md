@@ -86,15 +86,6 @@
 
 
 ## Flow
-### Chat
-1. Validate users
-2. Join Users
-3. Find room/Create room
-4. Send message
-5. Save message
-6. Broadcast to sockets
-
-### Auth
 1. Client connects WebSocket with handleConnection in `chat.gateway`
   1.1. Authenticate JWT token
   2.2. Store userId => socketId in Redis
@@ -226,7 +217,7 @@ Redis memory
 - Check data
 `HGETALL user:<user_number>`
 
-Result:
+- Result
 `HGETALL user:1`
 1) "socketId"
 2) "5Ktdy8PO-CbS2sa4AAAD"
@@ -287,3 +278,4 @@ Remove container (keeps image)
 - Use `roomId` to scale to group chats later
 - Let users delete rooms and conversation
 - Restore by load up previous chat logs when user disconnected from Socket
+- Let users see "User is typing" when one side is typing a message

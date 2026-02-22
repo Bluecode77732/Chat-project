@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Server, Socket } from 'socket.io';
-import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -11,7 +11,6 @@ import { WsException } from '@nestjs/websockets';
 import { plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
-// import type { Server } from 'node_modules/graphql-ws/dist';
 // import * as Server from 'graphql-ws';
 // import type { Server } from 'graphql-ws';
 
@@ -38,13 +37,16 @@ export class ChatService {
         private readonly redisService: SessionCacheService,
 
         // GraphQL socket connection
-        // private readonly server: Server,
+        private readonly server: Server,
     ) { };
 
 
     // Connect Socket
     async registerClient(participantId: number, client: Socket) {
+        console.log('🔍 Before Redis SET:', participantId, client.id);
+
         await this.redisService.sethUserOnline(participantId, client.id);
+        console.log('🔍 After Redis SET');
         this.clientConnection.set(client.id, client);
 
         logger.info(`User ${participantId} has connected`);
@@ -210,7 +212,7 @@ export class ChatService {
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
     //?! Note: Is this parameter correct way? getOrCreateRoom = queryRunner => sendMessage = server?: Server
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, server?: Server) {
+    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
 
         const queryRunner = this.dataSource.createQueryRunner();
@@ -272,10 +274,10 @@ export class ChatService {
             //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
             //     throw new WsException("Cannot Find Sender ID");
             // }
-            if (!getSenderStatusId?.socketId && server) {
+            if (!getSenderStatusId?.socketId && this.server) {
                 // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
                 // throw new WsException("Cannot Find Sender ID");
-                
+
                 // Todo: Get recipient ID from Socket
                 const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
                 // const recipientSocket = this.clientConnection.get(recipient.id);
@@ -285,9 +287,9 @@ export class ChatService {
                     // Todo: GraphQL connection
                     senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                     senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-                    
+
                     //! What if this server doesn't exist?
-                    server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+                    this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
                 };
             };
 
@@ -309,7 +311,7 @@ export class ChatService {
             */
             // redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
             //? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
-            
+
             // redis.service : return data.socketId ? data : null;
             //? const recipientSocketId = getRecipientStatusId?.socketId ? this.clientConnection.get(getRecipientStatusId.socketId) : null;
 
