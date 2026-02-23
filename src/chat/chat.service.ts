@@ -270,6 +270,7 @@ export class ChatService {
             const getSenderStatusId = await this.redisService.getUserStatus(sender.id);
             // const getSenderSocketId = this.clientConnection.get(sender.id);
 
+            console.log('🔍 Step 1 - Redis returned:', getSenderStatusId);
             // console.log("clientSocket found?", !!getClientSocket);
             // if (!getSenderStatusId?.socketId) {
             //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
@@ -277,25 +278,41 @@ export class ChatService {
             // }
             if (!getSenderStatusId?.socketId) {
                 console.log('🔍 Redis socketId:', getSenderStatusId?.socketId);
+                console.log('❌ No socketId in Redis for sender:', sender.id);
                 console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
                 throw new WsException("Sender isn't online");
             };
 
             // Todo: Get recipient ID from Socket
+            console.log('🔍 Step 2 - Looking for socketId in Map:', getSenderStatusId.socketId);
             const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
             // const recipientSocket = this.clientConnection.get(recipient.id);
-            if (senderSocketId) {
-                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                // throw new WsException("Cannot Find Sender ID");
-                // Todo: GraphQL connection
-                // Broadcast to the rooms
-                senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-                // Send back to the sender to check if the message was sent
-                senderSocketId.emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
 
-                //! What if this server doesn't exist?
-                // this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+            if (!senderSocketId) {
+                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                throw new WsException("Cannot Find Sender ID");
             };
+
+            console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId.rooms));
+            console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
+
+            // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+            // throw new WsException("Cannot Find Sender ID");
+            // Todo: GraphQL connection
+            // Broadcast to the rooms
+            senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            console.log('✅ Broadcasted to room');
+
+            // Send back to the sender to check if the message was sent
+            //! Debug: case-sensitive strings; SendMessage => sendMessage
+            senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            console.log('✅ Sent to sender');
+
+
+            //! What if this server doesn't exist?
+            // this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
+
 
 
             // // Get recipient ID from Socket
@@ -315,10 +332,21 @@ export class ChatService {
              * `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
             */
             // redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
-            //? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
+            // ? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
+            const getRecipientStatusId = await this.redisService.getUserStatus(recipientId);
+            console.log('🔍 Recipient status:', getRecipientStatusId);
 
             // redis.service : return data.socketId ? data : null;
             //? const recipientSocketId = getRecipientStatusId?.socketId ? this.clientConnection.get(getRecipientStatusId.socketId) : null;
+
+            //? Debug: Recipient room check
+            if (getRecipientStatusId?.socketId) {
+                const recipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
+                console.log('🔍 Recipient socket found?', !!recipientSocket);
+                console.log('🔍 Recipient rooms:', recipientSocket ? Array.from(recipientSocket.rooms) : 'no socket');
+            } else {
+                console.log('⚠️ Recipient not online');
+            };
 
 
             //* Redis adoption #7 *//
