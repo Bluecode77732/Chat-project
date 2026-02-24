@@ -267,25 +267,25 @@ export class ChatService {
 
             //* Redis adoption #5 *//
             // Todo: Get client ID from Redis
-            const getSenderStatusId = await this.redisService.getUserStatus(sender.id);
+            const getSenderFromRedisStatusId = await this.redisService.getUserStatus(sender.id);
             // const getSenderSocketId = this.clientConnection.get(sender.id);
 
-            console.log('🔍 Step 1 - Redis returned:', getSenderStatusId);
+            console.log('🔍 Step 1 - Redis returned:', getSenderFromRedisStatusId);
             // console.log("clientSocket found?", !!getClientSocket);
             // if (!getSenderStatusId?.socketId) {
             //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
             //     throw new WsException("Cannot Find Sender ID");
             // }
-            if (!getSenderStatusId?.socketId) {
-                console.log('🔍 Redis socketId:', getSenderStatusId?.socketId);
+            if (!getSenderFromRedisStatusId?.socketId) {
+                console.log('🔍 Redis socketId:', getSenderFromRedisStatusId?.socketId);
                 console.log('❌ No socketId in Redis for sender:', sender.id);
                 console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
                 throw new WsException("Sender isn't online");
             };
 
             // Todo: Get recipient ID from Socket
-            console.log('🔍 Step 2 - Looking for socketId in Map:', getSenderStatusId.socketId);
-            const senderSocketId = this.clientConnection.get(getSenderStatusId?.socketId as string);
+            console.log('🔍 Step 2 - Looking for socketId in Map:', getSenderFromRedisStatusId.socketId);
+            const senderSocketId = this.clientConnection.get(getSenderFromRedisStatusId?.socketId as string);
             // const recipientSocket = this.clientConnection.get(recipient.id);
             console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
 
@@ -336,8 +336,9 @@ export class ChatService {
             const getRecipientStatusId = await this.redisService.getUserStatus(recipientId);
             console.log('🔍 Recipient status:', getRecipientStatusId);
 
-            // redis.service : return data.socketId ? data : null;
+            // `redis.service : return data.socketId ? data : null;`
             //? const recipientSocketId = getRecipientStatusId?.socketId ? this.clientConnection.get(getRecipientStatusId.socketId) : null;
+
 
             //? Debug: Recipient room check
             if (getRecipientStatusId?.socketId) {

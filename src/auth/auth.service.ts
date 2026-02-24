@@ -91,6 +91,7 @@ export class AuthService {
         await this.userRepository.save({
             email,
             password: hash,
+            role: UserRole.signedIn,
         });
 
         logger.info(`User '${email}' is registered`);

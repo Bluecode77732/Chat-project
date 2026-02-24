@@ -17,8 +17,8 @@ describe('ChatService', () => {
   let mockQueryRunner: Partial<QueryRunner>;
 
   let chatService: ChatService;
-  let userRepository: Repository<UserEntity>;
   let roomRepository: Repository<RoomEntity>;
+  let userRepository: Repository<UserEntity>;
   let dataSource: DataSource;
   let redisService: SessionCacheService;
 

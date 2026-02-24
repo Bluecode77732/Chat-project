@@ -1,21 +1,15 @@
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { ChatService } from './chat.service';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
-// import type { QueryRunner } from 'typeorm';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 import { RateLimitGuard } from './guard/rate-limit.guard';
-
+import { RBACguard } from 'src/auth/guard/rbac.guard';
 
 @WebSocketGateway()
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  // Todo: GraphQL connection
-  // @WebSocketServer()
-  // server: Server;
-  
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {  
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
@@ -25,7 +19,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
-      const rawToken = client.handshake.headers.authorization || client.handshake.auth?.token || client.handshake.query?.token;
+      const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
       console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload
@@ -76,6 +70,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   @UseInterceptors(WebSocketTransaction)
   @UseGuards(RateLimitGuard)
+  @UseGuards(RBACguard)
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
@@ -83,29 +78,4 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const payload = client.data.user;
     await this.chatService.sendMessage(payload, dto);
   }
-
-
-  // @Get(':id')
-  // async getUserConversation(@Param('id') userId: number) {
-  //   return await this.chatService.getUserConversation(userId);
-  // }
-
-
-  // @SubscribeMessage('send')
-  // async sendMessage(
-  //   @MessageBody() data: { msg: string },
-  //   @ConnectedSocket() client: Socket,
-  // ) {
-  //   client.emit("send message", { ...data, from: "server" });
-  // };
-
-  // @SubscribeMessage('receive')
-  // async receiveMessage(
-  //   @MessageBody() data: { msg: string },
-  //   @ConnectedSocket() client: Socket,
-  // ) {
-  //   console.log("receive sent.");
-  //   console.log(data);
-  //   console.log(client);
-  // };
 }

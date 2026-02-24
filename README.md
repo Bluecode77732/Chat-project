@@ -150,6 +150,19 @@ Lifecycle Hooks
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
 
+### Auth
+
+
+### Role
+- When users issue bearer token, they need a raw token. Once their roles are set as `signedIn`, they can have the raw token that contains their role information.
+- The users only who have `signedIn` can send messages even if token is issued for them.
+- It throws error when user's role is `signedOut` as following log.
+
+Log: 
+`error | Cannot Find Sender ID`
+`error | Failed to send message: Cannot Find Sender ID`
+
+
 ### Redis
 Supposedly, A data stored in-memory Socket with without Redis, however with Redis, it can efficiently store user's metadata, and useful when horizontal scale up the server.
 

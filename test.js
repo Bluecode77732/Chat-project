@@ -1,7 +1,7 @@
 const { io } = require('socket.io-client');
 
 // User 1
-const token1 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzE4NTkxMjcsImV4cCI6MTc3MTg2MDEyNn0.N2pLxGxWfITPYBUk9QEy2-u5yQbpIVEC6h1z5HDLo7I';
+const token1 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzE5MzkzMTEsImV4cCI6MTc3MTk0MDMxMH0.ojyERLCa0zH1bU2Nv0hv5yA5PdsiNQU6Siz1DEQe2p4';
 
 const client1 = io('http://localhost:3000', {
     auth: { token: token1 }
@@ -20,7 +20,7 @@ client1.on('SendMessage', (data) => {
 });
 
 // User 2
-const token2 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzE4NTkxNTEsImV4cCI6MTc3MTg2MDE1MH0.7BXidV0bak9Ac9Tup2a_C3MposMIGMkbmIXHHIrzWtI';
+const token2 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzE5MzkzMTEsImV4cCI6MTc3MTk0MDMxMH0.ojyERLCa0zH1bU2Nv0hv5yA5PdsiNQU6Siz1DEQe2p4';
 
 const client2 = io('http://localhost:3000', {
     auth: { token: token2 }
