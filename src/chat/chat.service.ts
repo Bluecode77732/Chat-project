@@ -8,7 +8,7 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 // import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
-import { plainToClass } from 'class-transformer';
+import { instanceToPlain, plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
 // import * as Server from 'graphql-ws';
@@ -297,16 +297,49 @@ export class ChatService {
             console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId.rooms));
             console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
 
-            // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-            // throw new WsException("Cannot Find Sender ID");
+
+            //! Debug - non-serializable object converting error
+            console.log('🔍 About to create messageData');
+            console.log('🔍 messageSchema type:', typeof messageSchema);
+            console.log('🔍 messageSchema keys:', Object.keys(messageSchema));
+            console.log('🔍 sender type:', typeof sender);
+            console.log('🔍 sender keys:', Object.keys(sender));
+            console.log('🔍 room type:', typeof room);
+            console.log('🔍 room keys:', Object.keys(room));
+
+            //! 1st attempt
+            // const serializedMessage = instanceToPlain(messageSchema, {
+            //     // Indicates if extraneous properties should be excluded from the value when converting a plain value to a class.
+            //     // This option requires that each property on the target class has at least one @Expose or @Exclude decorator assigned from this library.
+            //     excludeExtraneousValues: true,
+            // });
+
+            //! 2nd attempt
+            const serializedMessage = {
+                id: messageSchema.id,
+                message: messageSchema.message,
+                participantId: sender.id,
+                email: sender.email,
+                recipientId: senderSocketId.id,
+                roomId: room.id,
+                createdAt: new Date().toISOString(),
+            };
+            console.log('🔍 messageData created successfully:', serializedMessage);
+            console.log('🔍 About to emit...');
+
+
             // Todo: GraphQL connection
             // Broadcast to the rooms
-            senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
+            //! Commented Out
+            // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, serializedMessage));
             console.log('✅ Broadcasted to room');
 
             // Send back to the sender to check if the message was sent
             //! Debug: case-sensitive strings; SendMessage => sendMessage
-            senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            senderSocketId.emit("sendMessage", serializedMessage);
+            //! Commented Out
+            // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, serializedMessage));
             console.log('✅ Sent to sender');
 
 
@@ -348,6 +381,9 @@ export class ChatService {
             } else {
                 console.log('⚠️ Recipient not online');
             };
+
+            console.log('🔍 room.id type:', typeof room.id, room.id);
+            console.log('🔍 messageSchema:', messageSchema);
 
 
             //* Redis adoption #7 *//

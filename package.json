@@ -116,7 +116,11 @@
       "controller.ts",
       "gateway.ts",
       "interceptor.ts",
-      "itc.ts"
+      "itc.ts",
+      "role.ts",
+      "logger.ts",
+      "type.ts",
+      "pubsub.service.ts"
     ],
     "testEnvironment": "node",
     "moduleNameMapper": {

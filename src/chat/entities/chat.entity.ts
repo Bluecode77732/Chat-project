@@ -9,7 +9,7 @@ export class ChatEntity extends EntityBase {
     id: number;
 
     @Column()
-    message: string
+    message: string;
 
     // @JoinColumn({ name: 'participantId' })
     @ManyToOne(

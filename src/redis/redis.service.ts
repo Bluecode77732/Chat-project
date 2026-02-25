@@ -38,6 +38,7 @@ export class SessionCacheService {
         console.log(`✅ Got user present status: ${userId}`);
         // return await this.redis.hGetAll(`user:${userId}`);
         const data = await this.redis.hGetAll(`user:${userId}`);
+        console.log(`✅ Data: ${data}`);
         return data.socketId ? data : null;
     };
 } 

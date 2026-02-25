@@ -1,6 +1,6 @@
-import { ObjectType, Field, ID, PartialType } from '@nestjs/graphql';
-import { BaseType } from './base-type';
+import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { UserRole } from 'src/auth/role/role';
+import { BaseType } from './base.type';
 
 @ObjectType()
 export class UserType extends BaseType {
@@ -15,13 +15,4 @@ export class UserType extends BaseType {
 
     @Field(() => String, { nullable: true })
     role?: UserRole; // or use an Enum if you have UserRole as GraphQL enum
-
-    // chats: ChatEntity[];
-    // rooms: RoomEntity[];
-
-    // @Field()
-    // createdAt: Date;
-
-    // @Field()
-    // updatedAt: Date;
 }
