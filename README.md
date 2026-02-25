@@ -219,30 +219,6 @@ Redis memory
   }
 ```
 
-#### Check User Data
-
-- Terminal command
-`docker exec -it redis-chat redis-cli`
-
-- Check keys
-`KEYS user:*`
-
-- Check data
-`HGETALL user:<user_number>`
-
-- Result
-`HGETALL user:1`
-1) "socketId"
-2) "5Ktdy8PO-CbS2sa4AAAD"
-3) "status"
-4) "online"
-
-`HGETALL user:2`
-1) "socketId"
-2) "fFyW-wbprFGKtBfkAAAB"
-3) "status"
-4) "online"
-
 
 ### Docker
 #### Build
@@ -276,6 +252,31 @@ Remove container (keeps image)
 - Postman Log
 ```
 ```
+
+
+#### Check User Data
+
+- Terminal command
+`docker exec -it redis-chat redis-cli`
+
+- Check keys
+`KEYS user:*`
+
+- Check data
+`HGETALL user:<user_number>`
+
+- Result
+`HGETALL user:1`
+1) "socketId"
+2) "5Ktdy8PO-CbS2sa4AAAD"
+3) "status"
+4) "online"
+
+`HGETALL user:2`
+1) "socketId"
+2) "fFyW-wbprFGKtBfkAAAB"
+3) "status"
+4) "online"
 
 
 ## Debug
