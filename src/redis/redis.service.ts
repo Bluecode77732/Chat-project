@@ -2,11 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import * as redisClient from "redis";
 
 /**  
- ** This Redis service replace the in-memory(temporal store) `clientConnection` Map 
- ** with Redis storage so user data persists across server restarts, 
-
- ** Replace for preventing losing of data when server restarts
- ** Can share persisted data between multiple servers for horizontal scaling.
+ ** This Redis service replaces the in-memory(temporal store) `clientConnection` Map 
+ ** with Redis storage so user data persists across server restarts so it can prevent losing of data.
+ ** The data is persistent between multiple servers for horizontal scaling in expansion of server.
 */
 
 @Injectable()
@@ -39,22 +37,11 @@ export class SessionCacheService {
 
         try {
             const data = await this.redis.hGetAll(`user:${userId}`);
-            
-            // if (!data || !data.socketId) {
-            //     console.log(`🔥 Cache Error: ${userId}`);
-            //     return null;
-            // };
 
             console.log(`✅ Got user present status: ${userId}`);
             console.log(`✅ Data: ${JSON.stringify(data)}`);
 
             return data.socketId ? data : null;
-            // return {
-            //     socketId: data.socketId.toString(),
-            //     // socketId: String(data.socketId),
-            //     status: data.status.toString() || 'status is null',
-            //     // status: String(data.status || 'status is null'),
-            // };
 
         } catch (error) {
             console.log(`🔥 Cache Error: ${userId}`, error.message);
