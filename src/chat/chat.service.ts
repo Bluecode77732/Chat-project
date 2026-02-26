@@ -216,11 +216,14 @@ export class ChatService {
     async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
 
+        console.log('🔥 About to connect queryRunner');
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         console.log('📨 QueryRunner connected');
+        console.log('🔥 QueryRunner connected');
         await queryRunner.startTransaction();
         console.log('📨 Transaction started');
+        console.log('🔥 Transaction started');
 
         try {
             // Todo: Find a client
