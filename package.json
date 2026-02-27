@@ -120,7 +120,8 @@
       "role.ts",
       "logger.ts",
       "type.ts",
-      "pubsub.service.ts"
+      "pubsub.service.ts",
+      "resolver.ts"
     ],
     "testEnvironment": "node",
     "moduleNameMapper": {

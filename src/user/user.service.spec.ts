@@ -59,14 +59,14 @@ describe('UserService', () => {
       };
 
       const genSalt = 10;
-      const userId = 1;
       const email = "email@gamil.com";
       const hashed = genSalt;
 
       const result = {
-        id: userId,
+        // id: userId,
         email: email,
         password: hashed,
+        role: 0,
       };
 
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);

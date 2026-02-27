@@ -19,7 +19,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
-      const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
+      const rawToken = client.handshake.headers?.authorization;
+      // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
       console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload

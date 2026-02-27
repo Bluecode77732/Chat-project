@@ -333,31 +333,30 @@ export class ChatService {
 
             // Todo: GraphQL connection
             // Broadcast to the rooms
-            senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
             //! Commented Out
-            // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, serializedMessage));
-            console.log('✅ Broadcasted to room');
-
+            // senderSocketId.to(room.id.toString());   //! If there's no `emit`, throws "INTERNAL_SERVER_ERROR".
+            // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
+            
+            //* Original 
+            // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            //* Debug
+            senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
+            console.log('✅ Broadcast to room');
+            
             // Send back to the sender to check if the message was sent
             //! Debug: case-sensitive strings; SendMessage => sendMessage
-            senderSocketId.emit("sendMessage", serializedMessage);
             //! Commented Out
-            // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, serializedMessage));
-            console.log('✅ Sent to sender');
+            // senderSocketId.emit("sendMessage", messageSchema);            
+            
+            //* Original 
+            // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+            //* Debug
+            senderSocketId.emit("sendMessage", serializedMessage);
+            console.log('✅ Message sent to sender');
 
 
             //! What if this server doesn't exist?
             // this.server.to(room.id.toString()).emit("SendMessage", plainToClass(ChatEntity, messageSchema));
-
-
-
-            // // Get recipient ID from Socket
-            // const senderSocketId = this.clientConnection.get(getSenderStatusId.socketId);
-            // // const recipientSocket = this.clientConnection.get(recipient.id);
-            // if (!senderSocketId) {
-            //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-            //     throw new WsException("Cannot Find Sender ID");
-            // };
 
 
             //* Redis adoption #6 *//
@@ -453,7 +452,6 @@ export class ChatService {
             return messageSchema;
 
         } catch (error) {
-            // console.log(`ERROR: ${error}`);
             logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
             await queryRunner.rollbackTransaction();
             throw new Error(`Failed to send message: ${error.message}`)

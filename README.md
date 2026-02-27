@@ -34,6 +34,24 @@
   http://localhost:3000/doc
 ```
 
+### Error Solution
+List of error solutions when the program runs
+- Redis connection
+  - "GraphQLModule dependencies initialized"
+  - "Redis Error: AggregateError [ECONNREFUSED]"
+  - "Error: connect ECONNREFUSED ::IPv6 address:port"
+  
+  - Solution 
+    - ✅ Open terminal to run `docker start redis-chat`
+
+- Connection failure
+  - "Failed to send message: Sender isn't online"
+
+  - Solution 
+    -
+
+
+
 ## API Documentation
 ### Swagger UI
 ***To try all of'em, you must register first to get started.***

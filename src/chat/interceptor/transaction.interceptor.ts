@@ -30,7 +30,8 @@ export class Transaction implements NestInterceptor {
                     },
                 ),
                 tap(async () => {
-                    await queryRunner.rollbackTransaction();
+                    //!? Debug - Save message in DB: `rollbackTransaction` => `commitTransaction`; ; Is this correct debugging?
+                    await queryRunner.commitTransaction();
                     await queryRunner.release();
                 }),
             );

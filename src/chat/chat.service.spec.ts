@@ -353,7 +353,7 @@ describe('ChatService', () => {
       const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 1 };
       const mockSender = { id: 1 } as UserEntity;
       const mockSenderSocket = { id: '1' } as Socket;
-      const mockRecipient = { id: 1 } as UserEntity;
+      const mockRecipient = 1;
       const mockRecipientSocket = { id: '2' } as Socket;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
       const mockMessage = {
@@ -369,11 +369,14 @@ describe('ChatService', () => {
 
       // Mock all dependencies
       jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
-      jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
+      // jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipientSocket);
       jest.spyOn(chatService as any, 'getAndCreateRoom').mockResolvedValue(mockRooms);
       jest.spyOn(mockManager as EntityManager, 'save').mockResolvedValue(mockMessage);
       jest.spyOn(redisService, 'getUserStatus').mockResolvedValue(null);
       // mockQueryRunner.manager.save = jest.fn().mockResolvedValue(mockMessage);
+      
+      // await userRepository.findOneBy(mockRecipient);
+      await chatService.getOrCreateRoom(mockSender, mockRecipient, mockQueryRunner as QueryRunner);
 
       // Register both user's sockets
       mockClientConnection.set(1, mockSocket as Socket);

@@ -65,32 +65,33 @@ describe('SessionCacheService', () => {
       // jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
 
       // jest.spyOn(redisService, 'sethUserOnline').mockReturnValue(mockUserId, mockSocketId);
-      await redisService.sethUserOnline(mockUserId, mockSocketId);
+      await redisService.sethUserOffline(mockUserId);
 
       expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);
     });
   });
-  
-  
+
+
   describe("getUserStatus", () => {
     it("should get user socketId from Redis hashed data", async () => {
       // const data = await this.redis.hGetAll(`user:${userId}`);
       // return data.socketId ? data : null;
 
       const mockUserId = 1;
-      const mockUserData = {mockUserId, };
+      // const mockUserData = { mockUserId, stats: "online" };
       const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
       const mockField = { mockSocketId, status: "online" };
-  
-      jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
+
+      // jest.spyOn(mockRedisClient, 'hGetAll').mockReturnValue(mockUserId);
       // jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
-  
+
       // jest.spyOn(redisService, 'sethUserOnline').mockReturnValue(mockUserId, mockSocketId);
-      await redisService.sethUserOnline(mockUserId, mockSocketId);
-  
+      const result = await redisService.getUserStatus(mockUserId);
+
       expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);
+      expect(result).toEqual(mockField);
     });
-    
+
     // it('should update a new user.', async () => {
     //   const updateUserDto: UpdateUserDto = {
     //     email: "email@gamil.com",
