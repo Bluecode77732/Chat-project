@@ -6,13 +6,14 @@
 
 
 import { Resolver, Subscription, Mutation, Args, Query, Context, ID, Int } from '@nestjs/graphql';
-import { PubSub } from 'graphql-subscriptions'; // or use own injectable PubSub
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
+// import { PubSub } from 'graphql-subscriptions'; // or use own injectable PubSub
 import { PubSubService } from 'src/graphql/pubsub.service';
+import { DataSource } from 'typeorm';
 
 // Todo: GraphQL connection - Comment Out
 // const pubSub = new PubSub(); // simple in-memory (for dev environment/single instance)
@@ -22,14 +23,16 @@ export class ChatResolver {
     constructor(
         private readonly chatService: ChatService,
         private readonly pubSub: PubSubService,
+        //! Debug: Inject QueryRunner for transaction when client request to GraphQL
+        private readonly dataSource: DataSource,
     ) { }
-
+    
     // A dummy query to satisfy root Query requirement
     @Query(() => MessageType)
     ping(): string {
         return 'ping has returned.'; // Fixes the error (GraphQL requires at least one @Query)
     }
-
+    
     @Mutation(() => MessageType)
     @UseGuards(GraphQLAuthGuard)
     async sendMessage(
@@ -40,14 +43,21 @@ export class ChatResolver {
     ): Promise<MessageType | any | null> {
         console.log('🔵 Mutation received:', { input, recipientId });
         console.log('🔵 PubSub instance in mutation:', this.pubSub.constructor.name);
-
+        
         const userId = ctx.req?.user?.sub || 1;
+        //! Debug: Inject QueryRunner for transaction when client request to GraphQL
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        console.log("🔥 QueryRunner connected from 'chat.resolver'");
+        await queryRunner.startTransaction();
+        console.log("🔥 Transaction started from 'chat.resolver'");
         const savedMessage = await this.chatService.sendMessage(
             { sub: userId },
             {
                 message: input.message,
                 recipientId,
             },
+            queryRunner,
         );
         console.log('🔵 Saved message:', savedMessage);
         console.log('🔵 Publishing to room:', input.room);

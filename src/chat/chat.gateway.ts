@@ -7,12 +7,15 @@ import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { RBACguard } from 'src/auth/guard/rbac.guard';
+import type { QueryRunner } from 'typeorm';
+import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {  
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
+    // private readonly queryRunner: QueryRunner[],
   ) { }
 
   async handleConnection(client: Socket) {
@@ -75,8 +78,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
+    @WebSocketQueryRunner() queryRunner: QueryRunner,
+    // queryRunner: QueryRunner[],
   ) {
     const payload = client.data.user;
-    await this.chatService.sendMessage(payload, dto);
+    await this.chatService.sendMessage(payload, dto, queryRunner);
   }
 }

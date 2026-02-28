@@ -31,7 +31,7 @@ export class ChatService {
         private readonly userRepository: Repository<UserEntity>,
 
         // Injecting DataSource for transactions
-        private readonly dataSource: DataSource,
+        // private readonly dataSource: DataSource,
 
         // Injecting redisService to replace current in-memory storage Socket instance
         private readonly redisService: SessionCacheService,
@@ -213,17 +213,15 @@ export class ChatService {
     // - Saves message
     // - Broadcasts to room (others see it) + emits back to sender
     //?! Note: Is this parameter correct way? getOrCreateRoom = queryRunner => sendMessage = server?: Server
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto) {
+    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, queryRunner: QueryRunner) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
 
-        console.log('🔥 About to connect queryRunner');
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        console.log('📨 QueryRunner connected');
-        console.log('🔥 QueryRunner connected');
-        await queryRunner.startTransaction();
-        console.log('📨 Transaction started');
-        console.log('🔥 Transaction started');
+        // console.log('🔥 About to connect queryRunner');
+        // const queryRunner = this.dataSource.createQueryRunner();
+        // await queryRunner.connect();
+        // console.log('🔥 QueryRunner connected');
+        // await queryRunner.startTransaction();
+        // console.log('🔥 Transaction started');
 
         try {
             // Todo: Find a client
@@ -279,80 +277,87 @@ export class ChatService {
             //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
             //     throw new WsException("Cannot Find Sender ID");
             // }
-            if (!getSenderFromRedisStatusId?.socketId) {
+            // if (!getSenderFromRedisStatusId?.socketId) {
+            //     console.log('🔍 Redis socketId:', getSenderFromRedisStatusId?.socketId);
+            //     console.log('❌ No socketId in Redis for sender:', sender.id);
+            //     console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
+            //     throw new WsException("Sender isn't online");
+            // };
+            //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
+            if (getSenderFromRedisStatusId?.socketId) {
                 console.log('🔍 Redis socketId:', getSenderFromRedisStatusId?.socketId);
                 console.log('❌ No socketId in Redis for sender:', sender.id);
                 console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
-                throw new WsException("Sender isn't online");
+                // throw new WsException("Sender isn't online");
+
+                // Todo: Get recipient ID from Socket
+                console.log('🔍 Step 2 - Looking for socketId in Map:', getSenderFromRedisStatusId.socketId);
+                const senderSocketId = this.clientConnection.get(getSenderFromRedisStatusId?.socketId as string);
+                // const recipientSocket = this.clientConnection.get(recipient.id);
+                console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
+
+                if (!senderSocketId) {
+                    // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                    throw new WsException("Cannot Find Sender ID");
+                };
+
+                console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId.rooms));
+                console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
+
+
+                //! Debug - non-serializable object converting error
+                console.log('🔍 About to create messageData');
+                console.log('🔍 messageSchema type:', typeof messageSchema);
+                console.log('🔍 messageSchema keys:', Object.keys(messageSchema));
+                console.log('🔍 sender type:', typeof sender);
+                console.log('🔍 sender keys:', Object.keys(sender));
+                console.log('🔍 room type:', typeof room);
+                console.log('🔍 room keys:', Object.keys(room));
+
+                //! 1st attempt
+                // const serializedMessage = instanceToPlain(messageSchema, {
+                //     // Indicates if extraneous properties should be excluded from the value when converting a plain value to a class.
+                //     // This option requires that each property on the target class has at least one @Expose or @Exclude decorator assigned from this library.
+                //     excludeExtraneousValues: true,
+                // });
+
+                //! 2nd attempt
+                const serializedMessage = {
+                    id: messageSchema.id,
+                    message: messageSchema.message,
+                    participantId: sender.id,
+                    email: sender.email,
+                    recipientId: senderSocketId.id,
+                    roomId: room.id,
+                    createdAt: new Date().toISOString(),
+                };
+                console.log('🔍 messageData created successfully:', serializedMessage);
+                console.log('🔍 About to emit...');
+
+
+                // Todo: GraphQL connection
+                // Broadcast to the rooms
+                //! Commented Out
+                // senderSocketId.to(room.id.toString());   //! If there's no `emit`, throws "INTERNAL_SERVER_ERROR".
+                // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
+
+                //* Original 
+                // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                //* Debug
+                senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
+                console.log('✅ Broadcast to room');
+
+                // Send back to the sender to check if the message was sent
+                //! Debug: case-sensitive strings; SendMessage => sendMessage
+                //! Commented Out
+                // senderSocketId.emit("sendMessage", messageSchema);            
+
+                //* Original 
+                // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                //* Debug
+                senderSocketId.emit("sendMessage", serializedMessage);
+                console.log('✅ Message sent to sender');
             };
-
-            // Todo: Get recipient ID from Socket
-            console.log('🔍 Step 2 - Looking for socketId in Map:', getSenderFromRedisStatusId.socketId);
-            const senderSocketId = this.clientConnection.get(getSenderFromRedisStatusId?.socketId as string);
-            // const recipientSocket = this.clientConnection.get(recipient.id);
-            console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
-
-            if (!senderSocketId) {
-                // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                throw new WsException("Cannot Find Sender ID");
-            };
-
-            console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId.rooms));
-            console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
-
-
-            //! Debug - non-serializable object converting error
-            console.log('🔍 About to create messageData');
-            console.log('🔍 messageSchema type:', typeof messageSchema);
-            console.log('🔍 messageSchema keys:', Object.keys(messageSchema));
-            console.log('🔍 sender type:', typeof sender);
-            console.log('🔍 sender keys:', Object.keys(sender));
-            console.log('🔍 room type:', typeof room);
-            console.log('🔍 room keys:', Object.keys(room));
-
-            //! 1st attempt
-            // const serializedMessage = instanceToPlain(messageSchema, {
-            //     // Indicates if extraneous properties should be excluded from the value when converting a plain value to a class.
-            //     // This option requires that each property on the target class has at least one @Expose or @Exclude decorator assigned from this library.
-            //     excludeExtraneousValues: true,
-            // });
-
-            //! 2nd attempt
-            const serializedMessage = {
-                id: messageSchema.id,
-                message: messageSchema.message,
-                participantId: sender.id,
-                email: sender.email,
-                recipientId: senderSocketId.id,
-                roomId: room.id,
-                createdAt: new Date().toISOString(),
-            };
-            console.log('🔍 messageData created successfully:', serializedMessage);
-            console.log('🔍 About to emit...');
-
-
-            // Todo: GraphQL connection
-            // Broadcast to the rooms
-            //! Commented Out
-            // senderSocketId.to(room.id.toString());   //! If there's no `emit`, throws "INTERNAL_SERVER_ERROR".
-            // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
-            
-            //* Original 
-            // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-            //* Debug
-            senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
-            console.log('✅ Broadcast to room');
-            
-            // Send back to the sender to check if the message was sent
-            //! Debug: case-sensitive strings; SendMessage => sendMessage
-            //! Commented Out
-            // senderSocketId.emit("sendMessage", messageSchema);            
-            
-            //* Original 
-            // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-            //* Debug
-            senderSocketId.emit("sendMessage", serializedMessage);
-            console.log('✅ Message sent to sender');
 
 
             //! What if this server doesn't exist?
@@ -437,7 +442,8 @@ export class ChatService {
             // };
 
 
-            await queryRunner.commitTransaction();
+            //! Debug: double lifecycle management, the same resource being controlled by two owners simultaneously => Removed transaction queryRunner
+            // await queryRunner.commitTransaction();
             // this.logger.log(`User ${payload.sub}'s message is saved in the chat room`);
             logger.info(`User ${payload.sub}'s message is saved in the chat room`);
             console.log("Message committed to DB with ID:", messageSchema.id);
@@ -453,10 +459,13 @@ export class ChatService {
 
         } catch (error) {
             logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
-            await queryRunner.rollbackTransaction();
+            //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Removed transaction queryRunner
+            // await queryRunner.rollbackTransaction();
             throw new Error(`Failed to send message: ${error.message}`)
-        } finally {
-            await queryRunner.release();
-        };
+        }
+        //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Removed transaction queryRunner
+        // finally {
+        // await queryRunner.release();
+        // };
     };
 }

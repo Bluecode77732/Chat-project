@@ -27,7 +27,7 @@ export class RBACguard implements CanActivate {
         // const request = context.switchToWs().getClient();
         // const request = context.switchToWs().getClient<Socket>();
         //* Original 
-        const request = context.switchToHttp().getRequest();        
+        const request = context.switchToHttp().getRequest();
         
         // Get the authenticated user from the request in auth router.
         //! (not sure if it's solution) Debug - "Failed to send message: Sender isn't online"
