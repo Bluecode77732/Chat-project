@@ -341,9 +341,9 @@ export class ChatService {
                 // senderSocketId.to(room.id.toString());   //! If there's no `emit`, throws "INTERNAL_SERVER_ERROR".
                 // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
 
-                //* Original 
+                //! Original 
                 // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-                //* Debug
+                //! Debug: `serializedMessage`
                 senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
                 console.log('✅ Broadcast to room');
 
@@ -352,9 +352,9 @@ export class ChatService {
                 //! Commented Out
                 // senderSocketId.emit("sendMessage", messageSchema);            
 
-                //* Original 
+                //! Original 
                 // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-                //* Debug
+                //! Debug: `serializedMessage`
                 senderSocketId.emit("sendMessage", serializedMessage);
                 console.log('✅ Message sent to sender');
             };
