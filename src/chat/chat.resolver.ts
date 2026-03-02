@@ -15,6 +15,7 @@ import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
 import { AuthService } from 'src/auth/auth.service';
+import { logger } from 'src/base/logger/logger';
 
 // Todo: GraphQL connection - Comment Out
 // const pubSub = new PubSub(); // simple in-memory (for dev environment/single instance)
@@ -67,37 +68,49 @@ export class ChatResolver {
         console.log("🔥 QueryRunner connected from 'chat.resolver'");
         await queryRunner.startTransaction();
         console.log("🔥 Transaction started from 'chat.resolver'");
-        
-        const savedMessage = await this.chatService.sendMessage(
-            { sub: userId },
-            {
-                message: input.message,
-                recipientId,
-            },
-            queryRunner,
-        );
-        console.log('🔵 Saved message:', savedMessage);
-        console.log('🔵 Publishing to room:', input.room);
-        console.log('🔵 About to publish:', JSON.stringify({ messageAdded: savedMessage }, null, 2));
 
-        await new Promise(delay => setTimeout(delay, 1000));
+        try {
+            const savedMessage = await this.chatService.sendMessage(
+                { sub: userId },
+                {
+                    message: input.message,
+                    recipientId,
+                },
+                queryRunner,
+            );
+            console.log('🔵 Saved message:', savedMessage);
+            console.log('🔵 Publishing to room:', input.room);
+            console.log('🔵 About to publish:', JSON.stringify({ messageAdded: savedMessage }, null, 2));
 
-        if (input.room) {
-            await this.pubSub.publish(`messageAdded: ${input.room}`, { messageAdded: savedMessage });
-            console.log(`Published to room: ${input.room}`);
+            await new Promise(delay => setTimeout(delay, 1000));
+
+            if (input.room) {
+                await this.pubSub.publish(`messageAdded: ${input.room}`, { messageAdded: savedMessage });
+                console.log(`Published to room: ${input.room}`);
+            };
+
+            const channel = `messageAdded:${input.room}`;
+            console.log('🔵 Publishing to channel:', channel);
+
+            await this.pubSub.publish(channel, { messageAdded: savedMessage });
+            console.log('From chat.resolver: Message sent!');
+            console.log('🔵 Published successfully');
+            //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()`
+            await queryRunner.commitTransaction();
+            logger.info(`User ${userId}'s message is saved in the chat room`);
+
+            return savedMessage || `chat.resolver sends null - ${null}`;
+
+        } catch (error) {
+            console.log(`RollBacking Transaction from Chat.Resolver`);
+            console.log(`Error Message from Chat.Resolver: ${error.message}`);
+            logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
+            await queryRunner.rollbackTransaction();
+            throw new Error(`Failed to send message: ${error.message}`)
+
+        } finally {
+            await queryRunner.release();
         };
-
-        const channel = `messageAdded:${input.room}`;
-        console.log('🔵 Publishing to channel:', channel);
-
-        await this.pubSub.publish(channel, { messageAdded: savedMessage });
-        console.log('From chat.resolver: Message sent!');
-        console.log('🔵 Published successfully');
-
-        //! Debug - Save message in DB: `commitTransaction()`
-        await queryRunner.commitTransaction();
-
-        return savedMessage || `chat.resolver sends null - ${null}`;
     };
 
     @Subscription(() => MessageType, {
