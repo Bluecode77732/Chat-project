@@ -48,8 +48,12 @@ List of error solutions when the program runs
   - "Failed to send message: Sender isn't online"
 
   - Solution 
-    -
+    - ✅ 
 
+  - "Failed to send message: Cannot Find Sender ID"
+
+  - Solution 
+    - ✅ 
 
 
 ## API Documentation
