@@ -7,7 +7,7 @@ export class GraphQLAuthGuard extends AuthGuard('jwt-auth-guard') {
     getRequest(context: ExecutionContext) {
         const GqlCtx = GqlExecutionContext.create(context);
         const ctx = GqlCtx.getContext()
-        const req = ctx.req || { headers: { authorization: ctx.authorization } };
+        const req = ctx.req || { headers: { authorization: ctx.authorization } } || 1;
 
         // Flow logging
         // console.log('GraphQL Context:', ctx);

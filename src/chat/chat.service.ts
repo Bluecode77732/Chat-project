@@ -342,9 +342,9 @@ export class ChatService {
                 // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
 
                 //! Original 
-                // senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                 //! Debug: `serializedMessage`
-                senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
+                // senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
                 console.log('✅ Broadcast to room');
 
                 // Send back to the sender to check if the message was sent
@@ -353,9 +353,9 @@ export class ChatService {
                 // senderSocketId.emit("sendMessage", messageSchema);            
 
                 //! Original 
-                // senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                 //! Debug: `serializedMessage`
-                senderSocketId.emit("sendMessage", serializedMessage);
+                // senderSocketId.emit("sendMessage", serializedMessage);
                 console.log('✅ Message sent to sender');
             };
 
