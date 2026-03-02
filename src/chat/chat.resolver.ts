@@ -94,6 +94,7 @@ export class ChatResolver {
         console.log('From chat.resolver: Message sent!');
         console.log('🔵 Published successfully');
 
+        //! Debug - Save message in DB: `commitTransaction()`
         await queryRunner.commitTransaction();
 
         return savedMessage || `chat.resolver sends null - ${null}`;
