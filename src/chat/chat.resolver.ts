@@ -14,6 +14,7 @@ import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 // import { PubSub } from 'graphql-subscriptions'; // or use own injectable PubSub
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
+import { AuthService } from 'src/auth/auth.service';
 
 // Todo: GraphQL connection - Comment Out
 // const pubSub = new PubSub(); // simple in-memory (for dev environment/single instance)
@@ -25,14 +26,15 @@ export class ChatResolver {
         private readonly pubSub: PubSubService,
         //! Debug: Inject QueryRunner for transaction when client request to GraphQL
         private readonly dataSource: DataSource,
+        private readonly authService: AuthService,
     ) { }
-    
+
     // A dummy query to satisfy root Query requirement
     @Query(() => MessageType)
     ping(): string {
         return 'ping has returned.'; // Fixes the error (GraphQL requires at least one @Query)
     }
-    
+
     @Mutation(() => MessageType)
     @UseGuards(GraphQLAuthGuard)
     async sendMessage(
@@ -43,14 +45,29 @@ export class ChatResolver {
     ): Promise<MessageType | any | null> {
         console.log('🔵 Mutation received:', { input, recipientId });
         console.log('🔵 PubSub instance in mutation:', this.pubSub.constructor.name);
-        
-        const userId = ctx.req?.user?.sub || 1;
+
+        //! Debug - Solving on 'Cannot Find Sender ID': Seems jwt strategy passport cannot populates `req.user`, so GraphQL context cannot find sender id.
+        //! Commented Out
+        // const userId = ctx.req?.user?.sub || 1;
+        const token = ctx.req?.headers?.authorization || 1;
+        console.log(token);
+
+        const tokenSplit = token.split(' ')[1].split('.')[1];
+        console.log(tokenSplit);
+
+        const payload = JSON.parse(Buffer.from(tokenSplit, 'base64').toString());
+        console.log(payload);
+
+        const userId = payload.sub;
+        console.log(userId);
+
         //! Debug: Inject QueryRunner for transaction when client request to GraphQL
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         console.log("🔥 QueryRunner connected from 'chat.resolver'");
         await queryRunner.startTransaction();
         console.log("🔥 Transaction started from 'chat.resolver'");
+        
         const savedMessage = await this.chatService.sendMessage(
             { sub: userId },
             {
@@ -76,6 +93,8 @@ export class ChatResolver {
         await this.pubSub.publish(channel, { messageAdded: savedMessage });
         console.log('From chat.resolver: Message sent!');
         console.log('🔵 Published successfully');
+
+        await queryRunner.commitTransaction();
 
         return savedMessage || `chat.resolver sends null - ${null}`;
     };
