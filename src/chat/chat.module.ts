@@ -29,6 +29,7 @@ import { PubSubService } from 'src/graphql/pubsub.service';
     Server,
     PubSubService,
     //! Debug - Solving on 'Cannot Find Sender ID' : Registration of 'chat.resolver'
+    ChatResolver,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
       // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
