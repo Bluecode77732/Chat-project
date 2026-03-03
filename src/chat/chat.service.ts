@@ -296,12 +296,13 @@ export class ChatService {
                 // const recipientSocket = this.clientConnection.get(recipient.id);
                 console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
 
-                if (!senderSocketId) {
-                    // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                    throw new WsException("Cannot Find Sender ID");
-                };
+                //! Debug - "Failed to send message: Failed to send message: Cannot read properties of undefined (reading 'rooms')"
+                // if (!senderSocketId) {
+                //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
+                //     throw new WsException("Cannot Find Sender ID");
+                // };
 
-                console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId.rooms));
+                console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId!.rooms));
                 console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
 
 
@@ -327,7 +328,7 @@ export class ChatService {
                     message: messageSchema.message,
                     participantId: sender.id,
                     email: sender.email,
-                    recipientId: senderSocketId.id,
+                    recipientId: senderSocketId?.id,
                     roomId: room.id,
                     createdAt: new Date().toISOString(),
                 };
@@ -342,7 +343,7 @@ export class ChatService {
                 // senderSocketId.to(room.id.toString()).emit("sendMessage", messageSchema);
 
                 //! Original 
-                senderSocketId.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                senderSocketId?.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                 //! Debug: `serializedMessage`
                 // senderSocketId.to(room.id.toString()).emit("sendMessage", serializedMessage);
                 console.log('✅ Broadcast to room');
@@ -353,7 +354,7 @@ export class ChatService {
                 // senderSocketId.emit("sendMessage", messageSchema);            
 
                 //! Original 
-                senderSocketId.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+                senderSocketId?.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
                 //! Debug: `serializedMessage`
                 // senderSocketId.emit("sendMessage", serializedMessage);
                 console.log('✅ Message sent to sender');

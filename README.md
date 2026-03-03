@@ -19,41 +19,46 @@
   cp .env
  
   # 3. Create database manually (no migrations in package.json)
-  Set 'synchronize: true' in 'app.module.ts' for development
-  
+  Set 'synchronize: true' in 'app.module.ts' for automatic DB development
+
   # 4. Run development
   pnpm run start:dev
+  
+  # 5. Open Altair and Postman
+  Follow the steps in API Documentation, Key Endpoints, **Chat** section below
 
-  # 4. Run all tests
+  # 5. Run all tests
   pnpm test
 
-  # 4. Run test coverage
+  # 6. Run test coverage
   pnpm run test:cov
   
-  # 5. Access Swagger UI
+  # 7. Access Swagger UI
   http://localhost:3000/doc
 ```
 
 ### Error Solution
 List of error solutions when the program runs
 - Redis connection
-  - "GraphQLModule dependencies initialized"
-  - "Redis Error: AggregateError [ECONNREFUSED]"
-  - "Error: connect ECONNREFUSED ::IPv6 address:port"
+  - Log: "GraphQLModule dependencies initialized"
+  - Log: "Redis Error: AggregateError [ECONNREFUSED]"
+  - Log: "Error: connect ECONNREFUSED ::IPv6 address:port"
   
   - Solution 
     - ✅ Open terminal to run `docker start redis-chat`
 
 - Connection failure
-  - "Failed to send message: Sender isn't online"
+  - Log: "Failed to send message: Sender isn't online"
+  - Log: "Failed to send message: Cannot Find Sender ID"
 
   - Solution 
-    - ✅ 
+    - ✅ Most likely the reason is, the server cannot find request from the correct path in header through HTTP or TCP socket. If when request is not delivered in forms of user's id or sub, requires to be fixed in 'Guard' or 'Decorator' where modified pathway of requests.
 
-  - "Failed to send message: Cannot Find Sender ID"
+
+- Message saving failure in DB
 
   - Solution 
-    - ✅ 
+    - ✅ Take a look in files where to save messages such as 'service' or 'resolver' whether transaction elements: `commitTransaction()`, `rollbackTransaction()`, `release()` are implemented.
 
 
 ## API Documentation
@@ -74,8 +79,69 @@ List of error solutions when the program runs
 - `PATCH /user/:id` - Delete a user
 
 **Chat**
-- `ws://localhost:3000` - Send message through WebSocket
-- `http://localhost:3000/graphql` - Test communication through GraphQL
+- WebSocket
+  - URL: `ws://localhost:3000`
+  - Description: Open two WebSocket taps in 'Postman' and send message through it.
+
+- Altair (alternative)
+  - URL: POST `http://localhost:3000/graphql`
+  - Description: This platform can be altered. Open a tap of in Altair, and set the request handlers as following, then connect to the GraphQL, if succeed you are able to test messaging communication when send messages from GraphQL as receiver.
+
+  - Request Handlers
+    - Default Request Handler: HTTP
+    - Parameters (in JSON): {}
+    - Subscription URL: http://localhost:3000/graphql
+    -  Use default request handler for subscription: off
+    - Subscription type: WebSocket (graphql-ws)
+    - Connection Parameters (in JSON): { "authorization": "Bearer token" }
+  - Query
+    ```altair
+    subscription {
+      messageAdded(roomId: "19") {   
+        id
+        message
+        participant {
+          id
+        }
+      }
+    }
+    ```
+  - Variable
+    ```altair
+    {}
+    ```
+
+- GraphQL
+  - URL: `http://localhost:3000/graphql`
+  - Description: This platform cannot be altered. Open a tap of GraphQL in 'Postman', and set the pre-requisition as following, then connect to the Altair. If this all set, you are ready to test messaging communication as sender.
+
+  - Request Handlers
+    - Headers: authorization: Bearer token
+  - Query
+    ```graphql
+    mutation SendMessage($input: CreateChatInput!) {
+        sendMessage(input: $input, recipientId: 2) {
+            id
+            message
+            participant {
+                id
+                email
+                password
+                role
+            }
+        }
+    }
+    ```
+  - Variable
+    ```graphql
+    {
+      "input": {
+        "message": "Sent from Postman",
+        "recipientId": 2,
+        "room": 19
+      }
+    }
+    ```
 
 
 ## Stacks
@@ -87,15 +153,14 @@ List of error solutions when the program runs
 - Authentication: JWT Authentication; authenticate user validation for using the application
 - Guard: allow validated only types of data ✔
 - Interceptor: a middleware to manipulate user's data ✔
-- Pipe: 
 - Role Based Access: differ levels of user by authorization class 
 - Chat: major websocket implementation ✔
 - Cache: `Redis` for message rate-limit and store user's data efficiently. ✔
 - Filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application ✔
 - Unit Test: Testing service methods by each unit
-- Prisma: 
-- Swagger: 
+<!-- - Prisma:  -->
+- Swagger: Documenting by methods to test each of endpoints
 
 
 ## Features

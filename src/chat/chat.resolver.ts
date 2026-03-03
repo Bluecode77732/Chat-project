@@ -95,6 +95,7 @@ export class ChatResolver {
             await this.pubSub.publish(channel, { messageAdded: savedMessage });
             console.log('From chat.resolver: Message sent!');
             console.log('🔵 Published successfully');
+
             //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()` in 'chat.resolver'
             await queryRunner.commitTransaction();
             logger.info(`User ${userId}'s message is saved in the chat room`);
@@ -104,9 +105,9 @@ export class ChatResolver {
         } catch (error) {
             console.log(`RollBacking Transaction from Chat.Resolver`);
             console.log(`Error Message from Chat.Resolver: ${error.message}`);
-            logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
+            logger.error(error.message, { userId: userId, timestamp: new Date().toISOString() });
             await queryRunner.rollbackTransaction();
-            throw new Error(`Failed to send message: ${error.message}`)
+            throw new Error(`Failed to send message: ${error.message}`);
 
         } finally {
             await queryRunner.release();

@@ -5,7 +5,6 @@
 type UserType {
   id: ID!
   email: String
-  password: String
   role: String
 }
 

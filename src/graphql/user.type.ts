@@ -10,8 +10,9 @@ export class UserType extends BaseType {
     @Field({ nullable: true })
     email?: string;
 
-    @Field({ nullable: true })
-    password?: string;
+    //* Fix: Removed showing password
+    // @Field({ nullable: true })
+    // password?: string;
 
     @Field(() => String, { nullable: true })
     role?: UserRole; // or use an Enum if you have UserRole as GraphQL enum
