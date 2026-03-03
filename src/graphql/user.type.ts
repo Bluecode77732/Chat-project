@@ -12,7 +12,7 @@ export class UserType extends BaseType {
 
     //* Fix: Removed showing password
     // @Field({ nullable: true })
-    // password?: string; 
+    // password?: string;
 
     @Field(() => String, { nullable: true })
     role?: UserRole; // or use an Enum if you have UserRole as GraphQL enum

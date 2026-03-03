@@ -302,7 +302,8 @@ export class ChatService {
                 //     throw new WsException("Cannot Find Sender ID");
                 // };
 
-                console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId!.rooms));
+                //! Debug - "Failed to send message: Failed to send message: Cannot read properties of undefined (reading 'rooms')"; "This called BEFORE null check": Commented out
+                // console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId!.rooms));
                 console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
 
 
