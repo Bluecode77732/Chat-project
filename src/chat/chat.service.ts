@@ -1,24 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Server, Socket } from 'socket.io';
-import { DataSource, EntityManager, QueryRunner, Repository } from 'typeorm';
+import { Socket } from 'socket.io';
+import { QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-// import { UserRole } from 'src/auth/role/role';
 import { WsException } from '@nestjs/websockets';
-import { instanceToPlain, plainToClass } from 'class-transformer';
+import { plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
-// import * as Server from 'graphql-ws';
-// import type { Server } from 'graphql-ws';
 
 @Injectable()
 export class ChatService {
     // Maps authenticated userId to get their current Socket instance (1-to-1)
     private readonly clientConnection = new Map<string, Socket>();
-    // private readonly clientConnection = new Map<number, Socket>();
 
     // TypeORM repositories for Room and User with DataSource
     constructor(
@@ -30,14 +26,8 @@ export class ChatService {
         @InjectRepository(UserEntity)
         private readonly userRepository: Repository<UserEntity>,
 
-        // Injecting DataSource for transactions
-        // private readonly dataSource: DataSource,
-
         // Injecting redisService to replace current in-memory storage Socket instance
         private readonly redisService: SessionCacheService,
-
-        // GraphQL socket connection
-        // private readonly server: Server,
     ) { };
 
 
@@ -50,14 +40,7 @@ export class ChatService {
         this.clientConnection.set(client.id, client);
 
         logger.info(`User ${participantId} has connected`);
-        // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
     };
-
-    // registerClient(participantId: number, client: Socket) {
-    //     this.clientConnection.set(participantId, client);
-    //     // this.logger.log(`${Date.UTC} - User ${participantId} has connected`);
-    //     logger.info(`User ${participantId} has connected`);
-    // };
 
 
     // Disconnect Socket
@@ -67,11 +50,6 @@ export class ChatService {
 
         logger.info(`User ${participantId} has disconnected`);
     };
-
-    // removeClient(participantId: number) {
-    //     this.clientConnection.delete(participantId);
-    //     logger.info(`User ${participantId} has disconnected`);
-    // };
 
 
     // Makes the user join all chat rooms they are already a member of
@@ -90,7 +68,7 @@ export class ChatService {
         });
 
         console.log(`This is result: ${rooms}`);
-        // this.logger.log(`User ${user.sub} has registered`);
+
         logger.info(`User ${user.sub} has registered`);
         // console.log("User are connected to DB and joined into a room.");
     };
@@ -107,10 +85,8 @@ export class ChatService {
         }
 
         const ids = [user1, user2].sort((a, b) => a - b);
-
         // console.log(`Searching room for users ${ids[0]} - ${ids[1]}`);
 
-        // this.logger.log(`User ${ids} found a room`);
         logger.info(`User ${ids} found a room`);
         // console.log("finding a room");
 
@@ -147,10 +123,6 @@ export class ChatService {
     // Find existing room between sender and recipient => or create new one
     // Also notifies both users (if online) about the new room and joins them
     async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
-
-        //?! Fix: The queryRunner type should be its manager, so it does not conflict
-        // const manager = qr.manager ?? this.roomRepository.manager;
-
         // console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
 
         let room = await this.findRoom(sender.id, recipientId, qr);
@@ -200,8 +172,6 @@ export class ChatService {
             };
         };
 
-        // console.log("created a room");
-        // this.logger.log(`User ${sender.id}, ${recipient.id} created a room`);
         logger.info(`User ${sender.id}, ${recipient.id} created a room`);
         return room;
     }
@@ -215,13 +185,6 @@ export class ChatService {
     //?! Note: Is this parameter correct way? getOrCreateRoom = queryRunner => sendMessage = server?: Server
     async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, queryRunner: QueryRunner) {
         console.log('📨 SendMessage called', { senderId: payload.sub, recipientId });
-
-        // console.log('🔥 About to connect queryRunner');
-        // const queryRunner = this.dataSource.createQueryRunner();
-        // await queryRunner.connect();
-        // console.log('🔥 QueryRunner connected');
-        // await queryRunner.startTransaction();
-        // console.log('🔥 Transaction started');
 
         try {
             // Todo: Find a client
@@ -239,14 +202,6 @@ export class ChatService {
             };
 
             // Todo: Find a recipient
-            //?! Why isn't this code used when `senderSocketId` exist?
-            // const recipient = await this.userRepository.findOneBy({
-            //     id: recipientId,
-            // });
-
-            // if (!recipient) {
-            //     throw new WsException("Cannot Find Recipient");
-            // };
 
             // Todo: Get and create a chat room : transactional
             const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
@@ -269,20 +224,8 @@ export class ChatService {
             //* Redis adoption #5 *//
             // Todo: Get client ID from Redis
             const getSenderFromRedisStatusId = await this.redisService.getUserStatus(sender.id);
-            // const getSenderSocketId = this.clientConnection.get(sender.id);
-
             console.log('🔍 Step 1 - Redis returned:', getSenderFromRedisStatusId);
-            // console.log("clientSocket found?", !!getClientSocket);
-            // if (!getSenderStatusId?.socketId) {
-            //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-            //     throw new WsException("Cannot Find Sender ID");
-            // }
-            // if (!getSenderFromRedisStatusId?.socketId) {
-            //     console.log('🔍 Redis socketId:', getSenderFromRedisStatusId?.socketId);
-            //     console.log('❌ No socketId in Redis for sender:', sender.id);
-            //     console.log("🔍 Current Map keys:", Array.from(this.clientConnection.keys()));
-            //     throw new WsException("Sender isn't online");
-            // };
+            
             //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
             if (getSenderFromRedisStatusId?.socketId) {
                 console.log('🔍 Redis socketId:', getSenderFromRedisStatusId?.socketId);
@@ -296,16 +239,6 @@ export class ChatService {
                 // const recipientSocket = this.clientConnection.get(recipient.id);
                 console.log('🔍 Step 3 - Found socket?', !!senderSocketId);
 
-                //! Debug - "Failed to send message: Failed to send message: Cannot read properties of undefined (reading 'rooms')"
-                // if (!senderSocketId) {
-                //     // console.log("Current Map keys:", Array.from(this.clientConnection.keys()));
-                //     throw new WsException("Cannot Find Sender ID");
-                // };
-
-                //! Debug - "Failed to send message: Failed to send message: Cannot read properties of undefined (reading 'rooms')"; "This called BEFORE null check": Commented out
-                // console.log('🔍 Step 4 - Socket rooms:', Array.from(senderSocketId!.rooms));
-                console.log('🔍 Step 5 - Broadcasting to room:', room.id.toString());
-
 
                 //! Debug - non-serializable object converting error
                 console.log('🔍 About to create messageData');
@@ -315,26 +248,6 @@ export class ChatService {
                 console.log('🔍 sender keys:', Object.keys(sender));
                 console.log('🔍 room type:', typeof room);
                 console.log('🔍 room keys:', Object.keys(room));
-
-                //! 1st attempt
-                // const serializedMessage = instanceToPlain(messageSchema, {
-                //     // Indicates if extraneous properties should be excluded from the value when converting a plain value to a class.
-                //     // This option requires that each property on the target class has at least one @Expose or @Exclude decorator assigned from this library.
-                //     excludeExtraneousValues: true,
-                // });
-
-                //! 2nd attempt
-                const serializedMessage = {
-                    id: messageSchema.id,
-                    message: messageSchema.message,
-                    participantId: sender.id,
-                    email: sender.email,
-                    recipientId: senderSocketId?.id,
-                    roomId: room.id,
-                    createdAt: new Date().toISOString(),
-                };
-                console.log('🔍 messageData created successfully:', serializedMessage);
-                console.log('🔍 About to emit...');
 
 
                 // Todo: GraphQL connection
@@ -373,7 +286,7 @@ export class ChatService {
              * The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
              * `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
             */
-            // redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
+            // * redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
             // ? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
             const getRecipientStatusId = await this.redisService.getUserStatus(recipientId);
             console.log('🔍 Recipient status:', getRecipientStatusId);
@@ -461,13 +374,8 @@ export class ChatService {
 
         } catch (error) {
             logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
-            //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Removed transaction queryRunner
-            // await queryRunner.rollbackTransaction();
+
             throw new Error(`Failed to send message: ${error.message}`)
         }
-        //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Removed transaction queryRunner
-        // finally {
-        // await queryRunner.release();
-        // };
     };
 }
