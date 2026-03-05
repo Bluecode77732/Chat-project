@@ -99,7 +99,7 @@ export class ChatService {
     // Looks for an existing private chat room between exactly two users
     // Uses sorted IDs to ensure consistent lookup (avoids duplicate rooms)
     // returns existing RoomEntity or null
-    async findRoom(user1: number, user2: number, manager: EntityManager) {
+    async findRoom(user1: number, user2: number, qr: QueryRunner) {
 
         if (!user1 || !user2) {
             // console.log("Invalid IDs:", { user1, user2 });
@@ -114,7 +114,7 @@ export class ChatService {
         logger.info(`User ${ids} found a room`);
         // console.log("finding a room");
 
-        return manager
+        return qr.manager
             .createQueryBuilder(RoomEntity, "room")
             .innerJoin("room.participants", "participant1")
             .innerJoin("room.participants", "participant2")
@@ -126,12 +126,12 @@ export class ChatService {
 
     // Creates a new private chat room between two users
     // Saves both participants in the many-to-many relation 
-    async createRoom(user1: UserEntity, user2: UserEntity, manager: EntityManager) {
-        const room = manager.create(RoomEntity, {
+    async createRoom(user1: UserEntity, user2: UserEntity, qr: QueryRunner) {
+        const room = qr.manager.create(RoomEntity, {
             participants: [user1, user2],
         });
 
-        const saved = await manager.save(room);
+        const saved = await qr.manager.save(room);
 
         if (!saved?.id) {
             throw new WsException("Cannot Find Room");
@@ -149,11 +149,11 @@ export class ChatService {
     async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
 
         //?! Fix: The queryRunner type should be its manager, so it does not conflict
-        const manager = qr.manager ?? this.roomRepository.manager;
+        // const manager = qr.manager ?? this.roomRepository.manager;
 
         // console.log("Searching for room between sender:", sender.id, "and recipient:", recipientId);
 
-        let room = await this.findRoom(sender.id, recipientId, manager);
+        let room = await this.findRoom(sender.id, recipientId, qr);
 
         // console.log("Found existing room?", room ? room.id : "NO ROOM FOUND");
 
@@ -173,7 +173,7 @@ export class ChatService {
         };
 
         // Create new room 
-        room = await this.createRoom(sender, recipient, manager);
+        room = await this.createRoom(sender, recipient, qr);
 
         // Notify and join users when they connected
         // [sender.id, recipient.id].forEach(async (id) => {
