@@ -286,8 +286,8 @@ export class ChatService {
              * The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
              * `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
             */
-            // * redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
-            // ? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
+            //* redis.service : const data = await this.redis.hGetAll(`user:${userId}`);
+            //? const getRecipientStatusId = await this.redisService.getUserStatus(recipient.id);
             const getRecipientStatusId = await this.redisService.getUserStatus(recipientId);
             console.log('🔍 Recipient status:', getRecipientStatusId);
 
@@ -365,7 +365,6 @@ export class ChatService {
 
             // Todo: Final return
             // console.log("returning a msg");
-            // this.logger.log(`User ${payload.sub} sent a message`);
             logger.info(`User ${payload.sub} sent a message`);
             // return message;
 
