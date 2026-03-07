@@ -7,7 +7,6 @@ import { EntityManager, QueryRunner, Repository } from 'typeorm';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { ChatEntity } from './entities/chat.entity';
 import { SessionCacheService } from 'src/redis/redis.service';
 
 
@@ -464,16 +463,27 @@ describe('ChatService', () => {
     //   expect(result).toBe('a message');
     // });
 
+    it("should find sender socketId in Redis", async () => {
+      const mockPayload = { sub: 1 };
+      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 0 };
+      const mockSender = { id: 1 } as UserEntity;
+
+      chatService['clientConnection'].get('r3kaf1hmNAml');
+
+      jest.spyOn(redisService, 'getUserStatus').mockResolvedValue(mockSender as { socketId?: string | undefined; status?: string | undefined; } | null);
+
+      await chatService.sendMessage(mockPayload, mockCreateChatDto, mockQueryRunner as QueryRunner)
+
+      const emittedData = (mockSocket.emit as jest.Mock).mock.calls[0][1];
+      expect(emittedData).toHaveProperty('id', 1);
+      expect(emittedData).toHaveProperty('message', 'sending messageSchema');
+    });
+
     it("should throw WebSocket exception if sender does not exist then rollback to release", async () => {
       const mockPayload = { sub: 1 };
       const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 0 };
       const mockSender = { id: 1 } as UserEntity;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity
-      const mockMessageSchema = {
-        message: 'a message',
-        participant: mockSender,
-        room: mockRooms,
-      };
 
       jest.spyOn(userRepository, 'findOneByOrFail').mockRejectedValue(new WsException("Cannot Find Sender"));
 
@@ -532,23 +542,6 @@ describe('ChatService', () => {
       expect(mockQueryRunner.release).rejects.toHaveBeenCalled();
       // WsException returned with promise in service
       await expect(mockRecipient).rejects.toThrow(WsException);
-    });
-
-    it("should find sender socketId in Redis", async () => {
-      const mockPayload = { sub: 1 };
-      const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 0 };
-      const mockSender = { id: 1 } as UserEntity;
-
-      // Register both user's sockets
-      chatService['clientConnection'].get('r3kaf1hmNAml');
-
-      jest.spyOn(redisService, 'getUserStatus').mockResolvedValue(mockSender as { socketId?: string | undefined; status?: string | undefined; } | null);
-
-      await chatService.sendMessage(mockPayload, mockCreateChatDto, mockQueryRunner as QueryRunner)
-
-      const emittedData = (mockSocket.emit as jest.Mock).mock.calls[0][1];
-      expect(emittedData).toHaveProperty('id', 1);
-      expect(emittedData).toHaveProperty('message', 'sending messageSchema');
     });
   });
 });
