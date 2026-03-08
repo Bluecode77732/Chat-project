@@ -172,6 +172,15 @@ List of error solutions when the program runs
 - Horizontal scaling ready - Redis-backed session
 
 
+## Architecture
+### Hybrid Storage Pattern
+- Redis(session/cache): It stores `userId` => `socketId` mapping for consistent data flow and shareable servers
+- In-Memory(socket): It stores `userId` => `socketId` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
+- Reasons for utilizing both: 
+
+
+
+
 ## Flow
 1. Client connects WebSocket with handleConnection in `chat.gateway`
   1.1. Authenticate JWT token
@@ -238,16 +247,17 @@ Lifecycle Hooks
 
 
 ### Auth
+Implementation of two ways of sign-in endpoints.
+- Basic Authentication
+  - The clients need to submit username and password, encoded by 'base64', which converts binary data into plain text to transmit safely, to verify credentials.
+- Token-based Authentication
+  - When the clients logs in, they can get token formed as JWT(Javascript Web Token), then server sends token on subsequent requests, which is authenticated, instead of your credentials in Basic Authentication, so the server validates the token
 
 
 ### Role
 - When users issue bearer token, they need a raw token. Once their roles are set as `signedIn`, they can have the raw token that contains their role information.
 - The users only who have `signedIn` can send messages even if token is issued for them.
 - It throws error when user's role is `signedOut` as following log.
-
-Log: 
-`error | Cannot Find Sender ID`
-`error | Failed to send message: Cannot Find Sender ID`
 
 
 ### Redis
@@ -366,11 +376,13 @@ Remove container (keeps image)
 4) "online"
 
 
-## Debug
-- Incorrect queries in TypeORM
+## Debugging List
+- Incorrect TypeORM queries in service
+- Mismatching property name with entity schema
 - Missing `commitTransaction()` to messages will appear in DB
 - Creating new rooms repeatedly when send message each time
 - Sending wrong recipient ID from frontend
+- Failing find sender ID
 
 
 ## Scale Up In Future
