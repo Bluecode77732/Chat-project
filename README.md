@@ -2,6 +2,22 @@
 - An classical private One-to-One chatting server-side management application that validated users can chat with the other user.
 - This project is for understanding how socket.io can make two entities communicate each other, caching and rate-limiting with Redis, persistent session, and save their chat logs in server.
 
+
+## Overview
+A casual private One-to-One chatting project that enables communication real-time.
+- Authentication: JWT-based auth with Passport strategies
+- Chat Management: Socket and Redis session & cache connection with transaction safety
+- API Documentation: Swagger integration + Altair & GraphQL
+- Testing: Unit tests with 70%+ coverage on core logic
+
+
+## Project Motivation
+- To understand implementation of the chat using `Socket.IO` In-Memory storage, `Redis` Session and Cache.
+- Understanding of user authentication and authorization using basic, bearer and JWT.
+- Following style of 'Keep It Simple Solid', and 'You Are not Gonna Need It' for readable and solid programming.
+- To gain technical knowledge of communication between one-to-one private Chat.
+
+
 ## Quick Start
 - Prerequisites
   - Node.js >= v18.xx
@@ -25,7 +41,7 @@
   pnpm run start:dev
   
   # 5. Open Altair and Postman
-  Follow the steps in API Documentation, Key Endpoints, **Chat** section below
+  Follow the steps in the API Documentation, Key Endpoints, **Chat** section below
 
   # 5. Run all tests
   pnpm test
@@ -66,6 +82,10 @@ List of error solutions when the program runs
 ***To try all of'em, you must register first to get started.***
 
 ### Key Endpoints
+**Swagger**
+Test 'Auth' and 'User' Endpoints URL below.
+- URL: `http://localhost:3000/doc`
+
 **Authentication**
 - `POST /auth/register` - Register with Basic Auth
 - `POST /auth/signin` - Get JWT tokens
@@ -232,6 +252,120 @@ List of error solutions when the program runs
 
 
 ## Build
+### Total Installation
+Dependencies (35)
+- @apollo/server
+- @as-integrations/express5
+- @nestjs/apollo
+- @nestjs/config
+- @nestjs/graphql
+- @nestjs/jwt
+- @nestjs/mapped-types
+- @nestjs/passport
+- @nestjs/platform-socket.io
+- @nestjs/swagger
+- @nestjs/throttler
+- @nestjs/typeorm
+- @nestjs/websockets
+- @types/bcrypt
+- @types/passport-jwt
+- @types/passport-local
+- bcrypt
+- class-transformer
+- class-validator
+- graphql
+- graphql-redis-subscriptions
+- graphql-subscriptions
+- graphql-ws
+- ioredis
+- joi
+- nest-winston
+- passport
+- passport-jwt
+- passport-local
+- pg
+- redis
+- socket.io
+- socket.io-client
+- typeorm
+- winston
+
+DevDependencies (5)
+- @types/supertest
+- @types/winston
+- supertest
+- ts-jest (custom jest config)
+- source-map-support
+
+Excluded NestJS CLI defaults like common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript, etc.
+
+
+### Configuration
+Once installation is finished, go to `app.module`, and set up configuration of the package.
+
+Package
+- joi
+  - This package is a built-in validator that enforce validation to an object schema and JavaScript objects.
+  - To validate configuration files when they aren't automatically validated with `validationSchema` alone.
+
+Methods
+- join
+  - Using from 'node:path' not 'path': to avoid conflict between external packages with same name.
+  - It ensures OS cross-platform compatibility by using path separators.
+
+```ts
+  import * as Joi from 'joi';
+
+  @Module({
+    imports: [
+      // FYI : A static method `forRoot`
+      ConfigModule.forRoot({
+      validationSchema: Joi.object({
+        ENV: Joi.string().valid('dev', 'prod').required(),
+        DB_TYPE: Joi.string().valid('postgres').required(),
+        DB_HOST: Joi.string().required(),
+        DB_PORT: Joi.number().required(),
+        DB_USERNAME: Joi.string().required(),
+        DB_PASSWORD: Joi.string().required(),
+        DB_DATABASE: Joi.string().required(),
+        HASH_ROUNDS: Joi.number().required(),
+        REFRESH_TOKEN_SECRET: Joi.string().required(),
+        ACCESS_TOKEN_SECRET: Joi.string().required(),
+        REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
+        ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
+      }),
+      isGlobal: true,
+    }),
+```
+
+
+### Environment Configuration
+Create a `.env` file in the root directory and paste variables below :
+```env.example
+  # Development Environment
+  ENV=dev
+
+  # DB configuration
+  DB_TYPE=yourDatabase
+  DB_HOST=yourDatabase
+  DB_PORT=yourPort
+  DB_USERNAME=yourDBport
+  DB_PASSWORD=yourDBpassword
+  DB_DATABASE=yourDBtype
+
+  # Hash 
+  HASH_ROUNDS=hashRounds
+
+  # Secret Token
+  REFRESH_TOKEN_SECRET=yourEncodedSecretKey
+  ACCESS_TOKEN_SECRET=yourEncodedSecretKey
+
+  # Expiry
+  REFRESH_TOKEN_SECRET_EXPIRES_IN=expiryTime
+  ACCESS_TOKEN_SECRET_EXPIRES_IN=expiryTime
+```
+
+
 ### Chat
 Websocket
   A real-time, bidirectional communication protocol, connects between a web browser(clients) and server.
@@ -250,6 +384,10 @@ Implementation of two ways of sign-in endpoints.
   - The clients need to submit username and password, encoded by 'base64', which converts binary data into plain text to transmit safely, to verify credentials.
 - Token-based Authentication
   - When the clients logs in, they can get token formed as JWT(Javascript Web Token), then server sends token on subsequent requests, which is authenticated, instead of your credentials in Basic Authentication, so the server validates the token
+
+
+### User
+- 
 
 
 ### Role
@@ -338,15 +476,6 @@ Stop Redis
 
 Remove container (keeps image)
 `docker rm redis-chat`
-
-
-<!-- - Terminal Log -->
-<!-- LOG [WebSocketsController] ChatGateway subscribed to the "send" message -->
-<!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
-
-<!-- - Postman Log
-```
-``` -->
 
 
 #### Check User Data
