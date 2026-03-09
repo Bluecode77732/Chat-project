@@ -145,17 +145,17 @@ List of error solutions when the program runs
 
 
 ## Stacks
-- Language: `Typescript`, a type-safe and a solid object oriented language, superset of Javascript. ✔
-- Backend: `Node.Js`, this javascript runtime built with chrome V8 engine, provides ecosystem where the applications run smoothly. ✔
-- Framework: `Nest.Js`, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
-- Architecture:  `Monolithic Architecture`, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
-- Socket: `Socket.io`, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
+- Language: Typescript, a type-safe and a solid object oriented language, superset of Javascript. ✔
+- Backend: Node.Js, this javascript runtime built with chrome V8 engine, provides ecosystem where the applications run smoothly. ✔
+- Framework: Nest.Js, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
+- Architecture: Monolithic Architecture, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
+- Socket: Socket.IO, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
 - Authentication: JWT Authentication; authenticate user validation for using the application
 - Guard: allow validated only types of data ✔
 - Interceptor: a middleware to manipulate user's data ✔
 - Role Based Access: differ levels of user by authorization class 
 - Chat: major websocket implementation ✔
-- Cache: `Redis` for message rate-limit and store user's data efficiently. ✔
+- Cache: Redis for message rate-limit and store user's data efficiently. ✔
 - Filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application ✔
 - Unit Test: Testing service methods by each unit
@@ -176,9 +176,7 @@ List of error solutions when the program runs
 ### Hybrid Storage Pattern
 - Redis(session/cache): It stores `userId` => `socketId` mapping for consistent data flow and shareable servers
 - In-Memory(socket): It stores `userId` => `socketId` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
-- Reasons for utilizing both: 
-
-
+- Reason for utilizing both: Redis holds serialized objects as 'JSON' format, while socket holds as long as client is connected via TCP-level connection. Therefore, clients are enabled to reconnect with their session/cache data.
 
 
 ## Flow
@@ -261,7 +259,7 @@ Implementation of two ways of sign-in endpoints.
 
 
 ### Redis
-Supposedly, A data stored in-memory Socket with without Redis, however with Redis, it can efficiently store user's metadata, and useful when horizontal scale up the server.
+- Supposedly, A data stored in-memory Socket with without Redis, however with Redis, it can efficiently store user's metadata, and useful when horizontal scale up the server.
 
 
 #### Compare Sample Code 
@@ -342,13 +340,13 @@ Remove container (keeps image)
 `docker rm redis-chat`
 
 
-- Terminal Log
+<!-- - Terminal Log -->
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "send" message -->
 <!-- LOG [WebSocketsController] ChatGateway subscribed to the "receive" message -->
 
-- Postman Log
+<!-- - Postman Log
 ```
-```
+``` -->
 
 
 #### Check User Data
@@ -365,13 +363,13 @@ Remove container (keeps image)
 - Result
 `HGETALL user:1`
 1) "socketId"
-2) "5Ktdy8PO-CbS2sa4AAAD"
+2) "user's connection ID"
 3) "status"
 4) "online"
 
 `HGETALL user:2`
 1) "socketId"
-2) "fFyW-wbprFGKtBfkAAAB"
+2) "user's connection ID"
 3) "status"
 4) "online"
 
