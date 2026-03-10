@@ -53,8 +53,9 @@ A casual private One-to-One chatting project that enables communication real-tim
   http://localhost:3000/doc
 ```
 
-### Error Solution
-List of error solutions when the program runs
+
+### Troubleshooting
+List of Troubleshooting when the program runs
 - Redis connection
   - Log: "GraphQLModule dependencies initialized"
   - Log: "Redis Error: AggregateError [ECONNREFUSED]"
@@ -387,7 +388,8 @@ Implementation of two ways of sign-in endpoints.
 
 
 ### User
-- 
+- A casual user managing service that has basic CRUD endpoints and persistent data savings in via TypeORM. 
+- NestJs dependency injection technique for easier and cleaner modular implementation.
 
 
 ### Role
