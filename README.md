@@ -208,7 +208,7 @@ Test 'Auth' and 'User' Endpoints URL below.
   2.4. `joinRooms()` users to join in the existing rooms
 
 2. Client calls `sendMessage` function
-  2.1. RateLimitGuard: Redis INCR user: ${userId}
+  2.1. RateLimitGuard: Redis increment user: `${userId}`
   2.2. Condition: `count > 10? Throw 'WsException' : Continue`
   2.3. Set TTL for 60s if first message per user
 
@@ -216,7 +216,7 @@ Test 'Auth' and 'User' Endpoints URL below.
   3.1. Start QueryRunner transaction
   3.2. Validate sender and recipient existence
   3.3. Execute `findRoom` or `createRoom`
-  3.4. Save ChatEntity to DB with room foreign key
+  3.4. Save 'ChatEntity' to DB with room foreign key
   3.5. Commit transaction in rollback if errors
 
 4. Retrieve sender Socket
@@ -226,7 +226,6 @@ Test 'Auth' and 'User' Endpoints URL below.
 5. Emit to Socket.io room
   5.1. `senderSocketId.to(room.id.toString())`, then `emit("SendMessage")` to `(ChatEntity, messageSchema)`, broadcasts to all rooms through  `room.id`
   5.2. `senderSocketId.emit("SendMessage")` confirms delivery to sender in `(ChatEntity, messageSchema)`
-  <!-- 5.3. Redis sends  -->
 
 6. Recipient receives Sender's message
   6.1. `joinRooms()` already made users to join the existing rooms
@@ -238,20 +237,11 @@ Test 'Auth' and 'User' Endpoints URL below.
   7.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
 
 
-? RateLimitGuard checks Redis counter
 ? ChatService finds/creates room
 ? Save to PostgreSQL
 ? Emit to Socket.IO room
 ? Broadcast to recipient
 ? Client sends message
-
-1. registerClient
-2. removeClient
-3. joinRooms
-4. findRoom
-5. createRoom
-6. getOrCreateRoom
-7. sendMessage
 
 
 ## Build
