@@ -213,11 +213,12 @@ Test 'Auth' and 'User' Endpoints URL below.
   2.3. Set TTL for 60s if first message per user
 
 3. Process of `sendMessage`
-  3.1. Start QueryRunner transaction
-  3.2. Validate sender and recipient existence
-  3.3. Execute `findRoom` or `createRoom`
-  3.4. Save 'ChatEntity' to DB with room foreign key
-  3.5. Commit transaction in rollback if errors
+  3.1. Execute `sendMessage`
+  3.2. Start QueryRunner transaction
+  3.3. Validate sender and recipient existence
+  3.4. Execute `findRoom` or `createRoom`
+  3.5. Save 'ChatEntity' to DB with room foreign key
+  3.6. Commit transaction in rollback if errors
 
 4. Retrieve sender Socket
   4.1. Redis: `getUserStatus` gets `socketId`
@@ -235,13 +236,6 @@ Test 'Auth' and 'User' Endpoints URL below.
   7.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
   7.2 Clients disconnects from Redis => status: offline
   7.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
-
-
-? ChatService finds/creates room
-? Save to PostgreSQL
-? Emit to Socket.IO room
-? Broadcast to recipient
-? Client sends message
 
 
 ## Build
@@ -395,18 +389,12 @@ Implementation of two ways of sign-in endpoints.
 
 
 #### Compare Sample Code 
-Socket In memory
+Socket In-memory
 ```ts
   @Injectable()
   export class ChatService {
     // Maps authenticated userId to get their current Socket instance (1-to-1)
     private readonly clientConnection = new Map<number, Socket>();
-
-    // TypeORM repositories for Room and User with DataSource
-    constructor(
-        // Injecting redisService to replace current in-memory storage Socket instance
-        private readonly redisService: SessionCacheService,
-    ) { };
 
     registerClient(participantId: number, client: Socket) {
       this.clientConnection.set(participantId, client);
@@ -419,7 +407,7 @@ Socket In memory
   }
 ```
 
-Redis memory
+Redis with In-Memory
 ```ts
   @Injectable()
   export class ChatService {
