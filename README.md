@@ -8,7 +8,7 @@ A casual private One-to-One chatting project that enables communication real-tim
 - Authentication: JWT-based auth with Passport strategies
 - Chat Management: Socket and Redis session & cache connection with transaction safety
 - API Documentation: Swagger integration + Altair & GraphQL
-- Testing: Unit tests with 70%+ coverage on core logic
+- Testing: Unit tests with approximate +70% coverage on core logic
 
 
 ## Project Motivation
@@ -432,6 +432,74 @@ Redis with In-Memory
         this.clientConnection.delete(client.id);
     };
   }
+```
+
+
+### Test
+- Unit Testing
+
+The tests codes are defined and can run in `spec.ts`.
+
+Relocate testing directory from the relative path `src` to the separate root `["src"]` in `Package.json`.
+
+The directories wrapped in an array gives flexibility to add more test locations later such as e2e testing.
+
+**Single base directory**
+```json
+"jest": {
+  "rootDir": "src",
+}
+```
+
+**Multi-base directories**
+```json
+"jest": {
+  "roots": ["src"],
+}
+```
+
+
+- In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `Package.json`.
+```json
+"coveragePathIgnorePatterns": [
+  "main.ts",
+  "module.ts",
+  "dto.ts",
+  "entity.ts",
+  "decorator.ts",
+  "dec.ts",
+  "strategy.ts",
+  "guard.ts",
+  "controller.ts",
+  "gateway.ts",
+  "interceptor.ts",
+  "itc.ts",
+  "role.ts",
+  "logger.ts",
+  "type.ts",
+  "pubsub.service.ts",
+  "resolver.ts"
+],
+```
+
+
+- It sets output directory for coverage reports in parents directory, one level above the config file  in `Package.json`.
+Subordinate repository
+```json
+  "coverageDirectory": "../coverage",
+```
+
+Parents repository
+```json
+  "coverageDirectory": "./coverage",
+```
+
+
+- It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in `Package.json`.
+```json
+"moduleNameMapper": {
+  "src/(.*)": "<rootDir>/src/$1"
+}
 ```
 
 
