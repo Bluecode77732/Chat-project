@@ -21,8 +21,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
-      // const rawToken = client.handshake.headers?.authorization;
-      const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
+      const rawToken = client.handshake.headers?.authorization;
+      // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
       console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload
@@ -32,11 +32,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (payload) {
         // Put bearer token into data.user to be extracted by 
         client.data.user = payload;
-
-        // console.log(`Succeed : Connected, payload on data.user`);
-
-        // const userId = Number(payload.sub);           // enforce number
-        // console.log("Registering user ID type:", typeof userId, userId);
 
         // Remember the specific client with a certain key
         await this.chatService.registerClient(payload.sub, client);
@@ -64,8 +59,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     console.log(`User: ${participant} disconnected`);
     return `User: ${participant} disconnected`;
-    // This is fun when disconnected lol
-    // throw new Error('Method not implemented.');
   }
 
 
