@@ -203,9 +203,9 @@ Test 'Auth' and 'User' Endpoints URL below.
 ## Flow
 1. Client connects WebSocket with handleConnection in `chat.gateway`
   1.1. Authenticate JWT token
-  2.2. Store userId => socketId in Redis
-  2.3. Store socketId => Socket in Map
-  2.4. Join user to existing rooms
+  2.2. Store `userId` => `socketId` in Redis
+  2.3. Store `socketId` => Socket in Map
+  2.4. `joinRooms()` users to join in the existing rooms
 
 2. Client calls `sendMessage` function
   2.1. RateLimitGuard: Redis INCR user: ${userId}
@@ -224,16 +224,18 @@ Test 'Auth' and 'User' Endpoints URL below.
   4.2. Map: `clientConnection.get(getUserSocketId.socketId)` gets Socket object`
 
 5. Emit to Socket.io room
-  5.1. `senderSocketId.to(room.id.toString())`, then `emit("SendMessage")` to `(ChatEntity, messageSchema)`, broadcasts to all in room through  `room.id`
+  5.1. `senderSocketId.to(room.id.toString())`, then `emit("SendMessage")` to `(ChatEntity, messageSchema)`, broadcasts to all rooms through  `room.id`
   5.2. `senderSocketId.emit("SendMessage")` confirms delivery to sender in `(ChatEntity, messageSchema)`
   <!-- 5.3. Redis sends  -->
 
 6. Recipient receives Sender's message
-  6.1. Client receives 'SendMessage' with message schema
-  6.2. 
+  6.1. `joinRooms()` already made users to join the existing rooms
+  6.2. Client receives 'SendMessage' with message schema
 
 7. Client Disconnects
-  7.1 Clients disconnects from socket in `chat.gateway`
+  7.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
+  7.2 Clients disconnects from Redis => status: offline
+  7.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
 
 
 ? RateLimitGuard checks Redis counter
