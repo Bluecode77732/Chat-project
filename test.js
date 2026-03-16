@@ -1,7 +1,7 @@
 const { io } = require('socket.io-client');
 
 // User 1
-const token1 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzIwMTgyMDYsImV4cCI6MTc3MjAxOTIwNX0.jWDI6MwtkbY2j8Z_6d88sVQKmBzEw76wgFULJU9eja0';
+const token1 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzM2MzE0OTMsImV4cCI6MTc3MzYzMjQ5Mn0.mScajzSy-3T1QTz5Klpun1DQgfaOBMoU6WAFxE2b8Hs';
 
 const client1 = io('http://localhost:3000', {
     auth: { token: token1 }
@@ -15,12 +15,12 @@ client1.on('sendMessage', (data) => {
     console.log('📩 User 1 received:', data);
 });
 
-client1.on('SendMessage', (data) => {
+client1.on('sendMessage', (data) => {
     console.log('📩 User 1 received (uppercase):', data);
 });
 
 // User 2
-const token2 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzIwMTgyMDYsImV4cCI6MTc3MjAxOTIwNX0.jWDI6MwtkbY2j8Z_6d88sVQKmBzEw76wgFULJU9eja0';
+const token2 = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInR5cGUiOiJhY2Nlc3MiLCJyb2xlIjowLCJpYXQiOjE3NzM2MzE0OTMsImV4cCI6MTc3MzYzMjQ5Mn0.mScajzSy-3T1QTz5Klpun1DQgfaOBMoU6WAFxE2b8Hs';
 
 const client2 = io('http://localhost:3000', {
     auth: { token: token2 }
@@ -43,6 +43,6 @@ client2.on('sendMessage', (data) => {
     console.log('📩 User 2 received:', data);
 });
 
-client2.on('SendMessage', (data) => {
+client2.on('sendMessage', (data) => {
     console.log('📩 User 2 received (uppercase):', data);
 });

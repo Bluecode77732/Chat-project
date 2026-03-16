@@ -15,15 +15,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
-    // private readonly queryRunner: QueryRunner[],
   ) { }
 
   async handleConnection(client: Socket) {
     console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
-      const rawToken = client.handshake.headers?.authorization;
-      // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
+      // const rawToken = client.handshake.headers?.authorization;
+      const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
       console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload
@@ -79,7 +78,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: CreateChatDto,
     @WebSocketQueryRunner() queryRunner: QueryRunner,
-    // queryRunner: QueryRunner[],
   ) {
     const payload = client.data.user;
     await this.chatService.sendMessage(payload, dto, queryRunner);
