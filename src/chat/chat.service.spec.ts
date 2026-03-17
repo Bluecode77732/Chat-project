@@ -337,15 +337,11 @@ describe('ChatService', () => {
 
 
   describe("sendMessage", () => {
-    // Version 2
     it("should send message through successfully commit transaction", async () => {
-      const mockClientConnection = new Map<number, Socket>();
       const mockPayload = { sub: 1 };
       const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 1 };
       const mockSender = { id: mockPayload.sub } as UserEntity;
-      const mockSenderSocket = { id: '1' } as Socket;
       const mockRecipient = 1;
-      const mockRecipientSocket = { id: '2' } as Socket;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
       const mockMessage = {
         id: 100,
@@ -361,107 +357,19 @@ describe('ChatService', () => {
 
       // Mock all dependencies
       jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
-      // jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipientSocket);
       jest.spyOn(chatService as ChatService, 'getOrCreateRoom').mockResolvedValue(mockRooms);
       jest.spyOn(mockQueryRunner.manager as EntityManager, 'save').mockResolvedValue(mockMessageSchema);
       jest.spyOn(redisService as SessionCacheService, 'getUserStatus').mockResolvedValue(mockSender.id as { socketId?: string, status?: string } | null);
       jest.spyOn(redisService as SessionCacheService, 'getUserStatus').mockResolvedValue(mockRecipient as { socketId?: string, status?: string } | null);
-      // mockQueryRunner.manager.save = jest.fn().mockResolvedValue(mockMessage);
 
-      // await userRepository.findOneBy(mockRecipient);
+      // Mock creating a room
       await chatService.getOrCreateRoom(mockSender, mockRecipient, mockQueryRunner as QueryRunner);
-
-      // Register both user's sockets
-      // mockClientConnection.set(1, mockSocket as Socket);
-      // mockClientConnection.set(2, mockSocket as Socket);
 
       // Final result
       const result = await chatService.sendMessage(mockPayload, mockCreateChatDto, mockQueryRunner as QueryRunner);
 
-      // Sending message
-      // expect(userRepository.findOneByOrFail).toHaveBeenCalledWith({ id: 1 });
-      // expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: 2 });
-      // expect(mockQueryRunner.manager?.save).toHaveBeenCalledWith(ChatEntity, expect.objectContaining({
-      //   message: 'Hello World!',
-      //   participant: mockSender,
-      //   room: mockRooms,
-      // }));
-      // expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
-      // expect(mockQueryRunner.release).toHaveBeenCalled();
       expect(result).toBe('Hello World!');
-      // expect(mockSocket.to).toHaveBeenCalledWith('1');
-      // expect(mockSocket.emit).toHaveBeenCalledWith('sendMessage', expect.objectContaining({
-      //   id: 1,
-      //   message: "hello",
-      // }));
     });
-
-
-    // V1
-    // it("should send message through successfully commit transaction", async () => {
-    //   const mockClientConnection = new Map<number, Socket>();
-    //   const mockPayload = { sub: 1 };
-    //   const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2 };
-    //   const mockSender = { id: 1 } as UserEntity;
-    //   const mockSenderSocket = { id: '1' } as Socket;
-    //   const mockRecipient = { id: 1 } as UserEntity;
-    //   const mockRecipientSocket = { id: '2' } as Socket;
-    //   const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-    //   const mockMessage = {
-    //     id: 100,
-    //     message: 'a message',
-    //   };
-    //   const mockMessageSchema = {
-    //     participant: mockSender,
-    //     room: mockRooms,
-    //   };
-    //   // const mockQueryRunner = {
-    //   //   createQueryRunner: {
-    //   //     connect: jest.fn(),
-    //   //     startTransaction: jest.fn(),
-    //   //     commitTransaction: jest.fn(),
-    //   //   },
-    //   //   manager: {
-    //   //     save: jest.fn(),
-    //   //   },
-    //   // } as Partial<EntityManager>;
-
-    //   const mockCreateQueryRunner = {
-    //     startTransaction: jest.fn(),
-    //     commitTransaction: jest.fn(),
-    //     rollbackTransaction: jest.fn(),
-    //     release: jest.fn(),
-    //   } as Partial<QueryRunner>;
-
-    //   const mockManager = {
-    //     save: jest.fn(),
-    //   } as Partial<EntityManager>;
-
-    //   jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
-    //   jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
-    //   jest.spyOn(chatService, 'getOrCreateRoom').mockResolvedValue(mockRooms);
-    //   // mockQueryRunner.manager.save = jest.fn().mockResolvedValue(mockMessage);
-    //   jest.spyOn(mockCreateQueryRunner.manager as EntityManager, 'save').mockResolvedValue(mockMessageSchema);
-    //   // jest.spyOn(mockCreateQueryRunner.manager as EntityManager, 'save').mockResolvedValue(mockMessage);
-    //   // jest.spyOn(dataSource.manager, 'save').mockResolvedValue(mockMessageSchema);
-
-    //   mockClientConnection.set(1, mockSocket as Socket);
-    //   mockClientConnection.set(2, mockSocket as Socket);
-    //   mockClientConnection.get(1);
-    //   mockClientConnection.get(2);
-
-    //   const result = await chatService.sendMessage(mockPayload, mockCreateChatDto);
-
-    //   expect(mockCreateQueryRunner.startTransaction).toHaveBeenCalled();
-    //   expect(mockCreateQueryRunner.commitTransaction).toHaveBeenCalled();
-    //   expect(mockCreateQueryRunner.release).toHaveBeenCalled();
-
-    //   expect(userRepository.findOneByOrFail).toHaveBeenCalledWith({ id: 1 });
-    //   expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: 1 });
-    //   expect(mockManager.save).toHaveBeenCalledWith(ChatEntity, expect.objectContaining(mockMessage));
-    //   expect(result).toEqual(mockMessageSchema);
-    //   expect(result).toBe('a message');
-    // });
 
     it("should find sender socketId in Redis", async () => {
       const mockPayload = { sub: 1 };
@@ -479,11 +387,9 @@ describe('ChatService', () => {
       expect(emittedData).toHaveProperty('message', 'sending messageSchema');
     });
 
-    it("should throw WebSocket exception if sender does not exist then rollback to release", async () => {
+    it("should rollback to release if sender does not exist then rollback to release", async () => {
       const mockPayload = { sub: 1 };
       const mockCreateChatDto: CreateChatDto = { message: "a message", recipientId: 2, room: 0 };
-      const mockSender = { id: 1 } as UserEntity;
-      const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity
 
       jest.spyOn(userRepository, 'findOneByOrFail').mockRejectedValue(new WsException("Cannot Find Sender"));
 
@@ -495,8 +401,6 @@ describe('ChatService', () => {
       expect(mockQueryRunner.release).toHaveBeenCalled();
       // Transaction has not called
       expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
-      // WsException returned with promise in service
-      // await expect(mockSender).rejects.toThrow(WsException);
     });
 
     it("should throw WebSocket exception if recipient does not exist then rollback to release", async () => {

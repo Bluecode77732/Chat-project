@@ -432,38 +432,21 @@ Implementation of two ways of sign-in endpoints.
 ### Redis
 - Supposedly, A data stored in-memory Socket with without Redis, however with Redis, it can efficiently store user's metadata, and useful when horizontal scale up the server.
 
-
 #### Compare Sample Code 
 Socket In-memory
 ```ts
-  export class ChatService {
-    // Maps authenticated userId to get their current Socket instance (1-to-1)
-    private readonly clientConnection = new Map<number, Socket>();
-
-    // Connect Socket
-    registerClient(participantId: number, client: Socket) {
-      this.clientConnection.set(participantId, client);
-    };
+  // Before Redis
+  registerClient(participantId: number, client: Socket) {
+    this.clientConnection.set(participantId, client);
   };
 ```
 
 Redis with In-Memory
 ```ts
-  export class ChatService {
-    // Maps authenticated userId to get their current Socket instance (1-to-1)
-    private readonly clientConnection = new Map<number, Socket>();
-  
-    // TypeORM repositories for Room and User with DataSource
-    constructor(
-        // Injecting redisService to replace current in-memory storage Socket instance
-        private readonly redisService: SessionCacheService,
-    ) { };
-
-    // Connect Socket
-    async registerClient(participantId: number, client: Socket) {
-        await this.redisService.sethUserOnline(participantId, client.id);
-        this.clientConnection.set(client.id, client);
-    };
+  // After Redis
+  async registerClient(participantId: number, client: Socket) {
+    await this.redisService.sethUserOnline(participantId, client.id);
+    this.clientConnection.set(client.id, client);
   };
 ```
 
@@ -536,6 +519,45 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 "moduleNameMapper": {
   "src/(.*)": "<rootDir>/src/$1"
 }
+```
+
+#### Test Coverage
+**Tested Components**
+- ChatService: connection, rate limit, room creation
+- AuthService: JWT validation, token refresh
+- RedisService: session set/get, rate counter
+- UserService: CRUD, RBAC
+
+**Coverage Results**
+- Chat Service: 70.47%
+- Auth Service: 78.66%
+- Redis Service: 100%
+- Redis Service: 51.21% (excluded simple 'Get' and 'Delete' methods)
+- **Overall: 71.84%**
+
+**Example Code**
+```ts
+  describe('ChatService', () => {
+    let chatService: ChatService;
+    let userRepository: Repository<UserEntity>;
+    
+    it("should get a created room", async () => {
+      //* The mock family
+      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
+      const mockRecipientId = 2;
+      const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
+      const mockRecipient = { id: 1 } as UserEntity;
+
+      jest.spyOn(chatService, 'findRoom').mockResolvedValue(mockRooms);
+      jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
+
+      const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
+
+      expect(chatService.findRoom).toHaveBeenCalledWith(mockSender.id, mockSender.id, mockManager as EntityManager);
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: mockRecipientId });
+      expect(result).toEqual(mockRooms);
+    });
+  });
 ```
 
 
