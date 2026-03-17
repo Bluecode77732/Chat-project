@@ -233,9 +233,8 @@ Test 'Auth' and 'User' Endpoints URL below.
 - Cache: Redis for message rate-limit and store user's data efficiently. ✔
 - Filter: exception handlers ✔
 - Logger: records events, error, debug infos while executing the application ✔
-- Unit Test: Testing service methods by each unit
-<!-- - Prisma:  -->
-- Swagger: Documenting by methods to test each of endpoints
+- Unit Test: Testing service methods by each unit ✔
+- Swagger: Documenting by methods to test each of endpoints ✔
 
 
 ## Features
