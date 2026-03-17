@@ -1,3 +1,12 @@
+![NestJS](https://img.shields.io/badge/NestJS-E0234E)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101)
+![Redis](https://img.shields.io/badge/Redis-DC382D)
+![GraphQL](https://img.shields.io/badge/GraphQL-E10098)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
+![Jest](https://img.shields.io/badge/Jest-C21325)
+![Docker](https://img.shields.io/badge/Docker-2496ED)
+
 # Real-Time Chat Application
 - An classical private One-to-One chatting server-side management application that validated users can chat with the other user.
 - This project is for understanding how socket.io can make two entities communicate each other, caching and rate-limiting with Redis, persistent session, and save their chat logs in server.
