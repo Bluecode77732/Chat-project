@@ -26,7 +26,7 @@ A casual private One-to-One chatting project that enables communication real-tim
   - pnpm (recommended) or npm
   - Docker >= v28.xx
 
-```powershell
+```md
   # Install dependencies
   pnpm install
   
@@ -34,22 +34,35 @@ A casual private One-to-One chatting project that enables communication real-tim
   # **Edit with your DB credentials**
   cp .env
  
-  # 3. Create database manually (no migrations in package.json)
+  # Create database manually (no migrations in package.json)
   Set 'synchronize: true' in 'app.module.ts' for automatic DB development
 
-  # 4. Run development
+  # Run Redis in Docker
+  docker start redis-chat
+
+  # Run development
   pnpm run start:dev
   
-  # 5. Open Altair and Postman
-  Follow the steps in the API Documentation, Key Endpoints, **Chat** section below
+  # Test WebSocket Chat
+  # Open Postman Websocket (Recommended)
+  # Option: A
+  1. Open two WebSocket.IO taps on 'Postman'
+  2. Enter `ws://localhost:3000` in URL
+  3. Insert 'Bearer token' in 'authorization' key in headers 
+  4. Type "message", "recipientId" and fill in values
+  5. Send message
 
-  # 5. Run all tests
+  # Open Altair and Postman
+  # Option: B
+  See details in the **API Documentation**, **Key Endpoints**, **Chat** section below
+
+  # Run all tests
   pnpm test
 
-  # 6. Run test coverage
+  # Run test coverage
   pnpm run test:cov
   
-  # 7. Access Swagger UI
+  # Access Swagger UI
   http://localhost:3000/doc
 ```
 
@@ -81,6 +94,7 @@ List of Troubleshooting when the program runs
 ## API Documentation
 ### Swagger UI
 ***To try all of'em, you must register first to get started.***
+Since Altair cannot test with Mutation, while Postman cannot test Subscription, each platform take a side of role as Subscription and Mutation separately to test chat communication altogether.
 
 ### Key Endpoints
 **Swagger**
@@ -100,11 +114,41 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `PATCH /user/:id` - Delete a user
 
 **Chat**
-- WebSocket
+- WebSocket.IO
+  ***Tap 1***
   - URL: `ws://localhost:3000`
-  - Description: Open two WebSocket taps in 'Postman' and send message through it.
+  - Description: Open two WebSocket.IO taps on 'Postman' and send message through it.
+  - Request Handlers
+    - Default Request Handler: WebSocket.IO
+    - Headers
+      - key : authorization; value: Bearer token
+    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+  - Message
+    ```json
+    {
+      "message": "Message from Participant 1 to 2",
+      "recipientId": 2
+    }
+    ```
 
-- Altair (alternative)
+  ***Tap 2***
+  - URL: `ws://localhost:3000`
+  - Description: Open two WebSocket.IO taps on 'Postman' and send message through it.
+  - Request Handlers
+    - Default Request Handler: WebSocket.IO
+    - Headers
+      - key : authorization; value: Bearer token
+    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+  - Message
+    ```json
+    {
+      "message": "Message from Participant 2 to 1",
+      "recipientId": 1
+    }
+    ```
+
+
+- Altair (Subscription)
   - URL: POST `http://localhost:3000/graphql`
   - Description: This platform can be altered. Open a tap of in Altair, and set the request handlers as following, then connect to the GraphQL, if succeed you are able to test messaging communication when send messages from GraphQL as receiver.
 
@@ -112,7 +156,7 @@ Test 'Auth' and 'User' Endpoints URL below.
     - Default Request Handler: HTTP
     - Parameters (in JSON): {}
     - Subscription URL: http://localhost:3000/graphql
-    -  Use default request handler for subscription: off
+    - Use default request handler for subscription: off
     - Subscription type: WebSocket (graphql-ws)
     - Connection Parameters (in JSON): { "authorization": "Bearer token" }
   - Query
@@ -132,7 +176,8 @@ Test 'Auth' and 'User' Endpoints URL below.
     {}
     ```
 
-- GraphQL
+
+- GraphQL (Mutation)
   - URL: `http://localhost:3000/graphql`
   - Description: This platform cannot be altered. Open a tap of GraphQL in 'Postman', and set the pre-requisition as following, then connect to the Altair. If this all set, you are ready to test messaging communication as sender.
 
@@ -391,25 +436,19 @@ Implementation of two ways of sign-in endpoints.
 #### Compare Sample Code 
 Socket In-memory
 ```ts
-  @Injectable()
   export class ChatService {
     // Maps authenticated userId to get their current Socket instance (1-to-1)
     private readonly clientConnection = new Map<number, Socket>();
 
+    // Connect Socket
     registerClient(participantId: number, client: Socket) {
       this.clientConnection.set(participantId, client);
     };
-
-    // Disconnect Socket
-    removeClient(participantId: number) {
-      this.clientConnection.delete(participantId);
-    };
-  }
+  };
 ```
 
 Redis with In-Memory
 ```ts
-  @Injectable()
   export class ChatService {
     // Maps authenticated userId to get their current Socket instance (1-to-1)
     private readonly clientConnection = new Map<number, Socket>();
@@ -425,17 +464,14 @@ Redis with In-Memory
         await this.redisService.sethUserOnline(participantId, client.id);
         this.clientConnection.set(client.id, client);
     };
-
-    // Disconnect Socket
-    async removeClient(participantId: number, client: Socket) {
-        await this.redisService.sethUserOffline(participantId);
-        this.clientConnection.delete(client.id);
-    };
-  }
+  };
 ```
 
 
 ### Test
+To test out rate of success in test, Coverage Test is appropriate supporting tool for it.
+
+#### Set Up
 - Unit Testing
 
 The tests codes are defined and can run in `spec.ts`.
@@ -458,8 +494,8 @@ The directories wrapped in an array gives flexibility to add more test locations
 }
 ```
 
-
-- In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `Package.json`.
+- Coverage Path Ignore
+In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `Package.json`.
 ```json
 "coveragePathIgnorePatterns": [
   "main.ts",
@@ -482,20 +518,20 @@ The directories wrapped in an array gives flexibility to add more test locations
 ],
 ```
 
+- Directory Root
+It sets output directory for coverage reports in parents directory, one level above the config file  in `Package.json` so every testing files can be tested out all at once.
+  - Subordinate repository
+  ```json
+    "coverageDirectory": "../coverage",
+  ```
 
-- It sets output directory for coverage reports in parents directory, one level above the config file  in `Package.json`.
-Subordinate repository
-```json
-  "coverageDirectory": "../coverage",
-```
+  - Parents repository
+  ```json
+    "coverageDirectory": "./coverage",
+  ```
 
-Parents repository
-```json
-  "coverageDirectory": "./coverage",
-```
-
-
-- It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in `Package.json`.
+- Module Name Mapper
+It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in `Package.json`.
 ```json
 "moduleNameMapper": {
   "src/(.*)": "<rootDir>/src/$1"
