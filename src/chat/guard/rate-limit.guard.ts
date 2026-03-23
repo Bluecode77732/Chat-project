@@ -12,15 +12,12 @@ export class RateLimitGuard implements CanActivate {
 
     // The `canActivate` performs asynchronous Redis operations such as `incr` or `expire` that return Promises and need to be awaited.
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        try {
-            console.log('RateLimitGuard executing');
 
+        try {
+            
             const client = context.switchToWs().getClient();
-            console.log('Client data:');
-            // console.log('Client data:', client.data);
 
             const userId = client.data.user.sub;
-            console.log('User ID:', userId);
 
             if (!userId) {
                 throw new WsException("Cannot Find User Id");
@@ -28,12 +25,10 @@ export class RateLimitGuard implements CanActivate {
 
             const key = `rate limiting message: ${userId}`;
             const count = await this.redis.incr(key);
-            console.log('RateLimitGuard passed', { userId, count });
 
             if (count === 1) {
                 // Expires key in 60 seconds
                 await this.redis.expire(key, 60);
-                console.log('Redis key expired');
             };
             if (count > 10) {
                 // Error when exceeds 10 messages in a per minute.
@@ -45,7 +40,6 @@ export class RateLimitGuard implements CanActivate {
             return true;
 
         } catch (error) {
-            console.log(`Rate-Limit Guard error:`, error);
             logger.error(error.message, { timestamp: new Date().toISOString() })
             return false;
         };

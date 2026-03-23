@@ -112,8 +112,6 @@ export class AuthService {
             },
         });
 
-        console.log('User found in validateUser:', user);
-
         if (!user) {
             logger.error(`User '${email}' isn't found`, { timestamp: new Date().toISOString() });
             throw new BadRequestException("Invalid User.");
@@ -132,18 +130,9 @@ export class AuthService {
 
 
     async issueToken(user: { id: number, role: UserRole }, isRefreshToken: boolean) {
-        console.log('issueToken received user:', user);
-
         // Bring refreshToken and accessToken to issue token for creating user accessing validation.
         const refreshToken = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
         const accessToken = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
-
-        // const payload: Payload = {
-        //     sub: user.id,
-        //     type: isRefreshToken ? 'refresh' : 'access',
-        //     role: user.role,
-        // };
-        // console.log("Payload being signed:", payload);
 
         logger.info(`User '${user.id}' issued refresh and access tokens`);
 

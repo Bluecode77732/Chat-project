@@ -18,16 +18,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) { }
 
   async handleConnection(client: Socket) {
-    console.log('🔌 Connection attempt');
     try {
       // Bearer ir3j9rkdokaods
       const rawToken = client.handshake.headers?.authorization;
       // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
-      console.log('🔍 Token received:', !!rawToken);
 
       // Bearer token payload
       const payload = await this.authService.parseBearerToken(String(rawToken), false);
-      console.log('🔍 Payload:', payload);
 
       if (payload) {
         // Put bearer token into data.user to be extracted by 
@@ -40,12 +37,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.chatService.joinRooms(payload, client);
 
       } else {
-        console.log(`Error : payload not exist`);
         client.disconnect();
       };
 
     } catch (error) {
-      console.log(`Error : ${error}`);
       client.disconnect();
     }
   }
@@ -57,7 +52,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.chatService.removeClient(participant.sub, client);
     };
     
-    console.log(`User: ${participant} disconnected`);
     return `User: ${participant} disconnected`;
   }
 

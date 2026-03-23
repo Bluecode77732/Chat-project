@@ -18,13 +18,11 @@ import { SessionCacheService } from "./redis.service";
                     
                     // Connect to Redis server
                     await client.connect();
-                    console.log('Redis connected successfully');
                     
                     // Returns connection
                     return client;
                     
                 } catch (error) {
-                    console.error('Redis connection failed:', error);
                     throw error;
                 };
             },

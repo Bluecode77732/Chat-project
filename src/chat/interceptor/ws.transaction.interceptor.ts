@@ -15,9 +15,7 @@ export class WebSocketTransaction implements NestInterceptor {
 
         //! Debug: Implement transaction for sendMessage in chat.service
         await queryRunner.connect();
-        console.log('📨 QueryRunner connected');
         await queryRunner.startTransaction();
-        console.log('📨 Transaction started');
 
         // The `client.body.queryRunner` accesses the `queryRunner` which creates connection of DB.
         client.data.queryRunner = queryRunner;
