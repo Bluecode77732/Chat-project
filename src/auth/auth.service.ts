@@ -1,11 +1,10 @@
-import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Payload } from 'src/auth/interface/payload.interface';
 import { UserRole } from './role/role';
 import { logger } from 'src/base/logger/logger';
 
@@ -207,8 +206,6 @@ export class AuthService {
         logger.info(`User '${email}' signed in. Say Hi.`);
 
         return {
-            // refreshToken: await this.issueToken(user, true),
-            // accessToken: await this.issueToken(user, false),
             refreshToken: await this.issueToken({ id: user.id, role: user.role }, true),
             accessToken: await this.issueToken({ id: user.id, role: user.role }, false),
         };

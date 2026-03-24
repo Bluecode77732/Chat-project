@@ -226,10 +226,10 @@ export class ChatService {
 
             // Todo: Recipient room check
             if (getRecipientStatusId?.socketId) {
-                const recipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
+                const isRecipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
 
-                logger.info(`🔍 Recipient socket found: ${recipientSocket}`);
-                logger.info(`🔍 Recipient rooms: ${recipientSocket ? recipientSocket.rooms : "no socket found"}`);
+                logger.info(`🔍 Recipient socket found: ${isRecipientSocket}`);
+                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? isRecipientSocket.rooms : "no socket found"}`);
             } else {
                 logger.error("Recipient not online");
 
