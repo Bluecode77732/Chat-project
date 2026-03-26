@@ -29,10 +29,10 @@ A casual private One-to-One chatting project that enables communication real-tim
 
 ## Quick Start
 - Prerequisites
-  - Node.js >= v18.xx
+  - Node.js >= v24.xx
   - Nest.js >= v11.xx
-  - PostgreSQL >= v14.xx
-  - pnpm (recommended) or npm
+  - PostgreSQL >= v17.xx
+  - pnpm (recommended) or npm >= v10.xx
   - Docker >= v28.xx
 
 ```md
