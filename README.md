@@ -225,10 +225,10 @@ Test 'Auth' and 'User' Endpoints URL below.
 - Framework: Nest.Js, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
 - Architecture: Monolithic Architecture, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
 - Socket: Socket.IO, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
-- Authentication: JWT Authentication; authenticate user validation for using the application
+- Authentication: JWT Authentication; authenticate user validation for using the application ✔
 - Guard: allow validated only types of data ✔
 - Interceptor: a middleware to manipulate user's data ✔
-- Role Based Access: differ levels of user by authorization class 
+- Role Based Access: differ levels of user by authorization class ✔
 - Chat: major websocket implementation ✔
 - Cache: Redis for message rate-limit and store user's data efficiently. ✔
 - Filter: exception handlers ✔
