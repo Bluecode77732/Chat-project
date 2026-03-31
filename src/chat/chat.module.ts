@@ -7,7 +7,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { RoomEntity } from './entities/room.entity';
 import { createClient } from 'redis';
+import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
+import { Server } from 'socket.io';
+import { PubSubService } from 'src/graphql/pubsub.service';
 
 @Module({
   imports: [
@@ -22,6 +25,11 @@ import { RedisModule } from 'src/redis/redis.module';
   providers: [
     ChatGateway,
     ChatService,
+    // Todo: GraphQL connection
+    Server,
+    PubSubService,
+    //! Debug - Solving on 'Cannot Find Sender ID' : Registration of 'chat.resolver'
+    ChatResolver,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
       // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
@@ -36,6 +44,6 @@ import { RedisModule } from 'src/redis/redis.module';
       },
     },
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: ['REDIS_CLIENT', ChatService, PubSubService],
 })
 export class ChatModule { }

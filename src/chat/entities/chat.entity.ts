@@ -1,6 +1,6 @@
 import { EntityBase } from "src/base/entity/base.entity";
 import { UserEntity } from "src/user/entities/user.entity"
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { RoomEntity } from "./room.entity";
 
 @Entity()
@@ -9,9 +9,9 @@ export class ChatEntity extends EntityBase {
     id: number;
 
     @Column()
-    message: string
+    message: string;
 
-    // @JoinTable()
+    // @JoinColumn({ name: 'participantId' })
     @ManyToOne(
         () => UserEntity,
         (user) => user.chats

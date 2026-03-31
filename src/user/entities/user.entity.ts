@@ -24,7 +24,7 @@ export class UserEntity extends EntityBase {
     @IsNotEmpty()
     @Exclude({
         // Expose the property only when transforming from class instance to plain object.
-        toPlainOnly: true,
+        // toPlainOnly: true,
     })
     password: string;
     

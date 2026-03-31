@@ -9,7 +9,10 @@ import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import { EntityBase } from './base/entity/base.entity';
-import { RedisModule } from './redis/redis.module';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'node:path';
+import { ChatResolver } from './chat/chat.resolver';
 
 @Module({
   imports: [
@@ -54,11 +57,42 @@ import { RedisModule } from './redis/redis.module';
       // It tells IOC container what dependency injection to be injected with.
       inject: [ConfigService],
     }),
+    // Configure GraphQL with the forRoot() static method.
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      subscriptions: {
+        "graphql-ws": {
+          onConnect: (context) => {
+            
+            const token = context.connectionParams?.authorization;
+            
+            context.extra = { authorization: token };
+            return { authorization: token };
+          },
+        },
+      },
+      context: ({ req, extra }) => {
+        // Returns HTTP request
+        if (req) {
+          return { req };
+        };
+
+        // Returns Subscription WebSocket
+        return {
+          req: {
+            headers: { 
+              authorization: extra?.authorization 
+            },
+          },
+        };
+      },
+      playground: false,
+    }),
     UserModule,
     ChatModule,
     AuthModule,
-    // RedisModule,
   ],
-  providers: [Logger],
+  providers: [Logger, ChatResolver],
 })
 export class AppModule { }

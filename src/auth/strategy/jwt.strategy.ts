@@ -21,8 +21,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt-auth-guard") {
     };
 
 
-    // Exclue `password` via `Omit<>` generic type.
+    // Exclude `password` via `Omit<>` generic type.
     async validate(payload: Payload): Promise<Omit<UserEntity, 'password'>> {
+
         const user = await this.userService.findOne(payload.sub);
 
         if (!user) {

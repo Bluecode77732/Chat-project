@@ -13,6 +13,7 @@ export class WebSocketTransaction implements NestInterceptor {
         const client = ctx.switchToWs().getClient();
         const queryRunner = this.dataSource.createQueryRunner();
 
+        //! Debug: Implement transaction for sendMessage in chat.service
         await queryRunner.connect();
         await queryRunner.startTransaction();
 
@@ -31,7 +32,8 @@ export class WebSocketTransaction implements NestInterceptor {
                     },
                 ),
                 tap(async () => {
-                    await queryRunner.rollbackTransaction();
+                    //! Debug - Save message in DB: `rollbackTransaction` => Implemented `commitTransaction` which wasn't added.
+                    await queryRunner.commitTransaction();
                     await queryRunner.release();
                 }),
             );

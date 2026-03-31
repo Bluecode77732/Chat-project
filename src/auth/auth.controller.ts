@@ -31,7 +31,7 @@ export class AuthController {
     return this.authService.register(rawToken);
   };
 
-  
+
   // Sign in route
   @Post('signin')
   @ApiBasicAuth()
@@ -78,7 +78,7 @@ export class AuthController {
     const payload = await this.authService.parseBearerToken(rawToken, true);
 
     return {
-      accessToken: await this.authService.issueToken(payload, false)
+      accessToken: await this.authService.issueToken({ id: payload.sub, role: payload.role }, false)
     };
   };
 
@@ -108,18 +108,5 @@ export class AuthController {
       refreshToken: await this.authService.issueToken(req.user, true),
       accessToken: await this.authService.issueToken(req.user, false),
     };
-  };
-
-
-  // Set role what a user can do.
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @ApiResponse({
-    status: 201,
-    description: "Issued Token Successfully.",
-    type: UserEntity,
-  })
-  async managerSignIn(@Request() req) {
-    return req.user;
   };
 }

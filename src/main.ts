@@ -21,6 +21,9 @@ async function bootstrap() {
     transformOptions: {
       enableImplicitConversion: true,
     },
+    // exceptionFactory: (err) => {
+    //   return err;
+    // },
   }));
 
   // Swagger configuration
