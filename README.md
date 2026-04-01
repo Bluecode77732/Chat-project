@@ -55,15 +55,16 @@ A casual private One-to-One chatting project that enables communication real-tim
   # Test WebSocket Chat
   # Open Postman Websocket (Recommended)
   # Option: A
-  1. Open two WebSocket.IO taps on 'Postman'
-  2. Enter `ws://localhost:3000` in URL
-  3. Insert 'Bearer token' in 'authorization' key in headers 
-  4. Type "message", "recipientId" and fill in values
-  5. Send message
+  1. Open two Socket.IO taps on 'Postman'.
+  2. Enter `ws://localhost:3000` in URL.
+  3. Go to Headers and insert 'authorization' as key, 'Bearer token' as value for each taps.
+  4. Connect both taps together and open terminal which rooms did "recipientId" join.
+  5. Type "message", "recipientId" and fill in the values in Message field on each taps.
+  6. Send message.
 
   # Open Altair and Postman
   # Option: B
-  See details in the **API Documentation**, **Key Endpoints**, **Chat** section below
+  See details in the **API Documentation**, **Key Endpoints**, **Chat** section below.
 
   # Run all tests
   pnpm test
@@ -123,12 +124,12 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `PATCH /user/:id` - Delete a user
 
 **Chat**
-- WebSocket.IO
+- Socket.IO
   ***Tap 1***
   - URL: `ws://localhost:3000`
-  - Description: Open two WebSocket.IO taps on 'Postman' and send message through it.
+  - Description: Open two Socket.IO taps on 'Postman' and send message through it.
   - Request Handlers
-    - Default Request Handler: WebSocket.IO
+    - Default Request Handler: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
     - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
@@ -142,9 +143,9 @@ Test 'Auth' and 'User' Endpoints URL below.
 
   ***Tap 2***
   - URL: `ws://localhost:3000`
-  - Description: Open two WebSocket.IO taps on 'Postman' and send message through it.
+  - Description: Open two Socket.IO taps on 'Postman' and send message through it.
   - Request Handlers
-    - Default Request Handler: WebSocket.IO
+    - Default Request Handler: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
     - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
