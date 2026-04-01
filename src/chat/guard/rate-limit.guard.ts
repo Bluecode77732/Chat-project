@@ -36,7 +36,7 @@ export class RateLimitGuard implements CanActivate {
             };
 
             // Returns rate-limit guard
-            logger.info(`User's left message count: '${10 - count}'`);
+            logger.info(`${userId} left message count: '${10 - count}'`);
             return true;
 
         } catch (error) {

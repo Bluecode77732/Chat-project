@@ -60,6 +60,7 @@ export class ChatService {
         // Join each room by its string ID (Socket.IO room names are strings)
         rooms.forEach((room) => {
             client.join(room.id.toString());
+            logger.info(`User ${user.sub} has joined room ${room.id}`);
         });
 
         logger.info(`User ${user.sub} has registered`);
@@ -228,8 +229,8 @@ export class ChatService {
             if (getRecipientStatusId?.socketId) {
                 const isRecipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
 
-                logger.info(`🔍 Recipient socket found: ${isRecipientSocket}`);
-                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? isRecipientSocket.rooms : "no socket found"}`);
+                logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket : "no socket found"}`);
+                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? isRecipientSocket.rooms : "no socket rooms found"}`);
             } else {
                 logger.error("Recipient not online");
 
@@ -239,7 +240,7 @@ export class ChatService {
             
             //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback
             logger.info(`User ${payload.sub}'s message is saved in the chat room`);
-            logger.info(`User ${payload.sub} sent a message`);
+            logger.info(`User ${payload.sub} sent ${messageSchema.id}th message`);
 
             // Todo: Final return
             return messageSchema;

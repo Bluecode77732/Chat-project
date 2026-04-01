@@ -1,6 +1,7 @@
 import { Global, Module } from "@nestjs/common";
 import { createClient } from "redis";
 import { SessionCacheService } from "./redis.service";
+import { logger } from "src/base/logger/logger";
 
 @Global()
 @Module({
@@ -15,6 +16,7 @@ import { SessionCacheService } from "./redis.service";
                     // Creates client instance to connect Redis server
                     const client = createClient({ url: 'redis://localhost:6379' });
                     client.on('error', (err) => console.error('Redis Error:', err));
+                    logger.error(`Redis Connection Fail`, { timestamp: new Date().toISOString() });
                     
                     // Connect to Redis server
                     await client.connect();
