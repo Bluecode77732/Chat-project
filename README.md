@@ -52,8 +52,8 @@ A casual private One-to-One chatting project that enables communication real-tim
   # Run development
   pnpm run start:dev
   
-  # Test WebSocket Chat
-  # Open Postman Websocket (Recommended)
+  # Test Socket Chat
+  # Open Postman Socket (Recommended)
   # Option: A
   1. Open two Socket.IO taps on 'Postman', enter `ws://localhost:3000` in URL.
   2. Register and login to get access token.
