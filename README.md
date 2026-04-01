@@ -55,12 +55,12 @@ A casual private One-to-One chatting project that enables communication real-tim
   # Test WebSocket Chat
   # Open Postman Websocket (Recommended)
   # Option: A
-  1. Open two Socket.IO taps on 'Postman'.
-  2. Enter `ws://localhost:3000` in URL.
-  3. Go to Headers and insert 'authorization' as key, 'Bearer token' as value for each taps.
-  4. Connect both taps together and open terminal which rooms did "recipientId" join.
-  5. Type "message", "recipientId" and fill in the values in Message field on each taps.
-  6. Send message.
+  1. Open two Socket.IO taps on 'Postman', enter `ws://localhost:3000` in URL.
+  2. Register and login to get access token.
+  3. Go to Headers and insert 'authorization' as key, 'Bearer token' as value for each taps where you want to communicate to.
+  4. Connect both taps together and open terminal which rooms "recipientId" did join.
+  5. Go to Message and type "message", "recipientId" as JSON format, and fill in the values in Message field on each taps.
+  6. Set 'sendMessage' footer under the Message field, for both taps, then send message.
 
   # Open Altair and Postman
   # Option: B
