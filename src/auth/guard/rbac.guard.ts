@@ -2,7 +2,6 @@ import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { UserRole } from "../role/role";
 import { RBAC } from "../decorator/rbac.decorator";
-import { Socket } from "socket.io";
 
 @Injectable()
 export class RBACguard implements CanActivate {
@@ -50,6 +49,5 @@ export class RBACguard implements CanActivate {
         // Compare user's role level with required role level
         // It means user's role level <= required level, can access smaller or equal than required level
         return accessLevel[user.role] == accessLevel[role];
-        // return accessLevel[user.role] <= accessLevel[role];
     };
 }
