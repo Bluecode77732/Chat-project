@@ -21,18 +21,9 @@ export class RBACguard implements CanActivate {
         };
 
         // Switch context to HTTP and extract the request.
-        //! (not sure if it's solution) Debug - "Failed to send message: Sender isn't online"
-        //* Debug
-        // const request = context.switchToWs().getClient();
-        // const request = context.switchToWs().getClient<Socket>();
-        //* Original 
         const request = context.switchToHttp().getRequest();
         
         // Get the authenticated user from the request in auth router.
-        //! (not sure if it's solution) Debug - "Failed to send message: Sender isn't online"
-        //* Debug
-        // const user = request.data.user;
-        //* Original 
         const user = request.user;
 
         // If an user does not exist in request, deny access.
