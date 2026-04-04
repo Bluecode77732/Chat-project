@@ -188,7 +188,7 @@ export class AuthService {
             logger.info(`User parsed '${rawToken}' to get a bearer token: ${bearer} ${token}`);
             return payload;
 
-        } catch (err) {
+        } catch (err: any) {
             logger.error(err.message, { timestamp: new Date().toISOString() });
             throw new UnauthorizedException("Token Expired");
         }
