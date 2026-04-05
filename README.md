@@ -656,8 +656,7 @@ Remove container (keeps image)
 
 ## Scale Up In Future
 - Store conversation list per user (last message, unread message, etc)
-- Return `roomId` to frontend instead of recalculating(mid of queries) it
-- Use `roomId` to scale to group chats later
+- Broadcast via `roomId` to scale to create group chats, or notification with `Redis Pub/Sub` package
 - Let users delete rooms and conversation
 - Restore by load up previous chat logs when user disconnected from Socket
 - Let users see "User is typing" when one side is typing a message

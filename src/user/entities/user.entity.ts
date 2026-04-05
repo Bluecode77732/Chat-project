@@ -9,7 +9,7 @@ import { RoomEntity } from "src/chat/entities/room.entity";
 @Entity()
 export class UserEntity extends EntityBase {
     @PrimaryGeneratedColumn()
-    id: number;
+    id?: number;
     
     @Column({
         unique: true,
@@ -17,7 +17,7 @@ export class UserEntity extends EntityBase {
     @IsEmail()
     @IsString()
     @IsNotEmpty()
-    email: string;
+    email?: string;
     
     @Column()
     @IsString()
@@ -26,7 +26,7 @@ export class UserEntity extends EntityBase {
         // Expose the property only when transforming from class instance to plain object.
         // toPlainOnly: true,
     })
-    password: string;
+    password?: string;
     
     // Access level
     @Column({
@@ -35,18 +35,18 @@ export class UserEntity extends EntityBase {
     })
     @IsNumber()
     @IsNotEmpty()
-    role: number;
+    role?: number;
     
     // A one-to-many relation allows creating the type of relation where Entity1 can have multiple instances of Entity2, but Entity2 has only one Entity1. Entity2 is the owner of the relationship, and stores the id of Entity1 on its side of the relation.
     @OneToMany(
         () => ChatEntity,
         (chat) => chat.participant,
     )
-    chats: ChatEntity[];
+    chats?: ChatEntity[];
     
     @ManyToMany(
         () => RoomEntity,
         (room) => room.participants,
     )
-    rooms: RoomEntity[];
+    rooms?: RoomEntity[];
 }

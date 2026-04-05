@@ -6,7 +6,7 @@ import { EntityBase } from "src/base/entity/base.entity";
 @Entity()
 export class RoomEntity extends EntityBase {
     @PrimaryGeneratedColumn()
-    id: number;
+    id?: number;
 
     // Participants in many rooms
     @ManyToMany(
@@ -14,12 +14,12 @@ export class RoomEntity extends EntityBase {
         (user) => user.rooms
     )
     @JoinTable()
-    participants: UserEntity[];
+    participants?: UserEntity[];
 
     // Chats in the rooms
     @OneToMany(
         () => ChatEntity,
         (room) => room.room,
     )
-    chats: ChatEntity[]
+    chats?: ChatEntity[]
 }

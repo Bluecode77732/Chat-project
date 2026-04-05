@@ -59,6 +59,10 @@ export class ChatService {
             .getMany();
         // Join each room by its string ID (Socket.IO room names are strings)
         rooms.forEach((room) => {
+            if (!room?.id) {
+                throw new WsException("Cannot Find Room");
+            };
+
             client.join(room.id.toString());
             logger.info(`User ${user.sub} has joined room ${room.id}`);
         });
@@ -111,6 +115,9 @@ export class ChatService {
     // Find existing room between sender and recipient => or create new one
     // Also notifies both users (if online) about the new room and joins them
     async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
+        if (!sender?.id) {
+            throw new WsException("Cannot Find Sender");
+        };
 
         let room = await this.findRoom(sender.id, recipientId, qr);
 
@@ -133,6 +140,10 @@ export class ChatService {
 
         // Notify and join users when they connected
         for (const id of [sender.id, recipient.id]) {
+
+            if (!id) {
+                throw new WsException("Cannot Find Sender");
+            };
 
             // Get Client ID
             // New code along with Redis cache
@@ -172,8 +183,8 @@ export class ChatService {
             });
 
             // Check if client exist
-            if (!sender) {
-                throw new WsException("Cannot Find User");
+            if (!sender?.id) {
+                throw new WsException("Cannot Find Sender");
             };
 
             if (!recipientId || isNaN(recipientId)) {
@@ -184,7 +195,7 @@ export class ChatService {
             const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
 
             // Check if room exist
-            if (!room)
+            if (!room?.id)
                 throw new WsException("Cannot Find Room");
 
             // Todo: Save message in the chat database permanently
@@ -196,10 +207,10 @@ export class ChatService {
             });
 
 
-            // Todo: Redis adoption *//
+            // Todo: Redis adoption //
             // Todo: Get client ID from Redis
             const getSenderFromRedisStatusId = await this.redisService.getUserStatus(sender.id);
-            
+
             //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
             if (getSenderFromRedisStatusId?.socketId) {
 
@@ -237,7 +248,7 @@ export class ChatService {
                 throw new WsException("Recipient not online");
             };
 
-            
+
             //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback
             logger.info(`User ${payload.sub}'s message is saved in the chat room`);
             logger.info(`User ${payload.sub} sent ${messageSchema.id}th message`);
@@ -245,7 +256,7 @@ export class ChatService {
             // Todo: Final return
             return messageSchema;
 
-        } catch (error) {
+        } catch (error: any) {
             logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
 
             throw new Error(`Failed to send message: ${error.message}`)
