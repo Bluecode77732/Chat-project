@@ -5,7 +5,7 @@ export class bearerTokenType {
         description: "JWT access token",
         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     })
-    accessToken: string;
+    accessToken?: string;
 };
 
 export class tokenType {
@@ -13,11 +13,11 @@ export class tokenType {
         description: "JWT refresh token",
         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     })
-    refreshToken: string;
+    refreshToken?: string;
 
     @ApiProperty({
         description: "JWT access token",
         example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     })
-    accessToken: string;
+    accessToken?: string;
 };

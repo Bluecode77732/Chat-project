@@ -5,7 +5,7 @@ import { BaseType } from './base.type';
 @ObjectType()
 export class UserType extends BaseType {
     @Field(() => ID)
-    id: number;
+    id?: number;
     
     @Field({ nullable: true })
     email?: string;

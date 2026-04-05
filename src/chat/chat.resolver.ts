@@ -77,7 +77,7 @@ export class ChatResolver {
 
             return savedMessage || `chat.resolver sends null - ${null}`;
 
-        } catch (error) {
+        } catch (error: any) {
             logger.error(error.message, { userId: userId, timestamp: new Date().toISOString() });
             await queryRunner.rollbackTransaction();
             throw new Error(`Failed to send message: ${error.message}`);

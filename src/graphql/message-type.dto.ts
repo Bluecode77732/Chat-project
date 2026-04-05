@@ -4,10 +4,10 @@ import { UserType } from './user.type';
 @ObjectType()
 export class MessageType {
   @Field(() => ID)
-  id: number;
+  id?: number;
 
   @Field()
-  message: string;
+  message?: string;
 
   @Field(() => UserType, { nullable: true })
   participant?: UserType;

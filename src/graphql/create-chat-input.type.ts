@@ -9,11 +9,11 @@ export class CreateChatInput {
     @Field(() => String)
     @IsString()
     @IsNotEmpty()
-    message: string;
+    message?: string;
 
     @Field(() => ID)
     @IsNumber()
-    recipientId: number;
+    recipientId?: number;
     
     @Field(() => Int, { nullable: true })
     @IsNumber()

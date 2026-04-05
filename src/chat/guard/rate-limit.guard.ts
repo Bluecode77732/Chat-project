@@ -39,7 +39,7 @@ export class RateLimitGuard implements CanActivate {
             logger.info(`${userId} left message count: '${10 - count}'`);
             return true;
 
-        } catch (error) {
+        } catch (error: any) {
             logger.error(error.message, { timestamp: new Date().toISOString() })
             return false;
         };

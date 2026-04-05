@@ -2,8 +2,8 @@ import { Field } from "@nestjs/graphql";
 
 export class BaseType {
     @Field()
-    created: Date;
+    created?: Date;
     
     @Field()
-    updated: Date;
+    updated?: Date;
 }

@@ -116,7 +116,7 @@ export class AuthService {
             throw new BadRequestException("Invalid User.");
         };
 
-        const verification = await bcrypt.compare(password, user.password);
+        const verification = await bcrypt.compare(password, String(user.password));
 
         if (!verification) {
             logger.error(`User '${email}' verification isn't working`, { timestamp: new Date().toISOString() });
@@ -128,7 +128,7 @@ export class AuthService {
     };
 
 
-    async issueToken(user: { id: number, role: UserRole }, isRefreshToken: boolean) {
+    async issueToken(user: { id: number | undefined, role: UserRole | undefined }, isRefreshToken: boolean) {
         // Bring refreshToken and accessToken to issue token for creating user accessing validation.
         const refreshToken = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
         const accessToken = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');

@@ -240,8 +240,8 @@ export class ChatService {
             if (getRecipientStatusId?.socketId) {
                 const isRecipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
 
-                logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket : "no socket found"}`);
-                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? isRecipientSocket.rooms : "no socket rooms found"}`);
+                logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : "no socket found"}`);
+                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? room.id : "no socket rooms found"}`);
             } else {
                 logger.error("Recipient not online");
 
