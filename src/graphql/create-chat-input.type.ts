@@ -1,5 +1,4 @@
-// It bases on CreateChatDto decorator
-
+// This input type bases on CreateChatDto decorator
 
 import { InputType, Field, Int, ID } from '@nestjs/graphql';
 import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
