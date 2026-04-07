@@ -21,6 +21,8 @@ export class PubSubService extends RedisPubSub {
         subscriber.on('connect', () => console.log('✅ Redis subscriber connected'));
         subscriber.on('error', (err) => console.error('❌ Redis subscriber error:', err));
 
-        super({ publisher, subscriber });
+        super({ 
+            publisher, subscriber 
+        });
     };
 };
