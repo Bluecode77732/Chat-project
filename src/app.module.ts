@@ -52,6 +52,7 @@ import { ChatResolver } from './chat/chat.resolver';
         //! WARNING: Set synchronize: `false` in Production to prevent losing data.
         //! Important: Set it `true` to do migration to create DB during Development.
         synchronize: false,
+        migrations: ["dist/migrations/*.js"],
         autoLoadEntities: true,
       }),
       // It tells IOC container what dependency injection to be injected with.
