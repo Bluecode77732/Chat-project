@@ -37,20 +37,34 @@ A casual private One-to-One chatting project that enables communication real-tim
 
 ```md
   # Install dependencies
+  ```powershell
   pnpm install
+  ```
   
   # Setup environment
   # **Edit with your DB credentials**
+  ```powershell
   cp .env
+  ```
  
-  # Create database manually (no migrations in package.json)
+  # Create database manually
   Set 'synchronize: true' in 'app.module.ts' for automatic DB development
 
+  # Migration Schema Set Up
+  Set 'synchronize: false' in 'app.module.ts' for DB migration to record schema any changes
+  ```powershell
+  pnpm migration:run
+  ```
+
   # Run Redis in Docker
+  ```powershell
   docker start redis-chat
+  ```
 
   # Run development
+  ```powershell
   pnpm run start:dev
+  ```
   
   # Test Socket Chat
   # Open Postman Socket (Recommended)
