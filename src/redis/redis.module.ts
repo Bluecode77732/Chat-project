@@ -14,7 +14,7 @@ import { logger } from "src/base/logger/logger";
             useFactory: async () => {
                 try {
                     // Creates client instance to connect Redis server
-                    const client = createClient({ url: 'redis://localhost:6379' });
+                    const client = createClient({ url: process.env.REDIS_URL });
                     client.on('error', (err) => console.error('Redis Error:', err));
                     logger.error(`Redis Connection Fail`, { timestamp: new Date().toISOString() });
                     
