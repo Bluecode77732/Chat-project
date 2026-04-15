@@ -3,17 +3,30 @@
 //* Using a module-level const pubSub = new PubSub() which creates separate instances per import. */
 //* Implementing `PubSub` module-level will send mutation data over subscription. */
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { RedisPubSub } from "graphql-redis-subscriptions";
 import { Redis } from 'ioredis';
 
 @Injectable()
 export class PubSubService extends RedisPubSub {
-    constructor() {
-        // Todo: GraphQL connection - Update `pubsub.service.ts` to use existing Redis configuration
+    constructor(private configService: ConfigService) {
+        const redisUrl = configService.get<string>('REDIS_URL');
+        
+        if (redisUrl === undefined || null) {
+            throw new InternalServerErrorException();
+        }
+        
+        const url = new URL(redisUrl);
 
-        const publisher = new Redis({ host: 'localhost', port: 6379 });
-        const subscriber = new Redis({ host: 'localhost', port: 6379 });
+        const redisConfig = {
+            host: url.hostname,
+            port: parseInt(url.port || '6379'),
+            password: url.password || undefined,
+        };
+
+        const publisher = new Redis(redisConfig);
+        const subscriber = new Redis(redisConfig);
 
         publisher.on('connect', () => console.log('✅ Redis publisher connected'));
         publisher.on('error', (err) => console.error('❌ Redis publisher error:', err));
@@ -21,8 +34,6 @@ export class PubSubService extends RedisPubSub {
         subscriber.on('connect', () => console.log('✅ Redis subscriber connected'));
         subscriber.on('error', (err) => console.error('❌ Redis subscriber error:', err));
 
-        super({ 
-            publisher, subscriber 
-        });
+        super({ publisher, subscriber });
     };
 };

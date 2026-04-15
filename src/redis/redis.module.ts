@@ -1,4 +1,5 @@
 import { Global, Module } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { createClient } from "redis";
 import { SessionCacheService } from "./redis.service";
 import { logger } from "src/base/logger/logger";
@@ -11,23 +12,24 @@ import { logger } from "src/base/logger/logger";
         {
             // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
             provide: 'REDIS_CLIENT',
-            useFactory: async () => {
+            useFactory: async (configService: ConfigService) => {
                 try {
                     // Creates client instance to connect Redis server
-                    const client = createClient({ url: 'redis://localhost:6379' });
+                    const client = createClient({ url: configService.get<string>('REDIS_URL') });
                     client.on('error', (err) => console.error('Redis Error:', err));
-                    logger.error(`Redis Connection Fail`, { timestamp: new Date().toISOString() });
-                    
+
                     // Connect to Redis server
                     await client.connect();
-                    
+
                     // Returns connection
                     return client;
-                    
+
                 } catch (error) {
+                    logger.error(`Redis Connection Fail`, { timestamp: new Date().toISOString() });
                     throw error;
                 };
             },
+            inject: [ConfigService],
         },
     ],
     exports: ['REDIS_CLIENT', SessionCacheService],
