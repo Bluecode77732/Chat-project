@@ -2,6 +2,7 @@ import { Global, Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createClient } from "redis";
 import { SessionCacheService } from "./redis.service";
+import { logger } from "src/base/logger/logger";
 
 @Global()
 @Module({
@@ -24,6 +25,7 @@ import { SessionCacheService } from "./redis.service";
                     return client;
 
                 } catch (error) {
+                    logger.error(`Redis Connection Fail`, { timestamp: new Date().toISOString() });
                     throw error;
                 };
             },
