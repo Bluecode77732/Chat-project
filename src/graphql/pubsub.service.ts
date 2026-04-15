@@ -15,7 +15,7 @@ export class PubSubService extends RedisPubSub {
         
         if (redisUrl === undefined || null) {
             throw new InternalServerErrorException();
-        };
+        }
         
         const url = new URL(redisUrl);
 
