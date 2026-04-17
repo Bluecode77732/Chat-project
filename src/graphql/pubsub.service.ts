@@ -3,7 +3,7 @@
 //* Using a module-level const pubSub = new PubSub() which creates separate instances per import. */
 //* Implementing `PubSub` module-level will send mutation data over subscription. */
 
-import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { RedisPubSub } from "graphql-redis-subscriptions";
 import { Redis } from 'ioredis';
@@ -13,8 +13,8 @@ export class PubSubService extends RedisPubSub {
     constructor(private configService: ConfigService) {
         const redisUrl = configService.get<string>('REDIS_URL');
         
-        if (redisUrl === undefined || null) {
-            throw new InternalServerErrorException();
+        if (!redisUrl) {
+            throw new Error('REDIS_URL environment variable is not set');
         }
         
         const url = new URL(redisUrl);
