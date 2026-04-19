@@ -27,6 +27,11 @@ A casual private One-to-One chatting project that enables communication real-tim
 - To gain technical knowledge of communication between one-to-one private Chat.
 
 
+## Live Demo
+- REST API: https://chat-project-production-3b22.up.railway.app
+- WebSocket: wss://chat-project-production-3b22.up.railway.app
+
+
 ## Quick Start
 - Prerequisites
   - Node.js >= v24.xx
@@ -42,9 +47,9 @@ A casual private One-to-One chatting project that enables communication real-tim
   ```
   
   # Setup environment
-  # **Edit with your DB credentials**
+  # **Edit file name as '.env' and change with your DB credentials**
   ```powershell
-  cp .env
+  cp .env.example
   ```
  
   # Create database manually
@@ -66,7 +71,7 @@ A casual private One-to-One chatting project that enables communication real-tim
   pnpm run start:dev
   ```
   
-  # Test Socket Chat
+  # Local Test Socket Chat
   # Open Postman Socket (Recommended)
   # Option: A
   1. Open two Socket.IO taps on 'Postman', enter `ws://localhost:3000` in URL.
@@ -88,7 +93,7 @@ A casual private One-to-One chatting project that enables communication real-tim
   
   # Access Swagger UI
   http://localhost:3000/doc
-```
+```md
 
 
 ### Troubleshooting
