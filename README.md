@@ -47,18 +47,20 @@ A casual private One-to-One chatting project that enables communication real-tim
   ```
   
   # Setup environment
-  # **Edit file name as '.env' and change with your DB credentials**
+  Edit file name as '.env' and change with your DB credentials.
   ```powershell
   cp .env.example
   ```
  
   # Create database manually
-  Set 'synchronize: true' in 'app.module.ts' for automatic DB development
+  Set 'synchronize: true' in 'app.module.ts' for automatic DB creation.
 
   # Migration Schema Set Up
-  Set 'synchronize: false' in 'app.module.ts' for DB migration to record schema any changes
+  Set 'synchronize: false' in 'app.module.ts' for DB migration to record schema any changes.
   ```powershell
-  pnpm migration:run
+  ⬇ migration:generate
+  ⬇ pnpm build 
+  ⬇ pnpm migration:run
   ```
 
   # Run Redis in Docker
