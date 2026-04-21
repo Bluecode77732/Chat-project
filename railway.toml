@@ -5,3 +5,6 @@ builder = "NIXPACKS"
 startCommand = "pnpm run start:prod"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+[variables]
+NODE_VERSION = "24"
