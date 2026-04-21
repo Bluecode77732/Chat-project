@@ -6,5 +6,5 @@ startCommand = "pnpm run start:prod"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
-[variables]
+[build.env]
 NODE_VERSION = "24"
