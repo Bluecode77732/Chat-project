@@ -21,6 +21,17 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
+  "pnpm": {
+    "overrides": {
+      "minimatch": ">=9.0.6",
+      "flatted": ">=3.4.2",
+      "picomatch": ">=4.0.4",
+      "ajv": ">=8.18.0",
+      "brace-expansion": ">=2.0.3",
+      "path-to-regexp": ">=8.4.0",
+      "lodash": ">=4.18.0"
+    }
+  },
   "dependencies": {
     "@as-integrations/express5": "^1.1.2",
     "@nestjs/apollo": "^13.2.3",
@@ -40,6 +51,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
+    "audit": "^0.0.6",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
@@ -54,6 +66,7 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
+    "pnpm": "^10.33.0",
     "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
