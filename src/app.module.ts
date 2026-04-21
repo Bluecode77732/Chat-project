@@ -12,6 +12,7 @@ import { EntityBase } from './base/entity/base.entity';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
+import 'node:crypto';
 import { ChatResolver } from './chat/chat.resolver';
 
 @Module({
