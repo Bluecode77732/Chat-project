@@ -1,4 +1,3 @@
-import 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -22,9 +21,6 @@ async function bootstrap() {
     transformOptions: {
       enableImplicitConversion: true,
     },
-    // exceptionFactory: (err) => {
-    //   return err;
-    // },
   }));
 
   // Swagger configuration
