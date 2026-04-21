@@ -316,7 +316,6 @@ Test 'Auth' and 'User' Endpoints URL below.
 ## Build
 ### Total Installation
 Dependencies (35)
-- @apollo/server
 - @as-integrations/express5
 - @nestjs/apollo
 - @nestjs/config
