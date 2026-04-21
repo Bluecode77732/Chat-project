@@ -1,4 +1,11 @@
-import 'node:crypto';
+// Ensure Node.js crypto is available as a global before TypeORM initialises.
+// TypeORM v11 calls crypto.randomUUID() at module load time; the bare
+// `import 'node:crypto'` side-effect import does not expose it on globalThis
+// when compiled to ESM with target ES2023 / module nodenext.
+import { webcrypto } from 'node:crypto';
+if (!globalThis.crypto) {
+  (globalThis as typeof globalThis & { crypto: typeof webcrypto }).crypto = webcrypto;
+}
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
