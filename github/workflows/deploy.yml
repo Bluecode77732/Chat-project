@@ -49,7 +49,7 @@ on:
       - run: npm run build
       
       - name: Run Test
-      - run: npm run Test
+      - run: npm run test
 
       - name: Deploy Project
       - uses: bervProject/railway-deploy@main
