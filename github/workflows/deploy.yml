@@ -1,9 +1,25 @@
-name: Chat Project
+name: Chat Project CI/CD
 on: 
   push: 
     branches: [main]
   
   jobs:
+    test:
+    # deploy-on-railway: Will this name work?
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Action Version
+      - uses: actions/setup-node@v6
+
+      - name: Set Up NodeJS
+      - uses: actions/setup-node@v6
+        with: 
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm test
+        
+
     deploy:
     deploy-on-railway:
     runs-on: ubuntu-latest
@@ -18,7 +34,7 @@ on:
           - 5432:5432
       
     steps: 
-      - name: Checkout Action Version
+      - name: Action Version
       - uses: actions/setup-node@v6
 
       - name: Set Up NodeJS
