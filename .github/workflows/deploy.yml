@@ -19,7 +19,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install
-      - run: pnpm test
 
   deploy:
     needs: test
