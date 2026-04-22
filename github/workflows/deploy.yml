@@ -3,9 +3,8 @@ on:
   push: 
     branches: [main]
   
-  jobs:
-    test:
-    # deploy-on-railway: Will this name work?
+jobs:
+  test:
     runs-on: ubuntu-latest
     steps: 
       - name: Action Version
@@ -13,47 +12,48 @@ on:
 
       - name: Set Up NodeJS
       - uses: actions/setup-node@v6
+
         with: 
           node-version: 24
           cache: pnpm
+
       - run: pnpm install
       - run: pnpm test
-        
 
-    deploy:
+  deploy:
     deploy-on-railway:
-    runs-on: ubuntu-latest
+      runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-      
-    steps: 
-      - name: Action Version
-      - uses: actions/setup-node@v6
+      services:
+        postgres:
+          image: postgres:16
+          env:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+          ports:
+            - 5432:5432
 
-      - name: Set Up NodeJS
-      - uses: actions/setup-node@v6
-        with: 
-          node-version: 24
+      steps: 
+        - name: Action Version
+        - uses: actions/setup-node@v6
 
-      - name: Install Dependencies
-      - run: npm i
+        - name: Set Up NodeJS
+        - uses: actions/setup-node@v6
+          with: 
+            node-version: 24
 
-      - name: Build Project
-      - run: npm run build
-      
-      - name: Run Test
-      - run: npm run test
+        - name: Install Dependencies
+        - run: npm i
 
-      - name: Deploy Project
-      - uses: bervProject/railway-deploy@main
-        env:
-          RAILWAY_TOKEN: ${{secrets.RAILWAY_TOKEN}}
-        with:
-          service: "Chat-project"
+        - name: Build Project
+        - run: npm run build
+
+        - name: Run Test
+        - run: npm run Test
+
+        - name: Deploy Project
+        - uses: bervProject/railway-deploy@main
+          env:
+            RAILWAY_TOKEN: ${{secrets.RAILWAY_TOKEN}}
+          with:
+            service: "Chat-project"
