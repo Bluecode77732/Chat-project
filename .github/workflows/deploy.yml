@@ -37,8 +37,10 @@ jobs:
       - run: pnpm install
       - run: pnpm run build
 
-      - uses: bervProject/railway-deploy@main
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service "Chat-project"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        with:
-          service: "Chat-project"
