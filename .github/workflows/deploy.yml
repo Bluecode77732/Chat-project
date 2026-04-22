@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install
+      
+      - run: pnpm lint
 
   deploy:
     needs: test
