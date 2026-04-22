@@ -7,25 +7,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4        # 누락됨 - 필수
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4       # 누락됨 - pnpm 쓰면 필수
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
 
-      - uses: actions/setup-node@v4      # v6 존재안함
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20               # 24 아직 불안정, 20 LTS 권장
+          node-version: 20
           cache: pnpm
 
       - run: pnpm install
       - run: pnpm test
 
-  deploy:                                # deploy-on-railway 콜론 문법 오류
-    needs: test                          # 누락됨 - test 통과 후 배포
+  deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4        # 누락됨
+      - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
