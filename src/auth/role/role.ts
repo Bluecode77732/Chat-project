@@ -1,4 +1,4 @@
 export enum UserRole {
-    signedIn,
-    signedOut,
+  signedIn,
+  signedOut,
 }

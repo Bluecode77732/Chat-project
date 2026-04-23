@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,17 +15,14 @@ import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class UserService {
-
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
 
     private readonly configService: ConfigService,
-  ) { };
-
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
-
     const { email, password } = createUserDto;
 
     const user = await this.userRepository.findOne({
@@ -31,32 +32,37 @@ export class UserService {
     });
 
     if (user) {
-      logger.error(`User '${user}' failed to register`, { timestamp: new Date().toISOString() });
+      logger.error(`User '${user}' failed to register`, {
+        timestamp: new Date().toISOString(),
+      });
       throw new BadRequestException('Registration failed');
-    };
+    }
 
     // Hashing user password
-    const hash = await bcrypt.hash(password, this.configService.getOrThrow<number>("HASH_ROUNDS"));
+    const hash = await bcrypt.hash(
+      password,
+      this.configService.getOrThrow<number>('HASH_ROUNDS'),
+    );
 
     await this.userRepository.save({
       email,
       password: hash,
       role: UserRole.signedIn,
     });
-    logger.info(`User '${user}' is created`, { timestamp: new Date().toISOString() });
+    logger.info(`User '${user}' is created`, {
+      timestamp: new Date().toISOString(),
+    });
 
     return await this.userRepository.findOne({
       where: {
         email,
       },
     });
-  };
-
+  }
 
   async findAll() {
     return await this.userRepository.findAndCount();
-  };
-
+  }
 
   async findOne(id: number) {
     const user = await this.userRepository.findOne({
@@ -67,14 +73,12 @@ export class UserService {
 
     if (!user) {
       throw new NotFoundException(`User Cannot Found`);
-    };
+    }
 
     return user;
   }
 
-
   async update(id: number, updateUserDto: UpdateUserDto) {
-
     // Bring password from DTO
     const { password } = updateUserDto;
 
@@ -85,20 +89,22 @@ export class UserService {
       },
     });
 
-    // Checking the user 
+    // Checking the user
     if (!user) {
       throw new NotFoundException('No User Found.');
-    };
+    }
 
     // Password verify
     if (password) {
-
       // Password
-      const hash = await bcrypt.hash(password, this.configService.getOrThrow<number>("HASH_ROUNDS"));
+      const hash = await bcrypt.hash(
+        password,
+        this.configService.getOrThrow<number>('HASH_ROUNDS'),
+      );
 
       // Apply hash to password
       updateUserDto.password = hash;
-    };
+    }
 
     // Update
     await this.userRepository.update(
@@ -109,7 +115,9 @@ export class UserService {
         role: updateUserDto.role,
       },
     );
-    logger.info(`User '${user.id}' is updated`, { timestamp: new Date().toISOString() });
+    logger.info(`User '${user.id}' is updated`, {
+      timestamp: new Date().toISOString(),
+    });
 
     // Returning result to client
     return await this.userRepository.findOne({
@@ -118,7 +126,6 @@ export class UserService {
       },
     });
   }
-
 
   async remove(id: number) {
     const user = await this.userRepository.findOne({
@@ -132,8 +139,10 @@ export class UserService {
     }
 
     await this.userRepository.delete(id);
-    logger.info(`User '${user.id}' is deleted`, { timestamp: new Date().toISOString() });
+    logger.info(`User '${user.id}' is deleted`, {
+      timestamp: new Date().toISOString(),
+    });
 
     return `The user ${id} is deleted`;
-  };
+  }
 }

@@ -3,37 +3,43 @@
 //* Using a module-level const pubSub = new PubSub() which creates separate instances per import. */
 //* Implementing `PubSub` module-level will send mutation data over subscription. */
 
-import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { RedisPubSub } from "graphql-redis-subscriptions";
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { Redis } from 'ioredis';
 
 @Injectable()
 export class PubSubService extends RedisPubSub {
-    constructor(private configService: ConfigService) {
-        const redisUrl = configService.get<string>('REDIS_URL');
-        
-        if (!redisUrl) {
-            throw new Error('REDIS_URL environment variable is not set');
-        }
-        
-        const url = new URL(redisUrl);
+  constructor(private configService: ConfigService) {
+    const redisUrl = configService.get<string>('REDIS_URL');
 
-        const redisConfig = {
-            host: url.hostname,
-            port: parseInt(url.port || '6379'),
-            password: url.password || undefined,
-        };
+    if (!redisUrl) {
+      throw new Error('REDIS_URL environment variable is not set');
+    }
 
-        const publisher = new Redis(redisConfig);
-        const subscriber = new Redis(redisConfig);
+    const url = new URL(redisUrl);
 
-        publisher.on('connect', () => console.log('✅ Redis publisher connected'));
-        publisher.on('error', (err) => console.error('❌ Redis publisher error:', err));
-
-        subscriber.on('connect', () => console.log('✅ Redis subscriber connected'));
-        subscriber.on('error', (err) => console.error('❌ Redis subscriber error:', err));
-
-        super({ publisher, subscriber });
+    const redisConfig = {
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      password: url.password || undefined,
     };
-};
+
+    const publisher = new Redis(redisConfig);
+    const subscriber = new Redis(redisConfig);
+
+    publisher.on('connect', () => console.log('✅ Redis publisher connected'));
+    publisher.on('error', (err) =>
+      console.error('❌ Redis publisher error:', err),
+    );
+
+    subscriber.on('connect', () =>
+      console.log('✅ Redis subscriber connected'),
+    );
+    subscriber.on('error', (err) =>
+      console.error('❌ Redis subscriber error:', err),
+    );
+
+    super({ publisher, subscriber });
+  }
+}

@@ -16,7 +16,6 @@ describe('SessionCacheService', () => {
     hGetAll: jest.fn(),
   } as Partial<RedisClientType>;
 
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -36,12 +35,11 @@ describe('SessionCacheService', () => {
     jest.clearAllMocks();
   });
 
-
-  describe("sethUserOnline", () => {
-    it("should store user data as Redis hash", async () => {
+  describe('sethUserOnline', () => {
+    it('should store user data as Redis hash', async () => {
       const mockUserId = 1;
       const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: "online" };
+      const mockField = { mockSocketId, status: 'online' };
 
       jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
       jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
@@ -52,11 +50,11 @@ describe('SessionCacheService', () => {
     });
   });
 
-  describe("sethUserOffline", () => {
-    it("should update `status` field only without deleting socketId", async () => {
+  describe('sethUserOffline', () => {
+    it('should update `status` field only without deleting socketId', async () => {
       const mockUserId = 1;
       const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: "online" };
+      const mockField = { mockSocketId, status: 'online' };
 
       jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
 
@@ -66,16 +64,14 @@ describe('SessionCacheService', () => {
     });
   });
 
-
-  describe("getUserStatus", () => {
-    it("should get user socketId from Redis hashed data", async () => {
-      
+  describe('getUserStatus', () => {
+    it('should get user socketId from Redis hashed data', async () => {
       const mockUserId = 1;
       const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: "online" };
-      
+      const mockField = { mockSocketId, status: 'online' };
+
       const result = await redisService.getUserStatus(mockUserId);
-      
+
       //* const data = await this.redis.hGetAll(`user:${userId}`); */
       //* return data.socketId ? data : null; */
       expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);

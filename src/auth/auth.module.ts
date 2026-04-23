@@ -11,12 +11,10 @@ import { UserService } from 'src/user/user.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      UserEntity,
-    ]),
+    TypeOrmModule.forFeature([UserEntity]),
     PassportModule.register({
       session: false,
-      defaultStrategy: "jwt",
+      defaultStrategy: 'jwt',
     }),
     JwtModule.register({}),
   ],
@@ -24,4 +22,4 @@ import { UserService } from 'src/user/user.service';
   providers: [AuthService, UserService, LocalStrategy, JwtStrategy],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

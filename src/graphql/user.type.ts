@@ -4,16 +4,16 @@ import { BaseType } from './base.type';
 
 @ObjectType()
 export class UserType extends BaseType {
-    @Field(() => ID)
-    id?: number;
-    
-    @Field({ nullable: true })
-    email?: string;
+  @Field(() => ID)
+  id?: number;
 
-    //* Fix: Removed showing password
-    // @Field({ nullable: true })
-    // password?: string;
+  @Field({ nullable: true })
+  email?: string;
 
-    @Field(() => String, { nullable: true })
-    role?: UserRole; // or use an Enum if you have UserRole as GraphQL enum
+  //* Fix: Removed showing password
+  // @Field({ nullable: true })
+  // password?: string;
+
+  @Field(() => String, { nullable: true })
+  role?: UserRole; // or use an Enum if you have UserRole as GraphQL enum
 }

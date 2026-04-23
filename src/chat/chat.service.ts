@@ -13,253 +13,272 @@ import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class ChatService {
-    // Maps authenticated userId to get their current Socket instance (1-to-1)
-    private readonly clientConnection = new Map<string, Socket>();
+  // Maps authenticated userId to get their current Socket instance (1-to-1)
+  private readonly clientConnection = new Map<string, Socket>();
 
-    // TypeORM repositories for Room and User with DataSource
-    constructor(
-        // Injecting TypeORM dependencies for repository
-        @InjectRepository(RoomEntity)
-        private readonly roomRepository: Repository<RoomEntity>,
+  // TypeORM repositories for Room and User with DataSource
+  constructor(
+    // Injecting TypeORM dependencies for repository
+    @InjectRepository(RoomEntity)
+    private readonly roomRepository: Repository<RoomEntity>,
 
-        // Injecting TypeORM dependencies for repository
-        @InjectRepository(UserEntity)
-        private readonly userRepository: Repository<UserEntity>,
+    // Injecting TypeORM dependencies for repository
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
 
-        // Injecting redisService to replace current in-memory storage Socket instance
-        private readonly redisService: SessionCacheService,
-    ) { };
+    // Injecting redisService to replace current in-memory storage Socket instance
+    private readonly redisService: SessionCacheService,
+  ) {}
 
+  // Connect Socket
+  async registerClient(participantId: number, client: Socket) {
+    await this.redisService.sethUserOnline(participantId, client.id);
+    this.clientConnection.set(client.id, client);
 
-    // Connect Socket
-    async registerClient(participantId: number, client: Socket) {
-        await this.redisService.sethUserOnline(participantId, client.id);
-        this.clientConnection.set(client.id, client);
+    logger.info(`User ${participantId} has connected`);
+  }
 
-        logger.info(`User ${participantId} has connected`);
-    };
+  // Disconnect Socket
+  async removeClient(participantId: number, client: Socket) {
+    await this.redisService.sethUserOffline(participantId);
+    this.clientConnection.delete(client.id);
 
+    logger.info(`User ${participantId} has disconnected`);
+  }
 
-    // Disconnect Socket
-    async removeClient(participantId: number, client: Socket) {
-        await this.redisService.sethUserOffline(participantId);
-        this.clientConnection.delete(client.id);
+  // Makes the user join all chat rooms they are already a member of
+  // Called right after successful authentication during socket connection
+  async joinRooms(user: { sub: number }, client: Socket) {
+    const rooms = await this.roomRepository
+      .createQueryBuilder('room_Entity')
+      .innerJoin(
+        'room_Entity.participants',
+        'participant',
+        'participant.id = :participantId',
+        {
+          participantId: user.sub,
+        },
+      )
+      .getMany();
+    // Join each room by its string ID (Socket.IO room names are strings)
+    rooms.forEach((room) => {
+      if (!room?.id) {
+        throw new WsException('Cannot Find Room');
+      }
 
-        logger.info(`User ${participantId} has disconnected`);
-    };
+      client.join(room.id.toString());
+      logger.info(`User ${user.sub} has joined room ${room.id}`);
+    });
 
+    logger.info(`User ${user.sub} has registered`);
+  }
 
-    // Makes the user join all chat rooms they are already a member of
-    // Called right after successful authentication during socket connection
-    async joinRooms(user: { sub: number }, client: Socket) {
-        const rooms = await this.roomRepository.createQueryBuilder('room_Entity')
-            .innerJoin('room_Entity.participants', 'participant', 'participant.id = :participantId', {
-                participantId: user.sub,
-            })
-            .getMany();
-        // Join each room by its string ID (Socket.IO room names are strings)
-        rooms.forEach((room) => {
-            if (!room?.id) {
-                throw new WsException("Cannot Find Room");
-            };
-
-            client.join(room.id.toString());
-            logger.info(`User ${user.sub} has joined room ${room.id}`);
-        });
-
-        logger.info(`User ${user.sub} has registered`);
-    };
-
-
-    // Looks for an existing private chat room between exactly two users
-    // Uses sorted IDs to ensure consistent lookup (avoids duplicate rooms)
-    // returns existing RoomEntity or null
-    async findRoom(user1: number, user2: number, qr: QueryRunner) {
-
-        if (!user1 || !user2) {
-            return null;
-        }
-
-        const ids = [user1, user2].sort((a, b) => a - b);
-
-        logger.info(`User ${ids} found a room`);
-
-        return qr.manager
-            .createQueryBuilder(RoomEntity, "room")
-            .innerJoin("room.participants", "participant1")
-            .innerJoin("room.participants", "participant2")
-            .where("participant1.id = :id1", { id1: ids[0] })
-            .andWhere("participant2.id = :id2", { id2: ids[1] })
-            .getOne();
-    };
-
-
-    // Creates a new private chat room between two users
-    // Saves both participants in the many-to-many relation 
-    async createRoom(user1: UserEntity, user2: UserEntity, qr: QueryRunner) {
-        const room = qr.manager.create(RoomEntity, {
-            participants: [user1, user2],
-        });
-
-        const saved = await qr.manager.save(room);
-
-        if (!saved?.id) {
-            throw new WsException("Cannot Find Room");
-        };
-
-        logger.info(`User ${user1.id}, ${user2.id} are saved into a room`);
-        return saved;
-    };
-
-
-    // Find existing room between sender and recipient => or create new one
-    // Also notifies both users (if online) about the new room and joins them
-    async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
-        if (!sender?.id) {
-            throw new WsException("Cannot Find Sender");
-        };
-
-        let room = await this.findRoom(sender.id, recipientId, qr);
-
-        if (room) {
-            // reuse existing room
-            return room;
-        };
-
-        // Find recipient by user ID
-        const recipient = await this.userRepository.findOneBy({
-            id: recipientId,
-        });
-
-        if (!recipient) {
-            throw new WsException("Cannot Find Recipient");
-        };
-
-        // Create new room 
-        room = await this.createRoom(sender, recipient, qr);
-
-        // Notify and join users when they connected
-        for (const id of [sender.id, recipient.id]) {
-
-            if (!id) {
-                throw new WsException("Cannot Find Sender");
-            };
-
-            // Get Client ID
-            // New code along with Redis cache
-            const getUserSocketId = await this.redisService.getUserStatus(id);
-            const connect = getUserSocketId?.socketId ? this.clientConnection.get(getUserSocketId.socketId) : null;
-
-            if (connect) {
-                if (!room?.id) {
-                    throw new WsException({
-                        status: "error:400 - BadRequestException",
-                        message: "Cannot Find Room",
-                    });
-
-                } else {
-                    // Notifying successful connection
-                    connect.emit("CreateRoom", room.id.toString());
-                    connect.join(room.id.toString());
-                };
-            };
-        };
-
-        logger.info(`User ${sender.id}, ${recipient.id} created a room`);
-        return room;
+  // Looks for an existing private chat room between exactly two users
+  // Uses sorted IDs to ensure consistent lookup (avoids duplicate rooms)
+  // returns existing RoomEntity or null
+  async findRoom(user1: number, user2: number, qr: QueryRunner) {
+    if (!user1 || !user2) {
+      return null;
     }
 
+    const ids = [user1, user2].sort((a, b) => a - b);
 
-    // Main message sending flow (called from gateway on 'sendMessage' event)
-    // - Runs inside transaction
-    // - Finds or creates room
-    // - Saves message
-    // - Broadcasts to room (others see it) + emits back to sender
-    async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, queryRunner: QueryRunner) {
-        try {
-            // Todo: Find a client
-            const sender = await this.userRepository.findOneByOrFail({
-                id: payload.sub,
-            });
+    logger.info(`User ${ids} found a room`);
 
-            // Check if client exist
-            if (!sender?.id) {
-                throw new WsException("Cannot Find Sender");
-            };
+    return qr.manager
+      .createQueryBuilder(RoomEntity, 'room')
+      .innerJoin('room.participants', 'participant1')
+      .innerJoin('room.participants', 'participant2')
+      .where('participant1.id = :id1', { id1: ids[0] })
+      .andWhere('participant2.id = :id2', { id2: ids[1] })
+      .getOne();
+  }
 
-            if (!recipientId || isNaN(recipientId)) {
-                throw new WsException("Recipient ID is required and must be a number");
-            };
+  // Creates a new private chat room between two users
+  // Saves both participants in the many-to-many relation
+  async createRoom(user1: UserEntity, user2: UserEntity, qr: QueryRunner) {
+    const room = qr.manager.create(RoomEntity, {
+      participants: [user1, user2],
+    });
 
-            // Todo: Get and create a chat room : transactional
-            const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
+    const saved = await qr.manager.save(room);
 
-            // Check if room exist
-            if (!room?.id)
-                throw new WsException("Cannot Find Room");
+    if (!saved?.id) {
+      throw new WsException('Cannot Find Room');
+    }
 
-            // Todo: Save message in the chat database permanently
-            //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
-            const messageSchema = await queryRunner.manager.save(ChatEntity, {
-                participant: sender,
-                message,
-                room,
-            });
+    logger.info(`User ${user1.id}, ${user2.id} are saved into a room`);
+    return saved;
+  }
 
+  // Find existing room between sender and recipient => or create new one
+  // Also notifies both users (if online) about the new room and joins them
+  async getOrCreateRoom(
+    sender: UserEntity,
+    recipientId: number,
+    qr: QueryRunner,
+  ) {
+    if (!sender?.id) {
+      throw new WsException('Cannot Find Sender');
+    }
 
-            // Todo: Redis adoption //
-            // Todo: Get client ID from Redis
-            const getSenderFromRedisStatusId = await this.redisService.getUserStatus(sender.id);
+    let room = await this.findRoom(sender.id, recipientId, qr);
 
-            //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
-            if (getSenderFromRedisStatusId?.socketId) {
+    if (room) {
+      // reuse existing room
+      return room;
+    }
 
-                // Todo: Get recipient ID from Socket
-                const senderSocketId = this.clientConnection.get(getSenderFromRedisStatusId?.socketId as string);
+    // Find recipient by user ID
+    const recipient = await this.userRepository.findOneBy({
+      id: recipientId,
+    });
 
-                // Todo: GraphQL connection
-                // Broadcast to the rooms
-                // Send back to the sender to check if the message was sent
-                //! Debug: case-sensitive strings; SendMessage => sendMessage
-                senderSocketId?.to(room.id.toString()).emit("sendMessage", plainToClass(ChatEntity, messageSchema));
+    if (!recipient) {
+      throw new WsException('Cannot Find Recipient');
+    }
 
-                senderSocketId?.emit("sendMessage", plainToClass(ChatEntity, messageSchema));
-            };
+    // Create new room
+    room = await this.createRoom(sender, recipient, qr);
 
-            /** 
-             *? Why Recipient Socket Isn't Needed
-             ** `senderSocket.emit()` sends the message back to the sender for confirmation.
-             ** The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
-             ** `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
-            */
-            //* ```redis.service : const data = await this.redis.hGetAll(`user:${userId}`);```
-            const getRecipientStatusId = await this.redisService.getUserStatus(recipientId);
+    // Notify and join users when they connected
+    for (const id of [sender.id, recipient.id]) {
+      if (!id) {
+        throw new WsException('Cannot Find Sender');
+      }
 
+      // Get Client ID
+      // New code along with Redis cache
+      const getUserSocketId = await this.redisService.getUserStatus(id);
+      const connect = getUserSocketId?.socketId
+        ? this.clientConnection.get(getUserSocketId.socketId)
+        : null;
 
-            // Todo: Recipient room check
-            if (getRecipientStatusId?.socketId) {
-                const isRecipientSocket = this.clientConnection.get(getRecipientStatusId.socketId);
+      if (connect) {
+        if (!room?.id) {
+          throw new WsException({
+            status: 'error:400 - BadRequestException',
+            message: 'Cannot Find Room',
+          });
+        } else {
+          // Notifying successful connection
+          connect.emit('CreateRoom', room.id.toString());
+          connect.join(room.id.toString());
+        }
+      }
+    }
 
-                logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : "no socket found"}`);
-                logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? room.id : "no socket rooms found"}`);
-            } else {
-                logger.error("Recipient not online");
+    logger.info(`User ${sender.id}, ${recipient.id} created a room`);
+    return room;
+  }
 
-                throw new WsException("Recipient not online");
-            };
+  // Main message sending flow (called from gateway on 'sendMessage' event)
+  // - Runs inside transaction
+  // - Finds or creates room
+  // - Saves message
+  // - Broadcasts to room (others see it) + emits back to sender
+  async sendMessage(
+    payload: { sub: number },
+    { message, recipientId }: CreateChatDto,
+    queryRunner: QueryRunner,
+  ) {
+    try {
+      // Todo: Find a client
+      const sender = await this.userRepository.findOneByOrFail({
+        id: payload.sub,
+      });
 
+      // Check if client exist
+      if (!sender?.id) {
+        throw new WsException('Cannot Find Sender');
+      }
 
-            //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback
-            logger.info(`User ${payload.sub}'s message is saved in the chat room`);
-            logger.info(`User ${payload.sub} sent ${messageSchema.id}th message`);
+      if (!recipientId || isNaN(recipientId)) {
+        throw new WsException('Recipient ID is required and must be a number');
+      }
 
-            // Todo: Final return
-            return messageSchema;
+      // Todo: Get and create a chat room : transactional
+      const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
 
-        } catch (error: any) {
-            logger.error(error.message, { userId: payload.sub, timestamp: new Date().toISOString() });
+      // Check if room exist
+      if (!room?.id) throw new WsException('Cannot Find Room');
 
-            throw new Error(`Failed to send message: ${error.message}`)
-        };
-    };
-};
+      // Todo: Save message in the chat database permanently
+      //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
+      const messageSchema = await queryRunner.manager.save(ChatEntity, {
+        participant: sender,
+        message,
+        room,
+      });
+
+      // Todo: Redis adoption //
+      // Todo: Get client ID from Redis
+      const getSenderFromRedisStatusId = await this.redisService.getUserStatus(
+        sender.id,
+      );
+
+      //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
+      if (getSenderFromRedisStatusId?.socketId) {
+        // Todo: Get recipient ID from Socket
+        const senderSocketId = this.clientConnection.get(
+          getSenderFromRedisStatusId?.socketId,
+        );
+
+        // Todo: GraphQL connection
+        // Broadcast to the rooms
+        // Send back to the sender to check if the message was sent
+        //! Debug: case-sensitive strings; SendMessage => sendMessage
+        senderSocketId
+          ?.to(room.id.toString())
+          .emit('sendMessage', plainToClass(ChatEntity, messageSchema));
+
+        senderSocketId?.emit(
+          'sendMessage',
+          plainToClass(ChatEntity, messageSchema),
+        );
+      }
+
+      /**
+       *? Why Recipient Socket Isn't Needed
+       ** `senderSocket.emit()` sends the message back to the sender for confirmation.
+       ** The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
+       ** `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
+       */
+      //* ```redis.service : const data = await this.redis.hGetAll(`user:${userId}`);```
+      const getRecipientStatusId =
+        await this.redisService.getUserStatus(recipientId);
+
+      // Todo: Recipient room check
+      if (getRecipientStatusId?.socketId) {
+        const isRecipientSocket = this.clientConnection.get(
+          getRecipientStatusId.socketId,
+        );
+
+        logger.info(
+          `🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : 'no socket found'}`,
+        );
+        logger.info(
+          `🔍 Recipient rooms: ${isRecipientSocket ? room.id : 'no socket rooms found'}`,
+        );
+      } else {
+        logger.error('Recipient not online');
+
+        throw new WsException('Recipient not online');
+      }
+
+      //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback
+      logger.info(`User ${payload.sub}'s message is saved in the chat room`);
+      logger.info(`User ${payload.sub} sent ${messageSchema.id}th message`);
+
+      // Todo: Final return
+      return messageSchema;
+    } catch (error: any) {
+      logger.error(error.message, {
+        userId: payload.sub,
+        timestamp: new Date().toISOString(),
+      });
+
+      throw new Error(`Failed to send message: ${error.message}`);
+    }
+  }
+}

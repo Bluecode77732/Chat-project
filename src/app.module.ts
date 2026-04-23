@@ -3,7 +3,7 @@ import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as Joi from 'joi'
+import * as Joi from 'joi';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
@@ -37,22 +37,17 @@ import { ChatResolver } from './chat/chat.resolver';
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
-        type: configService.get<string>("DB_TYPE") as "postgres",
-        host: configService.get<string>("DB_HOST"),
-        port: configService.get<number>("DB_PORT"),
-        username: configService.get<string>("DB_USERNAME"),
-        password: configService.get<string>("DB_PASSWORD"),
-        database: configService.get<string>("DB_DATABASE"),
-        entities: [
-          EntityBase,
-          UserEntity,
-          ChatEntity,
-          RoomEntity,
-        ],
+        type: configService.get<string>('DB_TYPE') as 'postgres',
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_DATABASE'),
+        entities: [EntityBase, UserEntity, ChatEntity, RoomEntity],
         //! WARNING: Set synchronize: `false` in Production to prevent losing data.
         //! Important: Set it `true` to do migration to create DB during Development.
         synchronize: false,
-        migrations: ["dist/migrations/*.js"],
+        migrations: ['dist/migrations/*.js'],
         autoLoadEntities: true,
       }),
       // It tells IOC container what dependency injection to be injected with.
@@ -63,11 +58,10 @@ import { ChatResolver } from './chat/chat.resolver';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       subscriptions: {
-        "graphql-ws": {
+        'graphql-ws': {
           onConnect: (context) => {
-            
             const token = context.connectionParams?.authorization;
-            
+
             context.extra = { authorization: token };
             return { authorization: token };
           },
@@ -77,13 +71,13 @@ import { ChatResolver } from './chat/chat.resolver';
         // Returns HTTP request
         if (req) {
           return { req };
-        };
+        }
 
         // Returns Subscription WebSocket
         return {
           req: {
-            headers: { 
-              authorization: extra?.authorization 
+            headers: {
+              authorization: extra?.authorization,
             },
           },
         };
@@ -96,4 +90,4 @@ import { ChatResolver } from './chat/chat.resolver';
   ],
   providers: [Logger, ChatResolver],
 })
-export class AppModule { }
+export class AppModule {}

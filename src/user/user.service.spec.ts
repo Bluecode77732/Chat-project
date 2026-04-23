@@ -8,7 +8,6 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ConfigService } from '@nestjs/config';
 
-
 describe('UserService', () => {
   let userService: UserService;
   let configService: ConfigService;
@@ -49,17 +48,16 @@ describe('UserService', () => {
     jest.clearAllMocks();
   });
 
-
-  describe("create", () => {
+  describe('create', () => {
     it('should create a new user.', async () => {
       const createUserDto: CreateUserDto = {
-        email: "email@gamil.com",
-        password: "PrivatePassword",
+        email: 'email@gamil.com',
+        password: 'PrivatePassword',
         role: 0,
       };
 
       const genSalt = 10;
-      const email = "email@gamil.com";
+      const email = 'email@gamil.com';
       const hashed = genSalt;
 
       const result = {
@@ -70,43 +68,56 @@ describe('UserService', () => {
       };
 
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
-      jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve(hashed));
+      jest
+        .spyOn(bcrypt, 'hash')
+        .mockImplementation(() => Promise.resolve(hashed));
       // Inserting `null` does explicitly include the 'failed search'.
-      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValueOnce(null).mockResolvedValueOnce(result);
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(result);
 
       const newUser = await userService.create(createUserDto);
 
       expect(newUser).toEqual(result);
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { email: createUserDto.email } });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { email: createUserDto.email },
+      });
       expect(bcrypt.hash).toHaveBeenCalledWith(createUserDto.password, genSalt);
-      expect(mockUserRepository.save).toHaveBeenCalledWith({ email: createUserDto.email, password: hashed, });
+      expect(mockUserRepository.save).toHaveBeenCalledWith({
+        email: createUserDto.email,
+        password: hashed,
+      });
     });
 
     it('should throw a BadRequestException when the user already exist.', async () => {
       const createUserDto: CreateUserDto = {
-        email: "email@gamil.com",
-        password: "PrivatePassword",
+        email: 'email@gamil.com',
+        password: 'PrivatePassword',
         role: 0,
       };
 
-      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue({ id: 1, email: createUserDto.email, });
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValue({ id: 1, email: createUserDto.email });
 
-      expect(userService.create(createUserDto)).rejects.toThrow(BadRequestException);
+      expect(userService.create(createUserDto)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(mockUserRepository.save).not.toHaveBeenCalledWith();
     });
   });
 
-
-  describe("update", () => {
+  describe('update', () => {
     it('should update a new user.', async () => {
       const updateUserDto: UpdateUserDto = {
-        email: "email@gamil.com",
-        password: "PrivatePassword",
+        email: 'email@gamil.com',
+        password: 'PrivatePassword',
       };
 
       const genSalt = 10;
       const userId = 1;
-      const email = "email@gamil.com";
+      const email = 'email@gamil.com';
       const hashed = genSalt;
 
       const user = {
@@ -115,17 +126,24 @@ describe('UserService', () => {
         password: hashed,
       };
 
-      jest.spyOn(mockUserRepository, 'findOne')
+      jest
+        .spyOn(mockUserRepository, 'findOne')
         .mockResolvedValueOnce(user)
         .mockResolvedValueOnce({ ...user, password: hashed });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
-      jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve(hashed));
-      jest.spyOn(mockUserRepository, 'update').mockImplementation(() => Promise.resolve(user));
+      jest
+        .spyOn(bcrypt, 'hash')
+        .mockImplementation(() => Promise.resolve(hashed));
+      jest
+        .spyOn(mockUserRepository, 'update')
+        .mockImplementation(() => Promise.resolve(user));
 
       const updatedUser = await userService.update(userId, updateUserDto);
 
       expect(updatedUser).toEqual({ ...user, password: hashed });
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 }, });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
       expect(bcrypt.hash).toHaveBeenCalledWith(updateUserDto.password, genSalt);
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         { id: 1 },
@@ -138,14 +156,18 @@ describe('UserService', () => {
 
     it("should throw a NotFoundException when the user doesn't exist.", async () => {
       const updateUserDto: UpdateUserDto = {
-        email: "email@gamil.com",
-        password: "PrivatePassword",
+        email: 'email@gamil.com',
+        password: 'PrivatePassword',
       };
 
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
 
-      expect(userService.update(1, updateUserDto)).rejects.toThrow(NotFoundException);
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(userService.update(1, updateUserDto)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
       expect(mockUserRepository.update).not.toHaveBeenCalled();
     });
   });

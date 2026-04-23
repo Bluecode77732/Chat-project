@@ -1,4 +1,11 @@
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+} from '@nestjs/websockets';
 import { ChatService } from './chat.service';
 import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
@@ -11,11 +18,11 @@ import type { QueryRunner } from 'typeorm';
 import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 
 @WebSocketGateway()
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {  
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
-  ) { }
+  ) {}
 
   async handleConnection(client: Socket) {
     try {
@@ -24,10 +31,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
 
       // Bearer token payload
-      const payload = await this.authService.parseBearerToken(String(rawToken), false);
+      const payload = await this.authService.parseBearerToken(
+        String(rawToken),
+        false,
+      );
 
       if (payload) {
-        // Put bearer token into data.user to be extracted by 
+        // Put bearer token into data.user to be extracted by
         client.data.user = payload;
 
         // Remember the specific client with a certain key
@@ -35,26 +45,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         // Connect user into a room
         await this.chatService.joinRooms(payload, client);
-
       } else {
         client.disconnect();
-      };
-
+      }
     } catch (error) {
       client.disconnect();
     }
   }
-  
+
   async handleDisconnect(client: Socket) {
     const participant = await client.data.user;
-    
+
     if (participant) {
       await this.chatService.removeClient(participant.sub, client);
-    };
-    
+    }
+
     return `User: ${participant} disconnected`;
   }
-
 
   // Connect socket
   @SubscribeMessage('sendMessage')

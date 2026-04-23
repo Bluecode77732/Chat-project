@@ -2,17 +2,22 @@ import { Controller, Post, Headers, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guard/local-auth.guard';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
-import { ApiBasicAuth, ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBasicAuth,
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { bearerTokenType, tokenType } from './dto/token-types.auth.dto';
 
 @Controller('auth')
-@ApiTags("Authentication API")
+@ApiTags('Authentication API')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-  ) { }
+  constructor(private readonly authService: AuthService) {}
 
   // A route handler decorator, Routes (Get, Post, Patch, Put, Delete) HTTP request to the specific path.
   @Post('register')
@@ -20,84 +25,85 @@ export class AuthController {
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({
     status: 201,
-    description: "Created User.",
+    description: 'Created User.',
     type: UserEntity,
   })
   @ApiOperation({
-    description: "Register User with Basic Token",
+    description: 'Register User with Basic Token',
   })
   // A route handler parameter decorator, extracts the headers property from the `req` object and populates the decorated parameter with the value of headers.
   register(@Headers('authorization') rawToken: string) {
     return this.authService.register(rawToken);
-  };
-
+  }
 
   // Sign in route
   @Post('signin')
   @ApiBasicAuth()
   @ApiResponse({
     status: 201,
-    description: "Sign In Succeed.",
+    description: 'Sign In Succeed.',
     type: tokenType,
     schema: {
       example: {
-        refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      }
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
     },
   })
   @ApiResponse({
     status: 400,
-    description: "Bad Request.",
+    description: 'Bad Request.',
   })
   @ApiResponse({
     status: 401,
-    description: "Invalid Credentials. Wrong email or password.",
+    description: 'Invalid Credentials. Wrong email or password.',
   })
   signIn(@Headers('authorization') rawToken: string) {
     return this.authService.signIn(rawToken);
-  };
-
+  }
 
   // Issuing a refresh access token to let not users redo login
   @Post('token/refreshaccess')
   @ApiBearerAuth()
   @ApiResponse({
     status: 201,
-    description: "Issued Token Successfully.",
+    description: 'Issued Token Successfully.',
     type: bearerTokenType,
     example: {
-      accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     },
   })
   @ApiResponse({
     status: 401,
-    description: "Unauthorized. Insert the refresh token from the 'signin' API to get the access token.",
+    description:
+      "Unauthorized. Insert the refresh token from the 'signin' API to get the access token.",
   })
-  async refreshAccessToken(@Headers("authorization") rawToken: string) {
+  async refreshAccessToken(@Headers('authorization') rawToken: string) {
     const payload = await this.authService.parseBearerToken(rawToken, true);
 
     return {
-      accessToken: await this.authService.issueToken({ id: payload.sub, role: payload.role }, false)
+      accessToken: await this.authService.issueToken(
+        { id: payload.sub, role: payload.role },
+        false,
+      ),
     };
-  };
-
+  }
 
   // Using an `AuthGuard` that `@nestjs/passport` automatically provisioned when extend the 'passport-local' strategy.
   // `LocalAuthGuard` used literal string for avoiding conflict between duplicated strings.
   @UseGuards(LocalAuthGuard)
   @Post('signin/local')
   @ApiOperation({
-    description: "Sign in using alternative Passport local strategy."
+    description: 'Sign in using alternative Passport local strategy.',
   })
   @ApiResponse({
     status: 201,
-    description: "Issued Token Successfully.",
+    description: 'Issued Token Successfully.',
     type: tokenType,
   })
   @ApiResponse({
     status: 401,
-    description: "Invalid Credentials.",
+    description: 'Invalid Credentials.',
   })
   @ApiBody({
     type: CreateUserDto,
@@ -108,5 +114,5 @@ export class AuthController {
       refreshToken: await this.authService.issueToken(req.user, true),
       accessToken: await this.authService.issueToken(req.user, false),
     };
-  };
+  }
 }

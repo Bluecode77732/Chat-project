@@ -5,7 +5,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     // Direct import of logger
@@ -14,19 +13,23 @@ async function bootstrap() {
   });
 
   // Use pipes in class-validator and class-transformer libraries
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle("Chat")
-    .setDescription("Go to Auth section and register a user to issue an access token to test out.")
+    .setTitle('Chat')
+    .setDescription(
+      'Go to Auth section and register a user to issue an access token to test out.',
+    )
     .setVersion('1.0')
     .addBasicAuth()
     .addBearerAuth()

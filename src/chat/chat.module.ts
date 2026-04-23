@@ -17,11 +17,7 @@ import { PubSubService } from 'src/graphql/pubsub.service';
   imports: [
     AuthModule,
     RedisModule,
-    TypeOrmModule.forFeature([
-      UserEntity,
-      ChatEntity,
-      RoomEntity,
-    ]),
+    TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
   providers: [
     ChatGateway,
@@ -37,7 +33,9 @@ import { PubSubService } from 'src/graphql/pubsub.service';
       provide: 'REDIS_CLIENT',
       useFactory: async (configService: ConfigService) => {
         // Creates client instance to connect Redis server
-        const client = createClient({ url: configService.get<string>('REDIS_URL') })
+        const client = createClient({
+          url: configService.get<string>('REDIS_URL'),
+        });
         // Connect to Redis server
         await client.connect();
         // Returns connection
@@ -48,4 +46,4 @@ import { PubSubService } from 'src/graphql/pubsub.service';
   ],
   exports: ['REDIS_CLIENT', ChatService, PubSubService],
 })
-export class ChatModule { }
+export class ChatModule {}
