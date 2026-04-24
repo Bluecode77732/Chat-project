@@ -246,12 +246,8 @@ export class ChatService {
           getRecipientStatusId.socketId,
         );
 
-        logger.info(
-          `🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : 'no socket found'}`,
-        );
-        logger.info(
-          `🔍 Recipient rooms: ${isRecipientSocket ? room.id : 'no socket rooms found'}`,
-        );
+        logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : 'no socket found'}`);
+        logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? room.id : 'no socket rooms found'}`);
       } else {
         logger.error('Recipient not online');
 
