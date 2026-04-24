@@ -28,7 +28,7 @@ export class ChatService {
 
     // Injecting redisService to replace current in-memory storage Socket instance
     private readonly redisService: SessionCacheService,
-  ) {}
+  ) { }
 
   // Connect Socket
   async registerClient(participantId: number, client: Socket) {
@@ -113,11 +113,7 @@ export class ChatService {
 
   // Find existing room between sender and recipient => or create new one
   // Also notifies both users (if online) about the new room and joins them
-  async getOrCreateRoom(
-    sender: UserEntity,
-    recipientId: number,
-    qr: QueryRunner,
-  ) {
+  async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
     if (!sender?.id) {
       throw new WsException('Cannot Find Sender');
     }
@@ -177,11 +173,7 @@ export class ChatService {
   // - Finds or creates room
   // - Saves message
   // - Broadcasts to room (others see it) + emits back to sender
-  async sendMessage(
-    payload: { sub: number },
-    { message, recipientId }: CreateChatDto,
-    queryRunner: QueryRunner,
-  ) {
+  async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, queryRunner: QueryRunner) {
     try {
       // Todo: Find a client
       const sender = await this.userRepository.findOneByOrFail({
@@ -272,13 +264,15 @@ export class ChatService {
 
       // Todo: Final return
       return messageSchema;
+
     } catch (error: any) {
+
       logger.error(error.message, {
         userId: payload.sub,
         timestamp: new Date().toISOString(),
       });
 
-      throw new Error(`Failed to send message: ${error.message}`);
+      throw new WsException(`Failed to send message: ${error.message}`);
     }
   }
 }
