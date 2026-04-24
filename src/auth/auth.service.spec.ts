@@ -1,3 +1,10 @@
+// Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+  genSalt: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { Repository } from 'typeorm';

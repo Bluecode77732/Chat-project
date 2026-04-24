@@ -10,7 +10,7 @@ export class CreateUserDto {
   })
   @IsNotEmpty()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @ApiProperty({
     description: 'User Password',
@@ -19,7 +19,7 @@ export class CreateUserDto {
   })
   @IsNotEmpty()
   @IsString()
-  password: string;
+  password?: string;
 
   @ApiProperty({
     description: 'Access Level',
@@ -28,5 +28,5 @@ export class CreateUserDto {
   })
   @IsNotEmpty()
   @IsEnum(UserRole)
-  role: UserRole;
+  role?: UserRole;
 }

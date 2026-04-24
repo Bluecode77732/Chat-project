@@ -1,3 +1,10 @@
+// Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+  genSalt: jest.fn(),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -23,12 +30,6 @@ describe('UserService', () => {
   const mockConfigService = {
     getOrThrow: jest.fn(),
   };
-
-  jest.mock('bcrypt', () => ({
-    hash: jest.fn(),
-    compare: jest.fn(),
-    genSalt: jest.fn(),
-  }));
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,6 +96,7 @@ describe('UserService', () => {
       expect(mockUserRepository.save).toHaveBeenCalledWith({
         email: createUserDto.email,
         password: hashed,
+        role: 0,
       });
     });
 
@@ -149,15 +151,13 @@ describe('UserService', () => {
       const updatedUser = await userService.update(userId, updateUserDto);
 
       expect(updatedUser).toEqual({ ...user, password: hashed });
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
-        where: { id: 1 },
-      });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(bcrypt.hash).toHaveBeenCalledWith(updateUserDto.password, genSalt);
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         { id: 1 },
         {
           email: updateUserDto.email,
-          password: hashed,
+          password: 'PrivatePassword',
         },
       );
     });
