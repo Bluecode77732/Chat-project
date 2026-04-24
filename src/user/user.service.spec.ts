@@ -24,6 +24,12 @@ describe('UserService', () => {
     getOrThrow: jest.fn(),
   };
 
+  jest.mock('bcrypt', () => ({
+    hash: jest.fn(),
+    compare: jest.fn(),
+    genSalt: jest.fn(),
+  }));
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -68,9 +74,11 @@ describe('UserService', () => {
       };
 
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
-      jest
-        .spyOn(bcrypt, 'hash')
-        .mockImplementation(() => Promise.resolve(hashed));
+
+      // Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
+      // jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve(hashed));
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
+
       // Inserting `null` does explicitly include the 'failed search'.
       jest
         .spyOn(mockUserRepository, 'findOne')
