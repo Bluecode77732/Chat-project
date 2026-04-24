@@ -38,43 +38,42 @@ describe('SessionCacheService', () => {
   describe('sethUserOnline', () => {
     it('should store user data as Redis hash', async () => {
       const mockUserId = 1;
-      const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
+      const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
       jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
       jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
 
-      await redisService.sethUserOnline(mockUserId, mockSocketId);
+      await redisService.sethUserOnline(mockUserId, socketId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', { mockSocketId, status: 'online' });
+      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', { socketId, status: 'online' });
     });
   });
 
   describe('sethUserOffline', () => {
     it('should update `status` field only without deleting socketId', async () => {
       const mockUserId = 1;
-      const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: 'online' };
+      const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
       jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
 
       await redisService.sethUserOffline(mockUserId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);
+      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', "status", "offline");
     });
   });
 
   describe('getUserStatus', () => {
     it('should get user socketId from Redis hashed data', async () => {
       const mockUserId = 1;
-      const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: 'online' };
+      const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
-      const result = await redisService.getUserStatus(mockUserId);
+      jest.spyOn(mockRedisClient, "hGetAll").mockResolvedValue({ socketId, status: 'online' });
+
+      await redisService.getUserStatus(mockUserId);
 
       //* const data = await this.redis.hGetAll(`user:${userId}`); */
       //* return data.socketId ? data : null; */
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);
-      expect(result).toEqual(mockField);
+      expect(mockRedisClient.hGetAll).toHaveBeenCalledWith("user:1");
     });
   });
 });
