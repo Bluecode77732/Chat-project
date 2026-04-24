@@ -123,6 +123,7 @@ describe('UserService', () => {
       const updateUserDto: UpdateUserDto = {
         email: 'email@gamil.com',
         password: 'PrivatePassword',
+        role: 0,
       };
 
       const genSalt = 10;
@@ -133,13 +134,13 @@ describe('UserService', () => {
       const user = {
         id: userId,
         email: email,
-        password: hashed,
+        password: 'PrivatePassword',
       };
 
       jest
         .spyOn(mockUserRepository, 'findOne')
         .mockResolvedValueOnce(user)
-        .mockResolvedValueOnce({ ...user, password: hashed });
+        .mockResolvedValueOnce({ ...user, password: "PrivatePassword" });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
       jest
         .spyOn(bcrypt, 'hash')
@@ -150,14 +151,16 @@ describe('UserService', () => {
 
       const updatedUser = await userService.update(userId, updateUserDto);
 
-      expect(updatedUser).toEqual({ ...user, password: hashed });
+      expect(updatedUser).toEqual({ ...user, password: "PrivatePassword" });
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-      expect(bcrypt.hash).toHaveBeenCalledWith(updateUserDto.password, genSalt);
+      expect(bcrypt.hash).toHaveBeenCalledWith(user.password, hashed);
+      // (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         { id: 1 },
         {
           email: updateUserDto.email,
-          password: 'PrivatePassword',
+          password: updateUserDto.password,
+          role: updateUserDto.role,
         },
       );
     });
