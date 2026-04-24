@@ -20,7 +20,7 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async parseBasicToken(rawToken: string) {
     // 1. Splits token by basic and token. Regex(/\s+/) inserted for clearer space.
@@ -142,17 +142,10 @@ export class AuthService {
     return user;
   }
 
-  async issueToken(
-    user: { id: number | undefined; role: UserRole | undefined },
-    isRefreshToken: boolean,
-  ) {
+  async issueToken(user: { id: number | undefined; role: UserRole | undefined }, isRefreshToken: boolean,) {
     // Bring refreshToken and accessToken to issue token for creating user accessing validation.
-    const refreshToken = this.configService.getOrThrow<string>(
-      'REFRESH_TOKEN_SECRET',
-    );
-    const accessToken = this.configService.getOrThrow<string>(
-      'ACCESS_TOKEN_SECRET',
-    );
+    const refreshToken = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
+    const accessToken = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
 
     logger.info(`User '${user.id}' issued refresh and access tokens`);
 
@@ -168,11 +161,11 @@ export class AuthService {
         secret: isRefreshToken ? refreshToken : accessToken,
         expiresIn: isRefreshToken
           ? this.configService.getOrThrow<number>(
-              'REFRESH_TOKEN_SECRET_EXPIRES_IN',
-            )
+            'REFRESH_TOKEN_SECRET_EXPIRES_IN',
+          )
           : this.configService.getOrThrow<number>(
-              'ACCESS_TOKEN_SECRET_EXPIRES_IN',
-            ),
+            'ACCESS_TOKEN_SECRET_EXPIRES_IN',
+          ),
       },
     );
   }

@@ -39,14 +39,13 @@ describe('SessionCacheService', () => {
     it('should store user data as Redis hash', async () => {
       const mockUserId = 1;
       const mockSocketId = 'mVkMdDQwpyoiEsDqSocketId';
-      const mockField = { mockSocketId, status: 'online' };
 
       jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
       jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
 
       await redisService.sethUserOnline(mockUserId, mockSocketId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user1', mockField);
+      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', { mockSocketId, status: 'online' });
     });
   });
 

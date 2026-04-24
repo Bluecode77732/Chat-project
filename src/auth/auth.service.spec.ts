@@ -186,7 +186,7 @@ describe('AuthService', () => {
       mockUserRepository.findOne.mockResolvedValue(mockUserEntity);
 
       await expect(authService.register(BasicToken)).rejects.toThrow(
-        new BadRequestException('User Aleady Exist.'),
+        new BadRequestException('User Already Exist.'),
       );
 
       // Testing that save wasn't called
@@ -229,10 +229,15 @@ describe('AuthService', () => {
 
     it('should throw a BadRequestException when user password is incorrect', async () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+      // Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
       jest
         .spyOn(bcrypt, 'compare')
         .mockImplementation(() => Promise.resolve(false));
-      // jest.spyOn(bcrypt, 'compare').mockImplementation((a, b) => false);
+      jest.mock('bcrypt', () => ({
+        hash: jest.fn(),
+        compare: jest.fn(),
+        genSalt: jest.fn(),
+      }));
 
       await expect(authService.validateUser(email, password)).rejects.toThrow(
         new BadRequestException('Invalid User.'),
@@ -250,7 +255,7 @@ describe('AuthService', () => {
     });
 
     it('should issue an refresh token', async () => {
-      const result = await authService.issueToken(user as UserEntity, true);
+      const result = await authService.issueToken({ id: 1, role: 0 }, true);
 
       // Jwt decoded payload
       expect(jwtService.signAsync).toHaveBeenCalledWith(
@@ -261,7 +266,7 @@ describe('AuthService', () => {
     });
 
     it('should issue an access token', async () => {
-      const result = await authService.issueToken(user as UserEntity, false);
+      const result = await authService.issueToken({ id: 1, role: 0 }, false);
 
       // Jwt decoded payloads
       expect(jwtService.signAsync).toHaveBeenCalledWith(
