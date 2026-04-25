@@ -3,7 +3,7 @@ import { ChatService } from './chat.service';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RoomEntity } from './entities/room.entity';
-import { EntityManager, QueryRunner, Repository } from 'typeorm';
+import { EntityManager, QueryBuilder, QueryRunner, Repository } from 'typeorm';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
@@ -12,6 +12,7 @@ import { SessionCacheService } from 'src/redis/redis.service';
 describe('ChatService', () => {
   let mockSocket: Partial<Socket>;
   let mockManager: Partial<EntityManager>;
+  let mockQueryBuilder: Partial<EntityManager>;
   let mockQueryRunner: Partial<QueryRunner>;
 
   let chatService: ChatService;
@@ -21,12 +22,6 @@ describe('ChatService', () => {
 
   beforeEach(async () => {
     //* Mock instances
-    mockSocket = {
-      emit: jest.fn(),
-      to: jest.fn(),
-      join: jest.fn(),
-    } as Partial<Socket>;
-
     mockManager = {
       createQueryBuilder: jest.fn(),
       create: jest.fn(),
@@ -45,6 +40,7 @@ describe('ChatService', () => {
       manager: {
         create: jest.fn(),
         save: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue(mockManager),
       },
     } as Partial<EntityManager>;
 
@@ -274,7 +270,7 @@ describe('ChatService', () => {
 
       expect(chatService.findRoom).toHaveBeenCalledWith(
         mockSender.id,
-        mockSender.id,
+        mockRecipient.id,
         mockManager as EntityManager,
       );
       expect(userRepository.findOneBy).toHaveBeenCalledWith({

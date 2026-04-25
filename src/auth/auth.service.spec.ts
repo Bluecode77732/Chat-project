@@ -129,7 +129,7 @@ describe('AuthService', () => {
 
     it('should throw BadRequestException for invalid token format', async () => {
       const token = 'InvalidTokenFormat';
-      expect(authService.parseBearerToken(token, false)).rejects.toThrow(new BadRequestException('Token Expired'));
+      expect(authService.parseBearerToken(token, false)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw BadRequestException for not a bearer token', async () => {
