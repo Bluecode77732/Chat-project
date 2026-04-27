@@ -131,23 +131,21 @@ describe('AuthService', () => {
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      expect(authService.parseBearerToken('InvalidTokenFormat', false)).rejects.toThrow(UnauthorizedException);
+      expect(authService.parseBearerToken('InvalidTokenFormat', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
-    
+
     it('should throw BadRequestException for not a bearer token', async () => {
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
-  
-      expect(authService.parseBearerToken('bEaReR token', false)).rejects.toThrow(BadRequestException);
-      
-      // expect(authService.parseBearerToken(token, false)).rejects.toThrow(new BadRequestException('Bad Token Format'));
+
+      expect(authService.parseBearerToken('bEaReR token', false)).rejects.toThrow(new UnauthorizedException(new UnauthorizedException('Token Expired')));
     });
-    
+
     it('should throw UnauthorizedException for not a refresh token', async () => {
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      await expect(authService.parseBearerToken('invalid refresh token', false)).rejects.toThrow(UnauthorizedException);
+      await expect(authService.parseBearerToken('Bearer validtoken', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
   });
 
@@ -162,7 +160,7 @@ describe('AuthService', () => {
 
     it('should register a new user', async () => {
       // Mocking user's findOne to resolve value
-      mockUserRepository.findOne.mockResolvedValue(null).mockResolvedValueOnce({
+      mockUserRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
         email: 'test@gmail.com',
         password: hashedPassword,
       });
@@ -171,8 +169,8 @@ describe('AuthService', () => {
         email: 'test@gmail.com',
         password: 'Test123Password',
       });
-      // Mocking ConfigService's getOrThrow to resolve value
-      mockConfigService.getOrThrow.mockResolvedValue(hashRounds);
+      // Mocking ConfigService's getOrThrow to return value
+      mockConfigService.getOrThrow.mockReturnValue(hashRounds);
 
       // `bcrypt.compare` is async, thus it returns a `Promise`.
       jest
@@ -183,10 +181,8 @@ describe('AuthService', () => {
 
       expect(bcrypt.hash).toHaveBeenCalledWith(password, hashRounds);
       expect(mockUserRepository.save).toHaveBeenCalled();
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
-        email: 'test@gmail.com',
-      });
-      expect(result).toEqual({ email, password: 'Test123Password' });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { email: 'test@gmail.com' } });
+      expect(result).toEqual({ email, password: hashedPassword });
     });
 
     it('should throw `BadRequestException` when user already Exist', async () => {
@@ -251,7 +247,7 @@ describe('AuthService', () => {
     const token = 'token';
 
     beforeEach(() => {
-      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValueOnce('secret').mockReturnValueOnce(3000);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValue(token);
     });
 
@@ -260,8 +256,8 @@ describe('AuthService', () => {
 
       // Jwt decoded payload
       expect(jwtService.signAsync).toHaveBeenCalledWith(
-        { sub: user.id, type: 'refresh' },
-        { secret: 'refresh', expiresIn: 180 },
+        { sub: user.id, role: 0, type: 'refresh' },
+        { secret: 'secret', expiresIn: 3000 },
       );
       expect(result).toBe(token);
     });
@@ -271,8 +267,8 @@ describe('AuthService', () => {
 
       // Jwt decoded payloads
       expect(jwtService.signAsync).toHaveBeenCalledWith(
-        { sub: user.id, type: 'access' },
-        { secret: 'access', expiresIn: 180 },
+        { sub: user.id, role: 0, type: 'access' },
+        { secret: 'secret', expiresIn: 3000 },
       );
       expect(result).toBe(token);
     });

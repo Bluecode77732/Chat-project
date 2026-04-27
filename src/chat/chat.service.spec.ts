@@ -161,10 +161,10 @@ describe('ChatService', () => {
   describe('findRoom', () => {
     it('should find a room where two user can join', async () => {
       const mockQB = {
-        innerJoin: jest.fn(),
-        where: jest.fn(),
-        andWhere: jest.fn(),
-        getOne: jest.fn(),
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ id: 1, participants: 1, chats: 1 }),
       };
 
       (mockQueryRunner.manager?.createQueryBuilder as jest.Mock).mockReturnValue(mockQB);
@@ -191,10 +191,10 @@ describe('ChatService', () => {
     it('should create and save a room', async () => {
       const user1 = { id: 1, email: 'user1@gmail.com', role: 0 } as UserEntity;
       const user2 = { id: 2, email: 'user2@gmail.com', role: 0 } as UserEntity;
-      const mockRooms = [
-        { id: 1, participants: 1, chats: 1 },
-        { id: 2, participants: 2, chats: 2 },
-      ];
+      // const mockRooms = [
+      //   { id: 1, participants: 1, chats: 1 },
+      //   { id: 2, participants: 2, chats: 2 },
+      // ];
       const mockQB = {
         innerJoin: jest.fn(),
         where: jest.fn(),
@@ -202,15 +202,15 @@ describe('ChatService', () => {
         getOne: jest.fn(),
       };
 
-      (mockQueryRunner.manager?.createQueryBuilder as jest.Mock).mockReturnValue(mockQB);
+      (mockQueryRunner.manager?.create as jest.Mock).mockReturnValue(mockQB);
+      (mockQueryRunner.manager?.save as jest.Mock).mockReturnValue(mockQB);
 
-      expect(chatService.createRoom(
-        user1,
-        user2,
-        mockQB as unknown as QueryRunner)).toHaveBeenCalledWith(RoomEntity, {
-          participants: [1, 2],
-        });
-      expect(mockManager.save).toHaveBeenCalledWith(mockRooms);
+      await chatService.createRoom(user1, user2, mockQueryRunner as unknown as QueryRunner);
+
+      expect(mockQueryRunner.manager?.create).toHaveBeenCalledWith(RoomEntity, {
+        participants: [1, 2],
+      });
+      expect(mockQueryRunner.manager?.save).toHaveBeenCalled();
     });
 
     it('should throw WebSocket exception if the room id does not exist', async () => {
@@ -232,7 +232,7 @@ describe('ChatService', () => {
       };
 
       // WsException returned with promise in service
-      await expect(chatService.createRoom(user1, user2, mockManager as any)).rejects.toThrow(WsException);
+      await expect(chatService.createRoom(user1, user2, mockQueryRunner as QueryRunner)).rejects.toThrow(WsException);
     });
   });
 
@@ -261,7 +261,7 @@ describe('ChatService', () => {
       expect(chatService.findRoom).toHaveBeenCalledWith(
         mockSender.id,
         mockRecipient.id,
-        mockQueryRunner.manager,
+        mockQueryRunner as QueryRunner,
       );
       expect(userRepository.findOneBy).toHaveBeenCalledWith({
         id: mockRecipientId,
@@ -293,7 +293,7 @@ describe('ChatService', () => {
       expect(chatService.findRoom).toHaveBeenCalledWith(
         1,
         2,
-        mockManager as EntityManager,
+        mockQueryRunner,
       );
       expect(userRepository.findOneBy).toHaveBeenCalledWith({
         id: mockRecipientId,
@@ -301,7 +301,7 @@ describe('ChatService', () => {
       expect(chatService.createRoom).toHaveBeenCalledWith(
         mockSender,
         mockRecipient,
-        mockManager as EntityManager,
+        mockQueryRunner,
       );
       expect(result).toEqual(mockRooms);
     });
