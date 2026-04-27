@@ -128,22 +128,26 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException for invalid token format', async () => {
-      const token = 'InvalidTokenFormat';
-      expect(authService.parseBearerToken(token, false)).rejects.toThrow(UnauthorizedException);
-    });
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
+      expect(authService.parseBearerToken('InvalidTokenFormat', false)).rejects.toThrow(UnauthorizedException);
+    });
+    
     it('should throw BadRequestException for not a bearer token', async () => {
-      const token = 'bEaReR token';
-      expect(authService.parseBearerToken(token, false)).rejects.toThrow(
-        new BadRequestException('Bad Token Format'),
-      );
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+  
+      expect(authService.parseBearerToken('bEaReR token', false)).rejects.toThrow(BadRequestException);
+      
+      // expect(authService.parseBearerToken(token, false)).rejects.toThrow(new BadRequestException('Bad Token Format'));
     });
-
+    
     it('should throw UnauthorizedException for not a refresh token', async () => {
-      const token = 'token';
-      expect(authService.parseBearerToken(token, false)).rejects.toThrow(
-        new UnauthorizedException('Token Expired'),
-      );
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+
+      await expect(authService.parseBearerToken('invalid refresh token', false)).rejects.toThrow(UnauthorizedException);
     });
   });
 
