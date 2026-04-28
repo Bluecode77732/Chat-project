@@ -246,10 +246,10 @@ describe('AuthService', () => {
     const user = { id: 1 };
     const token = 'token';
 
-    beforeEach(() => {
-      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValueOnce('secret').mockReturnValueOnce(3000);
-      jest.spyOn(jwtService, 'signAsync').mockResolvedValue(token);
-    });
+    // beforeEach(() => {
+    jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValueOnce(10).mockReturnValueOnce(10);
+    jest.spyOn(jwtService, 'signAsync').mockResolvedValue(token);
+    // });
 
     it('should issue an refresh token', async () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, true);
@@ -257,7 +257,7 @@ describe('AuthService', () => {
       // Jwt decoded payload
       expect(jwtService.signAsync).toHaveBeenCalledWith(
         { sub: user.id, role: 0, type: 'refresh' },
-        { secret: 'secret', expiresIn: 3000 },
+        { secret: 10, expiresIn: 10 },
       );
       expect(result).toBe(token);
     });
@@ -268,7 +268,7 @@ describe('AuthService', () => {
       // Jwt decoded payloads
       expect(jwtService.signAsync).toHaveBeenCalledWith(
         { sub: user.id, role: 0, type: 'access' },
-        { secret: 'secret', expiresIn: 3000 },
+        { secret: 10, expiresIn: 10 },
       );
       expect(result).toBe(token);
     });
