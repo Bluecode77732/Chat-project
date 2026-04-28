@@ -430,14 +430,14 @@ describe('ChatService', () => {
         .mockResolvedValueOnce({ socketId: '1', status: 'online' })
         .mockResolvedValueOnce({ socketId: '2', status: 'online' });
 
-      // Mock creating a room
+      //* Mock creating a room
       await chatService.getOrCreateRoom(
         mockSender,
         mockRecipient,
         mockQueryRunner as QueryRunner,
       );
 
-      // Final result
+      //* Final result
       const result = await chatService.sendMessage(
         mockPayload,
         mockCreateChatDto,
@@ -497,7 +497,6 @@ describe('ChatService', () => {
       jest
         .spyOn(userRepository, 'findOneByOrFail')
         .mockRejectedValue(new WsException('Cannot Find Sender'));
-
 
       await expect(chatService.sendMessage(mockPayload, mockCreateChatDto, mockQueryRunner as QueryRunner)).rejects.toThrow(WsException);
     });
