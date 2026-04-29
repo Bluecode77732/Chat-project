@@ -191,16 +191,6 @@ describe('ChatService', () => {
     it('should create and save a room', async () => {
       const user1 = { id: 1, email: 'user1@gmail.com', role: 0 } as UserEntity;
       const user2 = { id: 2, email: 'user2@gmail.com', role: 0 } as UserEntity;
-      // const mockRooms = [
-      //   { id: 1, participants: 1, chats: 1 },
-      //   { id: 2, participants: 2, chats: 2 },
-      // ];
-      // const mockQB = {
-      //   innerJoin: jest.fn(),
-      //   where: jest.fn(),
-      //   andWhere: jest.fn(),
-      //   getOne: jest.fn(),
-      // };
 
       (mockQueryRunner.manager?.create as jest.Mock).mockReturnValue({ participants: [user1, user2], });
       (mockQueryRunner.manager?.save as jest.Mock).mockReturnValue({ id: 1, participants: 1, chats: 1 },);
@@ -226,10 +216,6 @@ describe('ChatService', () => {
         password: 'pw',
         role: 0,
       } as UserEntity;
-      // const mockManager = {
-      //   create: jest.fn(),
-      //   save: jest.fn(),
-      // };
 
       // WsException returned with promise in service
       await expect(chatService.createRoom(user1, user2, mockQueryRunner as QueryRunner)).rejects.toThrow(WsException);
@@ -464,7 +450,11 @@ describe('ChatService', () => {
         room: mockRooms,
       };
       //* Inject socket in 'clientConnection'
-      const mockSenderSocket = { to: jest.fn().mockReturnThis(), emit: jest.fn(), join: jest.fn() } as unknown as Socket;
+      const mockSenderSocket = {
+        to: jest.fn().mockReturnThis(),
+        emit: jest.fn(),
+        join: jest.fn()
+      } as unknown as Socket;
 
       jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
       jest.spyOn(chatService, 'getOrCreateRoom').mockResolvedValue(mockRooms);
@@ -473,7 +463,8 @@ describe('ChatService', () => {
         .mockResolvedValueOnce({ socketId: '1', status: 'online' })
         .mockResolvedValueOnce({ socketId: '2', status: 'online' });
 
-      chatService['clientConnection'].set('socketId', mockSenderSocket);
+      chatService['clientConnection'].set('1', mockSenderSocket);
+      chatService['clientConnection'].set('2', mockSenderSocket);
 
       await chatService.sendMessage(
         mockPayload,
@@ -481,8 +472,8 @@ describe('ChatService', () => {
         mockQueryRunner as QueryRunner,
       );
 
-      const emittedData = (mockSocket.emit as jest.Mock).mock.calls[0][1];
-      expect(emittedData).toHaveProperty('id', 1);
+      const emittedData = (mockSenderSocket.emit as jest.Mock).mock.calls[0][1];
+      expect(emittedData).toHaveProperty('id', 100);
       expect(emittedData).toHaveProperty('message', 'a message');
     });
 
@@ -511,39 +502,45 @@ describe('ChatService', () => {
       const mockSender = { id: 1 } as UserEntity;
       const mockRecipient = { id: 2 } as UserEntity;
 
-      jest
-        .spyOn(userRepository, 'findOneByOrFail')
-        .mockResolvedValue(mockSender);
+      jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
 
       // 'WsException' returned with promise in service
       await expect(chatService.sendMessage(payload, createChatDto, mockQueryRunner as QueryRunner)).rejects.toThrow(WsException);
     });
 
-    it('should throw null if connect to socket', async () => {
+    it('should throw null if failed to connect to the socket', async () => {
       const payload = { sub: 1 };
+      const mockSender = { id: 1 } as UserEntity;
       const createChatDto: CreateChatDto = {
         message: 'a message',
         recipientId: 2,
         room: 1,
       };
-
-      const mockRecipient = { id: 2 };
       const mockRooms = [
         { id: 1, participants: 1, chats: 1 },
         { id: 2, participants: 2, chats: 2 },
       ] as any;
+      const mockMessage = {
+        id: 100,
+        message: 'a message',
+        participant: mockSender,
+        room: mockRooms,
+      };
 
+      jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
       jest.spyOn(chatService, 'getOrCreateRoom').mockResolvedValue(mockRooms);
+      jest.spyOn(mockQueryRunner.manager as EntityManager, 'save').mockResolvedValue(mockMessage);
+      jest.spyOn(redisService, 'getUserStatus')
+        .mockResolvedValueOnce({ socketId: undefined, status: 'online' })
+        .mockResolvedValueOnce({ socketId: undefined, status: 'offline' });
 
-      await chatService.sendMessage(
+      // WsException returned with promise in service
+      await expect(chatService.sendMessage(
         payload,
         createChatDto,
         mockQueryRunner as QueryRunner,
-      );
-
-      // WsException returned with promise in service
-      await expect(mockRecipient).rejects.toThrow(WsException);
+      )).rejects.toThrow(WsException);
     });
   });
 });
