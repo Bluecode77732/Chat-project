@@ -444,7 +444,7 @@ describe('ChatService', () => {
       const mockSender = { id: mockPayload.sub } as UserEntity;
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
       const mockMessage = {
-        id: 100,
+        id: 1,
         message: 'a message',
         participant: mockSender,
         room: mockRooms,
@@ -473,7 +473,7 @@ describe('ChatService', () => {
       );
 
       const emittedData = (mockSenderSocket.emit as jest.Mock).mock.calls[0][1];
-      expect(emittedData).toHaveProperty('id', 100);
+      expect(emittedData).toHaveProperty('id', 1);
       expect(emittedData).toHaveProperty('message', 'a message');
     });
 
