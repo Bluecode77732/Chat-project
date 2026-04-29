@@ -1,10 +1,3 @@
-// Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
-jest.mock('bcrypt', () => ({
-  hash: jest.fn(),
-  compare: jest.fn(),
-  genSalt: jest.fn(),
-}));
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { Repository } from 'typeorm';
@@ -157,6 +150,12 @@ describe('AuthService', () => {
     const email = 'test@gmail.com';
     const password = 'Test123Password';
     const hashedPassword = 'HashedPassword';
+
+    //* Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
+    beforeEach(() => {
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    });
 
     it('should register a new user', async () => {
       // Mocking user's findOne to resolve value

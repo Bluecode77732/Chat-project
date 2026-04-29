@@ -26,7 +26,6 @@
       "qs": ">=6.14.2",
       "diff": ">=4.0.4",
       "socket.io-parser": ">=4.2.6",
-      "minimatch": ">=9.0.6",
       "flatted": ">=3.4.2",
       "picomatch": ">=4.0.4",
       "brace-expansion": ">=2.0.3",
@@ -139,12 +138,15 @@
       "logger.ts",
       "type.ts",
       "pubsub.service.ts",
-      "resolver.ts"
+      "resolver.ts",
+      "data-source.ts",
+      "migrations"
     ],
     "testEnvironment": "node",
     "moduleNameMapper": {
       "COMMENT": "It saves subsides under current positioning root directories Typescript compiles src",
-      "src/(.*)": "<rootDir>/src/$1"
+      "src/(.*)": "<rootDir>/src/$1",
+      "^bcrypt$": "<rootDir>/src/mocks/bcrypt.ts"
     }
   }
 }
