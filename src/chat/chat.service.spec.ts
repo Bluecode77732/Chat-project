@@ -3,7 +3,7 @@ import { ChatService } from './chat.service';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RoomEntity } from './entities/room.entity';
-import { EntityManager, QueryBuilder, QueryRunner, Repository } from 'typeorm';
+import { EntityManager, QueryRunner, Repository } from 'typeorm';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
@@ -12,7 +12,6 @@ import { SessionCacheService } from 'src/redis/redis.service';
 describe('ChatService', () => {
   let mockSocket: Partial<Socket>;
   let mockManager: Partial<EntityManager>;
-  let mockQueryBuilder: Partial<EntityManager>;
   let mockQueryRunner: Partial<QueryRunner>;
 
   let chatService: ChatService;
@@ -338,7 +337,6 @@ describe('ChatService', () => {
     });
 
     it('should notify successful connection of users joining the created rooms', async () => {
-      // const mockClientConnection = new Map<number, Socket>();
       const mockSenderSocket = { emit: jest.fn(), join: jest.fn() } as unknown as Socket;
       const mockRecipientSocket = { emit: jest.fn(), join: jest.fn() } as unknown as Socket;
 
@@ -379,8 +377,6 @@ describe('ChatService', () => {
       //* connect?.emit("CreateRoom", room.id.toString());
       expect(mockSenderSocket.emit).toHaveBeenCalledWith('CreateRoom', '1');
       expect(mockSenderSocket.join).toHaveBeenCalledWith('1');
-      // expect(mockRecipientSocket.emit).toHaveBeenCalledWith('CreateRoom', '2');
-      // expect(mockRecipientSocket.join).toHaveBeenCalledWith('2');
       expect(result).toEqual(mockRooms);
     });
   });
