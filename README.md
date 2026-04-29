@@ -125,7 +125,7 @@ List of Troubleshooting when the program runs
 ## API Documentation
 ### Swagger UI
 ***To try all of'em, you must register first to get started.***
-Since Altair cannot test with Mutation, while Postman cannot test Subscription, each platform take a side of role as Subscription and Mutation separately to test chat communication altogether.
+Since Altair cannot test with Mutation, while Postman cannot test Subscription, each platforms take a role as Subscription and Mutation separately to test chat communication altogether.
 
 ### Key Endpoints
 **Swagger**
@@ -577,18 +577,12 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 ```
 
 #### Test Coverage
-**Tested Components**
-- ChatService: connection, rate limit, room creation
-- AuthService: JWT validation, token refresh
-- RedisService: session set/get, rate counter
-- UserService: CRUD, RBAC
-
 **Coverage Results**
-- Chat Service: 70.47%
-- Auth Service: 78.66%
-- Redis Service: 100%
-- Redis Service: 51.21% (excluded simple 'Get' and 'Delete' methods)
-- **Overall: 71.84%**
+- Auth Service: 95.89%
+- Chat Service: 91.86%
+- Redis Service: 90.9%
+- User Service: 73.17% (excluded simple 'Get' and 'Delete' methods)
+- **Overall: 89.71%**
 
 **Example Code**
 ```ts
