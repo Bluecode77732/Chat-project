@@ -590,22 +590,35 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
     let chatService: ChatService;
     let userRepository: Repository<UserEntity>;
     
-    it("should get a created room", async () => {
-      //* The mock family
-      const mockSender = { id: 1, email: "user1@gmail.com", password: "pw", role: 0 } as UserEntity;
-      const mockRecipientId = 2;
-      const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
-      const mockRecipient = { id: 1 } as UserEntity;
+    describe('getOrCreateRoom', () => {
+      it('should get a created room', async () => {
+        //* the mock family
+        const mockSender = {
+          id: 1,
+          email: 'user1@gmail.com',
+          password: 'pw',
+          role: 0,
+        } as UserEntity;
+        const mockRecipientId = 2;
+        const mockRecipient = { id: 2 } as UserEntity;
+        const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
 
-      jest.spyOn(chatService, 'findRoom').mockResolvedValue(mockRooms);
-      jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
+        jest.spyOn(chatService, 'findRoom').mockResolvedValue(mockRooms);
 
-      const result = await chatService.getOrCreateRoom(mockSender, mockRecipientId, mockQueryRunner as QueryRunner);
+        const result = await chatService.getOrCreateRoom(
+          mockSender,
+          mockRecipientId,
+          mockQueryRunner as QueryRunner,
+        );
 
-      expect(chatService.findRoom).toHaveBeenCalledWith(mockSender.id, mockSender.id, mockManager as EntityManager);
-      expect(userRepository.findOneBy).toHaveBeenCalledWith({ id: mockRecipientId });
-      expect(result).toEqual(mockRooms);
-    });
+        expect(chatService.findRoom).toHaveBeenCalledWith(
+          mockSender.id,
+          mockRecipient.id,
+          mockQueryRunner as QueryRunner,
+        );
+        expect(result).toEqual(mockRooms);
+      });
+    }
   });
 ```
 
