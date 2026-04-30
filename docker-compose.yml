@@ -1,0 +1,74 @@
+# version: '3.8'
+
+services:
+  chat:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile
+      target: production
+    # Can omit `depends_on:` since it doesn't have any using DB.
+    depends_on:
+      redis: 
+        condition: service_healthy
+      postgres: 
+        condition: service_healthy
+    env_file:
+      - .env
+    ports: 
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped
+
+
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports: 
+      - "5432:5432"
+    restart: unless-stopped
+    volumes: 
+      # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
+      - ./postgres/:/var/lib/postgresql/data
+    healthcheck:
+      # Server health check command
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      # How often start in
+      interval: 5s
+      # Take a break for how long 
+      timeout: 5s
+      # try for Nth time(s)
+      retries: 10
+      # Start in
+      start_period: 5s
+
+
+  redis:
+    image: redis:alpine
+    ports: 
+      - "6379:6379"
+    restart: unless-stopped
+    volumes: 
+      # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
+      - redis:/data
+    healthcheck:
+      # Server health check command
+      test: ["CMD", "redis-cli", "ping"]
+      # How often start in
+      interval: 5s
+      # Take a break for how long 
+      timeout: 5s
+      # try for Nth time(s)
+      retries: 10
+      # Start in
+      start_period: 5s
+
+
+volumes:
+  # Synchronize the code between `WORKDIR /usr/src/app` in the Dockerfile
+  # if the code change in the host machine, it will be reflected in the container.
+  postgres:
+  # Do not synchronize the node_modules folder, by without writing the colon, 
+  # for developing upon cleaner environment, not to sync with un-utilizable Operating Systems.
+  redis:

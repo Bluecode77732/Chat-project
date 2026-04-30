@@ -440,8 +440,11 @@ Lifecycle Hooks
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
 
-### Docker
-#### Build
+### Docker 
+#### Public - Dockerfile
+Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and weakness of securities.
+
+#### Build - Local
 Using Docker to run Redis server
 
 - Run Redis Container
