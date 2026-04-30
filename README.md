@@ -553,6 +553,8 @@ In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `P
   "type.ts",
   "pubsub.service.ts",
   "resolver.ts"
+  "data-source.ts",
+  "migrations"
 ],
 ```
 
@@ -577,6 +579,10 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 ```
 
 #### Test Coverage
+**Test Results**
+- Test Suites: 4 passed, 4 total
+- Tests: 43 passed, 43 total
+
 **Coverage Results**
 - Auth Service: 95.89%
 - Chat Service: 91.86%
@@ -623,8 +629,25 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 ```
 
 
-### Docker
-#### Build
+### Deployment
+#### Public - Railway
+**Live Demo**
+- Live URL: https://chat-project-production-3b22.up.railway.app
+
+**CI/CD Flow**
+`git push origin main` => GitHub Actions (test => build) => Railway CLI => Auto-deploy
+
+**Setup (one-time)**
+1. Add `RAILWAY_TOKEN` in GitHub => Settings => Secrets => Actions
+2. Set `.env` variables in Railway Dashboard => Variables tab
+3. Add Redis plugin in Railway (replaces local Docker Redis)
+
+**Config Files**
+- `.github/workflows/deploy.yml` runs test & build, then deploys via Railway CLI
+- `railway.toml` builds with Nixpacks, runs `pnpm migration:run && pnpm run start:prod` on deploy
+
+
+#### Local - Docker
 Using Docker to deploy and run Redis server
 
 - Run Redis Container
