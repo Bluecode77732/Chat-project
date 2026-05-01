@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     volumes: 
       # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
-      - ./postgres/:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/18/main
     healthcheck:
       # Server health check command
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
@@ -66,8 +66,6 @@ services:
 
 
 volumes:
-  # Synchronize the code between `WORKDIR /usr/src/app` in the Dockerfile
-  # if the code change in the host machine, it will be reflected in the container.
   postgres:
   # Do not synchronize the node_modules folder, by without writing the colon, 
   # for developing upon cleaner environment, not to sync with un-utilizable Operating Systems.

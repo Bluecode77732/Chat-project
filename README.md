@@ -463,7 +463,7 @@ Running all of services through Docker
 - Show 'chat' container
 `docker ps`
 
-- Verify Redis Connection
+- Verify Connection
 `docker exec -it redis-chat redis-cli ping`
 
 

@@ -34,6 +34,7 @@ import { ChatResolver } from './chat/chat.resolver';
       }),
       // Configuration global adoption
       isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'production'? '.env.production' : '.env.local'
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
@@ -90,4 +91,4 @@ import { ChatResolver } from './chat/chat.resolver';
   ],
   providers: [Logger, ChatResolver],
 })
-export class AppModule {}
+export class AppModule { }
