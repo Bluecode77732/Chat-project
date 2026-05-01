@@ -10,11 +10,11 @@ dotenv.config();
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT ?? '5554', 10),
+  port: parseInt(process.env.DB_PORT ?? '5432', 10),
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
   entities: [EntityBase, UserEntity, ChatEntity, RoomEntity],
-  migrations: ['src/migrations/*.ts'],
+  migrations: ['src/migrations/*.js'],
   synchronize: false,
 });
