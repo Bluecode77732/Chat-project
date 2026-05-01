@@ -443,18 +443,28 @@ Lifecycle Hooks
 ### Docker 
 #### Public - Dockerfile
 Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and weakness of securities.
+- `git push` will automatically get the app through the process of testing and deploying as model of Dockerfile.
 
-#### Build - Local
-Using Docker to run Redis server
+#### Local - docker-compose
+Running all of services through Docker
 
-- Run Redis Container
-`docker run -d -p 6379:6379 --name redis-chat redis:latest`
+- Start service
+`docker compose up -d`
 
-- Show 'redis-chat' container
+- Abort all services
+`docker compose down`
+
+- Run DB migration
+`docker compose exec chat pnpm migration:run`
+
+- Check logs
+`docker compose logs -f chat`
+
+- Show 'chat' container
 `docker ps`
 
 - Verify Redis Connection
-`docker exec -it redis-chat redis-cli ping` => PONG
+`docker exec -it redis-chat redis-cli ping`
 
 
 #### Usage
