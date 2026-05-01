@@ -34,7 +34,7 @@ import { ChatResolver } from './chat/chat.resolver';
       }),
       // Configuration global adoption
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV === 'production'? '.env.production' : '.env.local'
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.local'
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
