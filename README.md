@@ -449,10 +449,10 @@ Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and 
 Running all of services through Docker
 
 - Start all of services
-`docker compose up -d`
+`docker compose up -d --build`
 
 - Abort all of services
-`docker compose down`
+`docker compose down -v`
 
 - Run DB migration
 `docker compose exec chat pnpm migration:run`
