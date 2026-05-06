@@ -30,8 +30,9 @@ function ChatPage() {
 
         // Prevents memory leak and duplicated events
         return () => {
-            socket.off('receiveMessage')
-            socket.disconnect()
+            socket.off('receiveMessage');
+            socket.off('connect_error');
+            socket.disconnect();
         }
         // Restarts when 'accessToken' changes
     }, [accessToken]);
