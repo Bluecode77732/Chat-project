@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/auth.store'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/axios'
 import { useState } from 'react'
+import { jwtDecode } from 'jwt-decode'
 
 interface SignInForm {
     email: string,
@@ -15,6 +16,7 @@ function SignInPage() {
     const { setTokens } = useAuthStore();
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const decoded = jwtDecode
 
     const onSubmit = async (data: SignInForm) => {
         try {

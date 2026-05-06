@@ -23,6 +23,11 @@ function ChatPage() {
             setMessages((prev) => [...prev, message]);
         });
 
+        // Throws error case
+        socket.on('connect_error', (err) => {
+            console.error('Socket has failed to connect: ', err.message);
+        });
+
         // Prevents memory leak and duplicated events
         return () => {
             socket.off('receiveMessage')
