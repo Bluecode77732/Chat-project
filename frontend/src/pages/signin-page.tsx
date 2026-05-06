@@ -16,21 +16,23 @@ function SignInPage() {
     const { setTokens } = useAuthStore();
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
-    const decoded = jwtDecode
-
+    
     const onSubmit = async (data: SignInForm) => {
         try {
             // The `btoa` encodes email and password as Base64 based format, same as `register()` and `singIn()` in backend authentication.
             const credential = btoa(`${data.email}:${data.password}`);
-
+            
             // A request method for a basic token, null for no body
             const res = await api.post('/auth/signin', null, {
                 // Authenticate by headers
                 headers: { Authorization: `Basic ${credential}` },
             });
+            
+            // Extract userId through JWT decode to identify the User ID
+            const decoded = jwtDecode<{ sub: number }>(res.data.accessToken);
 
             // Saving respond token in Zustand
-            setTokens(res.data.accessToken, res.data.refreshToken);
+            setTokens(res.data.accessToken, res.data.refreshToken, decoded.sub);
             // Move to the chat page
             navigate('/chat');
         } catch {

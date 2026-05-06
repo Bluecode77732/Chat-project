@@ -11,7 +11,7 @@ interface Message {
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const { accessToken } = useAuthStore();
+    const { accessToken, userId } = useAuthStore();
 
     useEffect(() => {
         // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
@@ -46,6 +46,9 @@ function ChatPage() {
     };
 
     return (
+        <div className={`p-2 rounded ${msg.userId === userId ? 'bg-blue-100 self-end' : 'bg-gray-100 self-start'}`}>
+            {msg.message}
+        </div>
         <div className="flex flex-column h-screen p-4">
             <div className="flex-1 overflow-y-auto flex flex-column gap-2">
                 {messages.map((msg, i) => (
