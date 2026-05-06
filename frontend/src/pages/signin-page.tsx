@@ -4,19 +4,19 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/axios'
 import { useState } from 'react'
 
-interface LoginForm {
+interface SignInForm {
     email: string,
     password: string,
 };
 
-function LoginPage() {
+function SignInPage() {
     // The `useForm`, a react-hook-form, tracks, validates, and submits the input value.
-    const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+    const { register, handleSubmit, formState: { errors } } = useForm<SignInForm>();
     const { setTokens } = useAuthStore();
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
 
-    const onSubmit = async (data: LoginForm) => {
+    const onSubmit = async (data: SignInForm) => {
         try {
             // The `btoa` encodes email and password as Base64 based format, same as `register()` and `singIn()` in backend authentication.
             const credential = btoa(`${data.email}:${data.password}`);
@@ -70,4 +70,4 @@ function LoginPage() {
     )
 }
 
-export default LoginPage
+export default SignInPage

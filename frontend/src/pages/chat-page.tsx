@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/auth.store";
-import { socket } from "../socket/socket";
+import { reconnectSocket, socket } from "../socket/socket";
 
 interface Message {
     userId: number,
@@ -14,19 +14,28 @@ function ChatPage() {
     const { accessToken } = useAuthStore();
 
     useEffect(() => {
-        socket.on('receiveMessage', (message: Message) => {
-            setMessages((prev) => [...prev, message])
-        })
+        // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
+        reconnectSocket();
 
+        // Perceives messages sent in real-time
+        socket.on('receiveMessage', (message: Message) => {
+            // Messages add with previous messages
+            setMessages((prev) => [...prev, message]);
+        });
+
+        // Prevents memory leak and duplicated events
         return () => {
             socket.off('receiveMessage')
             socket.disconnect()
         }
+        // Restarts when 'accessToken' changes
     }, [accessToken]);
 
     const sendMessage = () => {
+        // Prevents blank messages
         if (!input.trim())
-            return socket.emit('sendMessage', { message: input, roomId: 1 })
+            // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
+            return socket.emit('sendMessage', { message: input, roomId: 1 });
         setInput('');
     };
 
