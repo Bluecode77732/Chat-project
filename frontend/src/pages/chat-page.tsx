@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
+import DOMpurify from 'dompurify';
 
 interface Message {
     userId: number,
@@ -46,16 +47,21 @@ function ChatPage() {
     };
 
     return (
-        <div className={`p-2 rounded ${msg.userId === userId ? 'bg-blue-100 self-end' : 'bg-gray-100 self-start'}`}>
-            {msg.message}
-        </div>
         <div className="flex flex-column h-screen p-4">
-            <div className="flex-1 overflow-y-auto flex flex-column gap-2">
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2">
                 {messages.map((msg, i) => (
-                    <div key={i} className="bg-gray-100 p-2 rounded">
-                        {msg.message}
+                    <div
+                        key={i}
+                        className={`p-2 rounded ${msg.userId === userId
+                            ? 'bg-blue-100 self-end'
+                            : 'bg-gray-100 self-start'
+                            }`}
+                        dangerouslySetInnerHTML={{
+                            // Message XSS Vulnerability can be rendered after `sanitize`.
+                            __html: DOMpurify.sanitize(msg.message),
+                        }}>
                     </div>
-                ))}
+                ))};
             </div>
             <div className="flex gap-2 mt-4">
                 <input
@@ -71,7 +77,7 @@ function ChatPage() {
                     Send
                 </button>
             </div>
-        </div>
+        </div >
     )
 }
 
