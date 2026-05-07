@@ -53,8 +53,8 @@ function SignInPage() {
                     className='border p-2 rounded'>
                 </input>
                 {/* Sign in failure error */}
-                {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>};
-                {error && <span className='text-red-500 text-sm'>{error}</span>};
+                {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
+                {error && <span className='text-red-500 text-sm'>{error}</span>}
                 <input {...register('password', {
                     required: "Please Enter Your Password",
                     minLength: { value: 8, message: "Password cannot be less than 8 words string" },
@@ -63,7 +63,7 @@ function SignInPage() {
                     placeholder='password'
                     className='border p-2 rounded'>
                 </input>
-                {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>};
+                {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
                 <button onClick={handleSubmit(onSubmit)}
                     className='bg-blue-500 text-white p-2 rounded'>
