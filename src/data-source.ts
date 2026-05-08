@@ -5,6 +5,7 @@ import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import * as dotenv from 'dotenv';
 
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 export const AppDataSource = new DataSource({
@@ -15,6 +16,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
   entities: [EntityBase, UserEntity, ChatEntity, RoomEntity],
-  migrations: ['src/migrations/*.js'],
+  migrations: ['dist/migrations/*.js'],
   synchronize: false,
 });

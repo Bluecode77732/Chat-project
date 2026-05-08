@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/auth.store';
+import { Socket } from 'socket.io-client';
 
 const createSocket = () =>
     // `io` connection to `@WebSocketGateway()` in 'chat.gateway'.
@@ -14,7 +15,7 @@ const createSocket = () =>
 
 // `createSocket()` for Issuing of new socket via renewal of token.
 // Using same `socket` instance on any component for global share of it.
-export let socket = createSocket();
+export let socket: Socket = createSocket();
 
 // `reconnectSocket()` reconnection of socket in renewal of access token.
 export const reconnectSocket = () => {
