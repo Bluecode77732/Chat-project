@@ -61,7 +61,7 @@ function ChatPage() {
             <div className="flex justify-between items-center mb-4">
                 <span className="font-bold">Chat</span>
                 <button onClick={signOut} className="text-red-500 text-sm">
-                    Sign Out
+                    Sign Out 
                 </button>
             </div>
             <div className="flex gap-2 mb-4">
