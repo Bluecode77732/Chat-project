@@ -11,7 +11,7 @@ function App() {
         <Route path='/' element={<div>Login Page</div>} />
         <Route path='/chat' element={
           <ProtectedRoute>
-            <div>Login Page</div>
+            {/* <div>Login Page</div> */}
             <ChatPage>
 
             </ChatPage>

@@ -20,7 +20,7 @@ function ChatPage() {
         reconnectSocket();
 
         // Perceives messages sent in real-time
-        socket.on('receiveMessage', (message: Message) => {
+        socket.on('sendMessage', (message: Message) => {
             // Messages add with previous messages
             setMessages((prev) => [...prev, message]);
         });
@@ -32,7 +32,7 @@ function ChatPage() {
 
         // Prevents memory leak and duplicated events
         return () => {
-            socket.off('receiveMessage');
+            socket.off('sendMessage');
             socket.off('connect_error');
             socket.disconnect();
         }
@@ -41,9 +41,9 @@ function ChatPage() {
 
     const sendMessage = () => {
         // Prevents blank messages
-        if (!input.trim() || !recipientId)
-            // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
-            return socket.emit('sendMessage', { message: input, recipientId });
+        if (!input.trim() || !recipientId) return;
+        // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
+        socket.emit('sendMessage', { message: input, recipientId });
         setInput('');
     };
 
