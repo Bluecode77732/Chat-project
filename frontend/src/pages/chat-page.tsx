@@ -3,6 +3,8 @@ import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
+import { useMutation, useSubscription } from "@apollo/client/react";
+import { SEND_MESSAGE, RECEIVE_MESSAGE } from "../api/graphql-operations";
 
 interface Message {
     userId: number,
@@ -18,6 +20,23 @@ function ChatPage() {
     const { accessToken, userId } = useAuthStore();
     const navigate = useNavigate();
 
+    // GraphQL Set Up
+    const [sendMessageMutation] = useMutation(SEND_MESSAGE);
+    const { data: subData } = useSubscription(RECEIVE_MESSAGE, {
+        variables: { roomId: currentRoomId },
+        skip: !currentRoomId,
+    });
+
+    useEffect(() => {
+        if (subData?.receiveMessage) {
+            setMessages((prev) => [...prev], {
+                userId: subData.receiveMessage.participant?.id,
+                message: subData.receiveMessage.message,
+                roomId: currentRoomId!,
+            })
+        }
+    }, [subData]);
+
     useEffect(() => {
         // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
         reconnectSocket();
@@ -26,6 +45,10 @@ function ChatPage() {
         socket.on('sendMessage', (message: Message) => {
             // Messages add with previous messages
             setMessages((prev) => [...prev, message]);
+        });
+        
+        socket.on('CreateRoom', (roomdId: string) => {
+            setCurrentRoomId(Number(roomId));
         });
 
         // Throws error case
@@ -36,9 +59,10 @@ function ChatPage() {
         // Prevents memory leak and duplicated events
         return () => {
             socket.off('sendMessage');
+            socket.off('CreateRoom');
             socket.off('connect_error');
             socket.disconnect();
-        }
+        };
         // Restarts when 'accessToken' changes
     }, [accessToken]);
 
@@ -61,7 +85,7 @@ function ChatPage() {
             <div className="flex justify-between items-center mb-4">
                 <span className="font-bold">Chat</span>
                 <button onClick={signOut} className="text-red-500 text-sm">
-                    Sign Out 
+                    Sign Out
                 </button>
             </div>
             <div className="flex gap-2 mb-4">
