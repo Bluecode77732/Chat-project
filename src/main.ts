@@ -29,7 +29,7 @@ async function bootstrap() {
     // Front Origin Allowance
     origin: process.env.CORS_ORIGIN,
     // Cookie Authorization In Header Allowance
-    credential: true,
+    credentials: true,
     // Allowance Method
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     // Allowance Header
