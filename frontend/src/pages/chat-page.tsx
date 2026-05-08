@@ -12,6 +12,7 @@ interface Message {
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
+    const [recipientId, setRecipientId] = useState<number | null>(null)
     const { accessToken, userId } = useAuthStore();
 
     useEffect(() => {
@@ -40,28 +41,38 @@ function ChatPage() {
 
     const sendMessage = () => {
         // Prevents blank messages
-        if (!input.trim())
+        if (!input.trim() || !recipientId)
             // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
-            return socket.emit('sendMessage', { message: input, roomId: 1 });
+            return socket.emit('sendMessage', { message: input, recipientId });
         setInput('');
     };
 
     return (
-        <div className="flex flex-column h-screen p-4">
+        <div className="flex flex-col h-screen p-4">
+            <div className="flex gap-2 mb-4">
+                <input
+                    type="number"
+                    value={recipientId ?? ''}
+                    onChange={(e) => setRecipientId(Number(e.target.value))}
+                    className="border p-2 rounded w-40"
+                    placeholder="Recipient ID"
+                >
+                </input>
+            </div>
             <div className="flex-1 overflow-y-auto flex flex-col gap-2">
                 {messages.map((msg, i) => (
                     <div
                         key={i}
-                        className={`p-2 rounded ${msg.userId === userId
-                            ? 'bg-blue-100 self-end'
-                            : 'bg-gray-100 self-start'
+                        className={`p-2 rounded max-w-xs ${msg.userId === userId
+                            ? 'bg-blue-100 ml-auto'
+                            : 'bg-gray-100 mr-auto'
                             }`}
                         dangerouslySetInnerHTML={{
                             // Message XSS Vulnerability can be rendered after `sanitize`.
                             __html: DOMpurify.sanitize(msg.message),
                         }}>
                     </div>
-                ))};
+                ))}
             </div>
             <div className="flex gap-2 mt-4">
                 <input
@@ -77,7 +88,7 @@ function ChatPage() {
                     Send
                 </button>
             </div>
-        </div >
+        </div>
     )
 }
 
