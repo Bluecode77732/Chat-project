@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
+import { useNavigate } from "react-router-dom";
 
 interface Message {
     userId: number,
@@ -13,7 +14,9 @@ function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [recipientId, setRecipientId] = useState<number | null>(null)
+    const { clearTokens } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
+    const navigate = useNavigate();
 
     useEffect(() => {
         // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
@@ -47,8 +50,20 @@ function ChatPage() {
         setInput('');
     };
 
+    const signOut = () => {
+        socket.disconnect();
+        clearTokens();
+        navigate('/');
+    };
+
     return (
         <div className="flex flex-col h-screen p-4">
+            <div className="flex justify-between items-center mb-4">
+                <span className="font-bold">Chat</span>
+                <button onClick={signOut} className="text-red-500 text-sm">
+                    Sign Out
+                </button>
+            </div>
             <div className="flex gap-2 mb-4">
                 <input
                     type="number"
