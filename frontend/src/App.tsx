@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/protected-route'
 import SignInPage from './pages/signin-page';
 import ChatPage from './pages/chat-page';
+import RegisterPage from './pages/register-page';
 
 function App() {
   return (
@@ -9,6 +10,7 @@ function App() {
       <Routes>
         <Route path='/' element={<SignInPage></SignInPage>} />
         <Route path='/' element={<div>Login Page</div>} />
+        <Route path='/register' element={<RegisterPage></RegisterPage>} />
         <Route path='/chat' element={
           <ProtectedRoute>
             {/* <div>Login Page</div> */}
