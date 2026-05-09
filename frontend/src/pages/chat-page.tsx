@@ -12,29 +12,41 @@ interface Message {
     roomId: number,
 };
 
+// GraphQL explicit return type 
+interface SubscriptionData {
+    receiveMessage: {
+        id: number,
+        message: string,
+        participant: {
+            id: number
+        },
+    };
+};
+
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [recipientId, setRecipientId] = useState<number | null>(null)
+    const [currentRoomId, setCurrentRoomId] = useState<number | null>(null)
     const { clearTokens } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
     const navigate = useNavigate();
 
     // GraphQL Set Up
     const [sendMessageMutation] = useMutation(SEND_MESSAGE);
-    const { data: subData } = useSubscription(RECEIVE_MESSAGE, {
+    const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
     });
 
     useEffect(() => {
         if (subData?.receiveMessage) {
-            setMessages((prev) => [...prev], {
+            setMessages((prev) => [...prev, {
                 userId: subData.receiveMessage.participant?.id,
                 message: subData.receiveMessage.message,
                 roomId: currentRoomId!,
-            })
-        }
+            },],)
+        };
     }, [subData]);
 
     useEffect(() => {
@@ -46,8 +58,8 @@ function ChatPage() {
             // Messages add with previous messages
             setMessages((prev) => [...prev, message]);
         });
-        
-        socket.on('CreateRoom', (roomdId: string) => {
+
+        socket.on('CreateRoom', (roomId: string) => {
             setCurrentRoomId(Number(roomId));
         });
 
@@ -66,11 +78,19 @@ function ChatPage() {
         // Restarts when 'accessToken' changes
     }, [accessToken]);
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
         // Prevents blank messages
         if (!input.trim() || !recipientId) return;
         // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
-        socket.emit('sendMessage', { message: input, recipientId });
+        // socket.emit('sendMessage', { message: input, recipientId });
+
+        await sendMessageMutation({
+            variables: {
+                input: { message: input, room: currentRoomId ?? undefined, recipientId },
+                recipientId,
+            },
+        });
+
         setInput('');
     };
 

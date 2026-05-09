@@ -1,17 +1,15 @@
 import { gql } from "@apollo/client";
 
 export const SEND_MESSAGE = gql`
-mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
-    sendMessage(input: $input, recipientId: $recipientId) {
-        id
-        message
-        participant {
+    mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+        sendMessage(input: $input, recipientId: $recipientId) {
             id
-            email
-            role
+            message
+            participant {
+                id
+            }
         }
     }
-}
 `
 
 export const RECEIVE_MESSAGE = gql`
@@ -24,7 +22,6 @@ export const RECEIVE_MESSAGE = gql`
             }
         }
     }
-}
 `
 
 // "input": {

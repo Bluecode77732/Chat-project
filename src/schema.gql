@@ -35,5 +35,5 @@ input CreateChatInput {
 }
 
 type Subscription {
-  messageAdded(roomId: ID!): MessageType!
+  receiveMessage(roomId: ID!): MessageType!
 }

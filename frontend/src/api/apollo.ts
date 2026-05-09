@@ -3,24 +3,25 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
 import { createClient } from 'graphql-ws'
 import { useAuthStore } from '../store/auth.store';
 import { getMainDefinition } from '@apollo/client/utilities';
-// import { setContext } from '@apollo/client/link/context'
+import { setContext } from '@apollo/client/link/context'
 
 // `HttpLink` connects GraphQL HTTP to transfer Query/Mutation via HTTP
 const httpLink = new HttpLink({
     uri: `${import.meta.env.VITE_API_URL}/graphql`,
 });
 
-// const authLink = setContext((_, { headers }) => ({
-//     headers: {
-//         ...headers,
-//         authorization: `Bearer ${useAuthStore.getState().accessToken}`,
-//     },
-// }));
+const authLink = setContext((_, { headers }) => ({
+    headers: {
+        ...headers,
+        authorization: `Bearer ${useAuthStore.getState().accessToken}`,
+    },
+}));
 
 // `GraphQLWsLink` responses on Subscription real-time event
 const wsLink = new GraphQLWsLink(
     createClient({
-        url: `ws://localhost3000/graphql`,
+        url: `${import.meta.env.VITE_WS_URL}/graphql`,
+        // url: `{ws://localhost3000/graphql}`,
         // Token injection on WebSocket connection for responding to `connectionParams.authorization` validation in `onConnect()`.
         connectionParams: () => ({
             authorization: `Bearer ${useAuthStore.getState().accessToken}`,
@@ -38,8 +39,7 @@ const splitLink = split(
         );
     },
     wsLink,
-    httpLink,
-    // authLink.concat(httpLink),
+    authLink.concat(httpLink),
 );
 
 // `InMemoryCache` caches query results for re-request the same query returns from cache without network

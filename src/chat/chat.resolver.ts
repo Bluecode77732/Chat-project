@@ -30,7 +30,7 @@ export class ChatResolver {
     private readonly pubSub: PubSubService,
     //! Debug: Inject QueryRunner for transaction when client request to GraphQL
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   // A dummy query to satisfy root Query requirement
   @Query(() => MessageType)
@@ -72,14 +72,14 @@ export class ChatResolver {
       await new Promise((delay) => setTimeout(delay, 1000));
 
       if (input.room) {
-        await this.pubSub.publish(`messageAdded: ${input.room}`, {
-          messageAdded: savedMessage,
+        await this.pubSub.publish(`receiveMessage : ${input.room}`, {
+          receiveMessage: savedMessage,
         });
       }
 
-      const channel = `messageAdded:${input.room}`;
+      const channel = `receiveMessage :${input.room}`;
 
-      await this.pubSub.publish(channel, { messageAdded: savedMessage });
+      await this.pubSub.publish(channel, { receiveMessage: savedMessage });
 
       //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()` in 'chat.resolver'
       await queryRunner.commitTransaction();
@@ -100,14 +100,14 @@ export class ChatResolver {
 
   @Subscription(() => MessageType, {
     resolve: (payload) => {
-      return payload.messageAdded;
+      return payload.receiveMessage;
     },
     filter: () => {
       return true; // Accept all for testing
     },
   }) // define ObjectType
   @UseGuards(GraphQLAuthGuard)
-  messageAdded(@Args('roomId', { type: () => ID }) roomId: number) {
-    return this.pubSub.asyncIterableIterator(`messageAdded:${roomId}`);
+  receiveMessage(@Args('roomId', { type: () => ID }) roomId: number) {
+    return this.pubSub.asyncIterableIterator(`receiveMessage :${roomId}`);
   }
 }
