@@ -3,7 +3,7 @@
 FROM node:22-alpine AS builder
 
 # Install Pnpm globally (pinned to match pnpm-lock.yaml lockfileVersion)
-RUN npm install -g
+RUN npm install -g pnpm@10.33.0
 
 # Set the working directory inside the container
 WORKDIR /app
