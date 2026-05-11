@@ -1,9 +1,9 @@
 # ----- Builder stage -----
 # Using alpine, the linux's latest version As development environment
-FROM node:alpine AS builder
+FROM node:22-alpine AS builder
 
-# Install Pnpm globally
-RUN npm install -g pnpm
+# Install Pnpm globally (pinned to match pnpm-lock.yaml lockfileVersion)
+RUN npm install -g pnpm@10.33.0
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN pnpm build
 
 FROM node:22-alpine AS production
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.33.0
 
 WORKDIR /app
 
