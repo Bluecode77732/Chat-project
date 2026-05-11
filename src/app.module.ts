@@ -31,9 +31,16 @@ import { ChatResolver } from './chat/chat.resolver';
         ACCESS_TOKEN_SECRET: Joi.string().required(),
         REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
+        // Validating CORS env via Joi
+        CORS_ORIGIN: Joi.string().required(),
       }),
       // Configuration global adoption
       isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'production'
+        ? '.env.production'
+        : process.env.NODE_ENV === 'docker'
+          ? '.env.local'
+          : '.env'
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
@@ -90,4 +97,4 @@ import { ChatResolver } from './chat/chat.resolver';
   ],
   providers: [Logger, ChatResolver],
 })
-export class AppModule {}
+export class AppModule { }

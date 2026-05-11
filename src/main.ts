@@ -24,6 +24,18 @@ async function bootstrap() {
     }),
   );
 
+  // Implementing CORS
+  app.enableCors({
+    // Front Origin Allowance
+    origin: process.env.CORS_ORIGIN,
+    // Cookie Authorization In Header Allowance
+    credentials: true,
+    // Allowance Method
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    // Allowance Header
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Chat')

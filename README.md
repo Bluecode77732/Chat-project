@@ -94,7 +94,7 @@ A casual private One-to-One chatting project that enables communication real-tim
   pnpm run test:cov
   
   # Access Swagger UI
-  http://localhost:3000/doc
+  http://localhost:3000/document
 ```md
 
 
@@ -440,18 +440,31 @@ Lifecycle Hooks
   Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
 
 
-### Docker
-#### Build
-Using Docker to run Redis server
+### Docker 
+#### Public - Dockerfile
+Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and weakness of securities.
+- `git push` will automatically get the app through the process of testing and deploying as model of Dockerfile.
 
-- Run Redis Container
-`docker run -d -p 6379:6379 --name redis-chat redis:latest`
+#### Local - docker-compose
+Running all of services through Docker
 
-- Show 'redis-chat' container
+- Start all of services
+`docker compose up -d --build`
+
+- Abort all of services
+`docker compose down -v`
+
+- Run DB migration
+`docker compose exec chat pnpm migration:run`
+
+- Check logs
+`docker compose logs -f chat`
+
+- Show 'chat' container
 `docker ps`
 
-- Verify Redis Connection
-`docker exec -it redis-chat redis-cli ping` => PONG
+- Verify Connection
+`docker exec -it redis-chat redis-cli ping`
 
 
 #### Usage
@@ -514,7 +527,7 @@ To test out rate of success in test, Coverage Test is appropriate supporting too
 
 The tests codes are defined and can run in `spec.ts`.
 
-Relocate testing directory from the relative path `src` to the separate root `["src"]` in `Package.json`.
+Relocate testing directory from the relative path `src` to the separate root `["src"]` in 'Package.json'.
 
 The directories wrapped in an array gives flexibility to add more test locations later such as e2e testing.
 
@@ -533,7 +546,7 @@ The directories wrapped in an array gives flexibility to add more test locations
 ```
 
 - Coverage Path Ignore
-In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `Package.json`.
+In `coveragePathIgnorePatterns`, it creates and passes in what not to test in 'Package.json'.
 ```json
 "coveragePathIgnorePatterns": [
   "main.ts",
@@ -559,7 +572,7 @@ In `coveragePathIgnorePatterns`, it creates and passes in what not to test in `P
 ```
 
 - Directory Root
-It sets output directory for coverage reports in parents directory, one level above the config file  in `Package.json` so every testing files can be tested out all at once.
+It sets output directory for coverage reports in parents directory, one level above the config file  in 'Package.json' so every testing files can be tested out all at once.
   - Subordinate repository
   ```json
     "coverageDirectory": "../coverage",
@@ -571,7 +584,7 @@ It sets output directory for coverage reports in parents directory, one level ab
   ```
 
 - Module Name Mapper
-It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in `Package.json`.
+It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in 'Package.json'.
 ```json
 "moduleNameMapper": {
   "src/(.*)": "<rootDir>/src/$1"
@@ -643,8 +656,8 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 3. Add Redis plugin in Railway (replaces local Docker Redis)
 
 **Config Files**
-- `.github/workflows/deploy.yml` runs test & build, then deploys via Railway CLI
-- `railway.toml` builds with Nixpacks, runs `pnpm migration:run && pnpm run start:prod` on deploy
+- '.github/workflows/deploy.yml' runs test & build, then deploys via Railway CLI
+- 'railway.toml' builds with Nixpacks, runs `pnpm migration:run && pnpm run start:prod` on deploy
 
 
 #### Local - Docker
@@ -674,7 +687,7 @@ Remove container (keeps image)
 #### Check User Data
 
 - Terminal command
-`docker exec -it redis-chat redis-cli`
+`docker compose exec redis redis-cli`
 
 - Check keys
 `KEYS user:*`
