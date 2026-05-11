@@ -1,5 +1,5 @@
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
 
 [deploy]
 startCommand = "pnpm migration:run && pnpm run start:prod"
