@@ -42,7 +42,6 @@ lerna-debug.log*
 .env.test.local
 .env.production
 .env.production.local
-.env.production
 .env.local
 
 # Runtime data
