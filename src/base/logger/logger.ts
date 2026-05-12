@@ -11,6 +11,9 @@
 import * as winston from 'winston';
 import { join } from 'node:path';
 
+// Debug: Vercel; for deploying frontend on read-only serverless Vercel
+const isVercel = process.env.VERCEL === '1';
+
 // Logger configuration as singleton instance - can be implemented in app.module as well
 export const logger = winston.createLogger({
   level: 'verbose',
@@ -26,32 +29,36 @@ export const logger = winston.createLogger({
         ),
       ),
     }),
-    new winston.transports.File({
-      format: winston.format.combine(
-        winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss ZZ',
-          alias: 'Logs timestamp',
-        }),
-        winston.format.printf(
-          (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+    // Debug: Vercel; Spread the File Transports into local and Vercel for differ the OS to apply different transport
+    ...(!isVercel ? [
+      new winston.transports.File({
+        format: winston.format.combine(
+          winston.format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss ZZ',
+            alias: 'Logs timestamp',
+          }),
+          winston.format.printf(
+            (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+          ),
         ),
-      ),
-      dirname: join(process.cwd(), 'logs'),
-      filename: 'logs.log',
-    }),
-    new winston.transports.File({
-      format: winston.format.combine(
-        winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss ZZ',
-          alias: 'Error timestamp',
-        }),
-        winston.format.printf(
-          (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+        // Debug: Vercel;This line causes the Vercel ENOENT error
+        dirname: join(process.cwd(), 'logs'),
+        filename: 'logs.log',
+      }),
+      new winston.transports.File({
+        format: winston.format.combine(
+          winston.format.timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss ZZ',
+            alias: 'Error timestamp',
+          }),
+          winston.format.printf(
+            (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+          ),
         ),
-      ),
-      dirname: join(process.cwd(), 'logs'),
-      level: 'error',
-      filename: 'error.logs.log',
-    }),
+        dirname: join(process.cwd(), 'logs'),
+        level: 'error',
+        filename: 'error.logs.log',
+      }),
+    ] : []),
   ],
 });
