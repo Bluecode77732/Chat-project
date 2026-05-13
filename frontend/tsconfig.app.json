@@ -15,7 +15,7 @@
     // node_modules skips type check
     "skipLibCheck": true,
     // Vite/Webpack style module resolute
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     // .ts/.tsx extender import allowance
     "allowImportingTsExtensions": true,
     // json import allowance
