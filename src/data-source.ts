@@ -5,7 +5,7 @@ import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+// dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 export const AppDataSource = new DataSource({
