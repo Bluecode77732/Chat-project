@@ -5,8 +5,8 @@ import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
 import * as dotenv from 'dotenv';
 
-// dotenv.config({ path: '.env.local' });
-dotenv.config();
+dotenv.config({ path: '.env.local', override: false });
+dotenv.config({ override: false });
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
