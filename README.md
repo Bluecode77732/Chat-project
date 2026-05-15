@@ -6,6 +6,9 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6)
 ![Jest](https://img.shields.io/badge/Jest-C21325)
 ![Docker](https://img.shields.io/badge/Docker-2496ED)
+![React](https://img.shields.io/badge/React-61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF)
+![Vercel](https://img.shields.io/badge/Vercel-000000)
 
 # Real-Time Chat Application
 - An classical private One-to-One chatting server-side management application that validated users can chat with the other user.
@@ -28,6 +31,7 @@ A casual private One-to-One chatting project that enables communication real-tim
 
 
 ## Live Demo
+- Frontend: https://chat-project-frontend-ten.vercel.app
 - REST API: https://chat-project-production-3b22.up.railway.app
 - WebSocket: wss://chat-project-production-3b22.up.railway.app
 
@@ -242,6 +246,16 @@ Test 'Auth' and 'User' Endpoints URL below.
 
 
 ## Stacks
+### Frontend
+A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
+
+- Stack: React, TypeScript, Vite, Tailwind CSS, Zustand, Apollo Client, Socket.IO Client ✔
+- Auth: JWT stored in memory (Zustand) with refresh token persistence via localStorage ✔
+- Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
+- Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
+- Deployment: Vercel (auto-deploy on push) ✔
+
+### Backend
 - Language: Typescript, a type-safe and a solid object oriented language, superset of Javascript. ✔
 - Backend: Node.Js, this javascript runtime built with chrome V8 engine, provides ecosystem where the applications run smoothly. ✔
 - Framework: Nest.Js, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
@@ -425,6 +439,12 @@ Create a `.env` file in the root directory and paste variables below :
   # Expiry
   REFRESH_TOKEN_SECRET_EXPIRES_IN=expiryTime
   ACCESS_TOKEN_SECRET_EXPIRES_IN=expiryTime
+
+  # Redis Configuration
+  REDIS_URL=redis://localhost:6379
+
+  # CORS URL Set Up
+  CORS_ORIGIN=your.vercel.app
 ```
 
 
@@ -643,6 +663,18 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 
 
 ### Deployment
+#### Frontend - Vercel
+**Live Demo**
+- Live URL: https://chat-sage-phi.vercel.app
+
+**CI/CD Flow**
+`git push origin main` => Vercel Auto-deploy
+
+**Config**
+- Root Directory: `frontend/`
+- `pnpm-workspace.yaml` for monorepo package resolution
+
+
 #### Public - Railway
 **Live Demo**
 - Live URL: https://chat-project-production-3b22.up.railway.app
@@ -657,7 +689,7 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 
 **Config Files**
 - '.github/workflows/deploy.yml' runs test & build, then deploys via Railway CLI
-- 'railway.toml' builds with Nixpacks, runs `pnpm migration:run && pnpm run start:prod` on deploy
+- 'railway.toml' builds with Dockerfile, runs `pnpm migration:run && pnpm run start:prod` on deploy
 
 
 #### Local - Docker
@@ -719,8 +751,11 @@ Remove container (keeps image)
 
 
 ## Scale Up In Future
-- Store conversation list per user (last message, unread message, etc)
-- Broadcast via `roomId` to scale to create group chats, or notification with `Redis Pub/Sub` package
-- Let users delete rooms and conversation
-- Restore by load up previous chat logs when user disconnected from Socket
-- Let users see "User is typing" when one side is typing a message
+- Backend: Store conversation list per user (last message, unread message, etc)
+- Backend: Broadcast via `roomId` to scale to create group chats, or notification with `Redis Pub/Sub` package
+- Backend: Let users delete rooms and conversation
+- Backend: Restore by load up previous chat logs when user disconnected from Socket
+- Backend: Let users see "User is typing" when one side is typing a message
+- Frontend: httpOnly Cookie for refreshToken security hardening
+- Frontend: Apollo Client token refresh on WebSocket reconnection
+- Frontend: Chat room list UI with unread message count
