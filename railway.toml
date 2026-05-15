@@ -1,7 +1,7 @@
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "pnpm migration:run && pnpm run start:prod"
+startCommand = "sh -c 'pnpm migration:run ; node dist/main'"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
