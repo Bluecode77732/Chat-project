@@ -19,7 +19,7 @@ import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 
 @WebSocketGateway({
   cors: {
-    origin: 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN,
     credentials: true,
   },
 })
