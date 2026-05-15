@@ -1,0 +1,17 @@
+{
+    "root": [
+        "./src/app.tsx",
+        "./src/main.tsx",
+        "./src/vite-env.d.ts",
+        "./src/api/apollo.ts",
+        "./src/api/axios.ts",
+        "./src/api/graphql-operations.ts",
+        "./src/components/protected-route.tsx",
+        "./src/pages/chat-page.tsx",
+        "./src/pages/register-page.tsx",
+        "./src/pages/signin-page.tsx",
+        "./src/socket/socket.ts",
+        "./src/store/auth.store.ts"
+    ],
+    "version": "6.0.3"
+}
