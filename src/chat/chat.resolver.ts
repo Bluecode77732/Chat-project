@@ -22,6 +22,7 @@ import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 @Resolver()
 export class ChatResolver {
@@ -30,6 +31,7 @@ export class ChatResolver {
     private readonly pubSub: PubSubService,
     //! Debug: Inject QueryRunner for transaction when client request to GraphQL
     private readonly dataSource: DataSource,
+    private readonly sessionCacheService: SessionCacheService,
   ) { }
 
   // A dummy query to satisfy root Query requirement
@@ -84,6 +86,14 @@ export class ChatResolver {
       //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()` in 'chat.resolver'
       await queryRunner.commitTransaction();
       logger.info(`User ${userId}'s message is saved in the chat room`);
+
+      // Recipient online status check before publishing the messages.
+      const recipient = await this.sessionCacheService.getUserStatus(recipientId);
+      
+      if (!recipient || recipient.status === 'offline') {
+        // Leaving messages to the offline recipients
+        return savedMessage;
+      };
 
       return savedMessage || `chat.resolver sends null - ${null}`;
     } catch (error: any) {
