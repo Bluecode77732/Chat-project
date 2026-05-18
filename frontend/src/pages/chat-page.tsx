@@ -41,6 +41,8 @@ function ChatPage() {
 
     useEffect(() => {
         if (subData?.receiveMessage) {
+            console.log('🔮 GraphQL Response:', subData.receiveMessage)
+
             setMessages((prev) => [...prev, {
                 userId: subData.receiveMessage.participant?.id,
                 message: subData.receiveMessage.message,
@@ -55,6 +57,8 @@ function ChatPage() {
 
         // Perceives messages sent in real-time
         socket.on('sendMessage', (message: Message) => {
+            console.log('📡 Socket Response:', message)
+
             // Messages add with previous messages
             setMessages((prev) => [...prev, message]);
         });
