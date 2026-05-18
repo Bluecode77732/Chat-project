@@ -41,8 +41,8 @@ function ChatPage() {
 
     useEffect(() => {
         if (subData?.receiveMessage) {
-            console.log('🔮 GraphQL Response:', subData.receiveMessage)
 
+            // Perceives messages sent in real-time
             setMessages((prev) => [...prev, {
                 userId: subData.receiveMessage.participant?.id,
                 message: subData.receiveMessage.message,
@@ -55,14 +55,6 @@ function ChatPage() {
         // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
         reconnectSocket();
 
-        // Perceives messages sent in real-time
-        socket.on('sendMessage', (message: Message) => {
-            console.log('📡 Socket Response:', message)
-
-            // Messages add with previous messages
-            setMessages((prev) => [...prev, message]);
-        });
-
         socket.on('CreateRoom', (roomId: string) => {
             setCurrentRoomId(Number(roomId));
         });
@@ -74,7 +66,6 @@ function ChatPage() {
 
         // Prevents memory leak and duplicated events
         return () => {
-            socket.off('sendMessage');
             socket.off('CreateRoom');
             socket.off('connect_error');
             socket.disconnect();
