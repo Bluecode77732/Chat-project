@@ -17,7 +17,7 @@ import { bearerTokenType, tokenType } from './dto/token-types.auth.dto';
 @Controller('auth')
 @ApiTags('Authentication API')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // A route handler decorator, Routes (Get, Post, Patch, Put, Delete) HTTP request to the specific path.
   @Post('register')
@@ -60,6 +60,28 @@ export class AuthController {
   })
   signIn(@Headers('authorization') rawToken: string) {
     return this.authService.signIn(rawToken);
+  }
+
+  // Sign in route
+  @Post('signOut')
+  @ApiBasicAuth()
+  @ApiResponse({
+    status: 201,
+    description: 'Sign Out Succeed.',
+    type: tokenType,
+    schema: {
+      example: {
+        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request.',
+  })
+  signOut(@Headers('authorization') rawToken: string) {
+    return this.authService.signOut(rawToken);
   }
 
   // Issuing a refresh access token to let not users redo login

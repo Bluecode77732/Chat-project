@@ -23,6 +23,7 @@ import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
+import { AuthService } from 'src/auth/auth.service';
 
 @Resolver()
 export class ChatResolver {
@@ -32,6 +33,7 @@ export class ChatResolver {
     //! Debug: Inject QueryRunner for transaction when client request to GraphQL
     private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
+    private readonly authService: AuthService,
   ) { }
 
   // A dummy query to satisfy root Query requirement
@@ -48,12 +50,11 @@ export class ChatResolver {
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<MessageType | any | null> {
     //! Debug - Solving on 'Cannot Find Sender ID': Seems jwt strategy passport cannot populates `req.user`, so GraphQL context cannot find sender id.
-    const token = ctx.req?.headers?.authorization || 1;
-
-    const tokenSplit = token.split(' ')[1].split('.')[1];
-
-    const payload = JSON.parse(Buffer.from(tokenSplit, 'base64').toString());
-
+    // const token = ctx.req?.headers?.authorization || 1;
+    // const tokenSplit = token.split(' ')[1].split('.')[1];
+    // const payload = JSON.parse(Buffer.from(tokenSplit, 'base64').toString());
+    
+    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization || 1, false);
     const userId = payload.sub;
 
     //! Debug: Inject QueryRunner for transaction when client request to GraphQL
@@ -74,7 +75,7 @@ export class ChatResolver {
       await new Promise((delay) => setTimeout(delay, 1000));
 
       if (input.room) {
-        await this.pubSub.publish(`receiveMessage : ${input.room}`, {
+        await this.pubSub.publish(`receiveMessage :${input.room}`, {
           receiveMessage: savedMessage,
         });
       }
@@ -89,13 +90,14 @@ export class ChatResolver {
 
       // Recipient online status check before publishing the messages.
       const recipient = await this.sessionCacheService.getUserStatus(recipientId);
-      
+
       if (!recipient || recipient.status === 'offline') {
         // Leaving messages to the offline recipients
         return savedMessage;
       };
 
       return savedMessage || `chat.resolver sends null - ${null}`;
+
     } catch (error: any) {
       logger.error(error.message, {
         userId: userId,

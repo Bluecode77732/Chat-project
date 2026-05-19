@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from './role/role';
 import { logger } from 'src/base/logger/logger';
+import * as RedisClient from 'redis';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +22,8 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    @Inject('REDIS_CLIENT')
+    private readonly redis: RedisClient.RedisClientType,
   ) { }
 
   async parseBasicToken(rawToken: string) {
@@ -229,6 +233,20 @@ export class AuthService {
         { id: user.id, role: user.role },
         false,
       ),
+    };
+  }
+
+
+  async signOut(rawToken: string) {
+    // Get the bearer token
+    const payload = await this.parseBearerToken(rawToken, false);
+
+    // Time-To-Live for the bearer token
+    const ttl = payload.exp - Math.floor(Date.now() / 1000);
+
+    if (ttl > 0) {
+      // Blacklist implementation
+      await this.redis.set(`blacklist: ${rawToken.split(' ')[1]}`, '1', { EX: ttl });
     };
   }
 }
