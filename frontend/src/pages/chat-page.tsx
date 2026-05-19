@@ -3,8 +3,8 @@ import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
-import { useMutation, useSubscription } from "@apollo/client/react";
-import { SEND_MESSAGE, RECEIVE_MESSAGE } from "../api/graphql-operations";
+import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
+import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS } from "../api/graphql-operations";
 
 interface Message {
     userId: number,
@@ -23,6 +23,12 @@ interface SubscriptionData {
     };
 };
 
+// Adding user online status banner
+interface OnlineUsersData {
+  getOnlineUser: number[]
+}
+
+
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -37,6 +43,11 @@ function ChatPage() {
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
+    });
+
+    // Adding user online status banner
+    const { data: onlineData } = useQuery<OnlineUsersData>(GET_ONLINE_USERS, {
+        pollInterval: 5000,
     });
 
     useEffect(() => {
@@ -102,6 +113,17 @@ function ChatPage() {
                 <button onClick={signOut} className="text-red-500 text-sm">
                     Sign Out
                 </button>
+            </div>
+            <div className="flex gap-2 mb-4">
+                {onlineData?.getOnlineUser?.map((id: number) => (
+                    <span
+                        key={id}
+                        onClick={() => setRecipientId(id)}
+                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${id === userId ? 'bg-green-200' : 'bg-gray-200 hover:bg-blue-100'}`}
+                    >
+                        {id === userId ? `Me (${id})` : `User ${id}`}
+                    </span>
+                ))}
             </div>
             <div className="flex gap-2 mb-4">
                 <input
