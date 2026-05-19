@@ -7,10 +7,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { Redis } from 'ioredis';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class PubSubService extends RedisPubSub {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly sessionCacheService: SessionCacheService,
+  ) {
     const redisUrl = configService.get<string>('REDIS_URL');
 
     if (!redisUrl) {

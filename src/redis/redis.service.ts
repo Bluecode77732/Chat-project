@@ -12,7 +12,7 @@ export class SessionCacheService {
   constructor(
     @Inject('REDIS_CLIENT')
     private readonly redis: redisClient.RedisClientType,
-  ) {}
+  ) { }
 
   async sethUserOnline(userId: number, socketId: string) {
     // Stores user data as Redis hash; format: user:key
@@ -41,4 +41,23 @@ export class SessionCacheService {
       return null;
     }
   }
+
+  async getOnlineUser(): Promise<number[] | null> {
+    const keys = await this.redis.keys('user:*');
+    const onlineUsers: number[] = [];
+
+    for (const key of keys) {
+      const data = await this.redis.hGetAll(key);
+
+      if (data.status === 'online') {
+        const userId = Number(key.split(':')[1]);
+        console.log(`❗ User ID: ${userId}`);
+
+        onlineUsers.push(userId);
+        console.log(`❗ Online Users: ${onlineUsers}`);
+      };
+    };
+
+    return onlineUsers;
+  };
 }

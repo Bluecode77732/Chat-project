@@ -12,6 +12,7 @@ import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
 import { Server } from 'socket.io';
 import { PubSubService } from 'src/graphql/pubsub.service';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PubSubService } from 'src/graphql/pubsub.service';
     PubSubService,
     //! Debug - Solving on 'Cannot Find Sender ID' : Registration of 'chat.resolver'
     ChatResolver,
+    SessionCacheService,
     // Implementing Redis, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
       // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection

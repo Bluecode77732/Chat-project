@@ -24,8 +24,8 @@ export const RECEIVE_MESSAGE = gql`
     }
 `
 
-// "input": {
-//     "message": "Sent from Postman",
-//         "recipientId": 1,
-//             "room": 1
-// }
+export const GET_ONLINE_USERS = gql`
+    query GetOnlineUser {
+        getOnlineUser
+    }
+`

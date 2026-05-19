@@ -42,6 +42,12 @@ export class ChatResolver {
     return 'ping has returned.'; // Fixes the error (GraphQL requires at least one @Query)
   }
 
+  @Query(() => [Int])
+  @UseGuards(GraphQLAuthGuard)
+  async getOnlineUser(): Promise<number[] | null> {
+    return this.sessionCacheService.getOnlineUser();
+  }
+
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard)
   async sendMessage(
