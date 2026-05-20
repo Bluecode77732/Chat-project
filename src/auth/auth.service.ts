@@ -246,7 +246,7 @@ export class AuthService {
 
     if (ttl > 0) {
       // Blacklist implementation
-      await this.redis.set(`blacklist: ${rawToken.split(' ')[1]}`, '1', { EX: ttl });
+      await this.redis.set(`blacklist:${rawToken.split(' ')[1]}`, '1', { EX: ttl });
     };
   }
 }
