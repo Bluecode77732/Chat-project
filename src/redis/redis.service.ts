@@ -51,10 +51,10 @@ export class SessionCacheService {
 
       if (data.status === 'online') {
         const userId = Number(key.split(':')[1]);
-        console.log(`❗ User ID: ${userId}`);
+        // console.log(`❗ User ID: ${userId}`);
 
         onlineUsers.push(userId);
-        console.log(`❗ Online Users: ${onlineUsers}`);
+        // console.log(`❗ Online Users: ${onlineUsers}`);
       };
     };
 

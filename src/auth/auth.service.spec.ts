@@ -55,6 +55,14 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: mockJwtService,
         },
+        {
+          provide: 'REDIS_CLIENT',
+          useValue: {
+            hSet: jest.fn(),
+            hGetAll: jest.fn(),
+            expire: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
