@@ -61,13 +61,14 @@ function ChatPage() {
 
     useEffect(() => {
         if (subData?.receiveMessage) {
-
-            // Perceives messages sent in real-time
-            setMessages((prev) => [...prev, {
-                userId: subData.receiveMessage.participant?.id,
-                message: subData.receiveMessage.message,
-                roomId: currentRoomId!,
-            },],)
+            const senderId = subData.receiveMessage.participant?.id;
+            if (senderId !== userId) {
+                setMessages((prev) => [...prev, {
+                    userId: senderId,
+                    message: subData.receiveMessage.message,
+                    roomId: currentRoomId!,
+                }]);
+            }
         };
     }, [subData]);
 
