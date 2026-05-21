@@ -32,7 +32,7 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
                 })
                 .catch(() => {
                     useAuthStore.getState().clearTokens()
-                    observer.error(new Error('Session expired. Please sign in again.'))
+                    window.location.replace('/')
                 })
         })
     }
@@ -66,6 +66,7 @@ const wsLink = new GraphQLWsLink(
                     accessToken = data.accessToken;
                 } catch {
                     useAuthStore.getState().clearTokens();
+                    window.location.replace('/');
                 }
             }
 
