@@ -188,22 +188,20 @@ function ChatPage() {
                 {onlineData?.getOnlineUser?.map((id: number) => (
                     <span
                         key={id}
-                        onClick={() => setRecipientId(id)}
-                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${id === userId ? 'bg-green-200' : 'bg-gray-200 hover:bg-blue-100'}`}
+                        onClick={() => id !== userId && setRecipientId(id)}
+                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
+                            id === userId
+                                ? 'bg-green-200 cursor-default'
+                                : id === recipientId
+                                    ? 'bg-blue-400 text-white'
+                                    : 'bg-gray-200 hover:bg-blue-100'
+                        }`}
                     >
-                        {id === userId ? `Me (${id})` : `User ${id}`}
+                        {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
                     </span>
                 ))}
             </div>
-            <div className="flex gap-2 mb-4">
-                <input
-                    type="number"
-                    value={recipientId ?? ''}
-                    onChange={(e) => setRecipientId(Number(e.target.value))}
-                    className="border p-2 rounded w-40"
-                    placeholder="Recipient ID"
-                />
-            </div>
+
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
