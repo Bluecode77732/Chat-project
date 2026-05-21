@@ -78,17 +78,9 @@ export class ChatResolver {
         queryRunner,
       );
 
-      await new Promise((delay) => setTimeout(delay, 1000));
-
-      if (input.room) {
-        await this.pubSub.publish(`receiveMessage :${input.room}`, {
-          receiveMessage: savedMessage,
-        });
-      }
-
-      const channel = `receiveMessage :${input.room}`;
-
-      await this.pubSub.publish(channel, { receiveMessage: savedMessage });
+      await this.pubSub.publish(`receiveMessage :${savedMessage.room?.id}`, {
+        receiveMessage: savedMessage,
+      });
 
       //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()` in 'chat.resolver'
       await queryRunner.commitTransaction();
