@@ -61,7 +61,7 @@ function ChatPage() {
 
     useEffect(() => {
         if (subData?.receiveMessage) {
-            const senderId = subData.receiveMessage.participant?.id;
+            const senderId = Number(subData.receiveMessage.participant?.id);
             if (senderId !== userId) {
                 setMessages((prev) => [...prev, {
                     userId: senderId,
