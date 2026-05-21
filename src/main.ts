@@ -33,7 +33,7 @@ async function bootstrap() {
     // Allowance Method
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     // Allowance Header
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'apollo-require-preflight'],
   });
 
   // Swagger configuration
