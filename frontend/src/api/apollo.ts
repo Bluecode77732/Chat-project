@@ -51,10 +51,26 @@ const authLink = new SetContextLink((prevContext) => ({
 const wsLink = new GraphQLWsLink(
     createClient({
         url: `${import.meta.env.VITE_WS_URL}/graphql`,
-        // Token injection on WebSocket connection for responding to `connectionParams.authorization` validation in `onConnect()`.
-        connectionParams: () => ({
-            authorization: `Bearer ${useAuthStore.getState().accessToken}`,
-        }),
+        retryAttempts: 5,
+        // async: refreshes access token before connecting if it's null (page reload scenario)
+        // on reconnect, re-runs with the latest token already refreshed by errorLink
+        connectionParams: async () => {
+            let { accessToken, refreshToken, setTokens, userId } = useAuthStore.getState();
+
+            if (!accessToken && refreshToken) {
+                try {
+                    const { data } = await api.post('/auth/token/refreshaccess', null, {
+                        headers: { Authorization: `Bearer ${refreshToken}` },
+                    });
+                    setTokens(data.accessToken, refreshToken!, userId!);
+                    accessToken = data.accessToken;
+                } catch {
+                    useAuthStore.getState().clearTokens();
+                }
+            }
+
+            return { authorization: `Bearer ${accessToken}` };
+        },
     }),
 );
 

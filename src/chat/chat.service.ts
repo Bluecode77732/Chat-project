@@ -121,7 +121,15 @@ export class ChatService {
     let room = await this.findRoom(sender.id, recipientId, qr);
 
     if (room) {
-      // reuse existing room
+      if (room.id) {
+        // Notify both users of the existing room ID so their subscriptions can start
+        for (const id of [sender.id, recipientId]) {
+          const status = await this.redisService.getUserStatus(id);
+          const connect = status?.socketId ? this.clientConnection.get(status.socketId) : null;
+          connect?.emit('CreateRoom', room.id.toString());
+          connect?.join(room.id.toString());
+        }
+      }
       return room;
     }
 
