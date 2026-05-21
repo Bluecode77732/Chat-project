@@ -12,13 +12,6 @@ import api from './axios';
 // `HttpLink` connects GraphQL HTTP to transfer Query/Mutation via HTTP
 const httpLink = new HttpLink({
     uri: `${import.meta.env.VITE_API_URL}/graphql`,
-    headers: {
-        // Without below contents, the Apollo CSRF sends 'BAD_REQUEST' and block the request.
-        // By setting json as safe content type, the request can pass the Apollo CSRF defense.
-        'content-type': 'application/json',
-        // Indirect the header authentication Apollo CSRF by forcing the browser to send request over prior the Preflight OPTIONS.
-        'apollo-require-preflight': 'true',
-    },
 });
 
 const errorLink = new ErrorLink(({ error, operation, forward }) => {
@@ -48,6 +41,8 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
 const authLink = new SetContextLink((prevContext) => ({
     headers: {
         ...prevContext['headers'],
+        'content-type': 'application/json',
+        'apollo-require-preflight': 'true',
         authorization: `Bearer ${useAuthStore.getState().accessToken}`,
     },
 }));
