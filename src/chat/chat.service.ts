@@ -197,11 +197,10 @@ export class ChatService {
 
       // Todo: Save message in the chat database permanently
       //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
-      const messageSchema = await queryRunner.manager.save(ChatEntity, {
-        participant: sender,
-        message,
-        room,
-      });
+      const messageSchema = Object.assign(
+        await queryRunner.manager.save(ChatEntity, { participant: sender, message, room }),
+        { participant: sender, room },
+      );
 
       // Todo: Redis adoption //
       // Todo: Get client ID from Redis
