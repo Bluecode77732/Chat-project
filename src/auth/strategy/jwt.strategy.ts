@@ -31,7 +31,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     const isBlackListed = await this.redis.get(`blacklist:${token}`);
     const user = await this.userService.findOne(payload.sub);
 
-    if (!isBlackListed) {
+    if (isBlackListed) {
       throw new UnauthorizedException(`Token has revoked. Sign in again to continue the chatting.`);
     }
 
