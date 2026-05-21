@@ -258,9 +258,7 @@ export class ChatService {
         logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : 'no socket found'}`);
         logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? room.id : 'no socket rooms found'}`);
       } else {
-        logger.error('Recipient not online');
-
-        throw new WsException('Recipient not online');
+        logger.info(`Recipient ${recipientId} is offline — message saved, will be loaded from history`);
       }
 
       //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback

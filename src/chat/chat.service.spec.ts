@@ -144,6 +144,18 @@ describe('ChatService', () => {
       expect(mockSocket.join).toHaveBeenCalledTimes(2);
     });
 
+    it('should throw WsException when a room has no id', async () => {
+      const mockUser = { sub: 1 };
+      const mockQueryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([{ id: null }]),
+      };
+
+      jest.spyOn(roomRepository, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
+
+      await expect(chatService.joinRooms(mockUser, mockSocket as Socket)).rejects.toThrow(WsException);
+    });
+
     it('should handle user with no rooms', async () => {
       const mockUser = { sub: 1 };
       const mockQueryBuilder = {
@@ -253,6 +265,14 @@ describe('ChatService', () => {
         mockQueryRunner as QueryRunner,
       );
       expect(result).toEqual(mockRooms);
+    });
+
+    it('should throw WsException when sender has no id', async () => {
+      const senderWithoutId = { id: undefined } as unknown as UserEntity;
+
+      await expect(
+        chatService.getOrCreateRoom(senderWithoutId, 2, mockQueryRunner as QueryRunner),
+      ).rejects.toThrow(WsException);
     });
 
     it("should create a room if it's non-existing", async () => {
@@ -527,6 +547,18 @@ describe('ChatService', () => {
       expect(emittedData).toHaveProperty('message', 'a message');
     });
 
+    it('should throw WsException when recipientId is invalid', async () => {
+      const payload = { sub: 1 };
+      const mockSender = { id: 1 } as UserEntity;
+
+      jest.spyOn(userRepository, 'findOneByOrFail').mockResolvedValue(mockSender);
+      jest.spyOn(chatService, 'getOrCreateRoom').mockResolvedValue({ id: 1 } as RoomEntity);
+
+      await expect(
+        chatService.sendMessage(payload, { message: 'hi', recipientId: NaN }, mockQueryRunner as QueryRunner),
+      ).rejects.toThrow(WsException);
+    });
+
     it('should rollback to release if sender does not exist then rollback to release', async () => {
       const mockPayload = { sub: 1 };
       const mockCreateChatDto: CreateChatDto = {
@@ -559,7 +591,7 @@ describe('ChatService', () => {
       await expect(chatService.sendMessage(payload, createChatDto, mockQueryRunner as QueryRunner)).rejects.toThrow(WsException);
     });
 
-    it('should throw null if failed to connect to the socket', async () => {
+    it('should save message and return it even when recipient is offline', async () => {
       const payload = { sub: 1 };
       const mockSender = { id: 1 } as UserEntity;
       const createChatDto: CreateChatDto = {
@@ -567,10 +599,7 @@ describe('ChatService', () => {
         recipientId: 2,
         room: 1,
       };
-      const mockRooms = [
-        { id: 1, participants: 1, chats: 1 },
-        { id: 2, participants: 2, chats: 2 },
-      ] as any;
+      const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
       const mockMessage = {
         id: 100,
         message: 'a message',
@@ -582,15 +611,12 @@ describe('ChatService', () => {
       jest.spyOn(chatService, 'getOrCreateRoom').mockResolvedValue(mockRooms);
       jest.spyOn(mockQueryRunner.manager as EntityManager, 'save').mockResolvedValue(mockMessage);
       jest.spyOn(redisService, 'getUserStatus')
-        .mockResolvedValueOnce({ socketId: undefined, status: 'online' })
+        .mockResolvedValueOnce({ socketId: undefined, status: 'offline' })
         .mockResolvedValueOnce({ socketId: undefined, status: 'offline' });
 
-      // WsException returned with promise in service
-      await expect(chatService.sendMessage(
-        payload,
-        createChatDto,
-        mockQueryRunner as QueryRunner,
-      )).rejects.toThrow(WsException);
+      const result = await chatService.sendMessage(payload, createChatDto, mockQueryRunner as QueryRunner);
+
+      expect(result).toEqual(mockMessage);
     });
   });
 });
