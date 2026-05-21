@@ -48,6 +48,15 @@ export class ChatResolver {
     return this.sessionCacheService.getOnlineUser();
   }
 
+  @Query(() => [MessageType])
+  @UseGuards(GraphQLAuthGuard)
+  async getMessages(
+    @Args('roomId', { type: () => Int }) roomId: number,
+    @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
+  ): Promise<MessageType[]> {
+    return this.chatService.getMessages(roomId, cursor);
+  }
+
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard)
   async sendMessage(

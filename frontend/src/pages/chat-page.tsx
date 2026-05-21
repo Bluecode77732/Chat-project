@@ -1,27 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
-import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS } from "../api/graphql-operations";
+import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
+import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES } from "../api/graphql-operations";
 
 interface Message {
-    userId: number,
-    message: string,
-    roomId: number,
-};
+    id?: number;
+    userId: number;
+    message: string;
+    roomId: number;
+}
 
-// GraphQL explicit return type 
 interface SubscriptionData {
     receiveMessage: {
-        id: number,
-        message: string,
-        participant: {
-            id: number
-        },
+        id: number;
+        message: string;
+        participant: { id: number };
     };
-};
+}
 
 interface SendMessageData {
     sendMessage: {
@@ -32,70 +30,121 @@ interface SendMessageData {
     };
 }
 
-// Adding user online status banner
-interface OnlineUsersData {
-  getOnlineUser: number[]
+interface GetMessagesData {
+    getMessages: Array<{
+        id: number;
+        message: string;
+        participant: { id: number };
+        createdAt: string;
+    }>;
 }
 
+interface OnlineUsersData {
+    getOnlineUser: number[];
+}
 
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const [recipientId, setRecipientId] = useState<number | null>(null)
-    const [currentRoomId, setCurrentRoomId] = useState<number | null>(null)
+    const [recipientId, setRecipientId] = useState<number | null>(null);
+    const [currentRoomId, setCurrentRoomId] = useState<number | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const scrollRef = useRef<HTMLDivElement>(null);
     const { clearTokens } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
     const navigate = useNavigate();
 
-    // GraphQL Set Up
     const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
     });
-
-    // Adding user online status banner
     const { data: onlineData } = useQuery<OnlineUsersData>(GET_ONLINE_USERS, {
         pollInterval: 5000,
     });
+    const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES);
 
+    const loadMessages = useCallback(async (roomId: number, cursor?: number) => {
+        const { data } = await fetchMessages({ variables: { roomId, cursor } });
+        if (!data?.getMessages) return;
+
+        const incoming: Message[] = data.getMessages.map(m => ({
+            id: m.id,
+            userId: Number(m.participant?.id),
+            message: m.message,
+            roomId,
+        }));
+
+        if (incoming.length < 15) setHasMore(false);
+
+        if (cursor) {
+            // Prepend older messages, avoid duplicates
+            setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id).filter(Boolean));
+                return [...incoming.filter(m => !existingIds.has(m.id)), ...prev];
+            });
+        } else {
+            // Initial load: replace state, keep any locally added messages not yet in DB
+            setMessages(prev => {
+                const historyIds = new Set(incoming.map(m => m.id));
+                const localOnly = prev.filter(m => !m.id || !historyIds.has(m.id));
+                return [...incoming, ...localOnly];
+            });
+        }
+    }, [fetchMessages]);
+
+    // Load message history when room is first known
     useEffect(() => {
-        if (subData?.receiveMessage) {
-            const senderId = Number(subData.receiveMessage.participant?.id);
-            if (senderId !== userId) {
-                setMessages((prev) => [...prev, {
-                    userId: senderId,
-                    message: subData.receiveMessage.message,
-                    roomId: currentRoomId!,
-                }]);
-            }
-        };
+        if (!currentRoomId) return;
+        setHasMore(true);
+        loadMessages(currentRoomId);
+    }, [currentRoomId]);
+
+    // Scroll to top → load more
+    const handleScroll = useCallback(() => {
+        if (!scrollRef.current || !currentRoomId || !hasMore) return;
+        if (scrollRef.current.scrollTop === 0) {
+            const oldestId = messages.find(m => m.id)?.id;
+            loadMessages(currentRoomId, oldestId);
+        }
+    }, [currentRoomId, hasMore, messages, loadMessages]);
+
+    // Incoming messages from subscription (others only)
+    useEffect(() => {
+        if (!subData?.receiveMessage) return;
+        const senderId = Number(subData.receiveMessage.participant?.id);
+        if (senderId === userId) return;
+
+        setMessages(prev => {
+            if (prev.some(m => m.id === subData.receiveMessage.id)) return prev;
+            return [...prev, {
+                id: subData.receiveMessage.id,
+                userId: senderId,
+                message: subData.receiveMessage.message,
+                roomId: currentRoomId!,
+            }];
+        });
     }, [subData]);
 
     useEffect(() => {
-        // Recreates 'Socket' and reconnects with renewed token to assure connection 'accessToken' remaining status after sign in.
         reconnectSocket();
 
         socket.on('CreateRoom', (roomId: string) => {
             setCurrentRoomId(Number(roomId));
         });
 
-        // Throws error case
         socket.on('connect_error', (err) => {
             console.error('Socket has failed to connect: ', err.message);
         });
 
-        // Prevents memory leak and duplicated events
         return () => {
             socket.off('CreateRoom');
             socket.off('connect_error');
             socket.disconnect();
         };
-        // Restarts when 'accessToken' changes
     }, [accessToken]);
 
     const sendMessage = async () => {
-        // Prevents blank messages
         if (!input.trim() || !recipientId) return;
 
         const { data } = await sendMessageMutation({
@@ -111,7 +160,8 @@ function ChatPage() {
             setCurrentRoomId(newRoomId);
         }
 
-        setMessages((prev) => [...prev, {
+        setMessages(prev => [...prev, {
+            id: data?.sendMessage?.id,
             userId: userId!,
             message: input,
             roomId: currentRoomId ?? newRoomId!,
@@ -152,22 +202,24 @@ function ChatPage() {
                     onChange={(e) => setRecipientId(Number(e.target.value))}
                     className="border p-2 rounded w-40"
                     placeholder="Recipient ID"
-                >
-                </input>
+                />
             </div>
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+            <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto flex flex-col gap-2"
+            >
                 {messages.map((msg, i) => (
                     <div
-                        key={i}
+                        key={msg.id ?? i}
                         className={`p-2 rounded max-w-xs ${msg.userId === userId
                             ? 'bg-blue-100 ml-auto'
                             : 'bg-gray-100 mr-auto'
-                            }`}
+                        }`}
                         dangerouslySetInnerHTML={{
-                            // Message XSS Vulnerability can be rendered after `sanitize`.
                             __html: DOMpurify.sanitize(msg.message),
-                        }}>
-                    </div>
+                        }}
+                    />
                 ))}
             </div>
             <div className="flex gap-2 mt-4">
@@ -185,7 +237,7 @@ function ChatPage() {
                 </button>
             </div>
         </div>
-    )
+    );
 }
 
-export default ChatPage
+export default ChatPage;

@@ -30,3 +30,16 @@ export const GET_ONLINE_USERS = gql`
         getOnlineUser
     }
 `
+
+export const GET_MESSAGES = gql`
+    query GetMessages($roomId: Int!, $cursor: Int) {
+        getMessages(roomId: $roomId, cursor: $cursor) {
+            id
+            message
+            participant {
+                id
+            }
+            createdAt
+        }
+    }
+`

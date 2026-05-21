@@ -3,6 +3,7 @@ import { ChatService } from './chat.service';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RoomEntity } from './entities/room.entity';
+import { ChatEntity } from './entities/chat.entity';
 import { EntityManager, QueryRunner, Repository } from 'typeorm';
 import { Socket } from 'socket.io';
 import { WsException } from '@nestjs/websockets';
@@ -17,6 +18,7 @@ describe('ChatService', () => {
   let chatService: ChatService;
   let roomRepository: Repository<RoomEntity>;
   let userRepository: Repository<UserEntity>;
+  let chatRepository: Repository<ChatEntity>;
   let redisService: SessionCacheService;
 
   beforeEach(async () => {
@@ -69,6 +71,12 @@ describe('ChatService', () => {
           },
         },
         {
+          provide: getRepositoryToken(ChatEntity),
+          useValue: {
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
           provide: SessionCacheService,
           useValue: {
             sethUserOnline: jest.fn(),
@@ -80,12 +88,9 @@ describe('ChatService', () => {
     }).compile();
 
     chatService = module.get<ChatService>(ChatService);
-    userRepository = module.get<Repository<UserEntity>>(
-      getRepositoryToken(UserEntity),
-    );
-    roomRepository = module.get<Repository<RoomEntity>>(
-      getRepositoryToken(RoomEntity),
-    );
+    userRepository = module.get<Repository<UserEntity>>(getRepositoryToken(UserEntity));
+    roomRepository = module.get<Repository<RoomEntity>>(getRepositoryToken(RoomEntity));
+    chatRepository = module.get<Repository<ChatEntity>>(getRepositoryToken(ChatEntity));
     redisService = module.get(SessionCacheService);
   });
 
@@ -378,6 +383,55 @@ describe('ChatService', () => {
       expect(mockSenderSocket.emit).toHaveBeenCalledWith('CreateRoom', '1');
       expect(mockSenderSocket.join).toHaveBeenCalledWith('1');
       expect(result).toEqual(mockRooms);
+    });
+  });
+
+  describe('getMessages', () => {
+    const roomId = 1;
+    const mockMessages = [
+      { id: 1, message: 'hello', participant: { id: 2 }, room: { id: roomId } },
+      { id: 2, message: 'world', participant: { id: 1 }, room: { id: roomId } },
+    ];
+
+    const mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
+
+    beforeEach(() => {
+      jest.spyOn(chatRepository, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
+    });
+
+    it('should return messages in ascending order', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([...mockMessages].reverse());
+
+      const result = await chatService.getMessages(roomId);
+
+      expect(chatRepository.createQueryBuilder).toHaveBeenCalledWith('chat');
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('chat.room = :roomId', { roomId });
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(15);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(2);
+    });
+
+    it('should apply cursor when provided', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([mockMessages[0]]);
+
+      await chatService.getMessages(roomId, 2);
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('chat.id < :cursor', { cursor: 2 });
+    });
+
+    it('should return empty array when no messages exist', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      const result = await chatService.getMessages(roomId);
+
+      expect(result).toEqual([]);
     });
   });
 

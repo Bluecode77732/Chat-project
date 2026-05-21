@@ -22,9 +22,11 @@ export class ChatService {
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
 
-    // Injecting TypeORM dependencies for repository
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+
+    @InjectRepository(ChatEntity)
+    private readonly chatRepository: Repository<ChatEntity>,
 
     // Injecting redisService to replace current in-memory storage Socket instance
     private readonly redisService: SessionCacheService,
@@ -277,5 +279,21 @@ export class ChatService {
 
       throw new WsException(`Failed to send message: ${error.message}`);
     }
+  }
+
+  async getMessages(roomId: number, cursor?: number, limit = 15): Promise<ChatEntity[]> {
+    const qb = this.chatRepository
+      .createQueryBuilder('chat')
+      .leftJoinAndSelect('chat.participant', 'participant')
+      .where('chat.room = :roomId', { roomId })
+      .orderBy('chat.id', 'DESC')
+      .take(limit);
+
+    if (cursor) {
+      qb.andWhere('chat.id < :cursor', { cursor });
+    }
+
+    const messages = await qb.getMany();
+    return messages.reverse();
   }
 }
