@@ -23,6 +23,15 @@ interface SubscriptionData {
     };
 };
 
+interface SendMessageData {
+    sendMessage: {
+        id: number;
+        message: string;
+        participant: { id: number };
+        roomId: number;
+    };
+}
+
 // Adding user online status banner
 interface OnlineUsersData {
   getOnlineUser: number[]
@@ -39,7 +48,7 @@ function ChatPage() {
     const navigate = useNavigate();
 
     // GraphQL Set Up
-    const [sendMessageMutation] = useMutation(SEND_MESSAGE);
+    const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
@@ -87,15 +96,25 @@ function ChatPage() {
     const sendMessage = async () => {
         // Prevents blank messages
         if (!input.trim() || !recipientId) return;
-        // Messages send to the chat gateway `@SubscribeMessage('sendMessage')`.
-        // socket.emit('sendMessage', { message: input, recipientId });
 
-        await sendMessageMutation({
+        const { data } = await sendMessageMutation({
             variables: {
                 input: { message: input, room: currentRoomId ?? undefined, recipientId },
                 recipientId,
             },
         });
+
+        const newRoomId = data?.sendMessage?.roomId;
+
+        if (!currentRoomId && newRoomId) {
+            setCurrentRoomId(newRoomId);
+        }
+
+        setMessages((prev) => [...prev, {
+            userId: userId!,
+            message: input,
+            roomId: currentRoomId ?? newRoomId!,
+        }]);
 
         setInput('');
     };

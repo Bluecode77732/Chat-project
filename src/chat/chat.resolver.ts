@@ -94,7 +94,7 @@ export class ChatResolver {
         return savedMessage;
       };
 
-      return savedMessage || `chat.resolver sends null - ${null}`;
+      return { ...savedMessage, roomId: savedMessage.room?.id };
 
     } catch (error: any) {
       logger.error(error.message, {

@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { UserType } from './user.type';
 
 @ObjectType()
@@ -14,4 +14,7 @@ export class MessageType {
 
   @Field()
   createdAt?: Date;
+
+  @Field(() => Int, { nullable: true })
+  roomId?: number;
 }

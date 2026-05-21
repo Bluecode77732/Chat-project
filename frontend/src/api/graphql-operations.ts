@@ -8,6 +8,7 @@ export const SEND_MESSAGE = gql`
             participant {
                 id
             }
+            roomId
         }
     }
 `
