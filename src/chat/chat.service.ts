@@ -239,33 +239,15 @@ export class ChatService {
         );
       }
 
-      /**
-       *? Why Recipient Socket Isn't Needed
-       ** `senderSocket.emit()` sends the message back to the sender for confirmation.
-       ** The `recipient` receives the message through the room broadcast, not direct emission - no need to fetch their socket separately.
-       ** `senderSocket.to(room.id.toString()).emit()` already broadcasts to all users in the room except the sender, which includes the recipient if they're online and joined the room.
-       */
-      //* ```redis.service : const data = await this.redis.hGetAll(`user:${userId}`);```
       const getRecipientStatusId =
         await this.redisService.getUserStatus(recipientId);
 
-      // Todo: Recipient room check
-      if (getRecipientStatusId?.socketId) {
-        const isRecipientSocket = this.clientConnection.get(
-          getRecipientStatusId.socketId,
-        );
-
-        logger.info(`🔍 Recipient socket found: ${isRecipientSocket ? isRecipientSocket.id : 'no socket found'}`);
-        logger.info(`🔍 Recipient rooms: ${isRecipientSocket ? room.id : 'no socket rooms found'}`);
-      } else {
+      if (!getRecipientStatusId?.socketId) {
         logger.info(`Recipient ${recipientId} is offline — message saved, will be loaded from history`);
       }
 
-      //! Debug: double lifecycle management; the same resource being controlled by two owners simultaneously => Solution: Removed transaction queryRunner rollback
-      logger.info(`User ${payload.sub}'s message is saved in the chat room`);
-      logger.info(`User ${payload.sub} sent ${messageSchema.id}th message`);
+      logger.info(`User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`);
 
-      // Todo: Final return
       return messageSchema;
 
     } catch (error: any) {

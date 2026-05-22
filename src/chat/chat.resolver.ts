@@ -80,11 +80,11 @@ export class ChatResolver {
         queryRunner,
       );
 
+      await queryRunner.commitTransaction();
+
       await this.pubSub.publish(`receiveMessage :${savedMessage.room?.id}`, {
         receiveMessage: savedMessage,
       });
-
-      await queryRunner.commitTransaction();
       logger.info(`User ${userId}'s message is saved in the chat room`);
 
       return { ...savedMessage, roomId: savedMessage.room?.id };
