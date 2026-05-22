@@ -406,6 +406,44 @@ describe('ChatService', () => {
     });
   });
 
+  describe('getRoom', () => {
+    const mockQueryBuilder = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+
+    beforeEach(() => {
+      jest.spyOn(roomRepository, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
+    });
+
+    it('should return room id when room exists', async () => {
+      mockQueryBuilder.getOne.mockResolvedValue({ id: 5 });
+
+      const result = await chatService.getRoom(1, 2);
+
+      expect(result).toBe(5);
+    });
+
+    it('should return null when no room exists', async () => {
+      mockQueryBuilder.getOne.mockResolvedValue(null);
+
+      const result = await chatService.getRoom(1, 2);
+
+      expect(result).toBeNull();
+    });
+
+    it('should sort user ids before querying', async () => {
+      mockQueryBuilder.getOne.mockResolvedValue({ id: 3 });
+
+      await chatService.getRoom(5, 2);
+
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('p1.id = :id1', { id1: 2 });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('p2.id = :id2', { id2: 5 });
+    });
+  });
+
   describe('getMessages', () => {
     const roomId = 1;
     const mockMessages = [
