@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import { useAuthStore } from '../store/auth.store';
 
 // Creating Axios instance
@@ -31,15 +32,14 @@ api.interceptors.response.use(
             original._retry = true;
 
             // `useAuthStore.getState()` accesses to Zustand status outside from React as interceptor cannot use hook outside from React component.
-            const { refreshToken, setTokens, userId } = useAuthStore.getState();
-            // Issues new accessToken request on 'RefreshAccess' endpoint calls on the 'auth.controller'
-            const { data } = await api.post('/auth/token/refreshAccess', null, {
+            const { refreshToken, setTokens } = useAuthStore.getState();
+            const { data } = await api.post('/auth/token/refreshaccess', null, {
                 headers: { Authorization: `Bearer ${refreshToken}` },
             });
 
-            // Saves new token in Zustand, reflects renewed accessToken on global.
-            setTokens(data.accessToken, refreshToken!, userId!);
-            original.headers.Authorization = `Bearer ${refreshToken}`;
+            const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
+            setTokens(data.accessToken, refreshToken!, sub);
+            original.headers.Authorization = `Bearer ${data.accessToken}`;
 
             // Automatically restart previously failed request after client's renewal of token.
             return api(original);
