@@ -12,7 +12,7 @@ export class MessageType {
   @Field(() => UserType, { nullable: true })
   participant?: UserType;
 
-  @Field()
+  @Field({ nullable: true })
   createdAt?: Date;
 
   @Field(() => Int, { nullable: true })

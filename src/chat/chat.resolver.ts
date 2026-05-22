@@ -1,9 +1,3 @@
-// Todo: GraphQL connection
-// Resolvers provide the instructions
-// for turning a GraphQL operation (a query, mutation, or subscription) into data.
-// They return the same shape of data we specify in our schema either synchronously
-// or as a promise that resolves to a result of that shape.
-
 import {
   Resolver,
   Subscription,
@@ -30,16 +24,14 @@ export class ChatResolver {
   constructor(
     private readonly chatService: ChatService,
     private readonly pubSub: PubSubService,
-    //! Debug: Inject QueryRunner for transaction when client request to GraphQL
     private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
     private readonly authService: AuthService,
   ) { }
 
-  // A dummy query to satisfy root Query requirement
-  @Query(() => MessageType)
+  @Query(() => String)
   ping(): string {
-    return 'ping has returned.'; // Fixes the error (GraphQL requires at least one @Query)
+    return 'ping has returned.';
   }
 
   @Query(() => [Int])
@@ -74,15 +66,9 @@ export class ChatResolver {
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<MessageType | any | null> {
-    //! Debug - Solving on 'Cannot Find Sender ID': Seems jwt strategy passport cannot populates `req.user`, so GraphQL context cannot find sender id.
-    // const token = ctx.req?.headers?.authorization || 1;
-    // const tokenSplit = token.split(' ')[1].split('.')[1];
-    // const payload = JSON.parse(Buffer.from(tokenSplit, 'base64').toString());
-    
-    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization || 1, false);
+    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
     const userId = payload.sub;
 
-    //! Debug: Inject QueryRunner for transaction when client request to GraphQL
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -90,10 +76,7 @@ export class ChatResolver {
     try {
       const savedMessage = await this.chatService.sendMessage(
         { sub: userId },
-        {
-          message: input.message,
-          recipientId,
-        },
+        { message: input.message, recipientId },
         queryRunner,
       );
 
@@ -101,17 +84,8 @@ export class ChatResolver {
         receiveMessage: savedMessage,
       });
 
-      //! Debug - Save message in DB: added try/catch/finally, `commitTransaction()`, `rollbackTransaction()`, `release()` in 'chat.resolver'
       await queryRunner.commitTransaction();
       logger.info(`User ${userId}'s message is saved in the chat room`);
-
-      // Recipient online status check before publishing the messages.
-      const recipient = await this.sessionCacheService.getUserStatus(recipientId);
-
-      if (!recipient || recipient.status === 'offline') {
-        // Leaving messages to the offline recipients
-        return savedMessage;
-      };
 
       return { ...savedMessage, roomId: savedMessage.room?.id };
 
@@ -128,13 +102,9 @@ export class ChatResolver {
   }
 
   @Subscription(() => MessageType, {
-    resolve: (payload) => {
-      return payload.receiveMessage;
-    },
-    filter: () => {
-      return true; // Accept all for testing
-    },
-  }) // define ObjectType
+    resolve: (payload) => payload.receiveMessage,
+    filter: () => true,
+  })
   @UseGuards(GraphQLAuthGuard)
   receiveMessage(@Args('roomId', { type: () => ID }) roomId: number) {
     return this.pubSub.asyncIterableIterator(`receiveMessage :${roomId}`);
