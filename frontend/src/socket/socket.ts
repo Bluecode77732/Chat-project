@@ -5,9 +5,8 @@ import { Socket } from 'socket.io-client';
 const createSocket = () =>
     // `io` connection to `@WebSocketGateway()` in 'chat.gateway'.
     io(import.meta.env.VITE_API_URL, {
-        // Auto connection disabled for the logins with available tokens.
         autoConnect: false,
-        // Injection of the bearer token in Socket handshake.
+        forceNew: true,
         extraHeaders: {
             authorization: `Bearer ${useAuthStore.getState().accessToken}`,
         },

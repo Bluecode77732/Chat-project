@@ -80,7 +80,7 @@ function ChatPage() {
         if (!data?.getMessages) return;
 
         const incoming: Message[] = data.getMessages.map(m => ({
-            id: m.id,
+            id: Number(m.id),
             userId: Number(m.participant?.id),
             message: m.message,
             roomId,
@@ -116,7 +116,7 @@ function ChatPage() {
         if (!scrollRef.current || !currentRoomId || !hasMore) return;
         if (scrollRef.current.scrollTop === 0) {
             const oldestId = messages.find(m => m.id)?.id;
-            loadMessages(currentRoomId, oldestId);
+            if (oldestId) loadMessages(currentRoomId, Number(oldestId));
         }
     }, [currentRoomId, hasMore, messages, loadMessages]);
 
