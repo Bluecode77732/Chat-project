@@ -13,8 +13,8 @@ const api = axios.create({
 // `interceptors.request.use` intercepts all requests to inject 'accessToken' on each requests automatically.
 api.interceptors.request.use((config) => {
     const token = useAuthStore.getState().accessToken;
-    if (token) {
-        // JWTAuthGuard verifies Bearer token via this header.
+    // Only inject accessToken if Authorization header is not already explicitly set (e.g. refresh token calls)
+    if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
     };
     return config;
