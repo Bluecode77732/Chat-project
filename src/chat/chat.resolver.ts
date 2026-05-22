@@ -54,8 +54,8 @@ export class ChatResolver {
     @Context() ctx: any,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<number | null> {
-    const userId = ctx.req?.user?.id;
-    return this.chatService.getRoom(userId, recipientId);
+    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
+    return this.chatService.getRoom(payload.sub, recipientId);
   }
 
   @Query(() => [MessageType])
