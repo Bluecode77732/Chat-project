@@ -31,6 +31,12 @@ export const GET_ONLINE_USERS = gql`
     }
 `
 
+export const GET_ROOM = gql`
+    query GetRoom($recipientId: Int!) {
+        getRoom(recipientId: $recipientId)
+    }
+`
+
 export const GET_MESSAGES = gql`
     query GetMessages($roomId: Int!, $cursor: Int) {
         getMessages(roomId: $roomId, cursor: $cursor) {

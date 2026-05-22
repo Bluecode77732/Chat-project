@@ -279,6 +279,18 @@ export class ChatService {
     }
   }
 
+  async getRoom(userId: number, recipientId: number): Promise<number | null> {
+    const [id1, id2] = [userId, recipientId].sort((a, b) => a - b);
+    const room = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin('room.participants', 'p1')
+      .innerJoin('room.participants', 'p2')
+      .where('p1.id = :id1', { id1 })
+      .andWhere('p2.id = :id2', { id2 })
+      .getOne();
+    return room?.id ?? null;
+  }
+
   async getMessages(roomId: number, cursor?: number, limit = 15): Promise<ChatEntity[]> {
     const qb = this.chatRepository
       .createQueryBuilder('chat')

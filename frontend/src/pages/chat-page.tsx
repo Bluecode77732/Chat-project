@@ -4,7 +4,7 @@ import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
-import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES } from "../api/graphql-operations";
+import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES, GET_ROOM } from "../api/graphql-operations";
 
 interface Message {
     id?: number;
@@ -63,6 +63,17 @@ function ChatPage() {
         pollInterval: 5000,
     });
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES);
+    const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM);
+
+    useEffect(() => {
+        if (!recipientId) return;
+        setCurrentRoomId(null);
+        setMessages([]);
+        setHasMore(true);
+        fetchRoom({ variables: { recipientId } }).then(({ data }) => {
+            if (data?.getRoom) setCurrentRoomId(data.getRoom);
+        });
+    }, [recipientId]);
 
     const loadMessages = useCallback(async (roomId: number, cursor?: number) => {
         const { data } = await fetchMessages({ variables: { roomId, cursor } });
