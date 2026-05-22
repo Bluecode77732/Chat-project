@@ -46,12 +46,12 @@ interface OnlineUsersData {
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-    const [recipientId, setRecipientId] = useState<number | null>(null);
     const [currentRoomId, setCurrentRoomId] = useState<number | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const { clearTokens } = useAuthStore();
+    const { clearTokens, lastRecipientId, setLastRecipientId } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
+    const [recipientId, setRecipientId] = useState<number | null>(lastRecipientId);
     const navigate = useNavigate();
 
     const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
@@ -195,11 +195,11 @@ function ChatPage() {
                     Sign Out
                 </button>
             </div>
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 flex-wrap">
                 {onlineData?.getOnlineUser?.map((id: number) => (
                     <span
                         key={id}
-                        onClick={() => id !== userId && setRecipientId(id)}
+                        onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
                         className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
                             id === userId
                                 ? 'bg-green-200 cursor-default'
@@ -211,6 +211,11 @@ function ChatPage() {
                         {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
                     </span>
                 ))}
+                {recipientId && !onlineData?.getOnlineUser?.includes(recipientId) && (
+                    <span className="px-3 py-1 rounded-full text-sm bg-blue-400 text-white opacity-50 cursor-default">
+                        ✓ User {recipientId} (offline)
+                    </span>
+                )}
             </div>
 
             <div
