@@ -138,6 +138,8 @@ function ChatPage() {
     }, [subData]);
 
     useEffect(() => {
+        if (!accessToken) return;
+
         reconnectSocket();
 
         socket.on('CreateRoom', (roomId: string) => {
