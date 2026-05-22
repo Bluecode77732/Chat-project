@@ -1,14 +1,32 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth.store";
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import api from "../api/axios";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    // Token subscription from Zustand for auto rerendering when token change
-    const accessToken = useAuthStore((state) => state.accessToken)
+    const { accessToken, refreshToken, setTokens, clearTokens } = useAuthStore();
+    const [initializing, setInitializing] = useState(!accessToken && !!refreshToken);
+
+    useEffect(() => {
+        if (!accessToken && refreshToken) {
+            api.post('/auth/token/refreshaccess', null, {
+                headers: { Authorization: `Bearer ${refreshToken}` },
+            })
+                .then(({ data }) => {
+                    const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
+                    setTokens(data.accessToken, refreshToken, sub);
+                })
+                .catch(() => clearTokens())
+                .finally(() => setInitializing(false));
+        }
+    }, []);
+
+    if (initializing) return null;
 
     if (!accessToken) {
-        // Redirect to login page, prevents re-access to '/chat' when client going back with the browser
-        return <Navigate to='/' replace />
-    };
+        return <Navigate to='/' replace />;
+    }
 
     return <>{children}</>;
 }
