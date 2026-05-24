@@ -273,6 +273,21 @@ export class ChatService {
     return room?.id ?? null;
   }
 
+  async getMyRooms(userId: number): Promise<{ roomId: number; recipientId: number }[]> {
+    const rooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoinAndSelect('room.participants', 'participant')
+      .innerJoin('room.participants', 'me', 'me.id = :userId', { userId })
+      .getMany();
+
+    return rooms
+      .map(room => {
+        const recipient = room.participants?.find(p => p.id !== userId);
+        return recipient?.id ? { roomId: room.id!, recipientId: recipient.id } : null;
+      })
+      .filter((r): r is { roomId: number; recipientId: number } => r !== null);
+  }
+
   async getMessages(roomId: number, cursor?: number, limit = 15): Promise<ChatEntity[]> {
     const qb = this.chatRepository
       .createQueryBuilder('chat')

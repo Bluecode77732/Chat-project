@@ -10,6 +10,7 @@ import {
 } from '@nestjs/graphql';
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
+import { RoomInfoType } from 'src/graphql/room-info.type';
 import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
@@ -38,6 +39,13 @@ export class ChatResolver {
   @UseGuards(GraphQLAuthGuard)
   async getOnlineUser(): Promise<number[] | null> {
     return this.sessionCacheService.getOnlineUser();
+  }
+
+  @Query(() => [RoomInfoType])
+  @UseGuards(GraphQLAuthGuard)
+  async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {
+    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
+    return this.chatService.getMyRooms(payload.sub);
   }
 
   @Query(() => Int, { nullable: true })

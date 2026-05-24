@@ -37,6 +37,15 @@ export const GET_ROOM = gql`
     }
 `
 
+export const GET_MY_ROOMS = gql`
+    query GetMyRooms {
+        getMyRooms {
+            roomId
+            recipientId
+        }
+    }
+`
+
 export const GET_MESSAGES = gql`
     query GetMessages($roomId: Int!, $cursor: Int) {
         getMessages(roomId: $roomId, cursor: $cursor) {

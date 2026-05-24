@@ -27,7 +27,6 @@ export const useAuthStore = create<AuthState>()(
                     accessToken: null,
                     refreshToken: null,
                     userId: null,
-                    lastRecipientId: null,
                 }),
         }),
         {

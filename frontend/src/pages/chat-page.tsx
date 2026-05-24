@@ -4,7 +4,7 @@ import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
-import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES, GET_ROOM } from "../api/graphql-operations";
+import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES, GET_ROOM, GET_MY_ROOMS } from "../api/graphql-operations";
 
 interface Message {
     id?: number;
@@ -43,6 +43,13 @@ interface OnlineUsersData {
     getOnlineUser: number[];
 }
 
+interface MyRoomsData {
+    getMyRooms: Array<{
+        roomId: number;
+        recipientId: number;
+    }>;
+}
+
 function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -64,6 +71,7 @@ function ChatPage() {
     });
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES);
     const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM);
+    const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS);
 
     useEffect(() => {
         if (!recipientId) return;
@@ -120,6 +128,14 @@ function ChatPage() {
         }
     }, [currentRoomId, hasMore, messages, loadMessages]);
 
+    // Reload messages on socket reconnect (network drop recovery)
+    useEffect(() => {
+        if (!currentRoomId) return;
+        const handleConnect = () => loadMessages(currentRoomId);
+        socket.on('connect', handleConnect);
+        return () => { socket.off('connect', handleConnect); };
+    }, [currentRoomId, loadMessages]);
+
     // Incoming messages from subscription (others only)
     useEffect(() => {
         if (!subData?.receiveMessage) return;
@@ -171,6 +187,7 @@ function ChatPage() {
 
         if (!currentRoomId && newRoomId) {
             setCurrentRoomId(newRoomId);
+            refetchRooms();
         }
 
         setMessages(prev => [...prev, {
@@ -197,6 +214,30 @@ function ChatPage() {
                     Sign Out
                 </button>
             </div>
+            {myRoomsData?.getMyRooms && myRoomsData.getMyRooms.length > 0 && (
+                <div className="flex gap-2 mb-3 flex-wrap items-center">
+                    <span className="text-xs text-gray-400">Conversations:</span>
+                    {myRoomsData.getMyRooms.map(({ roomId, recipientId: rid }) => {
+                        const isOnline = onlineData?.getOnlineUser?.includes(rid);
+                        const isSelected = rid === recipientId;
+                        return (
+                            <span
+                                key={roomId}
+                                onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
+                                className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
+                                    isSelected
+                                        ? 'bg-blue-400 text-white border-blue-400'
+                                        : isOnline
+                                            ? 'bg-white border-green-400 hover:bg-green-50'
+                                            : 'bg-white border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                User {rid} {isOnline ? '(online)' : '(offline)'}
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
             <div className="flex gap-2 mb-4 flex-wrap">
                 {onlineData?.getOnlineUser?.map((id: number) => (
                     <span
