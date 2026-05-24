@@ -493,6 +493,71 @@ describe('ChatService', () => {
     });
   });
 
+  describe('getMyRooms', () => {
+    const userId = 1;
+
+    const mockQueryBuilder = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      innerJoin: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
+
+    beforeEach(() => {
+      jest.spyOn(roomRepository, 'createQueryBuilder').mockReturnValue(mockQueryBuilder as any);
+    });
+
+    it('should return rooms with correct roomId and recipientId', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 1, participants: [{ id: 1 }, { id: 2 }] },
+      ]);
+
+      const result = await chatService.getMyRooms(userId);
+
+      expect(result).toEqual([{ roomId: 1, recipientId: 2 }]);
+    });
+
+    it('should return empty array when user has no rooms', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      const result = await chatService.getMyRooms(userId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should correctly identify recipient regardless of participant order', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 2, participants: [{ id: 3 }, { id: 1 }] },
+      ]);
+
+      const result = await chatService.getMyRooms(userId);
+
+      expect(result).toEqual([{ roomId: 2, recipientId: 3 }]);
+    });
+
+    it('should skip rooms where recipient has no id', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 3, participants: [{ id: 1 }, { id: undefined }] },
+      ]);
+
+      const result = await chatService.getMyRooms(userId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return all rooms when user has multiple conversations', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 1, participants: [{ id: 1 }, { id: 2 }] },
+        { id: 2, participants: [{ id: 1 }, { id: 3 }] },
+      ]);
+
+      const result = await chatService.getMyRooms(userId);
+
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual({ roomId: 1, recipientId: 2 });
+      expect(result).toContainEqual({ roomId: 2, recipientId: 3 });
+    });
+  });
+
   describe('sendMessage', () => {
     it('should send message through successfully commit transaction', async () => {
       const mockPayload = { sub: 1 };
