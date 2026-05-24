@@ -69,9 +69,9 @@ function ChatPage() {
     const { data: onlineData } = useQuery<OnlineUsersData>(GET_ONLINE_USERS, {
         pollInterval: 5000,
     });
-    const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES);
-    const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM);
-    const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS);
+    const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
+    const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM, { fetchPolicy: 'network-only' });
+    const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS, { fetchPolicy: 'network-only' });
 
     useEffect(() => {
         if (!recipientId) return;
