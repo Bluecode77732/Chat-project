@@ -64,7 +64,8 @@ export class ChatResolver {
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
   ): Promise<MessageType[]> {
-    return this.chatService.getMessages(roomId, cursor);
+    const msgs = await this.chatService.getMessages(roomId, cursor);
+    return msgs.map(m => ({ ...m, createdAt: m.created }));
   }
 
   @Mutation(() => MessageType)
@@ -95,7 +96,7 @@ export class ChatResolver {
       });
       logger.info(`User ${userId}'s message is saved in the chat room`);
 
-      return { ...savedMessage, roomId: savedMessage.room?.id };
+      return { ...savedMessage, roomId: savedMessage.room?.id, createdAt: savedMessage.created };
 
     } catch (error: any) {
       logger.error(error.message, {

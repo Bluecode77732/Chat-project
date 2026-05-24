@@ -11,6 +11,7 @@ interface Message {
     userId: number;
     message: string;
     roomId: number;
+    createdAt?: string;
 }
 
 interface SubscriptionData {
@@ -27,6 +28,7 @@ interface SendMessageData {
         message: string;
         participant: { id: number };
         roomId: number;
+        createdAt: string;
     };
 }
 
@@ -92,6 +94,7 @@ function ChatPage() {
             userId: Number(m.participant?.id),
             message: m.message,
             roomId,
+            createdAt: m.createdAt,
         }));
 
         if (incoming.length < 15) setHasMore(false);
@@ -149,6 +152,7 @@ function ChatPage() {
                 userId: senderId,
                 message: subData.receiveMessage.message,
                 roomId: currentRoomId!,
+                createdAt: new Date().toISOString(),
             }];
         });
     }, [subData]);
@@ -195,9 +199,16 @@ function ChatPage() {
             userId: userId!,
             message: input,
             roomId: currentRoomId ?? newRoomId!,
+            createdAt: data?.sendMessage?.createdAt ?? new Date().toISOString(),
         }]);
 
         setInput('');
+    };
+
+    const formatTime = (iso?: string) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     };
 
     const signOut = () => {
@@ -269,20 +280,23 @@ function ChatPage() {
                 {messages.map((msg, i) => (
                     <div
                         key={msg.id ?? i}
-                        className={`p-2 rounded max-w-xs ${msg.userId === userId
-                            ? 'bg-blue-100 ml-auto'
-                            : 'bg-gray-100 mr-auto'
-                        }`}
-                        dangerouslySetInnerHTML={{
-                            __html: DOMpurify.sanitize(msg.message),
-                        }}
-                    />
+                        className={`flex flex-col max-w-xs ${msg.userId === userId ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                    >
+                        <div
+                            className={`p-2 rounded ${msg.userId === userId ? 'bg-blue-100' : 'bg-gray-100'}`}
+                            dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
+                        />
+                        {msg.createdAt && (
+                            <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
+                        )}
+                    </div>
                 ))}
             </div>
             <div className="flex gap-2 mt-4">
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     className="flex-1 border p-2 rounded"
                     placeholder="Type Message"
                 />

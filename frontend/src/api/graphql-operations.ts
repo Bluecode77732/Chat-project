@@ -9,6 +9,7 @@ export const SEND_MESSAGE = gql`
                 id
             }
             roomId
+            createdAt
         }
     }
 `
@@ -54,6 +55,7 @@ export const GET_MESSAGES = gql`
             participant {
                 id
             }
+            createdAt
         }
     }
 `
