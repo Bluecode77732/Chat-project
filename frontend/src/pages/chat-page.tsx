@@ -225,34 +225,11 @@ function ChatPage() {
                     Sign Out
                 </button>
             </div>
-            {myRoomsData?.getMyRooms && myRoomsData.getMyRooms.length > 0 && (
-                <div className="flex gap-2 mb-3 flex-wrap items-center">
-                    <span className="text-xs text-gray-400">Conversations:</span>
-                    {myRoomsData.getMyRooms.map(({ roomId, recipientId: rid }) => {
-                        const isOnline = onlineData?.getOnlineUser?.includes(rid);
-                        const isSelected = rid === recipientId;
-                        return (
-                            <span
-                                key={roomId}
-                                onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
-                                className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
-                                    isSelected
-                                        ? 'bg-blue-400 text-white border-blue-400'
-                                        : isOnline
-                                            ? 'bg-white border-green-400 hover:bg-green-50'
-                                            : 'bg-white border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                User {rid} {isOnline ? '(online)' : '(offline)'}
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
-            <div className="flex gap-2 mb-4 flex-wrap">
+            <div className="flex gap-2 mb-4 flex-wrap items-center">
+                <span className="text-xs text-gray-400">Conversations:</span>
                 {onlineData?.getOnlineUser?.map((id: number) => (
                     <span
-                        key={id}
+                        key={`u-${id}`}
                         onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
                         className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
                             id === userId
@@ -270,6 +247,17 @@ function ChatPage() {
                         ✓ User {recipientId} (offline)
                     </span>
                 )}
+                {myRoomsData?.getMyRooms?.filter(({ recipientId: rid }) =>
+                    !onlineData?.getOnlineUser?.includes(rid) && rid !== recipientId
+                ).map(({ roomId, recipientId: rid }) => (
+                    <span
+                        key={roomId}
+                        onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
+                        className="px-3 py-1 rounded-full text-sm cursor-pointer border bg-white border-gray-300 hover:bg-gray-50"
+                    >
+                        User {rid} (offline)
+                    </span>
+                ))}
             </div>
 
             <div
