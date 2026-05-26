@@ -15,19 +15,15 @@ export class SessionCacheService {
   ) { }
 
   async sethUserOnline(userId: number, socketId: string) {
-    // Stores user data as Redis hash; format: user:key
-    // Setting `status` track presence
-    // Hash allows storing multiple fields without creating separate keys
     await this.redis.hSet(`user:${userId}`, { socketId, status: 'online' });
-    // Sets 24h of expiration on the user key to automatically clean up data properly after 24h.
-    // Prevents Redis memory buildup from abandoned sessions
     await this.redis.expire(`user:${userId}`, 86400);
+    // Track online user IDs in a dedicated Set for O(1) membership lookup
+    await this.redis.sAdd('online_users', String(userId));
   }
 
   async sethUserOffline(userId: number) {
-    // Updates `status` field only without deleting socketId
-    // Keeps tracking `userId` and last seen information
     await this.redis.hSet(`user:${userId}`, 'status', 'offline');
+    await this.redis.sRem('online_users', String(userId));
   }
 
   async getUserStatus(
@@ -35,7 +31,6 @@ export class SessionCacheService {
   ): Promise<{ socketId?: string; status?: string } | null> {
     try {
       const data = await this.redis.hGetAll(`user:${userId}`);
-
       return data.socketId ? data : null;
     } catch (error) {
       return null;
@@ -43,21 +38,33 @@ export class SessionCacheService {
   }
 
   async getOnlineUser(): Promise<number[] | null> {
-    const keys = await this.redis.keys('user:*');
-    const onlineUsers: number[] = [];
+    const members = await this.redis.sMembers('online_users');
+    return members.map(Number);
+  }
 
-    for (const key of keys) {
-      const data = await this.redis.hGetAll(key);
+  async cacheMessage(roomId: number, message: any): Promise<void> {
+    const { password: _pw, ...participant } = message.participant ?? {};
+    const entry = JSON.stringify({
+      id: message.id,
+      message: message.message,
+      created: message.created,
+      participant,
+    });
+    const key = `room_messages:${roomId}`;
+    await this.redis.lPush(key, entry);
+    await this.redis.lTrim(key, 0, 9);
+    await this.redis.expire(key, 86400);
+  }
 
-      if (data.status === 'online') {
-        const userId = Number(key.split(':')[1]);
-        // console.log(`❗ User ID: ${userId}`);
-
-        onlineUsers.push(userId);
-        // console.log(`❗ Online Users: ${onlineUsers}`);
-      };
-    };
-
-    return onlineUsers;
-  };
+  async getCachedMessages(roomId: number): Promise<any[] | null> {
+    const entries = await this.redis.lRange(`room_messages:${roomId}`, 0, 9);
+    if (!entries.length) return null;
+    // lPush stores newest at index 0; reverse to return oldest-first (matches DB order)
+    return entries
+      .map(e => {
+        const m = JSON.parse(e);
+        return { ...m, created: new Date(m.created) };
+      })
+      .reverse();
+  }
 }

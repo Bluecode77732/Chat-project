@@ -29,17 +29,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
   async validate(req: Request, payload: Payload): Promise<Omit<UserEntity, 'password'>> {
     const token = req.headers.authorization?.split(' ')[1];
     const isBlackListed = await this.redis.get(`blacklist:${token}`);
-    const user = await this.userService.findOne(payload.sub);
 
     if (isBlackListed) {
       throw new UnauthorizedException(`Token has revoked. Sign in again to continue the chatting.`);
     }
+
+    const cached = await this.redis.get(`user_cache:${payload.sub}`);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const user = await this.userService.findOne(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('User Not Found.');
     }
 
     const { password, ...rest } = user;
+    await this.redis.set(`user_cache:${payload.sub}`, JSON.stringify(rest), { EX: 300 });
 
     return rest;
   }

@@ -5,6 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
+import { GqlExecutionContext } from '@nestjs/graphql';
 import * as RedisClient from 'redis';
 import { logger } from 'src/base/logger/logger';
 
@@ -15,26 +16,35 @@ export class RateLimitGuard implements CanActivate {
     private readonly redis: RedisClient.RedisClientType,
   ) {}
 
-  // The `canActivate` performs asynchronous Redis operations such as `incr` or `expire` that return Promises and need to be awaited.
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
-      const client = context.switchToWs().getClient();
+      let userId: number;
 
-      const userId = client.data.user.sub;
+      if (context.getType() === 'ws') {
+        const client = context.switchToWs().getClient();
+        userId = client.data.user.sub;
+      } else {
+        const gqlCtx = GqlExecutionContext.create(context).getContext();
+        userId = gqlCtx.req?.user?.id;
+      }
 
       if (!userId) {
         throw new WsException('Cannot Find User Id');
       }
 
       const key = `rate limiting message: ${userId}`;
-      const count = await this.redis.incr(key);
+      // Lua script ensures INCR and EXPIRE execute atomically —
+      // prevents a permanent key if the server crashes between the two commands
+      const luaScript = `
+        local count = redis.call('INCR', KEYS[1])
+        if count == 1 then
+          redis.call('EXPIRE', KEYS[1], 60)
+        end
+        return count
+      `;
+      const count = await this.redis.eval(luaScript, { keys: [key] }) as number;
 
-      if (count === 1) {
-        // Expires key in 60 seconds
-        await this.redis.expire(key, 60);
-      }
       if (count > 10) {
-        // Error when exceeds 10 messages in a per minute.
         throw new WsException('Rate limit exceeded');
       }
 

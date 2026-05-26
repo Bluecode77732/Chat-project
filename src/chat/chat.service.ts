@@ -246,6 +246,7 @@ export class ChatService {
         logger.info(`Recipient ${recipientId} is offline — message saved, will be loaded from history`);
       }
 
+      await this.redisService.cacheMessage(room.id, messageSchema);
       logger.info(`User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`);
 
       return messageSchema;
@@ -289,6 +290,12 @@ export class ChatService {
   }
 
   async getMessages(roomId: number, cursor?: number, limit = 15): Promise<ChatEntity[]> {
+    if (!cursor) {
+      const cached = await this.redisService.getCachedMessages(roomId);
+      if (cached) 
+        return cached;
+    }
+
     const qb = this.chatRepository
       .createQueryBuilder('chat')
       .leftJoinAndSelect('chat.participant', 'participant')

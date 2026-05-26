@@ -14,6 +14,7 @@ import { RoomInfoType } from 'src/graphql/room-info.type';
 import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
+import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
@@ -69,7 +70,7 @@ export class ChatResolver {
   }
 
   @Mutation(() => MessageType)
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, RateLimitGuard)
   async sendMessage(
     @Context() ctx: any,
     @Args('input') input: CreateChatInput,
