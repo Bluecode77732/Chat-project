@@ -58,9 +58,8 @@ describe('AuthService', () => {
         {
           provide: 'REDIS_CLIENT',
           useValue: {
-            hSet: jest.fn(),
-            hGetAll: jest.fn(),
-            expire: jest.fn(),
+            set: jest.fn(),
+            get: jest.fn(),
           },
         },
       ],
@@ -146,7 +145,7 @@ describe('AuthService', () => {
       jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      await expect(authService.parseBearerToken('Bearer validtoken', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
+      await expect(authService.parseBearerToken('Bearer validToken', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
   });
 

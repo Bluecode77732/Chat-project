@@ -24,6 +24,10 @@ describe('UserService', () => {
     getOrThrow: jest.fn(),
   };
 
+  const mockRedisClient = {
+    del: jest.fn().mockResolvedValue(1),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +39,10 @@ describe('UserService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: 'REDIS_CLIENT',
+          useValue: mockRedisClient,
         },
       ],
     }).compile();
@@ -147,6 +155,7 @@ describe('UserService', () => {
       expect(updatedUser).toEqual({ ...user, password: "PrivatePassword" });
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(bcrypt.hash).toHaveBeenCalledWith(user.password, hashed);
+      expect(mockRedisClient.del).toHaveBeenCalledWith(`user_cache:${userId}`);
       // (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         { id: 1 },

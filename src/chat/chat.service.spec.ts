@@ -82,6 +82,8 @@ describe('ChatService', () => {
             sethUserOnline: jest.fn(),
             sethUserOffline: jest.fn(),
             getUserStatus: jest.fn(),
+            cacheMessage: jest.fn().mockResolvedValue(undefined),
+            getCachedMessages: jest.fn().mockResolvedValue(null),
           },
         },
       ],
