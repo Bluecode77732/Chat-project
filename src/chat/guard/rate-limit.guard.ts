@@ -32,7 +32,8 @@ export class RateLimitGuard implements CanActivate {
         throw new WsException('Cannot Find User Id');
       }
 
-      const key = `rate limiting message: ${userId}`;
+      const contextType = context.getType() === 'ws' ? 'ws' : 'gql';
+      const key = `rate_limit:${contextType}:${userId}`;
       // Lua script ensures INCR and EXPIRE execute atomically —
       // prevents a permanent key if the server crashes between the two commands
       const luaScript = `

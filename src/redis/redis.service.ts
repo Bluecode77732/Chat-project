@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import * as redisClient from 'redis';
 
 /**
@@ -8,11 +8,15 @@ import * as redisClient from 'redis';
  */
 
 @Injectable()
-export class SessionCacheService {
+export class SessionCacheService implements OnModuleInit {
   constructor(
     @Inject('REDIS_CLIENT')
     private readonly redis: redisClient.RedisClientType,
   ) { }
+
+  async onModuleInit() {
+    await this.redis.del('online_users');
+  }
 
   async sethUserOnline(userId: number, socketId: string) {
     await this.redis.hSet(`user:${userId}`, { socketId, status: 'online' });

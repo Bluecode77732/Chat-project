@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
 import { logger } from 'src/base/logger/logger';
+import * as RedisClient from 'redis';
 
 @Injectable()
 export class UserService {
@@ -20,6 +22,9 @@ export class UserService {
     private readonly userRepository: Repository<UserEntity>,
 
     private readonly configService: ConfigService,
+
+    @Inject('REDIS_CLIENT')
+    private readonly redis: RedisClient.RedisClientType,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -115,6 +120,7 @@ export class UserService {
         role: updateUserDto.role,
       },
     );
+    await this.redis.del(`user_cache:${id}`);
     logger.info(`User '${user.id}' is updated`, {
       timestamp: new Date().toISOString(),
     });
