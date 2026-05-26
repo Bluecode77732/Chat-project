@@ -70,7 +70,7 @@ function SignInPage() {
                     Sign In
                 </button>
                 <button onClick={() => navigate('/register')}
-                    className='bg-blue-500 text-sm'>
+                    className='bg-white text-sm'>
                     Don't have an account? Register.
                 </button>
             </div>
