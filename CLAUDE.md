@@ -70,15 +70,21 @@ Review from a technical and risk perspective.
 
 ## Project Overview
 
-Real-time one-to-one chat application. NestJS backend + React frontend in a **pnpm monorepo** (backend at root, frontend at `frontend/`). Deployed on Railway (backend) and Vercel (frontend).
+Real-time one-to-one chat application. NestJS backend + React frontend in a **pnpm monorepo** (`backend/` and `frontend/` as workspace packages). Deployed on Railway (backend) and Vercel (frontend).
 
 ## Commands
 
-All backend commands run from the repo root; frontend commands run from `frontend/`.
+### Root (workspace-level)
+```bash
+pnpm install          # Install all workspace dependencies
+pnpm build            # Build backend (pnpm --filter backend build)
+pnpm test             # Run backend tests
+pnpm lint             # Lint backend
+```
 
 ### Backend
 ```bash
-pnpm install          # Install all dependencies
+cd backend
 pnpm start:dev        # Development server with hot reload (port 3000)
 pnpm build            # Compile TypeScript to dist/
 pnpm lint             # ESLint with auto-fix
@@ -101,6 +107,7 @@ pnpm lint             # ESLint
 
 ### Run a single test file
 ```bash
+cd backend
 pnpm test -- --testPathPattern=auth.service
 ```
 
@@ -112,36 +119,36 @@ docker compose up -d --build
 ## Architecture
 
 ### Monorepo Layout
-- **Root (`src/`)** — NestJS backend (single deployable)
-- **`frontend/`** — React + Vite (pnpm workspace)
-- **`test/`** — E2E specs
-- **`src/migrations/`** — TypeORM migration files
-- **`migrations/`** — Compiled migration history
+- **`backend/`** — NestJS backend (pnpm workspace package, single deployable)
+- **`frontend/`** — React + Vite (pnpm workspace package)
+- **`backend/src/`** — NestJS source
+- **`backend/test/`** — E2E specs
+- **`backend/src/migrations/`** — TypeORM migration files
 
 ### Backend Modules
 
 **AppModule** wires together:
-- `ConfigModule` — Joi-validated env (see `.env.example` for all required vars)
+- `ConfigModule` — Joi-validated env (see `backend/.env.example` for all required vars)
 - `TypeOrmModule` — PostgreSQL with `synchronize: false`; auto-runs migrations in prod
-- `GraphQLModule` — Apollo Driver, auto-generates `src/schema.gql`, subscriptions via `graphql-ws`
+- `GraphQLModule` — Apollo Driver, auto-generates `backend/src/schema.gql`, subscriptions via `graphql-ws`
 - `UserModule`, `ChatModule`, `AuthModule`
 
-**AuthModule** (`src/auth/`)
+**AuthModule** (`backend/src/auth/`)
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/token/refreshaccess`
 - JWT access + refresh token pair; access token stored in memory on frontend, refresh token in localStorage
 - Guards: `JwtAuthGuard`, `LocalAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
 - `UserRole` enum: `signedIn` | `signedOut`
 
-**ChatModule** (`src/chat/`)
+**ChatModule** (`backend/src/chat/`)
 - `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins existing rooms, handles `sendMessage` event
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` (via RedisModule) — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
 - `RateLimitGuard` — Redis-backed 10 messages/min per user
 - Transaction interceptors wrap both REST and WebSocket handlers for ACID message saves
 
-**RedisModule** (`src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
+**RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
 
-**GraphQL PubSub** (`src/graphql/pubsub.service.ts`) — `RedisPubSub` singleton bridging mutations to subscriptions
+**GraphQL PubSub** (`backend/src/graphql/pubsub.service.ts`) — `RedisPubSub` singleton bridging mutations to subscriptions
 
 ### Data Flow for Sending a Message
 1. Client emits `sendMessage` via Socket.IO or GraphQL mutation
@@ -168,10 +175,10 @@ docker compose up -d --build
 ## Key Conventions
 
 ### Testing
-Tests live alongside source files as `*.spec.ts`. The Jest config **excludes** controllers, gateways, guards, interceptors, resolvers, decorators, strategies, DTOs, and entities from coverage — only services and the Redis module are measured. Bcrypt is mocked globally via `src/mocks/bcrypt.ts`.
+Tests live alongside source files as `*.spec.ts`. The Jest config **excludes** controllers, gateways, guards, interceptors, resolvers, decorators, strategies, DTOs, and entities from coverage — only services and the Redis module are measured. Bcrypt is mocked globally via `backend/src/mocks/bcrypt.ts`.
 
 ### Environment Variables
-Copy `.env.example` to `.env` for local dev. The app validates all vars at startup via Joi; missing vars throw on boot. The `DB_TYPE` value must be `"postgres"`.
+Copy `backend/.env.example` to `backend/.env` for local dev. The app validates all vars at startup via Joi; missing vars throw on boot. The `DB_TYPE` value must be `"postgres"`.
 
 ### Transactions
 Use `QueryRunnerDecorator` (REST) or `WsQueryRunnerDecorator` (WebSocket) to inject a `QueryRunner` — do not create raw transactions inline. Interceptors handle commit/rollback.
@@ -180,12 +187,12 @@ Use `QueryRunnerDecorator` (REST) or `WsQueryRunnerDecorator` (WebSocket) to inj
 Use the injected NestJS `Logger` (winston under the hood). Logs write to `logs/logs.log` and `logs/error.logs.log` in non-Vercel environments.
 
 ### Code Style
-Single quotes, trailing commas (`.prettierrc`). `@typescript-eslint/no-explicit-any` is off. Floating promises are warnings, not errors.
+Single quotes, trailing commas (`backend/.prettierrc`). `@typescript-eslint/no-explicit-any` is off. Floating promises are warnings, not errors.
 
 ## CI/CD
 
 GitHub Actions (`.github/workflows/deploy.yml`):
-1. **Test job**: `pnpm install` → `pnpm lint` → `pnpm test` (Node 24, pnpm 10.14.0)
-2. **Deploy job**: `pnpm build` → Railway CLI deploy (requires `RAILWAY_TOKEN` secret)
+1. **Test job**: `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` (Node 24, pnpm 10.14.0)
+2. **Deploy job**: `pnpm --filter backend build` → Railway CLI deploy (requires `RAILWAY_TOKEN` secret)
 
-Railway start command: `pnpm migration:run && node dist/main`
+Railway start command: `cd backend && pnpm migration:run && node dist/main`

@@ -8,18 +8,18 @@ RUN npm install -g pnpm@10.33.0
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package.json pnpm-lock.yaml ./
+# Copy workspace-level files first for layer caching
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY backend/package.json backend/
 
-# Install the application dependencies
-# Freeze the unmatched version of package
+# Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the application files/folders
-COPY . .
+# Copy backend source files
+COPY backend/ backend/
 
 # Build the application
-RUN pnpm build
+RUN pnpm --filter backend build
 
 
 # ----- Production stage -----
@@ -30,15 +30,16 @@ RUN npm install -g pnpm@10.33.0
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY backend/package.json backend/
 
 # `--prod` installs only necessities, excludes devDependencies, installs dependencies only
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --filter backend...
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/backend/dist ./backend/dist
 
 # Expose the application port
 EXPOSE 3000
 
 # Command to run the application
-# CMD ["node", "dist/main"]
+# CMD ["node", "backend/dist/main"]

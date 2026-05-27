@@ -2,9 +2,9 @@
 
 services:
   chat:
-    build: 
+    build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./backend/Dockerfile
       target: production
     # Can omit `depends_on:` since it doesn't have any using DB.
     depends_on:
@@ -17,7 +17,7 @@ services:
     ports: 
       - "${PORT:-3000}:3000"
     restart: unless-stopped
-    command: sh -c "pnpm migration:run && node dist/main"
+    command: sh -c "cd backend && pnpm migration:run && node dist/main"
     environment:
       NODE_ENV: docker
 

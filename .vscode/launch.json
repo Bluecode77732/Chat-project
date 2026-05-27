@@ -15,6 +15,7 @@
                 "--",
                 "--inspect-brk",
             ],
+            "cwd": "${workspaceFolder}/backend",
             "autoAttachChildProcesses": true,
             "restart": true,
             "sourceMaps": true,

@@ -20,8 +20,8 @@ jobs:
 
       - run: head -30 pnpm-lock.yaml
       - run: pnpm install
-      - run: pnpm lint || true
-      - run: pnpm test
+      - run: pnpm --filter backend lint || true
+      - run: pnpm --filter backend test
 
   deploy:
     needs: test
@@ -38,7 +38,7 @@ jobs:
           node-version: 24
 
       - run: pnpm install
-      - run: pnpm run build
+      - run: pnpm --filter backend build
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli

@@ -9,11 +9,6 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
-  "pnpm": {
-    "overrides": {
-      "@apollo/client": "^4.1.9"
-    }
-  },
   "dependencies": {
     "@apollo/client": "^4.1.9",
     "axios": "^1.15.2",

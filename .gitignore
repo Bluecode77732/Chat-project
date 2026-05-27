@@ -3,6 +3,12 @@
 /node_modules
 # .node_modules
 /build
+/backend/dist
+/backend/node_modules
+/backend/coverage
+/backend/.env
+/backend/.env.local
+/backend/.env.production
 
 # Logs
 logs
