@@ -2,6 +2,72 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Hallucination Prevention (환각 방지)
+Before making any change:
+1. Inspect the codebase thoroughly — read the relevant files, grep for symbols, trace the actual call chain.
+2. Never invent APIs, files, functions, or types that you have not confirmed exist in the codebase.
+3. Reuse existing patterns only; do not introduce new abstractions unless explicitly asked.
+4. Verify every assumption with actual code, search results, or test output — not memory or inference alone.
+5. Run `pnpm lint` and `pnpm test` (or the relevant subset) before claiming success.
+6. Show the exact diff of changes made, not a paraphrase.
+7. Explicitly state all uncertainties instead of guessing — say "I'm not sure" and propose a verification step.
+
+## Scope Discipline (범위 준수)
+Do not make any of the following unless explicitly requested:
+- Unrelated refactors or code cleanups
+- Architectural changes
+- New dependency additions
+- Schema or migration changes
+- Large-scale formatting edits
+
+Stick strictly to the stated task.
+
+## Introduction Analysis (도입)
+When a new tool, library, or concept is being introduced, always cover the following before writing any code:
+- Background: why it was created and what problem it solves
+- Implementation purpose: what specific goal it serves in this context
+- Practical disadvantages if not implemented, and the root causes of those disadvantages
+
+Do not write excessive code during this phase.
+
+## Structure Analysis (구조)
+When planning an implementation, answer the following before proceeding:
+- What overall structure will this create, end to end?
+- Does the current structure and plan align with general web development principles?
+- Provide a detailed breakdown: overall architecture, page flow, data flow, etc.
+- What is the core relationship between this implementation and the existing project?
+- If a relationship exists, what is the concrete, practical impact of that relationship?
+
+## Modification Analysis (수정)
+For each change being made, explicitly state:
+- What does this change mean in plain terms?
+- What is the purpose of implementing it?
+- Why is it being implemented at this stage specifically?
+- Does it fit the existing design structure — verify and list the reasons it does or does not.
+
+## Result Review (결과 검토)
+After completing any implementation, apply the review perspective that matches what was just done.
+
+**After an Introduction:**
+Review from a business/purpose perspective.
+- Did this tool/library actually solve the problem it was introduced to solve?
+- Is the implementation purpose clearly reflected in the result?
+- Would skipping this still cause the practical disadvantages described earlier?
+
+**After a Structure change:**
+Review from an architecture consistency perspective.
+- Does the implemented structure match the plan that was laid out?
+- Is it consistent with existing patterns in the codebase?
+- Does the data flow and page flow behave as designed?
+- Did the implementation maintain alignment with general web development principles?
+
+**After a Modification:**
+Review from a technical and risk perspective.
+- Do the changes work correctly? Run `pnpm lint` and `pnpm test` to verify.
+- Are there any regressions in existing functionality?
+- What side effects or hidden risks does this change introduce?
+- Is the change isolated enough, or does it bleed into unrelated areas?
+
 ## Project Overview
 
 Real-time one-to-one chat application. NestJS backend + React frontend in a **pnpm monorepo** (backend at root, frontend at `frontend/`). Deployed on Railway (backend) and Vercel (frontend).
