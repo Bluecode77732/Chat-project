@@ -29,7 +29,7 @@ export class ChatResolver {
     private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
     private readonly authService: AuthService,
-  ) { }
+  ) {}
 
   @Query(() => String)
   ping(): string {
@@ -45,7 +45,10 @@ export class ChatResolver {
   @Query(() => [RoomInfoType])
   @UseGuards(GraphQLAuthGuard)
   async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {
-    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
+    const payload = await this.authService.parseBearerToken(
+      ctx.req?.headers?.authorization,
+      false,
+    );
     return this.chatService.getMyRooms(payload.sub);
   }
 
@@ -55,7 +58,10 @@ export class ChatResolver {
     @Context() ctx: any,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<number | null> {
-    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
+    const payload = await this.authService.parseBearerToken(
+      ctx.req?.headers?.authorization,
+      false,
+    );
     return this.chatService.getRoom(payload.sub, recipientId);
   }
 
@@ -66,7 +72,7 @@ export class ChatResolver {
     @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
   ): Promise<MessageType[]> {
     const msgs = await this.chatService.getMessages(roomId, cursor);
-    return msgs.map(m => ({ ...m, createdAt: m.created }));
+    return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
 
   @Mutation(() => MessageType)
@@ -76,7 +82,10 @@ export class ChatResolver {
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<MessageType | any | null> {
-    const payload = await this.authService.parseBearerToken(ctx.req?.headers?.authorization, false);
+    const payload = await this.authService.parseBearerToken(
+      ctx.req?.headers?.authorization,
+      false,
+    );
     const userId = payload.sub;
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -97,8 +106,11 @@ export class ChatResolver {
       });
       logger.info(`User ${userId}'s message is saved in the chat room`);
 
-      return { ...savedMessage, roomId: savedMessage.room?.id, createdAt: savedMessage.created };
-
+      return {
+        ...savedMessage,
+        roomId: savedMessage.room?.id,
+        createdAt: savedMessage.created,
+      };
     } catch (error: any) {
       logger.error(error.message, {
         userId: userId,

@@ -26,12 +26,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
   }
 
   // Exclude `password` via `Omit<>` generic type.
-  async validate(req: Request, payload: Payload): Promise<Omit<UserEntity, 'password'>> {
+  async validate(
+    req: Request,
+    payload: Payload,
+  ): Promise<Omit<UserEntity, 'password'>> {
     const token = req.headers.authorization?.split(' ')[1];
     const isBlackListed = await this.redis.get(`blacklist:${token}`);
 
     if (isBlackListed) {
-      throw new UnauthorizedException(`Token has revoked. Sign in again to continue the chatting.`);
+      throw new UnauthorizedException(
+        `Token has revoked. Sign in again to continue the chatting.`,
+      );
     }
 
     const cached = await this.redis.get(`user_cache:${payload.sub}`);
@@ -46,7 +51,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     }
 
     const { password, ...rest } = user;
-    await this.redis.set(`user_cache:${payload.sub}`, JSON.stringify(rest), { EX: 300 });
+    await this.redis.set(`user_cache:${payload.sub}`, JSON.stringify(rest), {
+      EX: 300,
+    });
 
     return rest;
   }

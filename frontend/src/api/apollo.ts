@@ -18,7 +18,7 @@ const httpLink = new HttpLink({
 const errorLink = new ErrorLink(({ error, operation, forward }) => {
     if (CombinedGraphQLErrors.is(error) &&
         error.errors.some(e => e.extensions?.['code'] === 'UNAUTHENTICATED')) {
-        return new Observable((observer) => {
+        return new Observable<ApolloLink.Result>((observer) => {
             const { refreshToken, setTokens } = useAuthStore.getState()
 
             api.post('/auth/token/refreshaccess', null, {

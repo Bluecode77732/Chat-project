@@ -81,7 +81,9 @@ describe('AuthService', () => {
   describe('parseBasicToken', () => {
     it('should parse valid basic token', async () => {
       // Create base64 encoded token => email:password
-      const token = Buffer.from('test@gmail.com:Test123Password').toString('base64');
+      const token = Buffer.from('test@gmail.com:Test123Password').toString(
+        'base64',
+      );
       const rawToken = `Basic ${token}`;
 
       const result = await authService.parseBasicToken(rawToken);
@@ -118,7 +120,9 @@ describe('AuthService', () => {
       // const payload = { type: 'access' };
 
       // jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(payload);
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'access' });
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'access' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockResolvedValue('secret');
 
       // const result = await authService.parseBearerToken(rawToken, false);
@@ -128,30 +132,46 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException for invalid token format', async () => {
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      expect(authService.parseBearerToken('InvalidTokenFormat', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
+      expect(
+        authService.parseBearerToken('InvalidTokenFormat', false),
+      ).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
 
     it('should throw BadRequestException for not a bearer token', async () => {
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      expect(authService.parseBearerToken('bEaReR token', false)).rejects.toThrow(new UnauthorizedException(new UnauthorizedException('Token Expired')));
+      expect(
+        authService.parseBearerToken('bEaReR token', false),
+      ).rejects.toThrow(
+        new UnauthorizedException(new UnauthorizedException('Token Expired')),
+      );
     });
 
     it('should throw UnauthorizedException for not a refresh token', async () => {
-      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({ type: 'refresh' });
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      await expect(authService.parseBearerToken('Bearer validToken', false)).rejects.toThrow(new UnauthorizedException('Token Expired'));
+      await expect(
+        authService.parseBearerToken('Bearer validToken', false),
+      ).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
   });
 
   describe('register', () => {
     // Base64 authentication decoded format => email:password => convert into base64 readable string
-    const token = Buffer.from('test@gmail.com:Test123Password').toString('base64');
+    const token = Buffer.from('test@gmail.com:Test123Password').toString(
+      'base64',
+    );
     const BasicToken = `Basic ${token}`;
     const hashRounds = 10;
     const email = 'test@gmail.com';
@@ -166,10 +186,12 @@ describe('AuthService', () => {
 
     it('should register a new user', async () => {
       // Mocking user's findOne to resolve value
-      mockUserRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
-        email: 'test@gmail.com',
-        password: hashedPassword,
-      });
+      mockUserRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          email: 'test@gmail.com',
+          password: hashedPassword,
+        });
       // Mocking user's save to resolve value
       mockUserRepository.save.mockResolvedValueOnce({
         email: 'test@gmail.com',
@@ -187,7 +209,9 @@ describe('AuthService', () => {
 
       expect(bcrypt.hash).toHaveBeenCalledWith(password, hashRounds);
       expect(mockUserRepository.save).toHaveBeenCalled();
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { email: 'test@gmail.com' } });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@gmail.com' },
+      });
       expect(result).toEqual({ email, password: hashedPassword });
     });
 
@@ -253,7 +277,10 @@ describe('AuthService', () => {
     const token = 'token';
 
     beforeEach(() => {
-      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValueOnce(10).mockReturnValueOnce(10);
+      jest
+        .spyOn(mockConfigService, 'getOrThrow')
+        .mockReturnValueOnce(10)
+        .mockReturnValueOnce(10);
       jest.spyOn(jwtService, 'signAsync').mockResolvedValue(token);
     });
 
@@ -292,9 +319,7 @@ describe('AuthService', () => {
       jest
         .spyOn(authService, 'parseBasicToken')
         .mockResolvedValue({ email, password });
-      jest
-        .spyOn(authService, 'validateUser')
-        .mockResolvedValue(user as UserEntity);
+      jest.spyOn(authService, 'validateUser').mockResolvedValue(user);
       jest.spyOn(authService, 'issueToken').mockResolvedValue('token');
 
       const result = await authService.signIn(rawToken);

@@ -141,7 +141,7 @@ describe('UserService', () => {
       jest
         .spyOn(mockUserRepository, 'findOne')
         .mockResolvedValueOnce(user)
-        .mockResolvedValueOnce({ ...user, password: "PrivatePassword" });
+        .mockResolvedValueOnce({ ...user, password: 'PrivatePassword' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
       jest
         .spyOn(bcrypt, 'hash')
@@ -152,8 +152,10 @@ describe('UserService', () => {
 
       const updatedUser = await userService.update(userId, updateUserDto);
 
-      expect(updatedUser).toEqual({ ...user, password: "PrivatePassword" });
-      expect(mockUserRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(updatedUser).toEqual({ ...user, password: 'PrivatePassword' });
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
       expect(bcrypt.hash).toHaveBeenCalledWith(user.password, hashed);
       expect(mockRedisClient.del).toHaveBeenCalledWith(`user_cache:${userId}`);
       // (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);

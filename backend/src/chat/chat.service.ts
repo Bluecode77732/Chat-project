@@ -30,7 +30,7 @@ export class ChatService {
 
     // Injecting redisService to replace current in-memory storage Socket instance
     private readonly redisService: SessionCacheService,
-  ) { }
+  ) {}
 
   // Connect Socket
   async registerClient(participantId: number, client: Socket) {
@@ -115,7 +115,11 @@ export class ChatService {
 
   // Find existing room between sender and recipient => or create new one
   // Also notifies both users (if online) about the new room and joins them
-  async getOrCreateRoom(sender: UserEntity, recipientId: number, qr: QueryRunner) {
+  async getOrCreateRoom(
+    sender: UserEntity,
+    recipientId: number,
+    qr: QueryRunner,
+  ) {
     if (!sender?.id) {
       throw new WsException('Cannot Find Sender');
     }
@@ -127,7 +131,9 @@ export class ChatService {
         // Notify both users of the existing room ID so their subscriptions can start
         for (const id of [sender.id, recipientId]) {
           const status = await this.redisService.getUserStatus(id);
-          const connect = status?.socketId ? this.clientConnection.get(status.socketId) : null;
+          const connect = status?.socketId
+            ? this.clientConnection.get(status.socketId)
+            : null;
           connect?.emit('CreateRoom', room.id.toString());
           connect?.join(room.id.toString());
         }
@@ -183,7 +189,11 @@ export class ChatService {
   // - Finds or creates room
   // - Saves message
   // - Broadcasts to room (others see it) + emits back to sender
-  async sendMessage(payload: { sub: number }, { message, recipientId }: CreateChatDto, queryRunner: QueryRunner) {
+  async sendMessage(
+    payload: { sub: number },
+    { message, recipientId }: CreateChatDto,
+    queryRunner: QueryRunner,
+  ) {
     try {
       // Todo: Find a client
       const sender = await this.userRepository.findOneByOrFail({
@@ -208,7 +218,11 @@ export class ChatService {
       // Todo: Save message in the chat database permanently
       //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
       const messageSchema = Object.assign(
-        await queryRunner.manager.save(ChatEntity, { participant: sender, message, room }),
+        await queryRunner.manager.save(ChatEntity, {
+          participant: sender,
+          message,
+          room,
+        }),
         { participant: sender, room },
       );
 
@@ -243,16 +257,18 @@ export class ChatService {
         await this.redisService.getUserStatus(recipientId);
 
       if (!getRecipientStatusId?.socketId) {
-        logger.info(`Recipient ${recipientId} is offline — message saved, will be loaded from history`);
+        logger.info(
+          `Recipient ${recipientId} is offline — message saved, will be loaded from history`,
+        );
       }
 
       await this.redisService.cacheMessage(room.id, messageSchema);
-      logger.info(`User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`);
+      logger.info(
+        `User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`,
+      );
 
       return messageSchema;
-
     } catch (error: any) {
-
       logger.error(error.message, {
         userId: payload.sub,
         timestamp: new Date().toISOString(),
@@ -274,7 +290,9 @@ export class ChatService {
     return room?.id ?? null;
   }
 
-  async getMyRooms(userId: number): Promise<{ roomId: number; recipientId: number }[]> {
+  async getMyRooms(
+    userId: number,
+  ): Promise<{ roomId: number; recipientId: number }[]> {
     const rooms = await this.roomRepository
       .createQueryBuilder('room')
       .innerJoinAndSelect('room.participants', 'participant')
@@ -282,18 +300,23 @@ export class ChatService {
       .getMany();
 
     return rooms
-      .map(room => {
-        const recipient = room.participants?.find(p => p.id !== userId);
-        return recipient?.id ? { roomId: room.id!, recipientId: recipient.id } : null;
+      .map((room) => {
+        const recipient = room.participants?.find((p) => p.id !== userId);
+        return recipient?.id
+          ? { roomId: room.id!, recipientId: recipient.id }
+          : null;
       })
       .filter((r): r is { roomId: number; recipientId: number } => r !== null);
   }
 
-  async getMessages(roomId: number, cursor?: number, limit = 15): Promise<ChatEntity[]> {
+  async getMessages(
+    roomId: number,
+    cursor?: number,
+    limit = 15,
+  ): Promise<ChatEntity[]> {
     if (!cursor) {
       const cached = await this.redisService.getCachedMessages(roomId);
-      if (cached) 
-        return cached;
+      if (cached) return cached;
     }
 
     const qb = this.chatRepository

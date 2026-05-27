@@ -36,11 +36,12 @@ import { ChatResolver } from './chat/chat.resolver';
       }),
       // Configuration global adoption
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV === 'production'
-        ? '.env.production'
-        : process.env.NODE_ENV === 'docker'
-          ? '.env.local'
-          : '.env'
+      envFilePath:
+        process.env.NODE_ENV === 'production'
+          ? '.env.production'
+          : process.env.NODE_ENV === 'docker'
+            ? '.env.local'
+            : '.env',
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
@@ -97,4 +98,4 @@ import { ChatResolver } from './chat/chat.resolver';
   ],
   providers: [Logger, ChatResolver],
 })
-export class AppModule { }
+export class AppModule {}

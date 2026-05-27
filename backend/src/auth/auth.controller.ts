@@ -17,7 +17,7 @@ import { bearerTokenType, tokenType } from './dto/token-types.auth.dto';
 @Controller('auth')
 @ApiTags('Authentication API')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   // A route handler decorator, Routes (Get, Post, Patch, Put, Delete) HTTP request to the specific path.
   @Post('register')

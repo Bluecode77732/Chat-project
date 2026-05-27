@@ -12,7 +12,7 @@ export class SessionCacheService implements OnModuleInit {
   constructor(
     @Inject('REDIS_CLIENT')
     private readonly redis: redisClient.RedisClientType,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     await this.redis.del('online_users');
@@ -65,7 +65,7 @@ export class SessionCacheService implements OnModuleInit {
     if (!entries.length) return null;
     // lPush stores newest at index 0; reverse to return oldest-first (matches DB order)
     return entries
-      .map(e => {
+      .map((e) => {
         const m = JSON.parse(e);
         return { ...m, created: new Date(m.created) };
       })
