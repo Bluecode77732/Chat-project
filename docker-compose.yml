@@ -26,19 +26,17 @@ services:
     image: postgres:18
     env_file:
       - .env.local
-    environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE}
-    ports: 
+    # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are set directly in .env.local
+    # and passed into the container via env_file — no host-env interpolation needed
+    ports:
       - "5432:5432"
     restart: unless-stopped
-    volumes: 
+    volumes:
       # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
       - postgres:/var/lib/postgresql/18/main
     healthcheck:
       # Server health check command
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       # How often start in
       interval: 5s
       # Take a break for how long 
