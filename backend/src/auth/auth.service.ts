@@ -133,6 +133,11 @@ export class AuthService {
       throw new BadRequestException('Invalid User.');
     }
 
+    if (user.isAI) {
+      logger.error(`Blocked login attempt for AI system account: ${email}`);
+      throw new BadRequestException('Invalid User.');
+    }
+
     const verification = await bcrypt.compare(password, String(user.password));
 
     if (!verification) {

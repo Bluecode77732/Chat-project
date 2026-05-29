@@ -59,3 +59,24 @@ export const GET_MESSAGES = gql`
         }
     }
 `
+
+export const GET_AI_USER_ID = gql`
+    query GetAiUserId {
+        getAiUserId
+    }
+`
+
+export const SET_AI_PERSONALITY = gql`
+    mutation SetAiPersonality($roomId: Int!, $personality: AiPersonality!) {
+        setAiPersonality(roomId: $roomId, personality: $personality)
+    }
+`
+
+export const GET_AI_PERSONALITY_INFO = gql`
+    query GetAiPersonalityInfo($roomId: Int!) {
+        getAiPersonalityInfo(roomId: $roomId) {
+            personality
+            canChange
+        }
+    }
+`

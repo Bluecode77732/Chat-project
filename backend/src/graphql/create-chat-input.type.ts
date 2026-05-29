@@ -1,7 +1,14 @@
 // This input type bases on CreateChatDto decorator
 
 import { InputType, Field, Int, ID } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
+import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
 
 @InputType()
 export class CreateChatInput {
@@ -18,4 +25,9 @@ export class CreateChatInput {
   @IsNumber()
   @IsOptional()
   room?: number;
+
+  @Field(() => AiPersonality, { nullable: true })
+  @IsEnum(AiPersonality)
+  @IsOptional()
+  aiPersonality?: AiPersonality;
 }

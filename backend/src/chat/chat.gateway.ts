@@ -3,11 +3,13 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { ChatService } from './chat.service';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
@@ -23,11 +25,20 @@ import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  private server: Server;
+
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
   ) {}
+
+  afterInit(server: Server): void {
+    this.chatService.setBroadcastServer(server);
+  }
 
   async handleConnection(client: Socket) {
     try {

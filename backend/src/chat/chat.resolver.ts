@@ -11,6 +11,7 @@ import {
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
+import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
@@ -20,6 +21,10 @@ import { DataSource } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { AuthService } from 'src/auth/auth.service';
+import { AiService } from 'src/ai/ai.service';
+import { AiRoomService } from 'src/ai/ai-room.service';
+import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
+import { ChatEntity } from './entities/chat.entity';
 
 @Resolver()
 export class ChatResolver {
@@ -29,11 +34,47 @@ export class ChatResolver {
     private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
     private readonly authService: AuthService,
+    private readonly aiService: AiService,
+    private readonly aiRoomService: AiRoomService,
   ) {}
 
   @Query(() => String)
   ping(): string {
     return 'ping has returned.';
+  }
+
+  @Query(() => Int)
+  getAiUserId(): number {
+    return this.aiService.getAiUserId();
+  }
+
+  @Query(() => AiPersonalityInfoType, { nullable: true })
+  @UseGuards(GraphQLAuthGuard)
+  async getAiPersonalityInfo(
+    @Args('roomId', { type: () => Int }) roomId: number,
+  ): Promise<AiPersonalityInfoType> {
+    return this.aiRoomService.getPersonalityInfo(roomId);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(GraphQLAuthGuard)
+  async setAiPersonality(
+    @Context() ctx: any,
+    @Args('roomId', { type: () => Int }) roomId: number,
+    @Args('personality', { type: () => AiPersonality })
+    personality: AiPersonality,
+  ): Promise<boolean> {
+    const payload = await this.authService.parseBearerToken(
+      ctx.req?.headers?.authorization,
+      false,
+    );
+    await this.aiRoomService.setPersonality(
+      roomId,
+      payload.sub,
+      personality,
+      false,
+    );
+    return true;
   }
 
   @Query(() => [Int])
@@ -101,14 +142,49 @@ export class ChatResolver {
 
       await queryRunner.commitTransaction();
 
-      await this.pubSub.publish(`receiveMessage :${savedMessage.room?.id}`, {
+      const roomId = savedMessage.room?.id;
+      await this.pubSub.publish(`receiveMessage :${roomId}`, {
         receiveMessage: savedMessage,
       });
       logger.info(`User ${userId}'s message is saved in the chat room`);
 
+      // Trigger AI reply asynchronously after transaction commits
+      if (roomId && recipientId === this.aiService.getAiUserId()) {
+        if (input.aiPersonality && roomId) {
+          await this.aiRoomService.setPersonality(
+            roomId,
+            userId,
+            input.aiPersonality,
+            true,
+          );
+        }
+        setImmediate(() => {
+          this.aiService
+            .handleReply(
+              roomId,
+              input.message ?? '',
+              input.aiPersonality ?? null,
+              {
+                broadcastFn: (msg: ChatEntity) =>
+                  this.chatService.broadcastToRoom(roomId, msg),
+                publishFn: (msg: ChatEntity) =>
+                  this.pubSub.publish(`receiveMessage :${roomId}`, {
+                    receiveMessage: msg,
+                  }),
+              },
+            )
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.error(`AI reply error: ${msg}`, {
+                timestamp: new Date().toISOString(),
+              });
+            });
+        });
+      }
+
       return {
         ...savedMessage,
-        roomId: savedMessage.room?.id,
+        roomId,
         createdAt: savedMessage.created,
       };
     } catch (error: any) {

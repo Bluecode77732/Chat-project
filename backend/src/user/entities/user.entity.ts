@@ -25,6 +25,9 @@ export class UserEntity extends EntityBase {
   @IsNotEmpty()
   email?: string;
 
+  @Column({ default: false })
+  isAI?: boolean;
+
   @Column()
   @IsString()
   @IsNotEmpty()

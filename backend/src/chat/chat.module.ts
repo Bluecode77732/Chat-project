@@ -11,11 +11,13 @@ import { RedisModule } from 'src/redis/redis.module';
 import { Server } from 'socket.io';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { SessionCacheService } from 'src/redis/redis.service';
+import { AiModule } from 'src/ai/ai.module';
 
 @Module({
   imports: [
     AuthModule,
     RedisModule,
+    AiModule,
     TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
   providers: [

@@ -4,7 +4,11 @@ import { reconnectSocket, socket } from "../socket/socket";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
-import { SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES, GET_ROOM, GET_MY_ROOMS } from "../api/graphql-operations";
+import {
+    SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES,
+    GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
+} from "../api/graphql-operations";
+import AiPersonalitySelector from "../components/ai-personality-selector";
 
 interface Message {
     id?: number;
@@ -63,6 +67,11 @@ function ChatPage() {
     const [recipientId, setRecipientId] = useState<number | null>(lastRecipientId);
     const navigate = useNavigate();
 
+    const [pendingPersonality, setPendingPersonality] = useState<string | null>(null);
+    const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
+    const [isInitialSelect, setIsInitialSelect] = useState(true);
+    const [aiPersonalityInfo, setAiPersonalityInfo] = useState<{ personality: string | null; canChange: boolean } | null>(null);
+
     const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
@@ -75,15 +84,37 @@ function ChatPage() {
     const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM, { fetchPolicy: 'network-only' });
     const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS, { fetchPolicy: 'network-only' });
 
+    const { data: aiUserData } = useQuery<{ getAiUserId: number }>(GET_AI_USER_ID);
+    const aiUserId = aiUserData?.getAiUserId ?? null;
+    const [fetchAiPersonalityInfo] = useLazyQuery<{ getAiPersonalityInfo: { personality: string | null; canChange: boolean } }>(
+        GET_AI_PERSONALITY_INFO, { fetchPolicy: 'network-only' }
+    );
+    const [setAiPersonalityMutation] = useMutation<{ setAiPersonality: boolean }>(SET_AI_PERSONALITY);
+
     useEffect(() => {
         if (!recipientId) return;
         setCurrentRoomId(null);
         setMessages([]);
         setHasMore(true);
+        setAiPersonalityInfo(null);
         fetchRoom({ variables: { recipientId } }).then(({ data }) => {
-            if (data?.getRoom) setCurrentRoomId(data.getRoom);
+            if (data?.getRoom) {
+                setCurrentRoomId(data.getRoom);
+            } else if (aiUserId && recipientId === aiUserId && !pendingPersonality) {
+                // New AI chat: no room yet, need to pick personality
+                setIsInitialSelect(true);
+                setShowPersonalitySelector(true);
+            }
         });
-    }, [recipientId]);
+    }, [recipientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Load personality info when an existing AI room is opened
+    useEffect(() => {
+        if (!currentRoomId || !aiUserId || recipientId !== aiUserId) return;
+        fetchAiPersonalityInfo({ variables: { roomId: currentRoomId } }).then(({ data }) => {
+            if (data?.getAiPersonalityInfo) setAiPersonalityInfo(data.getAiPersonalityInfo);
+        });
+    }, [currentRoomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadMessages = useCallback(async (roomId: number, cursor?: number) => {
         const { data } = await fetchMessages({ variables: { roomId, cursor } });
@@ -180,9 +211,17 @@ function ChatPage() {
     const sendMessage = async () => {
         if (!input.trim() || !recipientId) return;
 
+        const isAiChat = aiUserId !== null && recipientId === aiUserId;
+        const aiPersonalityToSend = isAiChat ? pendingPersonality : undefined;
+
         const { data } = await sendMessageMutation({
             variables: {
-                input: { message: input, room: currentRoomId ?? undefined, recipientId },
+                input: {
+                    message: input,
+                    room: currentRoomId ?? undefined,
+                    recipientId,
+                    ...(aiPersonalityToSend ? { aiPersonality: aiPersonalityToSend } : {}),
+                },
                 recipientId,
             },
         });
@@ -192,6 +231,8 @@ function ChatPage() {
         if (!currentRoomId && newRoomId) {
             setCurrentRoomId(newRoomId);
             refetchRooms();
+            // Personality is now stored in DB — clear pending
+            if (isAiChat) setPendingPersonality(null);
         }
 
         setMessages(prev => [...prev, {
@@ -203,6 +244,16 @@ function ChatPage() {
         }]);
 
         setInput('');
+    };
+
+    const handlePersonalitySelect = async (personality: string) => {
+        setShowPersonalitySelector(false);
+        if (isInitialSelect) {
+            setPendingPersonality(personality);
+        } else if (currentRoomId) {
+            await setAiPersonalityMutation({ variables: { roomId: currentRoomId, personality } });
+            setAiPersonalityInfo(prev => prev ? { ...prev, personality, canChange: false } : null);
+        }
     };
 
     const formatTime = (iso?: string) => {
@@ -227,37 +278,65 @@ function ChatPage() {
             </div>
             <div className="flex gap-2 mb-4 flex-wrap items-center">
                 <span className="text-xs text-gray-400">Conversations:</span>
-                {onlineData?.getOnlineUser?.map((id: number) => (
-                    <span
-                        key={`u-${id}`}
-                        onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
-                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
-                            id === userId
-                                ? 'bg-green-200 cursor-default'
-                                : id === recipientId
-                                    ? 'bg-blue-400 text-white'
-                                    : 'bg-gray-200 hover:bg-blue-100'
-                        }`}
-                    >
-                        {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
-                    </span>
-                ))}
-                {recipientId && !onlineData?.getOnlineUser?.includes(recipientId) && (
+                {onlineData?.getOnlineUser
+                    ?.filter((id: number) => id !== aiUserId)
+                    .map((id: number) => (
+                        <span
+                            key={`u-${id}`}
+                            onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
+                            className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
+                                id === userId
+                                    ? 'bg-green-200 cursor-default'
+                                    : id === recipientId
+                                        ? 'bg-blue-400 text-white'
+                                        : 'bg-gray-200 hover:bg-blue-100'
+                            }`}
+                        >
+                            {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
+                        </span>
+                    ))}
+                {recipientId && recipientId !== aiUserId && !onlineData?.getOnlineUser?.includes(recipientId) && (
                     <span className="px-3 py-1 rounded-full text-sm bg-blue-400 text-white opacity-50 cursor-default">
                         ✓ User {recipientId} (offline)
                     </span>
                 )}
-                {myRoomsData?.getMyRooms?.filter(({ recipientId: rid }) =>
-                    !onlineData?.getOnlineUser?.includes(rid) && rid !== recipientId
-                ).map(({ roomId, recipientId: rid }) => (
+                {myRoomsData?.getMyRooms
+                    ?.filter(({ recipientId: rid }) =>
+                        rid !== aiUserId &&
+                        !onlineData?.getOnlineUser?.includes(rid) &&
+                        rid !== recipientId
+                    )
+                    .map(({ roomId, recipientId: rid }) => (
+                        <span
+                            key={roomId}
+                            onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
+                            className="px-3 py-1 rounded-full text-sm cursor-pointer border bg-white border-gray-300 hover:bg-gray-50"
+                        >
+                            User {rid} (offline)
+                        </span>
+                    ))}
+                {/* AI Chat — always shown at the end */}
+                {aiUserId && (
                     <span
-                        key={roomId}
-                        onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
-                        className="px-3 py-1 rounded-full text-sm cursor-pointer border bg-white border-gray-300 hover:bg-gray-50"
+                        onClick={() => { setRecipientId(aiUserId); setLastRecipientId(aiUserId); }}
+                        className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
+                            recipientId === aiUserId
+                                ? 'bg-purple-500 text-white border-purple-500'
+                                : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
+                        }`}
                     >
-                        User {rid} (offline)
+                        {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
                     </span>
-                ))}
+                )}
+                {/* Personality change button — only shown in active AI chat room */}
+                {recipientId === aiUserId && currentRoomId && aiPersonalityInfo?.canChange && (
+                    <button
+                        onClick={() => { setIsInitialSelect(false); setShowPersonalitySelector(true); }}
+                        className="text-xs text-purple-500 underline ml-1"
+                    >
+                        성격 변경
+                    </button>
+                )}
             </div>
 
             <div
@@ -280,7 +359,16 @@ function ChatPage() {
                     </div>
                 ))}
             </div>
-            <div className="flex gap-2 mt-4">
+            {showPersonalitySelector && (
+            <AiPersonalitySelector
+                currentPersonality={isInitialSelect ? pendingPersonality : aiPersonalityInfo?.personality}
+                canChange={isInitialSelect || (aiPersonalityInfo?.canChange ?? false)}
+                onSelect={handlePersonalitySelect}
+                onClose={() => setShowPersonalitySelector(false)}
+                isInitial={isInitialSelect}
+            />
+        )}
+        <div className="flex gap-2 mt-4">
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

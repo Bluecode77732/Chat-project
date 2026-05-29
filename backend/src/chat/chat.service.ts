@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Socket } from 'socket.io';
+import { Socket, Server } from 'socket.io';
 import { QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
@@ -13,8 +13,16 @@ import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class ChatService {
-  // Maps authenticated userId to get their current Socket instance (1-to-1)
   private readonly clientConnection = new Map<string, Socket>();
+  private server: Server;
+
+  setBroadcastServer(server: Server): void {
+    this.server = server;
+  }
+
+  broadcastToRoom(roomId: number, message: ChatEntity): void {
+    this.server?.to(roomId.toString()).emit('sendMessage', message);
+  }
 
   // TypeORM repositories for Room and User with DataSource
   constructor(

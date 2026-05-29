@@ -2,6 +2,7 @@ import { Logger, Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
+import { AiModule } from './ai/ai.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -33,6 +34,7 @@ import { ChatResolver } from './chat/chat.resolver';
         ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         // Validating CORS env via Joi
         CORS_ORIGIN: Joi.string().required(),
+        GEMINI_API_KEY: Joi.string().required(),
       }),
       // Configuration global adoption
       isGlobal: true,
@@ -95,6 +97,7 @@ import { ChatResolver } from './chat/chat.resolver';
     UserModule,
     ChatModule,
     AuthModule,
+    AiModule,
   ],
   providers: [Logger, ChatResolver],
 })
