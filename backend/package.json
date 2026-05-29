@@ -131,7 +131,9 @@
       "pubsub.service.ts",
       "resolver.ts",
       "data-source.ts",
-      "migrations"
+      "migrations",
+      "system-prompts.ts",
+      "ai-personality.enum.ts"
     ],
     "testEnvironment": "node",
     "moduleNameMapper": {

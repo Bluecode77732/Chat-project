@@ -39,7 +39,7 @@ type GeminiContent = {
 export class AiService implements OnModuleInit {
   private readonly nestLogger = new Logger(AiService.name);
   private genai: GoogleGenAI;
-  private aiUser: UserEntity;
+  private aiUser!: UserEntity;
 
   constructor(
     @InjectRepository(UserEntity)
