@@ -58,6 +58,7 @@ export class AiService implements OnModuleInit {
   ) {
     this.genai = new GoogleGenAI({
       apiKey: this.configService.getOrThrow<string>('GEMINI_API_KEY'),
+      httpOptions: { apiVersion: 'v1' },
     });
   }
 
