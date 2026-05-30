@@ -141,7 +141,6 @@ describe('AiService', () => {
 
   describe('handleReply', () => {
     const roomId = 1;
-    const userMessage = 'hello';
     const mockRoom: RoomEntity = { id: roomId } as RoomEntity;
     const mockSavedMsg: ChatEntity = {
       id: 10,
@@ -169,7 +168,7 @@ describe('AiService', () => {
     it('should return early when Redis lock cannot be acquired', async () => {
       mockRedis.set.mockResolvedValue(null);
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(callbacks.broadcastFn).not.toHaveBeenCalled();
       expect(mockRedis.del).not.toHaveBeenCalled();
@@ -181,7 +180,7 @@ describe('AiService', () => {
         buildMockQueryBuilder(),
       );
 
-      await aiService.handleReply(roomId, userMessage, null, callbacks);
+      await aiService.handleReply(roomId, null, callbacks);
 
       expect(callbacks.broadcastFn).not.toHaveBeenCalled();
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
@@ -203,7 +202,7 @@ describe('AiService', () => {
         return cb(manager);
       });
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockAiRoomService.getPersonality).not.toHaveBeenCalled();
       expect(callbacks.broadcastFn).toHaveBeenCalled();
@@ -226,7 +225,7 @@ describe('AiService', () => {
         return cb(manager);
       });
 
-      await aiService.handleReply(roomId, userMessage, null, callbacks);
+      await aiService.handleReply(roomId, null, callbacks);
 
       expect(mockAiRoomService.getPersonality).toHaveBeenCalledWith(roomId);
     });
@@ -239,7 +238,7 @@ describe('AiService', () => {
         text: '',
       });
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockDataSource.transaction).not.toHaveBeenCalled();
       expect(callbacks.broadcastFn).not.toHaveBeenCalled();
@@ -262,7 +261,7 @@ describe('AiService', () => {
         return cb(manager);
       });
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(callbacks.broadcastFn).toHaveBeenCalledWith(
         expect.objectContaining({ id: 10 }),
@@ -280,7 +279,7 @@ describe('AiService', () => {
         new Error('Gemini API error'),
       );
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
       expect(callbacks.broadcastFn).not.toHaveBeenCalled();
@@ -305,7 +304,7 @@ describe('AiService', () => {
         return cb(manager);
       });
 
-      await aiService.handleReply(roomId, userMessage, AiPersonality.FRIENDLY, callbacks);
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       const generateContentCall = (aiService as any).genai.models.generateContent.mock.calls[0][0];
       expect(generateContentCall.contents[0].role).toBe('model');

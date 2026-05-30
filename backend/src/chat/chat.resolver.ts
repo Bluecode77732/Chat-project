@@ -162,7 +162,6 @@ export class ChatResolver {
           this.aiService
             .handleReply(
               roomId,
-              input.message ?? '',
               input.aiPersonality ?? null,
               {
                 broadcastFn: (msg: ChatEntity) =>

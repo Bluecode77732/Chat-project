@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  Logger,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,7 +21,7 @@ import { plainToClass } from 'class-transformer';
 
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
-const GEMINI_MODEL = 'gemini-2.5-flash-lite-preview-06-17';
+const GEMINI_MODEL = 'gemini-2.0-flash-lite';
 
 export type AiReplyCallbacks = {
   broadcastFn: (msg: ChatEntity) => void;
@@ -37,7 +36,6 @@ type GeminiContent = {
 
 @Injectable()
 export class AiService implements OnModuleInit {
-  private readonly nestLogger = new Logger(AiService.name);
   private genai: GoogleGenAI;
   private aiUser!: UserEntity;
 
@@ -93,7 +91,6 @@ export class AiService implements OnModuleInit {
 
   async handleReply(
     roomId: number,
-    userMessage: string,
     aiPersonality: AiPersonality | undefined | null,
     callbacks: AiReplyCallbacks,
   ): Promise<void> {
