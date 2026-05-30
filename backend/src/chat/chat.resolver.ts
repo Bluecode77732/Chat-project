@@ -150,34 +150,33 @@ export class ChatResolver {
 
       // Trigger AI reply asynchronously after transaction commits
       if (roomId && recipientId === this.aiService.getAiUserId()) {
-        if (input.aiPersonality && roomId) {
-          await this.aiRoomService.setPersonality(
-            roomId,
-            userId,
-            input.aiPersonality,
-            true,
-          );
-        }
+        const personalityToSet = input.aiPersonality ?? null;
         setImmediate(() => {
-          this.aiService
-            .handleReply(
-              roomId,
-              input.aiPersonality ?? null,
-              {
+          (async () => {
+            if (personalityToSet) {
+              await this.aiRoomService
+                .setPersonality(roomId, userId, personalityToSet, true)
+                .catch((err: unknown) => {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  logger.error(`setPersonality failed: ${msg}`);
+                });
+            }
+            await this.aiService
+              .handleReply(roomId, personalityToSet, {
                 broadcastFn: (msg: ChatEntity) =>
                   this.chatService.broadcastToRoom(roomId, msg),
                 publishFn: (msg: ChatEntity) =>
                   this.pubSub.publish(`receiveMessage :${roomId}`, {
                     receiveMessage: msg,
                   }),
-              },
-            )
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              logger.error(`AI reply error: ${msg}`, {
-                timestamp: new Date().toISOString(),
+              })
+              .catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : String(err);
+                logger.error(`AI reply error: ${msg}`, {
+                  timestamp: new Date().toISOString(),
+                });
               });
-            });
+          })();
         });
       }
 

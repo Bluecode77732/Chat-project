@@ -21,7 +21,7 @@ import { plainToClass } from 'class-transformer';
 
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
-const GEMINI_MODEL = 'gemini-2.0-flash-lite';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 export type AiReplyCallbacks = {
   broadcastFn: (msg: ChatEntity) => void;
