@@ -21,7 +21,11 @@ import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN,
+    // process.env.CORS_ORIGIN is undefined at decoration time (before ConfigModule loads).
+    // Using a callback defers evaluation to connection time, when the value is available.
+    origin: (origin: string, callback: (err: Error | null, allow: boolean) => void) => {
+      callback(null, !origin || origin === process.env.CORS_ORIGIN);
+    },
     credentials: true,
   },
 })
