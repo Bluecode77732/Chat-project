@@ -20,7 +20,6 @@ export class AiRoomService {
     roomId: number,
     userId: number,
     personality: AiPersonality,
-    isInitial: boolean,
   ): Promise<void> {
     const room = await this.roomRepository.findOne({
       where: { id: roomId },
@@ -32,15 +31,7 @@ export class AiRoomService {
     const isMember = room.participants?.some((p) => p.id === userId);
     if (!isMember) throw new BadRequestException('Not a room participant.');
 
-    if (!isInitial && room.aiPersonalityChangedOnce) {
-      throw new BadRequestException('AI personality can only be changed once.');
-    }
-
     room.aiPersonality = personality;
-    if (!isInitial) {
-      room.aiPersonalityChangedOnce = true;
-    }
-
     await this.roomRepository.save(room);
     logger.info(`Room ${roomId} AI personality set to ${personality}`);
   }
@@ -56,7 +47,7 @@ export class AiRoomService {
     const room = await this.roomRepository.findOne({ where: { id: roomId } });
     return {
       personality: room?.aiPersonality ?? null,
-      canChange: !(room?.aiPersonalityChangedOnce ?? false),
+      canChange: true,
     };
   }
 }

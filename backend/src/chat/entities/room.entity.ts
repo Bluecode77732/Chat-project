@@ -19,9 +19,6 @@ export class RoomEntity extends EntityBase {
   @Column({ type: 'varchar', nullable: true })
   aiPersonality?: AiPersonality | null;
 
-  @Column({ default: false })
-  aiPersonalityChangedOnce?: boolean;
-
   // Participants in many rooms
   @ManyToMany(() => UserEntity, (user) => user.rooms)
   @JoinTable()

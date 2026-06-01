@@ -18,10 +18,11 @@ import { AiRoomService } from './ai-room.service';
 import { AI_USER_EMAIL, SYSTEM_PROMPTS } from './constants/system-prompts';
 import { logger } from 'src/base/logger/logger';
 import { plainToClass } from 'class-transformer';
+import { SessionCacheService } from 'src/redis/redis.service';
 
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export type AiReplyCallbacks = {
   broadcastFn: (msg: ChatEntity) => void;
@@ -52,6 +53,7 @@ export class AiService implements OnModuleInit {
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly aiRoomService: AiRoomService,
+    private readonly sessionCacheService: SessionCacheService,
 
     @Inject('REDIS_CLIENT')
     private readonly redis: RedisClient.RedisClientType,
@@ -122,7 +124,7 @@ export class AiService implements OnModuleInit {
         contents: history,
         config: {
           systemInstruction: systemPrompt,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 300,
         },
       });
 
@@ -146,6 +148,8 @@ export class AiService implements OnModuleInit {
         participant: this.aiUser,
         room,
       });
+
+      await this.sessionCacheService.cacheMessage(roomId, msgWithRelations);
 
       const serialized = plainToClass(ChatEntity, msgWithRelations);
       callbacks.broadcastFn(serialized);

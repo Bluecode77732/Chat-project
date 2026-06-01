@@ -71,6 +71,10 @@ function ChatPage() {
     const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
     const [isInitialSelect, setIsInitialSelect] = useState(true);
     const [aiPersonalityInfo, setAiPersonalityInfo] = useState<{ personality: string | null; canChange: boolean } | null>(null);
+    // true only when user explicitly clicks AI Chat (not on page load)
+    const shouldCheckPersonalityRef = useRef(false);
+    // smart scroll: true when user is near the bottom
+    const isAtBottomRef = useRef(true);
 
     const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
@@ -100,10 +104,14 @@ function ChatPage() {
         fetchRoom({ variables: { recipientId } }).then(({ data }) => {
             if (data?.getRoom) {
                 setCurrentRoomId(data.getRoom);
-            } else if (aiUserId && recipientId === aiUserId && !pendingPersonality) {
-                // New AI chat: no room yet, need to pick personality
+                // keep ref alive so the personality effect can use it
+            } else if (shouldCheckPersonalityRef.current && aiUserId && recipientId === aiUserId && !pendingPersonality) {
+                // no room yet → show selector (only when user explicitly clicked)
                 setIsInitialSelect(true);
                 setShowPersonalitySelector(true);
+                shouldCheckPersonalityRef.current = false;
+            } else {
+                shouldCheckPersonalityRef.current = false;
             }
         });
     }, [recipientId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,7 +120,15 @@ function ChatPage() {
     useEffect(() => {
         if (!currentRoomId || !aiUserId || recipientId !== aiUserId) return;
         fetchAiPersonalityInfo({ variables: { roomId: currentRoomId } }).then(({ data }) => {
-            if (data?.getAiPersonalityInfo) setAiPersonalityInfo(data.getAiPersonalityInfo);
+            if (data?.getAiPersonalityInfo) {
+                setAiPersonalityInfo(data.getAiPersonalityInfo);
+                // show selector if no personality set and user explicitly clicked
+                if (!data.getAiPersonalityInfo.personality && shouldCheckPersonalityRef.current) {
+                    setIsInitialSelect(true);
+                    setShowPersonalitySelector(true);
+                }
+                shouldCheckPersonalityRef.current = false;
+            }
         });
     }, [currentRoomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,13 +166,23 @@ function ChatPage() {
     useEffect(() => {
         if (!currentRoomId) return;
         setHasMore(true);
+        isAtBottomRef.current = true;
         loadMessages(currentRoomId);
     }, [currentRoomId]);
 
-    // Scroll to top → load more
+    // Auto-scroll to bottom on new messages — only when already near bottom
+    useEffect(() => {
+        if (!scrollRef.current || messages.length === 0 || !isAtBottomRef.current) return;
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }, [messages]);
+
+    // Scroll handler: track bottom proximity + load older messages at top
     const handleScroll = useCallback(() => {
-        if (!scrollRef.current || !currentRoomId || !hasMore) return;
-        if (scrollRef.current.scrollTop === 0) {
+        if (!scrollRef.current) return;
+        const el = scrollRef.current;
+        isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        if (!currentRoomId || !hasMore) return;
+        if (el.scrollTop === 0) {
             const oldestId = messages.find(m => m.id)?.id;
             if (oldestId) loadMessages(currentRoomId, Number(oldestId));
         }
@@ -252,8 +278,15 @@ function ChatPage() {
             setPendingPersonality(personality);
         } else if (currentRoomId) {
             await setAiPersonalityMutation({ variables: { roomId: currentRoomId, personality } });
-            setAiPersonalityInfo(prev => prev ? { ...prev, personality, canChange: false } : null);
+            setAiPersonalityInfo(prev => prev ? { ...prev, personality } : null);
         }
+    };
+
+    const handleAiChatClick = () => {
+        if (!aiUserId) return;
+        shouldCheckPersonalityRef.current = true;
+        setRecipientId(aiUserId);
+        setLastRecipientId(aiUserId);
     };
 
     const formatTime = (iso?: string) => {
@@ -318,7 +351,7 @@ function ChatPage() {
                 {/* AI Chat — always shown at the end */}
                 {aiUserId && (
                     <span
-                        onClick={() => { setRecipientId(aiUserId); setLastRecipientId(aiUserId); }}
+                        onClick={handleAiChatClick}
                         className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
                             recipientId === aiUserId
                                 ? 'bg-purple-500 text-white border-purple-500'
@@ -328,8 +361,8 @@ function ChatPage() {
                         {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
                     </span>
                 )}
-                {/* Personality change button — only shown in active AI chat room */}
-                {recipientId === aiUserId && currentRoomId && aiPersonalityInfo?.canChange && (
+                {/* Personality change button — shown when in active AI chat */}
+                {recipientId === aiUserId && currentRoomId && (
                     <button
                         onClick={() => { setIsInitialSelect(false); setShowPersonalitySelector(true); }}
                         className="text-xs text-purple-500 underline ml-1"

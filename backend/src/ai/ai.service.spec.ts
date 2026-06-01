@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { AiService, AiReplyCallbacks } from './ai.service';
 import { AiRoomService } from './ai-room.service';
+import { SessionCacheService } from 'src/redis/redis.service';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
@@ -56,6 +57,10 @@ describe('AiService', () => {
     getPersonality: jest.fn(),
   };
 
+  const mockSessionCacheService = {
+    cacheMessage: jest.fn().mockResolvedValue(undefined),
+  };
+
   const mockRedis = {
     set: jest.fn(),
     del: jest.fn().mockResolvedValue(1),
@@ -88,6 +93,10 @@ describe('AiService', () => {
         {
           provide: AiRoomService,
           useValue: mockAiRoomService,
+        },
+        {
+          provide: SessionCacheService,
+          useValue: mockSessionCacheService,
         },
         {
           provide: 'REDIS_CLIENT',

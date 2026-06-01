@@ -44,7 +44,7 @@ describe('AiRoomService', () => {
       mockRoomRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY, true),
+        aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -55,54 +55,37 @@ describe('AiRoomService', () => {
       });
 
       await expect(
-        aiRoomService.setPersonality(1, 99, AiPersonality.FRIENDLY, true),
+        aiRoomService.setPersonality(1, 99, AiPersonality.FRIENDLY),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when personality was already changed once and isInitial is false', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
-        id: 1,
-        participants: [{ id: 1 }],
-        aiPersonalityChangedOnce: true,
-      });
-
-      await expect(
-        aiRoomService.setPersonality(1, 1, AiPersonality.CODING, false),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should set personality without marking changedOnce when isInitial is true', async () => {
+    it('should set personality successfully', async () => {
       const room = {
         id: 1,
         participants: [{ id: 1 }],
-        aiPersonalityChangedOnce: false,
         aiPersonality: null as AiPersonality | null,
       };
       mockRoomRepository.findOne.mockResolvedValue(room);
       mockRoomRepository.save.mockResolvedValue(room);
 
-      await aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY, true);
+      await aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY);
 
       expect(room.aiPersonality).toBe(AiPersonality.FRIENDLY);
-      expect(room.aiPersonalityChangedOnce).toBe(false);
       expect(mockRoomRepository.save).toHaveBeenCalledWith(room);
     });
 
-    it('should set personality and mark changedOnce when isInitial is false', async () => {
+    it('should allow overwriting an existing personality', async () => {
       const room = {
         id: 1,
         participants: [{ id: 1 }],
-        aiPersonalityChangedOnce: false,
         aiPersonality: AiPersonality.FRIENDLY,
       };
       mockRoomRepository.findOne.mockResolvedValue(room);
       mockRoomRepository.save.mockResolvedValue(room);
 
-      await aiRoomService.setPersonality(1, 1, AiPersonality.CODING, false);
+      await aiRoomService.setPersonality(1, 1, AiPersonality.CODING);
 
       expect(room.aiPersonality).toBe(AiPersonality.CODING);
-      expect(room.aiPersonalityChangedOnce).toBe(true);
-      expect(mockRoomRepository.save).toHaveBeenCalledWith(room);
     });
   });
 
@@ -139,11 +122,10 @@ describe('AiRoomService', () => {
   });
 
   describe('getPersonalityInfo', () => {
-    it('should return personality and canChange=true when never changed', async () => {
+    it('should return personality and canChange=true', async () => {
       mockRoomRepository.findOne.mockResolvedValue({
         id: 1,
         aiPersonality: AiPersonality.FRIENDLY,
-        aiPersonalityChangedOnce: false,
       });
 
       const result = await aiRoomService.getPersonalityInfo(1);
@@ -154,19 +136,15 @@ describe('AiRoomService', () => {
       });
     });
 
-    it('should return canChange=false when personality was already changed', async () => {
+    it('should always return canChange=true regardless of history', async () => {
       mockRoomRepository.findOne.mockResolvedValue({
         id: 1,
         aiPersonality: AiPersonality.CODING,
-        aiPersonalityChangedOnce: true,
       });
 
       const result = await aiRoomService.getPersonalityInfo(1);
 
-      expect(result).toEqual({
-        personality: AiPersonality.CODING,
-        canChange: false,
-      });
+      expect(result.canChange).toBe(true);
     });
 
     it('should return null personality and canChange=true when room does not exist', async () => {

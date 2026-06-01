@@ -68,12 +68,7 @@ export class ChatResolver {
       ctx.req?.headers?.authorization,
       false,
     );
-    await this.aiRoomService.setPersonality(
-      roomId,
-      payload.sub,
-      personality,
-      false,
-    );
+    await this.aiRoomService.setPersonality(roomId, payload.sub, personality);
     return true;
   }
 
@@ -155,7 +150,7 @@ export class ChatResolver {
           (async () => {
             if (personalityToSet) {
               await this.aiRoomService
-                .setPersonality(roomId, userId, personalityToSet, true)
+                .setPersonality(roomId, userId, personalityToSet)
                 .catch((err: unknown) => {
                   const msg = err instanceof Error ? err.message : String(err);
                   logger.error(`setPersonality failed: ${msg}`);
