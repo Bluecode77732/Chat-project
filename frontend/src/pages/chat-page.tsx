@@ -226,6 +226,8 @@ function ChatPage() {
 
         socket.on('connect_error', (err) => {
             console.error('Socket has failed to connect: ', err.message);
+            // Recreate socket with the latest token (handles expired token reconnect loop)
+            setTimeout(() => reconnectSocket(), 3000);
         });
 
         return () => {
