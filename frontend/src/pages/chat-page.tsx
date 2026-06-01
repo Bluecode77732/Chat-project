@@ -221,6 +221,7 @@ function ChatPage() {
 
         socket.on('CreateRoom', (roomId: string) => {
             setCurrentRoomId(Number(roomId));
+            refetchRooms();
         });
 
         socket.on('connect_error', (err) => {
@@ -313,6 +314,8 @@ function ChatPage() {
                 <span className="text-xs text-gray-400">Conversations:</span>
                 {onlineData?.getOnlineUser
                     ?.filter((id: number) => id !== aiUserId)
+                    .slice()
+                    .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
                     .map((id: number) => (
                         <span
                             key={`u-${id}`}
