@@ -32,6 +32,12 @@ export const GET_ONLINE_USERS = gql`
     }
 `
 
+export const GET_ALL_USERS = gql`
+    query GetAllUsers {
+        getAllUsers
+    }
+`
+
 export const GET_ROOM = gql`
     query GetRoom($recipientId: Int!) {
         getRoom(recipientId: $recipientId)

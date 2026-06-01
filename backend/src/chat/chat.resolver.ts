@@ -78,6 +78,16 @@ export class ChatResolver {
     return this.sessionCacheService.getOnlineUser();
   }
 
+  @Query(() => [Int])
+  @UseGuards(GraphQLAuthGuard)
+  async getAllUsers(@Context() ctx: any): Promise<number[]> {
+    const payload = await this.authService.parseBearerToken(
+      ctx.req?.headers?.authorization,
+      false,
+    );
+    return this.chatService.getAllUsers(payload.sub);
+  }
+
   @Query(() => [RoomInfoType])
   @UseGuards(GraphQLAuthGuard)
   async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {

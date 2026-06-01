@@ -43,6 +43,7 @@ type Query {
   getAiUserId: Int!
   getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType
   getOnlineUser: [Int!]!
+  getAllUsers: [Int!]!
   getMyRooms: [RoomInfoType!]!
   getRoom(recipientId: Int!): Int
   getMessages(roomId: Int!, cursor: Int): [MessageType!]!

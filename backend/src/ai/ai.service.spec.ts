@@ -30,7 +30,7 @@ describe('AiService', () => {
     id: 99,
     email: 'ai@system.local',
     isAI: true,
-  } as UserEntity;
+  };
 
   const mockUserRepository = {
     upsert: jest.fn().mockResolvedValue(undefined),
@@ -150,11 +150,11 @@ describe('AiService', () => {
 
   describe('handleReply', () => {
     const roomId = 1;
-    const mockRoom: RoomEntity = { id: roomId } as RoomEntity;
+    const mockRoom: RoomEntity = { id: roomId };
     const mockSavedMsg: ChatEntity = {
       id: 10,
       message: 'AI reply text',
-    } as ChatEntity;
+    };
 
     let callbacks: AiReplyCallbacks;
 
@@ -203,13 +203,15 @@ describe('AiService', () => {
         text: 'AI reply text',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
-      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => Promise<ChatEntity>) => {
-        const manager = {
-          create: jest.fn().mockReturnValue(mockSavedMsg),
-          save: jest.fn().mockResolvedValue(mockSavedMsg),
-        };
-        return cb(manager);
-      });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: jest.fn().mockReturnValue(mockSavedMsg),
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
@@ -226,13 +228,15 @@ describe('AiService', () => {
         text: 'Code answer',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
-      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => Promise<ChatEntity>) => {
-        const manager = {
-          create: jest.fn().mockReturnValue(mockSavedMsg),
-          save: jest.fn().mockResolvedValue(mockSavedMsg),
-        };
-        return cb(manager);
-      });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: jest.fn().mockReturnValue(mockSavedMsg),
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, null, callbacks);
 
@@ -262,13 +266,15 @@ describe('AiService', () => {
         text: 'AI reply text',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
-      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => Promise<ChatEntity>) => {
-        const manager = {
-          create: jest.fn().mockReturnValue(mockSavedMsg),
-          save: jest.fn().mockResolvedValue(mockSavedMsg),
-        };
-        return cb(manager);
-      });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: jest.fn().mockReturnValue(mockSavedMsg),
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
@@ -295,8 +301,16 @@ describe('AiService', () => {
     });
 
     it('should build history with correct role mapping for AI and user messages', async () => {
-      const aiMessage = { id: 1, message: 'I am AI', participant: { id: 99, isAI: true } } as ChatEntity;
-      const userMsg = { id: 2, message: 'Hello', participant: { id: 1, isAI: false } } as ChatEntity;
+      const aiMessage = {
+        id: 1,
+        message: 'I am AI',
+        participant: { id: 99, isAI: true },
+      } as ChatEntity;
+      const userMsg = {
+        id: 2,
+        message: 'Hello',
+        participant: { id: 1, isAI: false },
+      } as ChatEntity;
 
       // buildHistory orders DESC then reverses, so mock returns newest-first
       const qb = buildMockQueryBuilder([userMsg, aiMessage]);
@@ -305,17 +319,20 @@ describe('AiService', () => {
         text: 'Response',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
-      mockDataSource.transaction.mockImplementation(async (cb: (m: any) => Promise<ChatEntity>) => {
-        const manager = {
-          create: jest.fn().mockReturnValue(mockSavedMsg),
-          save: jest.fn().mockResolvedValue(mockSavedMsg),
-        };
-        return cb(manager);
-      });
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: jest.fn().mockReturnValue(mockSavedMsg),
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
-      const generateContentCall = (aiService as any).genai.models.generateContent.mock.calls[0][0];
+      const generateContentCall = (aiService as any).genai.models
+        .generateContent.mock.calls[0][0];
       expect(generateContentCall.contents[0].role).toBe('model');
       expect(generateContentCall.contents[1].role).toBe('user');
     });

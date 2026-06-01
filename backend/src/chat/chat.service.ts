@@ -298,6 +298,14 @@ export class ChatService {
     return room?.id ?? null;
   }
 
+  async getAllUsers(currentUserId: number): Promise<number[]> {
+    const users = await this.userRepository.find({
+      where: { isAI: false },
+      select: ['id'],
+    });
+    return users.map((u) => u.id!).filter((id) => id !== currentUserId);
+  }
+
   async getMyRooms(
     userId: number,
   ): Promise<{ roomId: number; recipientId: number }[]> {

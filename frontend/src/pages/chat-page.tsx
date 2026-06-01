@@ -5,7 +5,7 @@ import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
 import {
-    SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_MESSAGES,
+    SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_ALL_USERS, GET_MESSAGES,
     GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
 } from "../api/graphql-operations";
 import AiPersonalitySelector from "../components/ai-personality-selector";
@@ -49,6 +49,10 @@ interface OnlineUsersData {
     getOnlineUser: number[];
 }
 
+interface AllUsersData {
+    getAllUsers: number[];
+}
+
 interface MyRoomsData {
     getMyRooms: Array<{
         roomId: number;
@@ -83,6 +87,9 @@ function ChatPage() {
     });
     const { data: onlineData } = useQuery<OnlineUsersData>(GET_ONLINE_USERS, {
         pollInterval: 5000,
+    });
+    const { data: allUsersData } = useQuery<AllUsersData>(GET_ALL_USERS, {
+        pollInterval: 60000,
     });
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
     const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM, { fetchPolicy: 'network-only' });
@@ -314,45 +321,52 @@ function ChatPage() {
             </div>
             <div className="flex gap-2 mb-4 flex-wrap items-center">
                 <span className="text-xs text-gray-400">Conversations:</span>
-                {onlineData?.getOnlineUser
-                    ?.filter((id: number) => id !== aiUserId)
-                    .slice()
-                    .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
-                    .map((id: number) => (
-                        <span
-                            key={`u-${id}`}
-                            onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
-                            className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
-                                id === userId
-                                    ? 'bg-green-200 cursor-default'
-                                    : id === recipientId
-                                        ? 'bg-blue-400 text-white'
-                                        : 'bg-gray-200 hover:bg-blue-100'
-                            }`}
-                        >
-                            {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
-                        </span>
-                    ))}
-                {recipientId && recipientId !== aiUserId && !onlineData?.getOnlineUser?.includes(recipientId) && (
-                    <span className="px-3 py-1 rounded-full text-sm bg-blue-400 text-white opacity-50 cursor-default">
-                        ✓ User {recipientId} (offline)
-                    </span>
-                )}
-                {myRoomsData?.getMyRooms
-                    ?.filter(({ recipientId: rid }) =>
-                        rid !== aiUserId &&
-                        !onlineData?.getOnlineUser?.includes(rid) &&
-                        rid !== recipientId
-                    )
-                    .map(({ roomId, recipientId: rid }) => (
-                        <span
-                            key={roomId}
-                            onClick={() => { setRecipientId(rid); setLastRecipientId(rid); }}
-                            className="px-3 py-1 rounded-full text-sm cursor-pointer border bg-white border-gray-300 hover:bg-gray-50"
-                        >
-                            User {rid} (offline)
-                        </span>
-                    ))}
+                {(() => {
+                    const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
+                    const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
+                    return (
+                        <>
+                            {/* Online users */}
+                            {onlineData?.getOnlineUser
+                                ?.filter((id: number) => id !== aiUserId)
+                                .slice()
+                                .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
+                                .map((id: number) => (
+                                    <span
+                                        key={`online-${id}`}
+                                        onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
+                                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
+                                            id === userId
+                                                ? 'bg-green-200 cursor-default'
+                                                : id === recipientId
+                                                    ? 'bg-blue-400 text-white'
+                                                    : 'bg-gray-200 hover:bg-blue-100'
+                                        }`}
+                                    >
+                                        {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
+                                    </span>
+                                ))}
+                            {/* Offline users — all registered users not currently online */}
+                            {allUsersData?.getAllUsers
+                                ?.filter((id) => id !== aiUserId && !onlineIds.has(id))
+                                .map((id) => (
+                                    <span
+                                        key={`offline-${id}`}
+                                        onClick={() => { setRecipientId(id); setLastRecipientId(id); }}
+                                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
+                                            id === recipientId
+                                                ? 'bg-blue-400 text-white opacity-50'
+                                                : myRoomUserIds.has(id)
+                                                    ? 'border bg-white border-gray-300 hover:bg-gray-50'
+                                                    : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        {id === recipientId ? `✓ User ${id} (offline)` : `User ${id} (offline)`}
+                                    </span>
+                                ))}
+                        </>
+                    );
+                })()}
                 {/* AI Chat — always shown at the end */}
                 {aiUserId && (
                     <span
