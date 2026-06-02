@@ -210,9 +210,20 @@ function ChatPage() {
     // Auto-scroll banner to selected user badge
     useEffect(() => {
         if (!recipientId || !bannerRef.current) return;
-        const el = bannerRef.current.querySelector(`[data-userid="${recipientId}"]`);
-        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        const target = bannerRef.current.querySelector(`[data-userid="${recipientId}"]`) as HTMLElement | null;
+        if (!target) return;
+        const container = bannerRef.current;
+        const centerOffset = target.offsetLeft - container.offsetWidth / 2 + target.offsetWidth / 2;
+        container.scrollTo({ left: centerOffset, behavior: 'smooth' });
     }, [recipientId]);
+
+    // Cleanup banner scroll timers on unmount
+    useEffect(() => {
+        return () => {
+            if (holdTimerRef.current !== null) clearTimeout(holdTimerRef.current);
+            if (scrollIntervalRef.current !== null) clearInterval(scrollIntervalRef.current);
+        };
+    }, []);
 
     // Incoming messages from subscription (others only)
     useEffect(() => {
@@ -320,7 +331,7 @@ function ChatPage() {
         }, 300);
     }, []);
 
-    const handleScrollMouseUp = useCallback((direction: 'left' | 'right') => {
+    const stopScroll = useCallback(() => {
         if (holdTimerRef.current !== null) {
             clearTimeout(holdTimerRef.current);
             holdTimerRef.current = null;
@@ -329,11 +340,16 @@ function ChatPage() {
             clearInterval(scrollIntervalRef.current);
             scrollIntervalRef.current = null;
         }
-        if (!isHoldingRef.current) {
-            bannerRef.current?.scrollBy({ left: direction === 'right' ? 200 : -200, behavior: 'smooth' });
-        }
         isHoldingRef.current = false;
     }, []);
+
+    const handleScrollMouseUp = useCallback((direction: 'left' | 'right') => {
+        const wasHolding = isHoldingRef.current;
+        stopScroll();
+        if (!wasHolding) {
+            bannerRef.current?.scrollBy({ left: direction === 'right' ? 200 : -200, behavior: 'smooth' });
+        }
+    }, [stopScroll]);
 
     const formatTime = (iso?: string) => {
         if (!iso) return '';
@@ -360,7 +376,7 @@ function ChatPage() {
                 <button
                     onMouseDown={() => handleScrollMouseDown('left')}
                     onMouseUp={() => handleScrollMouseUp('left')}
-                    onMouseLeave={() => handleScrollMouseUp('left')}
+                    onMouseLeave={stopScroll}
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
                 >
                     ‹
@@ -441,7 +457,7 @@ function ChatPage() {
                 <button
                     onMouseDown={() => handleScrollMouseDown('right')}
                     onMouseUp={() => handleScrollMouseUp('right')}
-                    onMouseLeave={() => handleScrollMouseUp('right')}
+                    onMouseLeave={stopScroll}
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
                 >
                     ›
