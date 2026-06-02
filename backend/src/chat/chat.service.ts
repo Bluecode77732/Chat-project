@@ -14,7 +14,7 @@ import { SessionCacheService } from 'src/redis/redis.service';
 @Injectable()
 export class ChatService {
   private readonly clientConnection = new Map<string, Socket>();
-  private server: Server | undefined;
+  private server?: Server;
 
   setBroadcastServer(server: Server): void {
     this.server = server;

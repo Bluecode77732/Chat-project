@@ -79,6 +79,10 @@ function ChatPage() {
     const shouldCheckPersonalityRef = useRef(false);
     // smart scroll: true when user is near the bottom
     const isAtBottomRef = useRef(true);
+    const bannerRef = useRef<HTMLDivElement>(null);
+    const holdTimerRef = useRef<number | null>(null);
+    const scrollIntervalRef = useRef<number | null>(null);
+    const isHoldingRef = useRef(false);
 
     const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
@@ -203,6 +207,13 @@ function ChatPage() {
         return () => { socket.off('connect', handleConnect); };
     }, [currentRoomId, loadMessages]);
 
+    // Auto-scroll banner to selected user badge
+    useEffect(() => {
+        if (!recipientId || !bannerRef.current) return;
+        const el = bannerRef.current.querySelector(`[data-userid="${recipientId}"]`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }, [recipientId]);
+
     // Incoming messages from subscription (others only)
     useEffect(() => {
         if (!subData?.receiveMessage) return;
@@ -299,6 +310,31 @@ function ChatPage() {
         setLastRecipientId(aiUserId);
     };
 
+    const handleScrollMouseDown = useCallback((direction: 'left' | 'right') => {
+        holdTimerRef.current = window.setTimeout(() => {
+            isHoldingRef.current = true;
+            const delta = direction === 'right' ? 6 : -6;
+            scrollIntervalRef.current = window.setInterval(() => {
+                if (bannerRef.current) bannerRef.current.scrollLeft += delta;
+            }, 16);
+        }, 300);
+    }, []);
+
+    const handleScrollMouseUp = useCallback((direction: 'left' | 'right') => {
+        if (holdTimerRef.current !== null) {
+            clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
+        }
+        if (scrollIntervalRef.current !== null) {
+            clearInterval(scrollIntervalRef.current);
+            scrollIntervalRef.current = null;
+        }
+        if (!isHoldingRef.current) {
+            bannerRef.current?.scrollBy({ left: direction === 'right' ? 200 : -200, behavior: 'smooth' });
+        }
+        isHoldingRef.current = false;
+    }, []);
+
     const formatTime = (iso?: string) => {
         if (!iso) return '';
         const d = new Date(iso);
@@ -319,76 +355,97 @@ function ChatPage() {
                     Sign Out
                 </button>
             </div>
-            <div className="flex gap-2 mb-4 flex-wrap items-center">
-                <span className="text-xs text-gray-400">Conversations:</span>
-                {(() => {
-                    const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
-                    const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
-                    return (
-                        <>
-                            {/* Online users */}
-                            {onlineData?.getOnlineUser
-                                ?.filter((id: number) => id !== aiUserId)
-                                .slice()
-                                .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
-                                .map((id: number) => (
+            <div className="flex gap-2 mb-4 items-center">
+                <span className="text-xs text-gray-400 shrink-0">Conversations:</span>
+                <button
+                    onMouseDown={() => handleScrollMouseDown('left')}
+                    onMouseUp={() => handleScrollMouseUp('left')}
+                    onMouseLeave={() => handleScrollMouseUp('left')}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
+                >
+                    ‹
+                </button>
+                <div ref={bannerRef} className="flex gap-2 overflow-x-hidden flex-1">
+                    {(() => {
+                        const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
+                        const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
+                        return (
+                            <>
+                                {/* Online users (including Me) */}
+                                {onlineData?.getOnlineUser
+                                    ?.filter((id: number) => id !== aiUserId)
+                                    .slice()
+                                    .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
+                                    .map((id: number) => (
+                                        <span
+                                            key={`online-${id}`}
+                                            data-userid={id}
+                                            onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
+                                            className={`shrink-0 px-3 py-1 rounded-full text-sm cursor-pointer ${
+                                                id === userId
+                                                    ? 'bg-green-200 cursor-default'
+                                                    : id === recipientId
+                                                        ? 'bg-blue-400 text-white'
+                                                        : 'bg-gray-200 hover:bg-blue-100'
+                                            }`}
+                                        >
+                                            {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
+                                        </span>
+                                    ))}
+                                {/* Offline users — all registered users not currently online */}
+                                {allUsersData?.getAllUsers
+                                    ?.filter((id) => id !== aiUserId && !onlineIds.has(id))
+                                    .map((id) => (
+                                        <span
+                                            key={`offline-${id}`}
+                                            data-userid={id}
+                                            onClick={() => { setRecipientId(id); setLastRecipientId(id); }}
+                                            className={`shrink-0 px-3 py-1 rounded-full text-sm cursor-pointer ${
+                                                id === recipientId
+                                                    ? 'bg-blue-400 text-white opacity-50'
+                                                    : myRoomUserIds.has(id)
+                                                        ? 'border bg-white border-gray-300 hover:bg-gray-50'
+                                                        : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {id === recipientId ? `✓ User ${id} (offline)` : `User ${id} (offline)`}
+                                        </span>
+                                    ))}
+                                {/* AI Chat */}
+                                {aiUserId && (
                                     <span
-                                        key={`online-${id}`}
-                                        onClick={() => { if (id !== userId) { setRecipientId(id); setLastRecipientId(id); } }}
-                                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
-                                            id === userId
-                                                ? 'bg-green-200 cursor-default'
-                                                : id === recipientId
-                                                    ? 'bg-blue-400 text-white'
-                                                    : 'bg-gray-200 hover:bg-blue-100'
+                                        data-userid={aiUserId}
+                                        onClick={handleAiChatClick}
+                                        className={`shrink-0 px-3 py-1 rounded-full text-sm cursor-pointer border ${
+                                            recipientId === aiUserId
+                                                ? 'bg-purple-500 text-white border-purple-500'
+                                                : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
                                         }`}
                                     >
-                                        {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
+                                        {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
                                     </span>
-                                ))}
-                            {/* Offline users — all registered users not currently online */}
-                            {allUsersData?.getAllUsers
-                                ?.filter((id) => id !== aiUserId && !onlineIds.has(id))
-                                .map((id) => (
-                                    <span
-                                        key={`offline-${id}`}
-                                        onClick={() => { setRecipientId(id); setLastRecipientId(id); }}
-                                        className={`px-3 py-1 rounded-full text-sm cursor-pointer ${
-                                            id === recipientId
-                                                ? 'bg-blue-400 text-white opacity-50'
-                                                : myRoomUserIds.has(id)
-                                                    ? 'border bg-white border-gray-300 hover:bg-gray-50'
-                                                    : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
-                                        }`}
+                                )}
+                                {/* Personality change button */}
+                                {recipientId === aiUserId && currentRoomId && (
+                                    <button
+                                        onClick={() => { setIsInitialSelect(false); setShowPersonalitySelector(true); }}
+                                        className="shrink-0 text-xs text-purple-500 underline"
                                     >
-                                        {id === recipientId ? `✓ User ${id} (offline)` : `User ${id} (offline)`}
-                                    </span>
-                                ))}
-                        </>
-                    );
-                })()}
-                {/* AI Chat — always shown at the end */}
-                {aiUserId && (
-                    <span
-                        onClick={handleAiChatClick}
-                        className={`px-3 py-1 rounded-full text-sm cursor-pointer border ${
-                            recipientId === aiUserId
-                                ? 'bg-purple-500 text-white border-purple-500'
-                                : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
-                        }`}
-                    >
-                        {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
-                    </span>
-                )}
-                {/* Personality change button — shown when in active AI chat */}
-                {recipientId === aiUserId && currentRoomId && (
-                    <button
-                        onClick={() => { setIsInitialSelect(false); setShowPersonalitySelector(true); }}
-                        className="text-xs text-purple-500 underline ml-1"
-                    >
-                        성격 변경
-                    </button>
-                )}
+                                        성격 변경
+                                    </button>
+                                )}
+                            </>
+                        );
+                    })()}
+                </div>
+                <button
+                    onMouseDown={() => handleScrollMouseDown('right')}
+                    onMouseUp={() => handleScrollMouseUp('right')}
+                    onMouseLeave={() => handleScrollMouseUp('right')}
+                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
+                >
+                    ›
+                </button>
             </div>
 
             <div

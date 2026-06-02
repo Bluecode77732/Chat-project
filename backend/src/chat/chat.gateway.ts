@@ -36,7 +36,7 @@ export class ChatGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private server: Server;
+  private server?: Server;
 
   constructor(
     private readonly chatService: ChatService,
@@ -77,7 +77,7 @@ export class ChatGateway
   }
 
   async handleDisconnect(client: Socket) {
-    const participant = await client.data.user;
+    const participant = client.data.user;
 
     if (participant) {
       await this.chatService.removeClient(participant.sub, client);
