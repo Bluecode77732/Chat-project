@@ -1,10 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SessionCacheService } from './redis.service';
 import { RedisClientType } from 'redis';
+import { ConfigService } from '@nestjs/config';
 
 describe('SessionCacheService', () => {
   let redisService: SessionCacheService;
   let mockRedisClient: Partial<RedisClientType>;
+
+  const mockConfigService = {
+    get: jest.fn().mockImplementation((_key: string, defaultValue: unknown) => defaultValue),
+  };
 
   beforeEach(async () => {
     mockRedisClient = {
@@ -26,6 +31,10 @@ describe('SessionCacheService', () => {
         {
           provide: 'REDIS_CLIENT',
           useValue: mockRedisClient,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -166,7 +175,7 @@ describe('SessionCacheService', () => {
         key,
         expect.any(String),
       );
-      expect(mockRedisClient.lTrim).toHaveBeenCalledWith(key, 0, 9);
+      expect(mockRedisClient.lTrim).toHaveBeenCalledWith(key, 0, 14);
       expect(mockRedisClient.expire).toHaveBeenCalledWith(key, 86400);
 
       const stored = JSON.parse(
@@ -208,7 +217,7 @@ describe('SessionCacheService', () => {
       expect(mockRedisClient.lRange).toHaveBeenCalledWith(
         'room_messages:1',
         0,
-        9,
+        14,
       );
       expect(result).toHaveLength(2);
       expect(result![0].id).toBe(1);

@@ -52,7 +52,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
 
     const { password, ...rest } = user;
     await this.redis.set(`user_cache:${payload.sub}`, JSON.stringify(rest), {
-      EX: 300,
+      EX: this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
     });
 
     return rest;

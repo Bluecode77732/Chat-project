@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as redisClient from 'redis';
 
 /**
@@ -12,6 +13,7 @@ export class SessionCacheService implements OnModuleInit {
   constructor(
     @Inject('REDIS_CLIENT')
     private readonly redis: redisClient.RedisClientType,
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
@@ -20,7 +22,10 @@ export class SessionCacheService implements OnModuleInit {
 
   async sethUserOnline(userId: number, socketId: string) {
     await this.redis.hSet(`user:${userId}`, { socketId, status: 'online' });
-    await this.redis.expire(`user:${userId}`, 86400);
+    await this.redis.expire(
+      `user:${userId}`,
+      this.configService.get<number>('SESSION_TTL_SEC', 86400),
+    );
     // Track online user IDs in a dedicated Set for O(1) membership lookup
     await this.redis.sAdd('online_users', String(userId));
   }
@@ -56,12 +61,15 @@ export class SessionCacheService implements OnModuleInit {
     });
     const key = `room_messages:${roomId}`;
     await this.redis.lPush(key, entry);
-    await this.redis.lTrim(key, 0, 9);
-    await this.redis.expire(key, 86400);
+    await this.redis.lTrim(key, 0, 14);
+    await this.redis.expire(
+      key,
+      this.configService.get<number>('MESSAGE_CACHE_TTL_SEC', 86400),
+    );
   }
 
   async getCachedMessages(roomId: number): Promise<any[] | null> {
-    const entries = await this.redis.lRange(`room_messages:${roomId}`, 0, 9);
+    const entries = await this.redis.lRange(`room_messages:${roomId}`, 0, 14);
     if (!entries.length) return null;
     // lPush stores newest at index 0; reverse to return oldest-first (matches DB order)
     return entries

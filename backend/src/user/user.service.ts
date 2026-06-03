@@ -145,6 +145,7 @@ export class UserService {
     }
 
     await this.userRepository.delete(id);
+    await this.redis.del(`user_cache:${id}`);
     logger.info(`User '${user.id}' is deleted`, {
       timestamp: new Date().toISOString(),
     });

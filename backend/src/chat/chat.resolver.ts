@@ -148,6 +148,9 @@ export class ChatResolver {
       await queryRunner.commitTransaction();
 
       const roomId = savedMessage.room?.id;
+      if (roomId) {
+        await this.sessionCacheService.cacheMessage(roomId, savedMessage);
+      }
       await this.pubSub.publish(`receiveMessage :${roomId}`, {
         receiveMessage: savedMessage,
       });

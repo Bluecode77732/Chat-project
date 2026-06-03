@@ -270,7 +270,6 @@ export class ChatService {
         );
       }
 
-      await this.redisService.cacheMessage(room.id, messageSchema);
       logger.info(
         `User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`,
       );

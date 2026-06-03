@@ -97,6 +97,7 @@ export class ChatGateway
     @WebSocketQueryRunner() queryRunner: QueryRunner,
   ) {
     const payload = client.data.user;
-    await this.chatService.sendMessage(payload, dto, queryRunner);
+    const message = await this.chatService.sendMessage(payload, dto, queryRunner);
+    client.data.pendingCacheMessage = message;
   }
 }
