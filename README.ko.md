@@ -225,7 +225,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
             id
             message
             participant {
-                id
+              id
             }
             roomId
             createdAt
@@ -261,13 +261,13 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - 프레임워크: Nest.js — TypeScript 프로젝트를 위한 확장 가능한 프레임워크, 지속적으로 성장하는 강력한 프레임워크. ✔
 - 아키텍처: 모놀리식 아키텍처 — 일반적인 프로젝트에 적합하고 컴포넌트 단위 결합 및 분리가 용이한 원칙. ✔
 - 소켓: Socket.IO — NestJS 공식 문서에 기재된 것처럼, 이 미들웨어 패키지는 POST 메서드를 통한 HTTP 요청으로 multipart/form-data 형식을 처리하는 방법을 제공하여 애플리케이션이 쉽게 처리할 수 있게 합니다. ✔
+- AI: Google Gemini 2.5 Flash — 선택 가능한 성격을 통한 AI 채팅 응답 ✔
 - 인증: JWT 인증 — 애플리케이션 사용을 위한 사용자 유효성 검증 ✔
 - 가드: 유효한 데이터 타입만 허용 ✔
 - 인터셉터: 사용자 데이터를 조작하는 미들웨어 ✔
 - 역할 기반 접근: 권한 클래스로 사용자 레벨 구분 ✔
 - 채팅: 주요 웹소켓 구현 ✔
 - 캐시: Redis — 메시지 속도 제한 및 사용자 데이터의 효율적인 저장. ✔
-- AI: Google Gemini 2.5 Flash — 선택 가능한 성격을 통한 AI 채팅 응답 (AiModule). ✔
 - 필터: 예외 핸들러 ✔
 - 로거: 애플리케이션 실행 중 이벤트, 오류, 디버그 정보 기록 ✔
 - 유닛 테스트: 각 유닛별 서비스 메서드 테스트 ✔
@@ -458,7 +458,7 @@ controller, core, platform-express, testing, jest, eslint, prettier, ts-node, ty
   CORS_ORIGIN=your.vercel.app
 
   # Google Gemini AI
-  GEMINI_API_KEY=AIzaSy-your-key-here
+  GEMINI_API_KEY=your-gemini-key
 ```
 
 
@@ -637,8 +637,8 @@ Socket 인메모리
 - Chat Service: 91.86%
 - Redis Service: 90.9%
 - User Service: 73.17% (단순 'Get' 및 'Delete' 메서드 제외)
-- AI Service: 커버됨
-- AI Room Service: 커버됨
+- AI Service: 100%
+- AI Room Service: 100%
 
 **예시 코드**
 ```ts
