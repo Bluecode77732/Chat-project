@@ -197,7 +197,7 @@ Test 'Auth' and 'User' Endpoints URL below.
   - Query
     ```altair
     subscription {
-      messageAdded(roomId: "19") {   
+      receiveMessage(roomId: "19") {   
         id
         message
         participant {
@@ -220,16 +220,15 @@ Test 'Auth' and 'User' Endpoints URL below.
     - Headers: authorization: Bearer token
   - Query
     ```graphql
-    mutation SendMessage($input: CreateChatInput!) {
-        sendMessage(input: $input, recipientId: 2) {
+    mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+        sendMessage(input: $input, recipientId: $recipientId) {
             id
             message
             participant {
-                id
-                email
-                password
-                role
+              id
             }
+            roomId
+            createdAt
         }
     }
     ```
@@ -240,7 +239,8 @@ Test 'Auth' and 'User' Endpoints URL below.
         "message": "Sent from Postman",
         "recipientId": 2,
         "room": 19
-      }
+      },
+      "recipientId": 2
     }
     ```
 
@@ -261,6 +261,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Framework: Nest.Js, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
 - Architecture: Monolithic Architecture, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
 - Socket: Socket.IO, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
+- AI: Google Gemini 2.5 Flash for AI chat responses with selectable personalities ✔
 - Authentication: JWT Authentication; authenticate user validation for using the application ✔
 - Guard: allow validated only types of data ✔
 - Interceptor: a middleware to manipulate user's data ✔
@@ -280,6 +281,8 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Private chat rooms between users
 - Transaction-safe message storage & delivery
 - Horizontal scaling ready - Redis-backed session
+- AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
+- Cursor-based message history with infinite scroll
 
 
 ## Architecture
@@ -329,9 +332,10 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 
 ## Build
 ### Total Installation
-Dependencies (35)
+Dependencies (36)
 - @apollo/server
 - @as-integrations/express5
+- @google/genai
 - @nestjs/apollo
 - @nestjs/config
 - @nestjs/graphql
@@ -409,6 +413,8 @@ Methods
         ACCESS_TOKEN_SECRET: Joi.string().required(),
         REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
+        CORS_ORIGIN: Joi.string().required(),
+        GEMINI_API_KEY: Joi.string().required(),
       }),
       isGlobal: true,
     }),
@@ -441,10 +447,18 @@ Create a `.env` file in the root directory and paste variables below :
   ACCESS_TOKEN_SECRET_EXPIRES_IN=expiryTime
 
   # Redis Configuration
-  REDIS_URL=redis://localhost:6379
+  REDIS_URL=redis://user:password@host:port
+
+  # Redis TTL (seconds)
+  USER_CACHE_TTL_SEC=300
+  SESSION_TTL_SEC=86400
+  MESSAGE_CACHE_TTL_SEC=86400
 
   # CORS URL Set Up
   CORS_ORIGIN=your.vercel.app
+
+  # Google Gemini AI
+  GEMINI_API_KEY=your-gemini-key
 ```
 
 
@@ -613,15 +627,15 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 
 #### Test Coverage
 **Test Results**
-- Test Suites: 4 passed, 4 total
-- Tests: 43 passed, 43 total
+- Test Suites: 6 passed, 6 total (auth, chat, user, redis, ai, ai-room)
 
 **Coverage Results**
 - Auth Service: 95.89%
 - Chat Service: 91.86%
 - Redis Service: 90.9%
 - User Service: 73.17% (excluded simple 'Get' and 'Delete' methods)
-- **Overall: 89.71%**
+- AI Service: 100%
+- AI Room Service: 100%
 
 **Example Code**
 ```ts
@@ -754,7 +768,6 @@ Remove container (keeps image)
 - Backend: Store conversation list per user (last message, unread message, etc)
 - Backend: Broadcast via `roomId` to scale to create group chats, or notification with `Redis Pub/Sub` package
 - Backend: Let users delete rooms and conversation
-- Backend: Restore by load up previous chat logs when user disconnected from Socket
 - Backend: Let users see "User is typing" when one side is typing a message
 - Frontend: httpOnly Cookie for refreshToken security hardening
 - Frontend: Apollo Client token refresh on WebSocket reconnection
