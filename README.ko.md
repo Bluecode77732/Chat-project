@@ -415,7 +415,7 @@ controller, core, platform-express, testing, jest, eslint, prettier, ts-node, ty
 
 
 ### 설정
-설치가 완료되면 `app.module`로 이동하여 패키지 설정을 진행합니다.
+설치가 완료되면 `backend/src/app.module.ts`로 이동하여 패키지 설정을 진행합니다.
 
 패키지
 - joi
@@ -515,6 +515,8 @@ WebSocket
 
 #### 로컬 - docker-compose
 Docker를 통해 모든 서비스 실행
+
+- 프로젝트 루트에 `.env.local` 필요 (`backend/.env.example`에서 복사 후 조정 — `NODE_ENV=docker`)
 
 - 모든 서비스 시작
 `docker compose up -d --build`
@@ -651,7 +653,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
   "logger.ts",
   "type.ts",
   "pubsub.service.ts",
-  "resolver.ts"
+  "resolver.ts",
   "data-source.ts",
   "migrations",
   "system-prompts.ts",
@@ -757,7 +759,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 **설정 파일**
 - '.github/workflows/deploy.yml': 테스트 & 빌드 실행 후 Railway CLI로 배포
-- 'railway.toml': Dockerfile로 빌드, 배포 시 `pnpm migration:run && pnpm run start:prod` 실행
+- 'railway.toml': Dockerfile로 빌드, 배포 시 `cd backend && pnpm migration:run && node dist/main` 실행
 
 
 #### 로컬 - Docker

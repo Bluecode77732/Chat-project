@@ -415,7 +415,7 @@ Excluded NestJS CLI defaults like common, core, platform-express, testing, jest,
 
 
 ### Configuration
-Once installation is finished, go to `app.module`, and set up configuration of the package.
+Once installation is finished, go to `backend/src/app.module.ts`, and set up configuration of the package.
 
 Package
 - joi
@@ -515,6 +515,8 @@ Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and 
 
 #### Local - docker-compose
 Running all of services through Docker
+
+- Requires `.env.local` at the project root (copy from `backend/.env.example` and adjust — `NODE_ENV=docker`)
 
 - Start all of services
 `docker compose up -d --build`
@@ -650,7 +652,7 @@ In `coveragePathIgnorePatterns`, it creates and passes in what not to test in 'P
   "logger.ts",
   "type.ts",
   "pubsub.service.ts",
-  "resolver.ts"
+  "resolver.ts",
   "data-source.ts",
   "migrations",
   "system-prompts.ts",
@@ -756,7 +758,7 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 
 **Config Files**
 - '.github/workflows/deploy.yml' runs test & build, then deploys via Railway CLI
-- 'railway.toml' builds with Dockerfile, runs `pnpm migration:run && pnpm run start:prod` on deploy
+- 'railway.toml' builds with Dockerfile, runs `cd backend && pnpm migration:run && node dist/main` on deploy
 
 
 #### Local - Docker
