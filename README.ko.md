@@ -291,8 +291,14 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `userId` => `socketId` 객체 저장
 - 두 방식을 함께 사용하는 이유: Redis는 직렬화된 객체를 'JSON' 형식으로 저장하는 반면, 소켓은 클라이언트가 TCP 레벨 연결을 통해 연결된 동안에만 저장합니다. 따라서 클라이언트는 세션/캐시 데이터로 재연결할 수 있습니다.
 
+### Redis Pub/Sub
+- `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신합니다.
+
 
 ## 흐름
+프론트엔드는 메시지 전송에 **GraphQL Mutation 경로**를 사용합니다. **Socket.IO 경로**는 직접 WebSocket 클라이언트에서도 사용 가능합니다.
+
+### Socket.IO 경로
 1. 클라이언트가 `chat.gateway`의 handleConnection으로 WebSocket 연결
   1.1. JWT 토큰 인증
   2.2. Redis에 `userId` => `socketId` 저장
@@ -317,8 +323,8 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   4.2. Map: `clientConnection.get(getUserSocketId.socketId)`로 Socket 객체 조회
 
 5. Socket.IO 방에 emit
-  5.1. `senderSocketId.to(room.id.toString())`로 `(ChatEntity, messageSchema)`에 `emit("SendMessage")`하여 `room.id`를 통해 모든 방에 브로드캐스트
-  5.2. `senderSocketId.emit("SendMessage")`로 발신자에게 `(ChatEntity, messageSchema)` 전달 확인
+  5.1. `senderSocketId.to(room.id.toString())`로 `(ChatEntity, messageSchema)`에 `emit('sendMessage')`하여 `room.id`를 통해 방 멤버에게 브로드캐스트
+  5.2. `senderSocketId.emit('sendMessage')`로 발신자에게 `(ChatEntity, messageSchema)` 전달 확인
 
 6. 수신자가 발신자의 메시지 수신
   6.1. `joinRooms()`로 이미 사용자가 기존 방에 참여해 있음
@@ -328,6 +334,27 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   7.1 클라이언트가 `chat.gateway`에서 `handleDisconnect()` 수행하여 소켓 연결 해제
   7.2 클라이언트가 Redis에서 연결 해제 => 상태: 오프라인
   7.3 클라이언트 연결 해제 시 `removeClient`가 `chat.service`에서 `socketId` 항목을 Map에서 삭제
+
+### GraphQL Mutation 경로
+1. 클라이언트가 `sendMessage` 뮤테이션 호출
+  1.1. `GraphQLAuthGuard` + `RateLimitGuard` 실행
+  1.2. 인라인 `QueryRunner` 트랜잭션 시작
+  1.3. `ChatService.sendMessage()`로 발신자/수신자 검증, 방 조회 또는 생성, `ChatEntity` 저장
+  1.4. `queryRunner.commitTransaction()`
+
+2. 커밋 후 전달
+  2.1. `SessionCacheService.cacheMessage()`로 Redis에 메시지 캐싱
+  2.2. `PubSubService.publish()`로 `receiveMessage :${roomId}` 채널에 발행
+  2.3. `ChatService.broadcastToRoom()`으로 Socket.IO 방에 `'sendMessage'` emit
+
+3. AI 응답 (수신자가 AI 유저인 경우)
+  3.1. 응답 반환 후 `setImmediate` 실행
+  3.2. `AiService.handleReply()`가 Redis 락 획득, 대화 히스토리 구성, Gemini API 호출
+  3.3. AI 응답 DB 저장 → Redis 캐싱 → 방 브로드캐스트 → Pub/Sub 발행
+
+4. 구독자 메시지 수신
+  4.1. Redis Pub/Sub이 활성 `receiveMessage(roomId)` 구독자에게 전달
+  4.2. GraphQL 구독 리졸버가 페이로드를 클라이언트에 push
 
 
 ## 빌드

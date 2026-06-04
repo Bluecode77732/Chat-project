@@ -291,8 +291,14 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - In-Memory(socket): It stores `userId` => `socketId` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
 - Reason for utilizing both: Redis holds serialized objects as 'JSON' format, while socket holds as long as client is connected via TCP-level connection. Therefore, clients are enabled to reconnect with their session/cache data.
 
+### Redis Pub/Sub
+- `RedisPubSub` singleton (`pubsub.service.ts`): bridges GraphQL mutations to active subscriptions. After commit the resolver publishes to a `receiveMessage :${roomId}` channel; all connected `receiveMessage` subscribers receive the message in real time.
+
 
 ## Flow
+The frontend uses the **GraphQL Mutation Path** for sending messages; the **Socket.IO Path** remains available for direct WebSocket clients.
+
+### Socket.IO Path
 1. Client connects WebSocket with handleConnection in `chat.gateway`
   1.1. Authenticate JWT token
   2.2. Store `userId` => `socketId` in Redis
@@ -317,8 +323,8 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
   4.2. Map: `clientConnection.get(getUserSocketId.socketId)` gets Socket object`
 
 5. Emit to Socket.io room
-  5.1. `senderSocketId.to(room.id.toString())`, then `emit("SendMessage")` to `(ChatEntity, messageSchema)`, broadcasts to all rooms through  `room.id`
-  5.2. `senderSocketId.emit("SendMessage")` confirms delivery to sender in `(ChatEntity, messageSchema)`
+  5.1. `senderSocketId.to(room.id.toString())`, then `emit('sendMessage')` to `(ChatEntity, messageSchema)`, broadcasts to room members through `room.id`
+  5.2. `senderSocketId.emit('sendMessage')` confirms delivery to sender in `(ChatEntity, messageSchema)`
 
 6. Recipient receives Sender's message
   6.1. `joinRooms()` already made users to join the existing rooms
@@ -328,6 +334,27 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
   7.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
   7.2 Clients disconnects from Redis => status: offline
   7.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
+
+### GraphQL Mutation Path
+1. Client calls `sendMessage` mutation
+  1.1. `GraphQLAuthGuard` + `RateLimitGuard` run
+  1.2. Inline `QueryRunner` opens and starts a transaction
+  1.3. `ChatService.sendMessage()` validates sender/recipient, finds or creates room, saves `ChatEntity`
+  1.4. `queryRunner.commitTransaction()`
+
+2. Post-commit delivery
+  2.1. `SessionCacheService.cacheMessage()` stores message in Redis
+  2.2. `PubSubService.publish()` pushes to `receiveMessage :${roomId}` channel
+  2.3. `ChatService.broadcastToRoom()` emits `'sendMessage'` to Socket.IO room
+
+3. AI reply (if recipient is AI user)
+  3.1. `setImmediate` fires after response returns
+  3.2. `AiService.handleReply()` acquires Redis lock, builds conversation history, calls Gemini API
+  3.3. AI reply saved to DB, cached in Redis, broadcast to room, published to Pub/Sub
+
+4. Subscriber receives message
+  4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers
+  4.2. GraphQL subscription resolves and pushes payload to client
 
 
 ## Build
@@ -601,7 +628,9 @@ In `coveragePathIgnorePatterns`, it creates and passes in what not to test in 'P
   "pubsub.service.ts",
   "resolver.ts"
   "data-source.ts",
-  "migrations"
+  "migrations",
+  "system-prompts.ts",
+  "ai-personality.enum.ts"
 ],
 ```
 
