@@ -9,6 +9,9 @@
 ![React](https://img.shields.io/badge/React-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-646CFF)
 ![Vercel](https://img.shields.io/badge/Vercel-000000)
+![Gemini](https://img.shields.io/badge/Gemini-8E75B2)
+
+> 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
 - An classical private One-to-One chatting server-side management application that validated users can chat with the other user.
@@ -316,7 +319,6 @@ The frontend uses the **GraphQL Mutation Path** for sending messages; the **Sock
   3.3. Validate sender and recipient existence
   3.4. Execute `findRoom` or `createRoom`
   3.5. Save 'ChatEntity' to DB with room foreign key
-  3.6. Commit transaction in rollback if errors
 
 4. Retrieve sender Socket
   4.1. Redis: `getUserStatus` gets `socketId`
@@ -326,14 +328,18 @@ The frontend uses the **GraphQL Mutation Path** for sending messages; the **Sock
   5.1. `senderSocketId.to(room.id.toString())`, then `emit('sendMessage')` to `(ChatEntity, messageSchema)`, broadcasts to room members through `room.id`
   5.2. `senderSocketId.emit('sendMessage')` confirms delivery to sender in `(ChatEntity, messageSchema)`
 
-6. Recipient receives Sender's message
-  6.1. `joinRooms()` already made users to join the existing rooms
-  6.2. Client receives 'SendMessage' with message schema
+6. `WsTransactionInterceptor` (runs after handler returns)
+  6.1. `commitTransaction()` — or `rollbackTransaction()` on error
+  6.2. `SessionCacheService.cacheMessage()` write-after-commit
 
-7. Client Disconnects
-  7.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
-  7.2 Clients disconnects from Redis => status: offline
-  7.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
+7. Recipient receives Sender's message
+  7.1. `joinRooms()` already made users to join the existing rooms
+  7.2. Client receives 'sendMessage' with message schema
+
+8. Client Disconnects
+  8.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
+  8.2 Clients disconnects from Redis => status: offline
+  8.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
 
 ### GraphQL Mutation Path
 1. Client calls `sendMessage` mutation
@@ -580,6 +586,23 @@ Redis with In-Memory
 ```
 
 
+### AI
+Powered by Google Gemini 2.5 Flash. The `AiModule` contains two services:
+- `AiService` — Gemini API calls, conversation history (last 10 messages), Redis distributed lock to prevent duplicate replies per room
+- `AiRoomService` — per-room personality selection and retrieval
+
+**Personalities**
+- `FRIENDLY`: General Q&A, warm and encouraging
+- `CODING`: Programming expert with code examples
+- `ENGLISH`: Grammar correction and natural phrasing
+- `CREATIVE`: Storytelling, brainstorming, writing feedback
+
+**Usage**
+1. Click **AI Chat** in the Conversations banner
+2. Select a personality when sending the first message
+3. To change: click the **성격 변경** button (no change limit)
+
+
 ### Test
 To test out rate of success in test, Coverage Test is appropriate supporting tool for it.
 
@@ -708,7 +731,7 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 ### Deployment
 #### Frontend - Vercel
 **Live Demo**
-- Live URL: https://chat-sage-phi.vercel.app
+- Live URL: https://chat-project-frontend-ten.vercel.app
 
 **CI/CD Flow**
 `git push origin main` => Vercel Auto-deploy

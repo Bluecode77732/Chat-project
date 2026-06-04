@@ -9,6 +9,9 @@
 ![React](https://img.shields.io/badge/React-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-646CFF)
 ![Vercel](https://img.shields.io/badge/Vercel-000000)
+![Gemini](https://img.shields.io/badge/Gemini-8E75B2)
+
+> English version: [README.md](README.md)
 
 # 실시간 채팅 애플리케이션
 - 인증된 사용자들이 서로 채팅할 수 있는 클래식한 개인 1:1 채팅 서버 관리 애플리케이션입니다.
@@ -316,7 +319,6 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   3.3. 발신자 및 수신자 존재 여부 확인
   3.4. `findRoom` 또는 `createRoom` 실행
   3.5. 방 외래키와 함께 DB에 'ChatEntity' 저장
-  3.6. 오류 발생 시 롤백으로 트랜잭션 커밋
 
 4. 발신자 Socket 가져오기
   4.1. Redis: `getUserStatus`로 `socketId` 조회
@@ -326,14 +328,18 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   5.1. `senderSocketId.to(room.id.toString())`로 `(ChatEntity, messageSchema)`에 `emit('sendMessage')`하여 `room.id`를 통해 방 멤버에게 브로드캐스트
   5.2. `senderSocketId.emit('sendMessage')`로 발신자에게 `(ChatEntity, messageSchema)` 전달 확인
 
-6. 수신자가 발신자의 메시지 수신
-  6.1. `joinRooms()`로 이미 사용자가 기존 방에 참여해 있음
-  6.2. 클라이언트가 메시지 스키마와 함께 'SendMessage' 수신
+6. `WsTransactionInterceptor` (핸들러 반환 후 실행)
+  6.1. `commitTransaction()` — 오류 시 `rollbackTransaction()`
+  6.2. `SessionCacheService.cacheMessage()` 커밋 후 캐시 저장
 
-7. 클라이언트 연결 해제
-  7.1 클라이언트가 `chat.gateway`에서 `handleDisconnect()` 수행하여 소켓 연결 해제
-  7.2 클라이언트가 Redis에서 연결 해제 => 상태: 오프라인
-  7.3 클라이언트 연결 해제 시 `removeClient`가 `chat.service`에서 `socketId` 항목을 Map에서 삭제
+7. 수신자가 발신자의 메시지 수신
+  7.1. `joinRooms()`로 이미 사용자가 기존 방에 참여해 있음
+  7.2. 클라이언트가 메시지 스키마와 함께 'sendMessage' 수신
+
+8. 클라이언트 연결 해제
+  8.1 클라이언트가 `chat.gateway`에서 `handleDisconnect()` 수행하여 소켓 연결 해제
+  8.2 클라이언트가 Redis에서 연결 해제 => 상태: 오프라인
+  8.3 클라이언트 연결 해제 시 `removeClient`가 `chat.service`에서 `socketId` 항목을 Map에서 삭제
 
 ### GraphQL Mutation 경로
 1. 클라이언트가 `sendMessage` 뮤테이션 호출
@@ -581,6 +587,23 @@ Socket 인메모리
 ```
 
 
+### AI
+Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함됩니다.
+- `AiService` — Gemini API 호출, 대화 히스토리 구성(최근 10개 메시지), Redis 분산 락으로 방당 중복 응답 방지
+- `AiRoomService` — 방별 성격 선택 및 조회 관리
+
+**성격 목록**
+- `FRIENDLY`: 일반 Q&A, 따뜻하고 격려하는 말투
+- `CODING`: 프로그래밍 전문, 코드 예시 중심
+- `ENGLISH`: 영작 교정 및 자연스러운 표현 제안
+- `CREATIVE`: 스토리텔링, 브레인스토밍, 글쓰기 도움
+
+**사용 방법**
+1. Conversations 배너에서 **AI Chat** 클릭
+2. 첫 메시지 전송 시 성격 선택
+3. 변경 시: **성격 변경** 버튼 클릭 (횟수 제한 없음)
+
+
 ### 테스트
 테스트 성공률을 확인하기 위해 커버리지 테스트가 적합한 지원 도구입니다.
 
@@ -709,7 +732,7 @@ Socket 인메모리
 ### 배포
 #### 프론트엔드 - Vercel
 **라이브 데모**
-- 라이브 URL: https://chat-sage-phi.vercel.app
+- 라이브 URL: https://chat-project-frontend-ten.vercel.app
 
 **CI/CD 흐름**
 `git push origin main` => Vercel 자동 배포
