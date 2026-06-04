@@ -23,7 +23,7 @@ A casual private One-to-One chatting project that enables communication real-tim
 - Authentication: JWT-based auth with Passport strategies
 - Chat Management: Socket and Redis session & cache connection with transaction safety
 - API Documentation: Swagger integration + Altair & GraphQL
-- Testing: Unit tests with approximate +70% coverage on core logic
+- Testing: Unit tests with approximate +90% coverage on core logic
 
 
 ## Project Motivation
@@ -54,20 +54,21 @@ A casual private One-to-One chatting project that enables communication real-tim
   ```
   
   # Setup environment
-  Edit file name as '.env' and change with your DB credentials.
+  Copy to `backend/.env` and fill in your credentials.
   ```powershell
-  cp .env.example
+  cp backend/.env.example backend/.env
   ```
  
   # Create database manually
-  Set 'synchronize: true' in 'app.module.ts' for automatic DB creation.
+  Set 'synchronize: true' in 'backend/src/app.module.ts' for automatic DB creation.
 
   # Migration Schema Set Up
-  Set 'synchronize: false' in 'app.module.ts' for DB migration to record schema any changes.
+  Set 'synchronize: false' in 'backend/src/app.module.ts' for DB migration to record schema any changes.
   ```powershell
-  ⬇ migration:generate
-  ⬇ pnpm build 
-  ⬇ pnpm migration:run
+  cd backend
+  pnpm migration:generate -- src/migrations/MigrationName
+  pnpm build
+  pnpm migration:run
   ```
 
   # Run Redis in Docker
@@ -75,9 +76,9 @@ A casual private One-to-One chatting project that enables communication real-tim
   docker start redis-chat
   ```
 
-  # Run development
+  # Run development (cd backend first)
   ```powershell
-  pnpm run start:dev
+  cd backend && pnpm start:dev
   ```
   
   # Local Test Socket Chat
@@ -97,8 +98,8 @@ A casual private One-to-One chatting project that enables communication real-tim
   # Run all tests
   pnpm test
 
-  # Run test coverage
-  pnpm run test:cov
+  # Run test coverage (cd backend first)
+  cd backend && pnpm test:cov
   
   # Access Swagger UI
   http://localhost:3000/document
@@ -137,7 +138,7 @@ Since Altair cannot test with Mutation, while Postman cannot test Subscription, 
 ### Key Endpoints
 **Swagger**
 Test 'Auth' and 'User' Endpoints URL below.
-- URL: `http://localhost:3000/doc`
+- URL: `http://localhost:3000/document`
 
 **Authentication**
 - `POST /auth/register` - Register with Basic Auth
@@ -149,7 +150,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `GET /user/:id` - Get a user 
 - `POST /user` - Create a user
 - `PATCH /user/:id` - Update a user
-- `PATCH /user/:id` - Delete a user
+- `DELETE /user/:id` - Delete a user
 
 **Chat**
 - Socket.IO
@@ -160,7 +161,7 @@ Test 'Auth' and 'User' Endpoints URL below.
     - Default Request Handler: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
-    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
   - Message
     ```json
     {
@@ -176,7 +177,7 @@ Test 'Auth' and 'User' Endpoints URL below.
     - Default Request Handler: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
-    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
   - Message
     ```json
     {
@@ -304,9 +305,9 @@ The frontend uses the **GraphQL Mutation Path** for sending messages; the **Sock
 ### Socket.IO Path
 1. Client connects WebSocket with handleConnection in `chat.gateway`
   1.1. Authenticate JWT token
-  2.2. Store `userId` => `socketId` in Redis
-  2.3. Store `socketId` => Socket in Map
-  2.4. `joinRooms()` users to join in the existing rooms
+  1.2. Store `userId` => `socketId` in Redis
+  1.3. Store `socketId` => Socket in Map
+  1.4. `joinRooms()` users to join in the existing rooms
 
 2. Client calls `sendMessage` function
   2.1. RateLimitGuard: Redis increment user: `${userId}`
@@ -455,7 +456,7 @@ Methods
 
 
 ### Environment Configuration
-Create a `.env` file in the root directory and paste variables below :
+Create a `backend/.env` file and paste variables below :
 ```env.example
   # Development Environment
   ENV=dev

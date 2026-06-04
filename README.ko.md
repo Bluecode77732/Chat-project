@@ -23,7 +23,7 @@
 - 인증: Passport 전략을 활용한 JWT 기반 인증
 - 채팅 관리: 트랜잭션 안전성을 갖춘 Socket과 Redis 세션 및 캐시 연동
 - API 문서: Swagger 연동 + Altair & GraphQL
-- 테스트: 핵심 로직 약 +70% 커버리지의 유닛 테스트
+- 테스트: 핵심 로직 약 +90% 커버리지의 유닛 테스트
 
 
 ## 프로젝트 동기
@@ -54,20 +54,21 @@
   ```
   
   # 환경 설정
-  파일명을 '.env'로 변경하고 DB 자격증명을 입력합니다.
+  `backend/.env`로 복사 후 자격증명을 입력합니다.
   ```powershell
-  cp .env.example
+  cp backend/.env.example backend/.env
   ```
  
   # 데이터베이스 수동 생성
-  자동 DB 생성을 위해 'app.module.ts'에서 'synchronize: true'로 설정합니다.
+  자동 DB 생성을 위해 'backend/src/app.module.ts'에서 'synchronize: true'로 설정합니다.
 
   # 마이그레이션 스키마 설정
-  스키마 변경사항 기록을 위해 'app.module.ts'에서 'synchronize: false'로 설정합니다.
+  스키마 변경사항 기록을 위해 'backend/src/app.module.ts'에서 'synchronize: false'로 설정합니다.
   ```powershell
-  ⬇ migration:generate
-  ⬇ pnpm build 
-  ⬇ pnpm migration:run
+  cd backend
+  pnpm migration:generate -- src/migrations/MigrationName
+  pnpm build
+  pnpm migration:run
   ```
 
   # Docker로 Redis 실행
@@ -75,9 +76,9 @@
   docker start redis-chat
   ```
 
-  # 개발 서버 실행
+  # 개발 서버 실행 (backend 디렉토리에서 실행)
   ```powershell
-  pnpm run start:dev
+  cd backend && pnpm start:dev
   ```
   
   # 로컬 소켓 채팅 테스트
@@ -97,8 +98,8 @@
   # 전체 테스트 실행
   pnpm test
 
-  # 테스트 커버리지 실행
-  pnpm run test:cov
+  # 테스트 커버리지 실행 (backend 디렉토리에서 실행)
+  cd backend && pnpm test:cov
   
   # Swagger UI 접속
   http://localhost:3000/document
@@ -149,7 +150,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - `GET /user/:id` - 특정 사용자 조회
 - `POST /user` - 사용자 생성
 - `PATCH /user/:id` - 사용자 수정
-- `PATCH /user/:id` - 사용자 삭제
+- `DELETE /user/:id` - 사용자 삭제
 
 **채팅**
 - Socket.IO
@@ -304,9 +305,9 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 ### Socket.IO 경로
 1. 클라이언트가 `chat.gateway`의 handleConnection으로 WebSocket 연결
   1.1. JWT 토큰 인증
-  2.2. Redis에 `userId` => `socketId` 저장
-  2.3. Map에 `socketId` => Socket 저장
-  2.4. `joinRooms()`로 사용자를 기존 방에 참여시킴
+  1.2. Redis에 `userId` => `socketId` 저장
+  1.3. Map에 `socketId` => Socket 저장
+  1.4. `joinRooms()`로 사용자를 기존 방에 참여시킴
 
 2. 클라이언트가 `sendMessage` 함수 호출
   2.1. RateLimitGuard: Redis로 `${userId}` 카운터 증가
@@ -455,7 +456,7 @@ controller, core, platform-express, testing, jest, eslint, prettier, ts-node, ty
 
 
 ### 환경 변수 설정
-루트 디렉토리에 `.env` 파일을 생성하고 아래 변수를 붙여넣습니다:
+`backend/.env` 파일을 생성하고 아래 변수를 붙여넣습니다:
 ```env.example
   # 개발 환경
   ENV=dev
