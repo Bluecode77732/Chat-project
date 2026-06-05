@@ -161,7 +161,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
     - 기본 요청 핸들러: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
-    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
   - 메시지
     ```json
     {
@@ -177,7 +177,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
     - 기본 요청 핸들러: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
-    - Events: SendMessage(Listen: ON), CreateRoom(Listen: ON)
+    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
   - 메시지
     ```json
     {
@@ -292,7 +292,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 ## 아키텍처
 ### 하이브리드 저장소 패턴
 - Redis(세션/캐시): 일관된 데이터 흐름과 서버 공유를 위해 `userId` => `socketId` 매핑 저장
-- 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `userId` => `socketId` 객체 저장
+- 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `socketId` => `Socket` 객체 저장
 - 두 방식을 함께 사용하는 이유: Redis는 직렬화된 객체를 'JSON' 형식으로 저장하는 반면, 소켓은 클라이언트가 TCP 레벨 연결을 통해 연결된 동안에만 저장합니다. 따라서 클라이언트는 세션/캐시 데이터로 재연결할 수 있습니다.
 
 ### Redis Pub/Sub
@@ -366,7 +366,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 ## 빌드
 ### 전체 설치
-의존성 (36개)
+의존성 (35개)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
@@ -378,7 +378,6 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - @nestjs/passport
 - @nestjs/platform-socket.io
 - @nestjs/swagger
-- @nestjs/throttler
 - @nestjs/typeorm
 - @nestjs/websockets
 - @types/bcrypt

@@ -292,7 +292,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 ## Architecture
 ### Hybrid Storage Pattern
 - Redis(session/cache): It stores `userId` => `socketId` mapping for consistent data flow and shareable servers
-- In-Memory(socket): It stores `userId` => `socketId` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
+- In-Memory(socket): It stores `socketId` => `Socket` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
 - Reason for utilizing both: Redis holds serialized objects as 'JSON' format, while socket holds as long as client is connected via TCP-level connection. Therefore, clients are enabled to reconnect with their session/cache data.
 
 ### Redis Pub/Sub
@@ -366,7 +366,7 @@ The frontend uses the **GraphQL Mutation Path** for sending messages; the **Sock
 
 ## Build
 ### Total Installation
-Dependencies (36)
+Dependencies (35)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
@@ -378,7 +378,6 @@ Dependencies (36)
 - @nestjs/passport
 - @nestjs/platform-socket.io
 - @nestjs/swagger
-- @nestjs/throttler
 - @nestjs/typeorm
 - @nestjs/websockets
 - @types/bcrypt
