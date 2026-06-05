@@ -22,6 +22,7 @@
 실시간 1:1 채팅을 가능하게 하는 개인 채팅 프로젝트입니다.
 - 인증: Passport 전략을 활용한 JWT 기반 인증
 - 채팅 관리: 트랜잭션 안전성을 갖춘 Socket과 Redis 세션 및 캐시 연동
+- AI 채팅: 4가지 선택 가능한 성격을 지원하는 Google Gemini 2.5 Flash
 - API 문서: Swagger 연동 + Altair & GraphQL
 - 테스트: 핵심 로직 약 +90% 커버리지의 유닛 테스트
 
@@ -647,7 +648,7 @@ Docker를 통해 모든 서비스 실행
 `docker ps`
 
 - 연결 확인
-`docker exec -it redis-chat redis-cli ping`
+`docker compose exec redis redis-cli ping`
 
 
 #### 사용법

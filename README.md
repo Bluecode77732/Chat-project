@@ -22,6 +22,7 @@
 A casual private One-to-One chatting project that enables communication real-time.
 - Authentication: JWT-based auth with Passport strategies
 - Chat Management: Socket and Redis session & cache connection with transaction safety
+- AI Chat: Google Gemini 2.5 Flash with 4 selectable personalities
 - API Documentation: Swagger integration + Altair & GraphQL
 - Testing: Unit tests with approximate +90% coverage on core logic
 
@@ -650,7 +651,7 @@ Running all of services through Docker
 `docker ps`
 
 - Verify Connection
-`docker exec -it redis-chat redis-cli ping`
+`docker compose exec redis redis-cli ping`
 
 
 #### Usage
