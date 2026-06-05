@@ -66,7 +66,7 @@
   스키마 변경사항 기록을 위해 'backend/src/app.module.ts'에서 'synchronize: false'로 설정합니다.
   ```powershell
   cd backend
-  pnpm migration:generate -- src/migrations/MigrationName
+  pnpm migration:generate
   pnpm build
   pnpm migration:run
   ```
@@ -76,11 +76,21 @@
   docker start redis-chat
   ```
 
-  # 개발 서버 실행 (backend 디렉토리에서 실행)
+  # 백엔드 실행 (backend 디렉토리에서 실행)
   ```powershell
   cd backend && pnpm start:dev
   ```
-  
+
+  # 프론트엔드 실행 (별도 터미널)
+  `frontend/.env.local`에 백엔드 URL을 설정합니다.
+  ```env
+  VITE_API_URL=http://localhost:3000
+  VITE_WS_URL=ws://localhost:3000
+  ```
+  ```powershell
+  cd frontend && pnpm install && pnpm dev      # http://localhost:5173 에서 실행
+  ```
+
   # 로컬 소켓 채팅 테스트
   # Postman Socket 사용 (권장)
   # 방법 A:
@@ -249,6 +259,42 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
     ```
 
 
+- GraphQL (쿼리 & 추가 뮤테이션)
+  - URL: `http://localhost:3000/graphql`
+  - Headers: `authorization: Bearer token`
+
+  **쿼리**
+  - `getMessages(roomId: Int!, cursor?: Int)` → `[MessageType]` — 커서 기준 이전 메시지 최대 15개 조회 (커서 기반 페이지네이션)
+  - `getMyRooms` → `[RoomInfoType]` — 인증된 사용자가 속한 모든 방 목록 조회
+  - `getRoom(recipientId: Int!)` → `Int` — 수신자와 공유하는 방 ID 반환, 없으면 null
+  - `getOnlineUser` → `[Int]` — Redis에 현재 온라인으로 표시된 사용자 ID 목록
+  - `getAllUsers` → `[Int]` — 호출자를 제외한 전체 사용자 ID 목록
+  - `getAiUserId` → `Int` — 시스템 AI 유저 ID 반환
+  - `getAiPersonalityInfo(roomId: Int!)` → `AiPersonalityInfoType` — 해당 방의 현재 AI 성격 반환
+
+  **뮤테이션**
+  - `setAiPersonality(roomId: Int!, personality: AiPersonality!)` → `Boolean` — 방의 AI 성격 설정 또는 변경
+
+  **예시 — `getMessages` (커서 기반)**
+  ```graphql
+  query {
+    getMessages(roomId: 19, cursor: 50) {
+      id
+      message
+      participant { id }
+      createdAt
+    }
+  }
+  ```
+
+  **예시 — `setAiPersonality`**
+  ```graphql
+  mutation {
+    setAiPersonality(roomId: 19, personality: CODING)
+  }
+  ```
+
+
 ## 기술 스택
 ### 프론트엔드
 백엔드와의 엔드투엔드 통합을 보여주는 최소화된 React + TypeScript 클라이언트입니다.
@@ -290,6 +336,46 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 
 ## 아키텍처
+### 프로젝트 구조
+```
+Chat Project/                   ← 모노레포 루트
+├── backend/                    ← NestJS 애플리케이션
+│   └── src/
+│       ├── ai/                 ← Gemini AI (AiService, AiRoomService)
+│       │   ├── constants/      ← system-prompts.ts, AI_USER_EMAIL
+│       │   └── enums/          ← ai-personality.enum.ts
+│       ├── auth/               ← JWT 인증, 가드, 전략
+│       │   ├── decorator/
+│       │   ├── dto/
+│       │   ├── guard/          ← JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── role/
+│       │   └── strategy/       ← passport-local, passport-jwt
+│       ├── base/
+│       │   ├── entity/         ← EntityBase (생성/수정 타임스탬프)
+│       │   └── logger/         ← winston 로거
+│       ├── chat/               ← ChatGateway, ChatService, ChatResolver
+│       │   ├── decorator/      ← ws-query-runner.decorator
+│       │   ├── entities/       ← ChatEntity, RoomEntity
+│       │   │   └── dto/        ← CreateChatDto
+│       │   ├── guard/          ← RateLimitGuard
+│       │   └── interceptor/    ← WsTransactionInterceptor
+│       ├── graphql/            ← PubSubService, GraphQL 입력/반환 타입
+│       ├── migrations/         ← TypeORM 마이그레이션 파일
+│       ├── mocks/              ← 테스트용 bcrypt 목
+│       ├── redis/              ← RedisModule, SessionCacheService
+│       └── user/               ← UserController, UserService, UserEntity
+│           ├── dto/
+│           └── entities/
+└── frontend/                   ← React + Vite 애플리케이션
+    └── src/
+        ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
+        ├── components/         ← ProtectedRoute
+        ├── pages/              ← ChatPage, SigninPage, RegisterPage
+        ├── socket/             ← socket.ts (Socket.IO 싱글톤)
+        ├── store/              ← auth.store.ts (Zustand)
+        └── types/
+```
+
 ### 하이브리드 저장소 패턴
 - Redis(세션/캐시): 일관된 데이터 흐름과 서버 공유를 위해 `userId` => `socketId` 매핑 저장
 - 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `socketId` => `Socket` 객체 저장
@@ -297,6 +383,34 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 ### Redis Pub/Sub
 - `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신합니다.
+
+### 엔티티 (TypeORM)
+```
+UserEntity
+  id          PK
+  email       unique
+  password    API 응답에서 제외
+  isAI        boolean (시드된 AI 시스템 계정에만 true)
+  role        enum: signedIn | signedOut
+  chats    =< ChatEntity   (OneToMany)
+  rooms    >< RoomEntity   (ManyToMany, RoomEntity 측 조인 테이블)
+
+ChatEntity
+  id          PK
+  message     string
+  participant >= UserEntity  (ManyToOne — 발신자)
+  room        >= RoomEntity  (ManyToOne)
+
+RoomEntity
+  id            PK
+  aiPersonality nullable string (해당 방의 현재 AI 성격)
+  participants >< UserEntity   (ManyToMany 소유자, @JoinTable)
+  chats        =< ChatEntity   (OneToMany)
+
+EntityBase (세 엔티티 모두 상속)
+  created     CreateDateColumn — API 응답에서 제외
+  updated     UpdateDateColumn — API 응답에서 제외
+```
 
 
 ## 흐름

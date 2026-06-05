@@ -66,7 +66,7 @@ A casual private One-to-One chatting project that enables communication real-tim
   Set 'synchronize: false' in 'backend/src/app.module.ts' for DB migration to record schema any changes.
   ```powershell
   cd backend
-  pnpm migration:generate -- src/migrations/MigrationName
+  pnpm migration:generate
   pnpm build
   pnpm migration:run
   ```
@@ -76,11 +76,24 @@ A casual private One-to-One chatting project that enables communication real-tim
   docker start redis-chat
   ```
 
-  # Run development (cd backend first)
+  # Run backend (cd backend first)
   ```powershell
   cd backend && pnpm start:dev
   ```
-  
+
+  # Run frontend (separate terminal)
+  Copy `frontend/.env.local` and set backend URLs.
+  ```powershell
+  cp frontend/.env.local frontend/.env.local
+  ```
+  ```env
+  VITE_API_URL=http://localhost:3000
+  VITE_WS_URL=ws://localhost:3000
+  ```
+  ```powershell
+  cd frontend && pnpm install && pnpm dev
+  ```
+
   # Local Test Socket Chat
   # Open Postman Socket (Recommended)
   # Option: A
@@ -249,6 +262,42 @@ Test 'Auth' and 'User' Endpoints URL below.
     ```
 
 
+- GraphQL (Queries & Additional Mutations)
+  - URL: `http://localhost:3000/graphql`
+  - Headers: `authorization: Bearer token`
+
+  **Queries**
+  - `getMessages(roomId: Int!, cursor?: Int)` => `[MessageType]` — Fetch up to 15 messages before the cursor (cursor-based pagination)
+  - `getMyRooms` => `[RoomInfoType]` — List all rooms the authenticated user belongs to
+  - `getRoom(recipientId: Int!)` => `Int` — Return the room ID shared with a recipient, or null if none
+  - `getOnlineUser` => `[Int]` — List user IDs currently marked online in Redis
+  - `getAllUsers` => `[Int]` — List all user IDs except the caller
+  - `getAiUserId` => `Int` — Return the system AI user's ID
+  - `getAiPersonalityInfo(roomId: Int!)` => `AiPersonalityInfoType` — Return the active personality for the room
+
+  **Mutations**
+  - `setAiPersonality(roomId: Int!, personality: AiPersonality!)` => `Boolean` — Set or change the AI personality for a room
+
+  **Example — `getMessages` (cursor-based)**
+  ```graphql
+  query {
+    getMessages(roomId: 19, cursor: 50) {
+      id
+      message
+      participant { id }
+      createdAt
+    }
+  }
+  ```
+
+  **Example — `setAiPersonality`**
+  ```graphql
+  mutation {
+    setAiPersonality(roomId: 19, personality: CODING)
+  }
+  ```
+
+
 ## Stacks
 ### Frontend
 A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
@@ -290,6 +339,46 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 
 
 ## Architecture
+### Project Structure
+```
+Chat Project/                   <= monorepo root
+├── backend/                    <= NestJS application
+│   └── src/
+│       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
+│       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
+│       │   └── enums/          <= ai-personality.enum.ts
+│       ├── auth/               <= JWT auth, guards, strategies
+│       │   ├── decorator/
+│       │   ├── dto/
+│       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── role/
+│       │   └── strategy/       <= passport-local, passport-jwt
+│       ├── base/
+│       │   ├── entity/         <= EntityBase (created/updated timestamps)
+│       │   └── logger/         <= winston logger
+│       ├── chat/               <= ChatGateway, ChatService, ChatResolver
+│       │   ├── decorator/      <= ws-query-runner.decorator
+│       │   ├── entities/       <= ChatEntity, RoomEntity
+│       │   │   └── dto/        <= CreateChatDto
+│       │   ├── guard/          <= RateLimitGuard
+│       │   └── interceptor/    <= WsTransactionInterceptor
+│       ├── graphql/            <= PubSubService, GraphQL input/return types
+│       ├── migrations/         <= TypeORM migration files
+│       ├── mocks/              <= bcrypt mock for tests
+│       ├── redis/              <= RedisModule, SessionCacheService
+│       └── user/               <= UserController, UserService, UserEntity
+│           ├── dto/
+│           └── entities/
+└── frontend/                   <= React + Vite application
+    └── src/
+        ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+        ├── components/         <= ProtectedRoute
+        ├── pages/              <= ChatPage, SigninPage, RegisterPage
+        ├── socket/             <= socket.ts (Socket.IO singleton)
+        ├── store/              <= auth.store.ts (Zustand)
+        └── types/
+```
+
 ### Hybrid Storage Pattern
 - Redis(session/cache): It stores `userId` => `socketId` mapping for consistent data flow and shareable servers
 - In-Memory(socket): It stores `socketId` => `Socket` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
@@ -297,6 +386,34 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 
 ### Redis Pub/Sub
 - `RedisPubSub` singleton (`pubsub.service.ts`): bridges GraphQL mutations to active subscriptions. After commit the resolver publishes to a `receiveMessage :${roomId}` channel; all connected `receiveMessage` subscribers receive the message in real time.
+
+### Entities (TypeORM)
+```
+UserEntity
+  id          PK
+  email       unique
+  password    excluded from API responses
+  isAI        boolean (true only for the seeded AI system account)
+  role        enum: signedIn | signedOut
+  chats    =< ChatEntity   (OneToMany)
+  rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
+
+ChatEntity
+  id          PK
+  message     string
+  participant >= UserEntity  (ManyToOne — sender)
+  room        >= RoomEntity  (ManyToOne)
+
+RoomEntity
+  id            PK
+  aiPersonality nullable string (active AI personality for this room)
+  participants >< UserEntity   (ManyToMany owner, @JoinTable)
+  chats        =< ChatEntity   (OneToMany)
+
+EntityBase (inherited by all three)
+  created     CreateDateColumn — excluded from API responses
+  updated     UpdateDateColumn — excluded from API responses
+```
 
 
 ## Flow
