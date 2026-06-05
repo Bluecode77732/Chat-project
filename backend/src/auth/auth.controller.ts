@@ -1,4 +1,11 @@
-import { Controller, Post, Headers, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  HttpCode,
+  Post,
+  Headers,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guard/local-auth.guard';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
@@ -38,9 +45,10 @@ export class AuthController {
 
   // Sign in route
   @Post('signin')
+  @HttpCode(200)
   @ApiBasicAuth()
   @ApiResponse({
-    status: 201,
+    status: 200,
     description: 'Sign In Succeed.',
     type: tokenType,
     schema: {
@@ -62,23 +70,16 @@ export class AuthController {
     return this.authService.signIn(rawToken);
   }
 
-  // Sign in route
   @Post('signOut')
-  @ApiBasicAuth()
+  @HttpCode(204)
+  @ApiBearerAuth()
   @ApiResponse({
-    status: 201,
+    status: 204,
     description: 'Sign Out Succeed.',
-    type: tokenType,
-    schema: {
-      example: {
-        refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-        accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      },
-    },
   })
   @ApiResponse({
-    status: 400,
-    description: 'Bad Request.',
+    status: 401,
+    description: 'Unauthorized.',
   })
   signOut(@Headers('authorization') rawToken: string) {
     return this.authService.signOut(rawToken);
@@ -86,9 +87,10 @@ export class AuthController {
 
   // Issuing a refresh access token to let not users redo login
   @Post('token/refreshaccess')
+  @HttpCode(200)
   @ApiBearerAuth()
   @ApiResponse({
-    status: 201,
+    status: 200,
     description: 'Issued Token Successfully.',
     type: bearerTokenType,
     example: {
@@ -115,11 +117,12 @@ export class AuthController {
   // `LocalAuthGuard` used literal string for avoiding conflict between duplicated strings.
   @UseGuards(LocalAuthGuard)
   @Post('signin/local')
+  @HttpCode(200)
   @ApiOperation({
     description: 'Sign in using alternative Passport local strategy.',
   })
   @ApiResponse({
-    status: 201,
+    status: 200,
     description: 'Issued Token Successfully.',
     type: tokenType,
   })

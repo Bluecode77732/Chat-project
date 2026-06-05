@@ -324,6 +324,20 @@ export class ChatService {
       .filter((r): r is { roomId: number; recipientId: number } => r !== null);
   }
 
+  async isRoomParticipant(userId: number, roomId: number): Promise<boolean> {
+    const count = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin(
+        'room.participants',
+        'participant',
+        'participant.id = :userId',
+        { userId },
+      )
+      .where('room.id = :roomId', { roomId })
+      .getCount();
+    return count > 0;
+  }
+
   async getMessages(
     roomId: number,
     cursor?: number,

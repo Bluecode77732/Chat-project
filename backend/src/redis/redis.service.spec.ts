@@ -8,7 +8,11 @@ describe('SessionCacheService', () => {
   let mockRedisClient: Partial<RedisClientType>;
 
   const mockConfigService = {
-    get: jest.fn().mockImplementation((_key: string, defaultValue: unknown) => defaultValue),
+    get: jest
+      .fn()
+      .mockImplementation(
+        (_key: string, defaultValue: unknown) => defaultValue,
+      ),
   };
 
   beforeEach(async () => {

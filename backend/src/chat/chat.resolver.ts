@@ -13,14 +13,13 @@ import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
-import { UseGuards } from '@nestjs/common';
+import { ForbiddenException, UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
-import { AuthService } from 'src/auth/auth.service';
 import { AiService } from 'src/ai/ai.service';
 import { AiRoomService } from 'src/ai/ai-room.service';
 import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
@@ -33,7 +32,6 @@ export class ChatResolver {
     private readonly pubSub: PubSubService,
     private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
-    private readonly authService: AuthService,
     private readonly aiService: AiService,
     private readonly aiRoomService: AiRoomService,
   ) {}
@@ -51,8 +49,13 @@ export class ChatResolver {
   @Query(() => AiPersonalityInfoType, { nullable: true })
   @UseGuards(GraphQLAuthGuard)
   async getAiPersonalityInfo(
+    @Context() ctx: any,
     @Args('roomId', { type: () => Int }) roomId: number,
   ): Promise<AiPersonalityInfoType> {
+    const userId = ctx.req?.user?.id as number;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
     return this.aiRoomService.getPersonalityInfo(roomId);
   }
 
@@ -64,11 +67,11 @@ export class ChatResolver {
     @Args('personality', { type: () => AiPersonality })
     personality: AiPersonality,
   ): Promise<boolean> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    await this.aiRoomService.setPersonality(roomId, payload.sub, personality);
+    const userId = ctx.req?.user?.id as number;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
+    await this.aiRoomService.setPersonality(roomId, userId, personality);
     return true;
   }
 
@@ -81,21 +84,15 @@ export class ChatResolver {
   @Query(() => [Int])
   @UseGuards(GraphQLAuthGuard)
   async getAllUsers(@Context() ctx: any): Promise<number[]> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    return this.chatService.getAllUsers(payload.sub);
+    const userId = ctx.req?.user?.id as number;
+    return this.chatService.getAllUsers(userId);
   }
 
   @Query(() => [RoomInfoType])
   @UseGuards(GraphQLAuthGuard)
   async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    return this.chatService.getMyRooms(payload.sub);
+    const userId = ctx.req?.user?.id as number;
+    return this.chatService.getMyRooms(userId);
   }
 
   @Query(() => Int, { nullable: true })
@@ -104,19 +101,21 @@ export class ChatResolver {
     @Context() ctx: any,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<number | null> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    return this.chatService.getRoom(payload.sub, recipientId);
+    const userId = ctx.req?.user?.id as number;
+    return this.chatService.getRoom(userId, recipientId);
   }
 
   @Query(() => [MessageType])
   @UseGuards(GraphQLAuthGuard)
   async getMessages(
+    @Context() ctx: any,
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
   ): Promise<MessageType[]> {
+    const userId = ctx.req?.user?.id as number;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
     const msgs = await this.chatService.getMessages(roomId, cursor);
     return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
@@ -128,11 +127,7 @@ export class ChatResolver {
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<MessageType | any | null> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    const userId = payload.sub;
+    const userId = ctx.req?.user?.id as number;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -210,7 +205,14 @@ export class ChatResolver {
     filter: () => true,
   })
   @UseGuards(GraphQLAuthGuard)
-  receiveMessage(@Args('roomId', { type: () => ID }) roomId: number) {
+  async receiveMessage(
+    @Args('roomId', { type: () => ID }) roomId: number,
+    @Context() ctx: any,
+  ) {
+    const userId = ctx.req?.user?.id as number;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
     return this.pubSub.asyncIterableIterator(`receiveMessage :${roomId}`);
   }
 }

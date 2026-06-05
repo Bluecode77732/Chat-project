@@ -68,7 +68,7 @@ export class AuthService {
     // 8. Extract email and password for returning to client.
     const [email, password] = tokenSplit;
 
-    logger.info(`User '${email}' parsed a basic token: ${basicToken}`);
+    logger.info(`User '${email}' parsed a basic token`);
 
     // 9. Return result.
     return {
@@ -90,7 +90,7 @@ export class AuthService {
 
     // Verifies if user exist or not
     if (user) {
-      logger.error(`User cannot found - ${user} has token: ${rawToken}`, {
+      logger.error(`User '${email}' already exists`, {
         timestamp: new Date().toISOString(),
       });
       throw new BadRequestException('User Already Exist.');
@@ -217,9 +217,7 @@ export class AuthService {
         }
       }
 
-      logger.info(
-        `User parsed '${rawToken}' to get a bearer token: ${bearer} ${token}`,
-      );
+      logger.info(`User parsed a bearer token successfully`);
       return payload;
     } catch (err: any) {
       logger.error(err.message, { timestamp: new Date().toISOString() });
