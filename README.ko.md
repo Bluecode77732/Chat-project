@@ -260,18 +260,18 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - 배포: Vercel (푸시 시 자동 배포) ✔
 
 ### 백엔드
-- 언어: TypeScript — 타입 안전하고 견고한 객체 지향 언어, JavaScript의 슈퍼셋. ✔
-- 런타임: Node.js — Chrome V8 엔진으로 구축된 JavaScript 런타임, 애플리케이션이 원활하게 실행되는 생태계 제공. ✔
-- 프레임워크: Nest.js — TypeScript 프로젝트를 위한 확장 가능한 프레임워크, 지속적으로 성장하는 강력한 프레임워크. ✔
-- 아키텍처: 모놀리식 아키텍처 — 일반적인 프로젝트에 적합하고 컴포넌트 단위 결합 및 분리가 용이한 원칙. ✔
-- 소켓: Socket.IO — NestJS 공식 문서에 기재된 것처럼, 이 미들웨어 패키지는 POST 메서드를 통한 HTTP 요청으로 multipart/form-data 형식을 처리하는 방법을 제공하여 애플리케이션이 쉽게 처리할 수 있게 합니다. ✔
-- AI: Google Gemini 2.5 Flash — 선택 가능한 성격을 통한 AI 채팅 응답 ✔
-- 인증: JWT 인증 — 애플리케이션 사용을 위한 사용자 유효성 검증 ✔
+- 언어: TypeScript - 타입 안전하고 견고한 객체 지향 언어, JavaScript의 슈퍼셋. ✔
+- 런타임: Node.js - Chrome V8 엔진으로 구축된 JavaScript 런타임, 애플리케이션이 원활하게 실행되는 생태계 제공. ✔
+- 프레임워크: Nest.js - TypeScript 프로젝트를 위한 확장 가능한 프레임워크, 지속적으로 성장하는 강력한 프레임워크. ✔
+- 아키텍처: 모놀리식 아키텍처 - 일반적인 프로젝트에 적합하고 컴포넌트 단위 결합 및 분리가 용이한 원칙. ✔
+- 소켓: Socket.IO - NestJS 공식 문서에 기재된 것처럼, 이 미들웨어 패키지는 POST 메서드를 통한 HTTP 요청으로 multipart/form-data 형식을 처리하는 방법을 제공하여 애플리케이션이 쉽게 처리할 수 있게 합니다. ✔
+- AI: Google Gemini 2.5 Flash - 선택 가능한 성격을 통한 AI 채팅 응답 ✔
+- 인증: JWT 인증 - 애플리케이션 사용을 위한 사용자 유효성 검증 ✔
 - 가드: 유효한 데이터 타입만 허용 ✔
 - 인터셉터: 사용자 데이터를 조작하는 미들웨어 ✔
 - 역할 기반 접근: 권한 클래스로 사용자 레벨 구분 ✔
 - 채팅: 주요 웹소켓 구현 ✔
-- 캐시: Redis — 메시지 속도 제한 및 사용자 데이터의 효율적인 저장. ✔
+- 캐시: Redis - 메시지 속도 제한 및 사용자 데이터의 효율적인 저장. ✔
 - 필터: 예외 핸들러 ✔
 - 로거: 애플리케이션 실행 중 이벤트, 오류, 디버그 정보 기록 ✔
 - 유닛 테스트: 각 유닛별 서비스 메서드 테스트 ✔
@@ -330,7 +330,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   5.2. `senderSocketId.emit('sendMessage')`로 발신자에게 `(ChatEntity, messageSchema)` 전달 확인
 
 6. `WsTransactionInterceptor` (핸들러 반환 후 실행)
-  6.1. `commitTransaction()` — 오류 시 `rollbackTransaction()`
+  6.1. `commitTransaction()` - 오류 시 `rollbackTransaction()`
   6.2. `SessionCacheService.cacheMessage()` 커밋 후 캐시 저장
 
 7. 수신자가 발신자의 메시지 수신
@@ -515,7 +515,7 @@ WebSocket
 #### 로컬 - docker-compose
 Docker를 통해 모든 서비스 실행
 
-- 프로젝트 루트에 `.env.local` 필요 (`backend/.env.example`에서 복사 후 조정 — `NODE_ENV=docker`)
+- 프로젝트 루트에 `.env.local` 필요 (`backend/.env.example`에서 복사 후 조정 - `NODE_ENV=docker`)
 
 - 모든 서비스 시작
 `docker compose up -d --build`
@@ -591,8 +591,8 @@ Socket 인메모리
 
 ### AI
 Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함됩니다.
-- `AiService` — Gemini API 호출, 대화 히스토리 구성(최근 10개 메시지), Redis 분산 락으로 방당 중복 응답 방지
-- `AiRoomService` — 방별 성격 선택 및 조회 관리
+- `AiService` - Gemini API 호출, 대화 히스토리 구성(최근 10개 메시지), Redis 분산 락으로 방당 중복 응답 방지
+- `AiRoomService` - 방별 성격 선택 및 조회 관리
 
 **성격 목록**
 - `FRIENDLY`: 일반 Q&A, 따뜻하고 격려하는 말투
@@ -604,6 +604,32 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 1. Conversations 배너에서 **AI Chat** 클릭
 2. 첫 메시지 전송 시 성격 선택
 3. 변경 시: **성격 변경** 버튼 클릭 (횟수 제한 없음)
+
+**토큰 비용 최적화**
+- 모델: `gemini-2.5-flash` (Pro 대비 비용 효율적인 Flash 티어)
+- `maxOutputTokens: 300`으로 응답 길이 상한 고정
+- 대화 컨텍스트를 최근 10개 메시지로 제한(`AI_HISTORY_LIMIT`) - 전체 히스토리 전송 방지
+- 시스템 프롬프트로 응답 길이 강제: 가벼운 대화·인사 1-3줄, 설명이 필요한 질문 4-5줄, 최대 5줄 초과 금지
+
+**Rate Limiting & 비용 제어**
+- 기존 `RateLimitGuard`(사용자당 분당 10개)가 `sendMessage` 뮤테이션에 동일 적용되어 AI 호출 빈도를 간접적으로 제한
+- Redis 분산 락(`ai:lock:${roomId}`, TTL 30s)으로 동일 방에서 AI 응답이 동시에 중복 생성되는 것을 방지
+- AI 응답은 수신자가 AI 유저(`recipientId === aiUserId`)일 때만 트리거
+
+**응답 전달 방식**
+- `generateContent()` 완전 응답을 목적으로 사용
+- AI 응답 전문이 WebSocket 브로드캐스트와 GraphQL Pub/Sub을 통해 단일 메시지로 전달
+
+**시스템 프롬프트**
+- 성격별 `systemInstruction` 문자열을 Gemini API의 `config.systemInstruction`으로 전달
+- 모든 성격에 공통 적용되는 두 가지 규칙:
+  - 언어 감지: 사용자 메시지와 동일한 언어로 응답
+  - 길이 제어: 가벼운 대화·인사 1-3줄, 설명이 필요한 질문 4-5줄
+
+**에러 처리**
+- `handleReply`는 Gemini 및 DB 호출을 `try/catch/finally`로 감싸고, 에러 로깅 후 `finally`에서 Redis 락을 항상 해제
+- AI 응답은 리졸버의 `setImmediate(...).catch(...)` 내부에서 실행 - 실패해도 발신자의 메시지 응답에 영향 없음
+- 락 TTL(30s)로 서버 크래시 중에도 락 자동 만료 보장
 
 
 ### 테스트
@@ -685,9 +711,9 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 - Test Suites: 6 passed, 6 total (auth, chat, user, redis, ai, ai-room)
 
 **커버리지 결과**
-- Auth Service: 95.89%
-- Chat Service: 91.86%
-- Redis Service: 90.9%
+- Auth Service: 89.02%
+- Chat Service: 94.44%
+- Redis Service: 100%
 - User Service: 73.17% (단순 'Get' 및 'Delete' 메서드 제외)
 - AI Service: 100%
 - AI Room Service: 100%

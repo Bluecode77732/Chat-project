@@ -604,6 +604,32 @@ Powered by Google Gemini 2.5 Flash. The `AiModule` contains two services:
 2. Select a personality when sending the first message
 3. To change: click the **성격 변경** button (no change limit)
 
+**Token Cost Optimization**
+- Model: `gemini-2.5-flash` (cost-efficient Flash tier, not Pro)
+- `maxOutputTokens: 300` hard-caps each response
+- Conversation context limited to last 10 messages (`AI_HISTORY_LIMIT`) — avoids sending full history
+- System prompt enforces 1-3 lines for casual/greetings, 4-5 lines for detailed questions (never more than 5)
+
+**Rate Limiting & Cost Control**
+- The same `RateLimitGuard` (10 messages/min per user) applies to the `sendMessage` mutation, indirectly capping AI call frequency
+- Redis distributed lock (`ai:lock:${roomId}`, 30s TTL) prevents concurrent duplicate AI replies within the same room
+- AI reply is only triggered when the recipient is the AI user (`recipientId === aiUserId`)
+
+**Response Delivery**
+- Uses `generateContent()` for full response at once
+- The complete AI reply is delivered as a single message via WebSocket broadcast and GraphQL Pub/Sub
+
+**System Prompts**
+- Each personality maps to a `systemInstruction` string passed to Gemini via `config.systemInstruction`
+- Two shared rules apply across all personalities:
+  - Language detection: always responds in the same language as the user's message
+  - Length control: 1-3 lines for casual/greetings, up to 4-5 lines for questions needing explanation
+
+**Error Handling**
+- `handleReply` wraps all Gemini and DB calls in `try/catch/finally`: errors are logged and the Redis lock is always released in `finally`
+- AI reply fires inside `setImmediate(...).catch(...)` in the resolver — failures are logged and do not affect the sender's message response
+- Lock TTL (30s) auto-expires the lock if the server crashes mid-generation
+
 
 ### Test
 To test out rate of success in test, Coverage Test is appropriate supporting tool for it.
@@ -684,9 +710,9 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 - Test Suites: 6 passed, 6 total (auth, chat, user, redis, ai, ai-room)
 
 **Coverage Results**
-- Auth Service: 95.89%
-- Chat Service: 91.86%
-- Redis Service: 90.9%
+- Auth Service: 89.02%
+- Chat Service: 94.44%
+- Redis Service: 100%
 - User Service: 73.17% (excluded simple 'Get' and 'Delete' methods)
 - AI Service: 100%
 - AI Room Service: 100%
