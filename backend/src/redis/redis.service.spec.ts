@@ -27,6 +27,7 @@ describe('SessionCacheService', () => {
       lTrim: jest.fn(),
       lRange: jest.fn(),
       del: jest.fn(),
+      multi: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,18 +66,24 @@ describe('SessionCacheService', () => {
       const mockUserId = 1;
       const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
-      jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'sAdd').mockResolvedValue(1);
+      const mockChain = {
+        hSet: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        sAdd: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(mockRedisClient, 'multi').mockReturnValue(mockChain as any);
 
       await redisService.sethUserOnline(mockUserId, socketId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', {
+      expect(mockRedisClient.multi).toHaveBeenCalled();
+      expect(mockChain.hSet).toHaveBeenCalledWith('user:1', {
         socketId,
         status: 'online',
       });
-      expect(mockRedisClient.expire).toHaveBeenCalledWith('user:1', 86400);
-      expect(mockRedisClient.sAdd).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.expire).toHaveBeenCalledWith('user:1', 86400);
+      expect(mockChain.sAdd).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.exec).toHaveBeenCalled();
     });
   });
 

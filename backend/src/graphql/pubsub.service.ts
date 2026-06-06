@@ -22,11 +22,13 @@ export class PubSubService extends RedisPubSub {
     }
 
     const url = new URL(redisUrl);
+    const isTls = url.protocol === 'rediss:';
 
     const redisConfig = {
       host: url.hostname,
       port: parseInt(url.port || '6379'),
       password: url.password || undefined,
+      ...(isTls ? { tls: {} } : {}),
     };
 
     const publisher = new Redis(redisConfig);

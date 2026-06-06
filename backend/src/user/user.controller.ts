@@ -1,7 +1,7 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
-  Post,
   Body,
   Patch,
   Param,
@@ -9,9 +9,9 @@ import {
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
@@ -24,11 +24,6 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
-
   @Get()
   findAll() {
     return this.userService.findAll();
@@ -40,12 +35,22 @@ export class UserController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    if (req.user?.id !== +id) {
+      throw new ForbiddenException('You can only update your own account');
+    }
     return this.userService.update(+id, updateUserDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Request() req, @Param('id') id: string) {
+    if (req.user?.id !== +id) {
+      throw new ForbiddenException('You can only delete your own account');
+    }
     return this.userService.remove(+id);
   }
 }

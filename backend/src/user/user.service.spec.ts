@@ -164,7 +164,6 @@ describe('UserService', () => {
         {
           email: updateUserDto.email,
           password: updateUserDto.password,
-          role: updateUserDto.role,
         },
       );
     });

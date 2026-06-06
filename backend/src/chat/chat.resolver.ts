@@ -119,7 +119,7 @@ export class ChatResolver {
     const msgs = await this.chatService.getMessages(roomId, cursor);
     return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
-
+  
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard, RateLimitGuard)
   async sendMessage(

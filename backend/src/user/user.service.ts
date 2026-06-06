@@ -37,7 +37,7 @@ export class UserService {
     });
 
     if (user) {
-      logger.error(`User '${user}' failed to register`, {
+      logger.error(`User '${email}' already exists`, {
         timestamp: new Date().toISOString(),
       });
       throw new BadRequestException('Registration failed');
@@ -54,7 +54,7 @@ export class UserService {
       password: hash,
       role: UserRole.signedIn,
     });
-    logger.info(`User '${user}' is created`, {
+    logger.info(`User '${email}' is created`, {
       timestamp: new Date().toISOString(),
     });
 
@@ -117,7 +117,6 @@ export class UserService {
       {
         email: updateUserDto.email,
         password: updateUserDto.password,
-        role: updateUserDto.role,
       },
     );
     await this.redis.del(`user_cache:${id}`);

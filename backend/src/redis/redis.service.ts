@@ -21,13 +21,15 @@ export class SessionCacheService implements OnModuleInit {
   }
 
   async sethUserOnline(userId: number, socketId: string) {
-    await this.redis.hSet(`user:${userId}`, { socketId, status: 'online' });
-    await this.redis.expire(
-      `user:${userId}`,
-      this.configService.get<number>('SESSION_TTL_SEC', 86400),
-    );
-    // Track online user IDs in a dedicated Set for O(1) membership lookup
-    await this.redis.sAdd('online_users', String(userId));
+    const key = `user:${userId}`;
+    const ttl = this.configService.get<number>('SESSION_TTL_SEC', 86400);
+    // MULTI/EXEC: hSet, expire, sAdd execute atomically — prevents a TTL-less key if the server crashes between commands
+    await this.redis
+      .multi()
+      .hSet(key, { socketId, status: 'online' })
+      .expire(key, ttl)
+      .sAdd('online_users', String(userId))
+      .exec();
   }
 
   async sethUserOffline(userId: number) {
