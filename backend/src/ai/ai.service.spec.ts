@@ -33,8 +33,9 @@ describe('AiService', () => {
   };
 
   const mockUserRepository = {
-    upsert: jest.fn().mockResolvedValue(undefined),
+    findOne: jest.fn().mockResolvedValue(null),
     findOneByOrFail: jest.fn().mockResolvedValue(mockAiUser),
+    save: jest.fn().mockResolvedValue(mockAiUser),
   };
 
   const mockChatRepository = {
@@ -118,20 +119,30 @@ describe('AiService', () => {
   });
 
   describe('onModuleInit / seedAiUser', () => {
-    it('should upsert the AI system account', () => {
-      expect(mockUserRepository.upsert).toHaveBeenCalledWith(
+    it('should create the AI account with hashed password when it does not exist', () => {
+      expect(mockUserRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'ai@system.local',
           isAI: true,
+          role: expect.any(Number),
         }),
-        expect.any(Object),
       );
     });
 
-    it('should store the AI user after upsert', () => {
+    it('should store the AI user after creation', () => {
       expect(mockUserRepository.findOneByOrFail).toHaveBeenCalledWith({
         email: 'ai@system.local',
       });
+      expect(aiService.getAiUserId()).toBe(99);
+    });
+
+    it('should skip creation and reuse existing AI user when already in DB', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce(mockAiUser);
+      mockUserRepository.save.mockClear();
+
+      await aiService.onModuleInit();
+
+      expect(mockUserRepository.save).not.toHaveBeenCalled();
       expect(aiService.getAiUserId()).toBe(99);
     });
   });

@@ -52,7 +52,7 @@ export class UserService {
     await this.userRepository.save({
       email,
       password: hash,
-      role: UserRole.signedIn,
+      role: UserRole.user,
     });
     logger.info(`User '${email}' is created`, {
       timestamp: new Date().toISOString(),
@@ -66,7 +66,7 @@ export class UserService {
   }
 
   async findAll() {
-    return await this.userRepository.findAndCount();
+    return await this.userRepository.find();
   }
 
   async findOne(id: number) {

@@ -103,14 +103,7 @@ export class AuthController {
       "Unauthorized. Insert the refresh token from the 'signin' API to get the access token.",
   })
   async refreshAccessToken(@Headers('authorization') rawToken: string) {
-    const payload = await this.authService.parseBearerToken(rawToken, true);
-
-    return {
-      accessToken: await this.authService.issueToken(
-        { id: payload.sub, role: payload.role },
-        false,
-      ),
-    };
+    return this.authService.refreshAccessToken(rawToken);
   }
 
   // Using an `AuthGuard` that `@nestjs/passport` automatically provisioned when extend the 'passport-local' strategy.

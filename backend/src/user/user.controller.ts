@@ -15,6 +15,9 @@ import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
+import { RBACguard } from 'src/auth/guard/rbac.guard';
+import { RBAC } from 'src/auth/decorator/rbac.decorator';
+import { UserRole } from 'src/auth/role/role';
 
 @ApiTags('User API')
 @ApiBearerAuth()
@@ -25,6 +28,8 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
   findAll() {
     return this.userService.findAll();
   }

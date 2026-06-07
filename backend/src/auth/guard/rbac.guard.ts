@@ -29,14 +29,13 @@ export class RBACguard implements CanActivate {
       return false;
     }
 
-    // Define access levels for each role
+    // Higher number = more privilege (user=0, admin=1)
     const accessLevel = {
-      [UserRole.signedIn]: 0,
-      [UserRole.signedOut]: 1,
+      [UserRole.user]: 0,
+      [UserRole.admin]: 1,
     };
 
-    // Compare user's role level with required role level
-    // It means user's role level <= required level, can access smaller or equal than required level
-    return accessLevel[user.role] == accessLevel[role];
+    // Admin can access user-level endpoints; exact match is not required
+    return accessLevel[user.role] >= accessLevel[role];
   }
 }

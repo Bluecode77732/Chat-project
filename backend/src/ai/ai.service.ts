@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
 import * as RedisClient from 'redis';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ChatEntity } from 'src/chat/entities/chat.entity';
@@ -68,19 +69,29 @@ export class AiService implements OnModuleInit {
   }
 
   private async seedAiUser(): Promise<void> {
-    // UPSERT: safe for multi-instance startup
-    await this.userRepository.upsert(
-      {
-        email: AI_USER_EMAIL,
-        password: 'NO_LOGIN_SYSTEM_ACCOUNT',
-        role: UserRole.signedIn,
-        isAI: true,
-      },
-      { conflictPaths: ['email'], skipUpdateIfNoValuesChanged: true },
-    );
-    this.aiUser = await this.userRepository.findOneByOrFail({
-      email: AI_USER_EMAIL,
+    let aiUser = await this.userRepository.findOne({
+      where: { email: AI_USER_EMAIL },
     });
+    if (!aiUser) {
+      const hashedPassword = await bcrypt.hash(
+        'NO_LOGIN_SYSTEM_ACCOUNT',
+        this.configService.getOrThrow<number>('HASH_ROUNDS'),
+      );
+      try {
+        await this.userRepository.save({
+          email: AI_USER_EMAIL,
+          password: hashedPassword,
+          role: UserRole.user,
+          isAI: true,
+        });
+      } catch {
+        // Race condition on multi-instance startup — another instance already created it
+      }
+      aiUser = await this.userRepository.findOneByOrFail({
+        email: AI_USER_EMAIL,
+      });
+    }
+    this.aiUser = aiUser;
     logger.info(`AI user ready: id=${this.aiUser.id}`);
   }
 

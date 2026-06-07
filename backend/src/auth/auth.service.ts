@@ -106,7 +106,7 @@ export class AuthService {
     await this.userRepository.save({
       email,
       password: hash,
-      role: UserRole.signedIn,
+      role: UserRole.user,
     });
 
     logger.info(`User '${email}' is registered`);
@@ -239,6 +239,22 @@ export class AuthService {
         { id: user.id, role: user.role },
         true,
       ),
+      accessToken: await this.issueToken(
+        { id: user.id, role: user.role },
+        false,
+      ),
+    };
+  }
+
+  async refreshAccessToken(rawToken: string): Promise<{ accessToken: string }> {
+    const payload = await this.parseBearerToken(rawToken, true);
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User Not Found.');
+    }
+    return {
       accessToken: await this.issueToken(
         { id: user.id, role: user.role },
         false,
