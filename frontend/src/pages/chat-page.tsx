@@ -276,8 +276,6 @@ function ChatPage() {
             variables: {
                 input: {
                     message: input,
-                    room: currentRoomId ?? undefined,
-                    recipientId,
                     ...(aiPersonalityToSend ? { aiPersonality: aiPersonalityToSend } : {}),
                 },
                 recipientId,
