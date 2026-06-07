@@ -7,6 +7,7 @@ import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/cl
 import {
     SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_ALL_USERS, GET_MESSAGES,
     GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
+    SendMessageVariables,
 } from "../api/graphql-operations";
 import AiPersonalitySelector from "../components/ai-personality-selector";
 
@@ -84,7 +85,7 @@ function ChatPage() {
     const scrollIntervalRef = useRef<number | null>(null);
     const isHoldingRef = useRef(false);
 
-    const [sendMessageMutation] = useMutation<SendMessageData>(SEND_MESSAGE);
+    const [sendMessageMutation] = useMutation<SendMessageData, SendMessageVariables>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,

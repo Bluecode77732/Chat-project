@@ -1,5 +1,15 @@
 import { gql } from "@apollo/client";
 
+export type SendMessageInput = {
+    message: string;
+    aiPersonality?: string;
+};
+
+export type SendMessageVariables = {
+    input: SendMessageInput;
+    recipientId: number;
+};
+
 export const SEND_MESSAGE = gql`
     mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
         sendMessage(input: $input, recipientId: $recipientId) {
