@@ -52,10 +52,12 @@ export class RateLimitGuard implements CanActivate {
       }
 
       // Returns rate-limit guard
-      logger.info(`${userId} left message count: '${10 - count}'`);
+      logger.debug(`${userId} left message count: '${10 - count}'`);
       return true;
-    } catch (error: any) {
-      logger.error(error.message, { timestamp: new Date().toISOString() });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? (err.stack ?? '') : '';
+      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
       return false;
     }
   }

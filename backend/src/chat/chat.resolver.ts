@@ -149,8 +149,6 @@ export class ChatResolver {
       await this.pubSub.publish(`receiveMessage :${roomId}`, {
         receiveMessage: savedMessage,
       });
-      logger.info(`User ${userId}'s message is saved in the chat room`);
-
       // Trigger AI reply asynchronously after transaction commits
       if (roomId && recipientId === this.aiService.getAiUserId()) {
         const personalityToSet = input.aiPersonality ?? null;
@@ -175,9 +173,10 @@ export class ChatResolver {
               })
               .catch((err: unknown) => {
                 const msg = err instanceof Error ? err.message : String(err);
-                logger.error(`AI reply error: ${msg}`, {
-                  timestamp: new Date().toISOString(),
-                });
+                const stack = err instanceof Error ? err.stack : undefined;
+                logger.error(
+                  `AI reply error: ${msg}${stack ? `\n${stack}` : ''}`,
+                );
               });
           })();
         });
@@ -188,13 +187,12 @@ export class ChatResolver {
         roomId,
         createdAt: savedMessage.created,
       };
-    } catch (error: any) {
-      logger.error(error.message, {
-        userId: userId,
-        timestamp: new Date().toISOString(),
-      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? (err.stack ?? '') : '';
+      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
       await queryRunner.rollbackTransaction();
-      throw new Error(`Failed to send message: ${error.message}`);
+      throw new Error(`Failed to send message: ${msg}`);
     } finally {
       await queryRunner.release();
     }

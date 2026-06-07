@@ -33,9 +33,7 @@ export class AuthService {
 
     // 2. If the token length `[Basic token]` isn't 2, throw `BadRequestException` since it's wrong approach for parsing token.
     if (basicToken.length !== 2) {
-      logger.error(`Bad Token Format - rawToken: ${rawToken}}`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn('Bad Token Format: invalid token segment count');
       throw new BadRequestException('Bad Token Format.');
     }
 
@@ -44,9 +42,7 @@ export class AuthService {
 
     // 4. Verifies the token.
     if (basic.toLowerCase() !== 'basic') {
-      logger.error(`Bad Token Format - rawToken: ${rawToken}}`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn('Bad Token Format: missing Basic prefix');
       throw new BadRequestException('Bad Token Format.');
     }
 
@@ -58,9 +54,8 @@ export class AuthService {
 
     // 7. Verifies if the token includes basic.
     if (!(tokenSplit.length == 2)) {
-      logger.error(
-        `Bad Token Format - rawToken: ${rawToken}, decoded token ${decoded}, splitted token: ${tokenSplit}`,
-        { timestamp: new Date().toISOString() },
+      logger.warn(
+        'Bad Token Format: decoded token missing email:password structure',
       );
       throw new BadRequestException('Bad Token Format.');
     }
@@ -68,7 +63,7 @@ export class AuthService {
     // 8. Extract email and password for returning to client.
     const [email, password] = tokenSplit;
 
-    logger.info(`User '${email}' parsed a basic token`);
+    logger.debug(`User '${email}' parsed a basic token`);
 
     // 9. Return result.
     return {
@@ -90,9 +85,7 @@ export class AuthService {
 
     // Verifies if user exist or not
     if (user) {
-      logger.error(`User '${email}' already exists`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn(`Registration attempt for already-existing email: ${email}`);
       throw new BadRequestException('User Already Exist.');
     }
 
@@ -127,23 +120,19 @@ export class AuthService {
     });
 
     if (!user) {
-      logger.error(`User '${email}' isn't found`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn(`Login attempt for non-existent email: ${email}`);
       throw new BadRequestException('Invalid User.');
     }
 
     if (user.isAI) {
-      logger.error(`Blocked login attempt for AI system account: ${email}`);
+      logger.warn(`Blocked login attempt for AI system account: ${email}`);
       throw new BadRequestException('Invalid User.');
     }
 
     const verification = await bcrypt.compare(password, String(user.password));
 
     if (!verification) {
-      logger.error(`User '${email}' verification isn't working`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn(`Password mismatch for email: ${email}`);
       throw new BadRequestException('Invalid User.');
     }
 
@@ -217,10 +206,10 @@ export class AuthService {
         }
       }
 
-      logger.info(`User parsed a bearer token successfully`);
+      logger.debug('User parsed a bearer token successfully');
       return payload;
     } catch (err: any) {
-      logger.error(err.message, { timestamp: new Date().toISOString() });
+      logger.warn(err.message);
       throw new UnauthorizedException('Token Expired');
     }
   }

@@ -77,7 +77,7 @@ export class ChatService {
       }
 
       client.join(room.id.toString());
-      logger.info(`User ${user.sub} has joined room ${room.id}`);
+      logger.debug(`User ${user.sub} has joined room ${room.id}`);
     });
 
     logger.info(`User ${user.sub} has registered`);
@@ -93,15 +93,18 @@ export class ChatService {
 
     const ids = [user1, user2].sort((a, b) => a - b);
 
-    logger.info(`User ${ids} found a room`);
-
-    return qr.manager
+    const room = await qr.manager
       .createQueryBuilder(RoomEntity, 'room')
       .innerJoin('room.participants', 'participant1')
       .innerJoin('room.participants', 'participant2')
       .where('participant1.id = :id1', { id1: ids[0] })
       .andWhere('participant2.id = :id2', { id2: ids[1] })
       .getOne();
+
+    logger.debug(
+      `Room lookup for users [${ids.join(', ')}]: ${room ? `found id=${room.id}` : 'not found'}`,
+    );
+    return room;
   }
 
   // Creates a new private chat room between two users
@@ -275,13 +278,11 @@ export class ChatService {
       );
 
       return messageSchema;
-    } catch (error: any) {
-      logger.error(error.message, {
-        userId: payload.sub,
-        timestamp: new Date().toISOString(),
-      });
-
-      throw new WsException(`Failed to send message: ${error.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? (err.stack ?? '') : '';
+      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
+      throw new WsException(`Failed to send message: ${msg}`);
     }
   }
 

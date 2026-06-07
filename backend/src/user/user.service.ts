@@ -37,9 +37,7 @@ export class UserService {
     });
 
     if (user) {
-      logger.error(`User '${email}' already exists`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn(`Registration attempt for already-existing email: ${email}`);
       throw new BadRequestException('Registration failed');
     }
 
@@ -54,9 +52,7 @@ export class UserService {
       password: hash,
       role: UserRole.user,
     });
-    logger.info(`User '${email}' is created`, {
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(`User '${email}' is created`);
 
     return await this.userRepository.findOne({
       where: {
@@ -120,9 +116,7 @@ export class UserService {
       },
     );
     await this.redis.del(`user_cache:${id}`);
-    logger.info(`User '${user.id}' is updated`, {
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(`User '${user.id}' is updated`);
 
     // Returning result to client
     return await this.userRepository.findOne({
@@ -145,9 +139,7 @@ export class UserService {
 
     await this.userRepository.delete(id);
     await this.redis.del(`user_cache:${id}`);
-    logger.info(`User '${user.id}' is deleted`, {
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(`User '${user.id}' is deleted`);
 
     return `The user ${id} is deleted`;
   }
