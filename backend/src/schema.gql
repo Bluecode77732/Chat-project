@@ -56,8 +56,6 @@ type Mutation {
 
 input CreateChatInput {
   message: String!
-  recipientId: ID!
-  room: Int
   aiPersonality: AiPersonality
 }
 
