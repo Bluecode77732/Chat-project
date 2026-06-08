@@ -21,7 +21,7 @@ export class RateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isWs = context.getType() === 'ws';
     try {
-      let userId: number;
+      let userId: number | undefined;
 
       if (isWs) {
         const client = context.switchToWs().getClient();
@@ -60,15 +60,15 @@ export class RateLimitGuard implements CanActivate {
 
       logger.debug(`${userId} left message count: '${10 - count}'`);
       return true;
-    } catch (err: unknown) {
+    } catch (err) {
       // Re-throw intentional guard exceptions so NestJS propagates the correct status
       if (err instanceof WsException || err instanceof HttpException) {
         throw err;
       }
       // Unexpected errors (e.g. Redis down) → fail-closed
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? (err.stack ?? '') : '';
-      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
+      logger.error(
+        `[user=${userId ?? 'unknown'}] Rate limit guard error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+      );
       return false;
     }
   }

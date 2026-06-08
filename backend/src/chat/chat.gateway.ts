@@ -11,6 +11,7 @@ import {
 import { ChatService } from './chat.service';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
+import { logger } from 'src/base/logger/logger';
 import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
@@ -72,6 +73,9 @@ export class ChatGateway
         client.disconnect();
       }
     } catch (error) {
+      logger.warn(
+        `WebSocket connection rejected (client=${client.id}): ${(error as Error).message}`,
+      );
       client.disconnect();
     }
   }

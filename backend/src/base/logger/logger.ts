@@ -1,57 +1,51 @@
-// Log Level Priority
+// Winston npm log levels (lower number = higher priority)
 /**
- * fatal
- * warn
- * error
- * debug
- * log
- * verbose
+ * error   (0)
+ * warn    (1)
+ * info    (2)
+ * http    (3)
+ * verbose (4)
+ * debug   (5)
+ * silly   (6)
+ *
+ * LOG_LEVEL env var overrides the default.
+ * Default: 'debug' in development, 'info' in production.
  */
 
 import * as winston from 'winston';
 import { join } from 'node:path';
 
-// Debug: Deployment on Vercel; for deploying frontend on read-only serverless Vercel
 const isVercel = process.env.VERCEL === '1';
+const level =
+  process.env.LOG_LEVEL ??
+  (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
-// Logger configuration as singleton instance - can be implemented in app.module as well
 export const logger = winston.createLogger({
-  level: 'verbose',
+  level,
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
-        winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss ZZ',
-          alias: 'Activated timestamp',
-        }),
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
         winston.format.printf(
           (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
         ),
       ),
     }),
-    // Debug: Deployment on Vercel; Spread the File Transports into local and Vercel for differ the OS to apply different transport
     ...(!isVercel
       ? [
           new winston.transports.File({
             format: winston.format.combine(
-              winston.format.timestamp({
-                format: 'YYYY-MM-DD HH:mm:ss ZZ',
-                alias: 'Logs timestamp',
-              }),
+              winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
               winston.format.printf(
                 (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
               ),
             ),
-            // Debug: Deployment on Vercel; This line causes the Vercel ENOENT error
             dirname: join(process.cwd(), 'logs'),
             filename: 'logs.log',
           }),
           new winston.transports.File({
             format: winston.format.combine(
-              winston.format.timestamp({
-                format: 'YYYY-MM-DD HH:mm:ss ZZ',
-                alias: 'Error timestamp',
-              }),
+              winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
               winston.format.printf(
                 (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
               ),

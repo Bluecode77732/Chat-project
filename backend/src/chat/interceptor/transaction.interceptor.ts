@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { catchError, Observable, tap } from 'rxjs';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class Transaction implements NestInterceptor {
@@ -26,6 +27,11 @@ export class Transaction implements NestInterceptor {
 
     return next.handle().pipe(
       catchError(async (error) => {
+        const userId: number | undefined =
+          request.user?.sub ?? request.user?.id;
+        logger.error(
+          `[user=${userId ?? 'unknown'}] REST transaction rollback: ${(error as Error).message}\n${(error as Error).stack ?? ''}`,
+        );
         await queryRunner.rollbackTransaction();
         await queryRunner.release();
 

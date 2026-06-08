@@ -35,10 +35,13 @@ export class WebSocketTransaction implements NestInterceptor {
         throw error;
       }),
       tap(async () => {
+        const userId: number | undefined = client.data.user?.sub;
         try {
           await queryRunner.commitTransaction();
         } catch (err) {
-          logger.error(`WS commit failed: ${(err as Error).message}`);
+          logger.error(
+            `[user=${userId ?? 'unknown'}] WS commit failed: ${(err as Error).message}`,
+          );
         } finally {
           await queryRunner.release();
         }
@@ -50,7 +53,7 @@ export class WebSocketTransaction implements NestInterceptor {
             await this.sessionCacheService.cacheMessage(msg.room.id, msg);
           } catch (cacheErr) {
             logger.warn(
-              `WS cacheMessage failed for room ${msg.room.id}: ${(cacheErr as Error).message}`,
+              `[user=${userId ?? 'unknown'}, room=${msg.room.id}] WS cacheMessage failed: ${(cacheErr as Error).message}`,
             );
           }
           delete client.data.pendingCacheMessage;

@@ -18,18 +18,22 @@ import { logger } from 'src/base/logger/logger';
           const client = createClient({
             url: configService.get<string>('REDIS_URL'),
           });
-          client.on('error', (err) => console.error('Redis Error:', err));
+          client.on('error', (err: Error) =>
+            logger.error(
+              `Redis runtime error: ${err.message}\n${err.stack ?? ''}`,
+            ),
+          );
 
           // Connect to Redis server
           await client.connect();
 
           // Returns connection
           return client;
-        } catch (error) {
-          logger.error(`Redis Connection Fail`, {
-            timestamp: new Date().toISOString(),
-          });
-          throw error;
+        } catch (err) {
+          logger.error(
+            `Redis connection failed: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+          );
+          throw err;
         }
       },
       inject: [ConfigService],

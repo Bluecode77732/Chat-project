@@ -136,7 +136,7 @@ export class AuthService {
       throw new BadRequestException('Invalid User.');
     }
 
-    logger.info(`User '${email}' is authenticated`);
+    logger.debug(`User '${email}' is authenticated`);
     return user;
   }
 
@@ -152,7 +152,7 @@ export class AuthService {
       'ACCESS_TOKEN_SECRET',
     );
 
-    logger.info(`User '${user.id}' issued refresh and access tokens`);
+    logger.debug(`User '${user.id}' issued refresh and access tokens`);
 
     // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
     return await this.jwtService.signAsync(

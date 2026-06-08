@@ -114,7 +114,7 @@ export class AiService implements OnModuleInit {
     });
 
     if (!acquired) {
-      logger.info(`AI lock held for room ${roomId}, skipping.`);
+      logger.debug(`AI lock held for room ${roomId}, skipping.`);
       return;
     }
 
@@ -123,7 +123,7 @@ export class AiService implements OnModuleInit {
         aiPersonality ?? (await this.aiRoomService.getPersonality(roomId));
 
       if (!personality) {
-        logger.info(`No AI personality set for room ${roomId}, skipping.`);
+        logger.debug(`No AI personality set for room ${roomId}, skipping.`);
         return;
       }
 
@@ -169,9 +169,10 @@ export class AiService implements OnModuleInit {
       logger.info(
         `AI replied in room ${roomId}, message id=${savedMessage.id}`,
       );
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`AI reply failed for room ${roomId}: ${msg}`);
+    } catch (error) {
+      logger.error(
+        `AI reply failed for room ${roomId}: ${(error as Error).message}\n${(error as Error).stack ?? ''}`,
+      );
     } finally {
       await this.redis.del(lockKey);
     }

@@ -163,9 +163,10 @@ export class ChatResolver {
             if (personalityToSet) {
               await this.aiRoomService
                 .setPersonality(roomId, userId, personalityToSet)
-                .catch((err: unknown) => {
-                  const msg = err instanceof Error ? err.message : String(err);
-                  logger.error(`setPersonality failed: ${msg}`);
+                .catch((err) => {
+                  logger.error(
+                    `[user=${userId}, room=${roomId}] setPersonality failed: ${(err as Error).message}`,
+                  );
                 });
             }
             await this.aiService
@@ -177,11 +178,9 @@ export class ChatResolver {
                     receiveMessage: msg,
                   }),
               })
-              .catch((err: unknown) => {
-                const msg = err instanceof Error ? err.message : String(err);
-                const stack = err instanceof Error ? err.stack : undefined;
+              .catch((err) => {
                 logger.error(
-                  `AI reply error: ${msg}${stack ? `\n${stack}` : ''}`,
+                  `[user=${userId}, room=${roomId}] AI reply error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
                 );
               });
           })();
@@ -193,12 +192,12 @@ export class ChatResolver {
         roomId,
         createdAt: savedMessage.created,
       };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? (err.stack ?? '') : '';
-      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
+    } catch (err) {
+      logger.error(
+        `[user=${userId}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+      );
       await queryRunner.rollbackTransaction();
-      throw new Error(`Failed to send message: ${msg}`);
+      throw new Error(`Failed to send message: ${(err as Error).message}`);
     } finally {
       await queryRunner.release();
     }

@@ -268,7 +268,7 @@ export class ChatService {
         await this.redisService.getUserStatus(recipientId);
 
       if (!getRecipientStatusId?.socketId) {
-        logger.info(
+        logger.debug(
           `Recipient ${recipientId} is offline — message saved, will be loaded from history`,
         );
       }
@@ -278,11 +278,13 @@ export class ChatService {
       );
 
       return messageSchema;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? (err.stack ?? '') : '';
-      logger.error(`${msg}${stack ? `\n${stack}` : ''}`);
-      throw new WsException(`Failed to send message: ${msg}`);
+    } catch (err) {
+      logger.error(
+        `[user=${payload.sub}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+      );
+      throw new WsException(
+        `Failed to send message: ${(err as Error).message}`,
+      );
     }
   }
 
