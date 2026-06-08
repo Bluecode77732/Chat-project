@@ -52,7 +52,10 @@ export class RateLimitGuard implements CanActivate {
 
       if (count > 10) {
         if (isWs) throw new WsException('Rate limit exceeded');
-        throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+        throw new HttpException(
+          'Rate limit exceeded',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
 
       logger.debug(`${userId} left message count: '${10 - count}'`);
