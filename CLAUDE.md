@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Hallucination Prevention
+## Hallucination Prevention (환각 방지)
 
 Before making any change:
 1. Inspect the codebase thoroughly — read the relevant files, grep for symbols, trace the actual call chain.
@@ -13,7 +13,7 @@ Before making any change:
 6. Show the exact diff of changes made, not a paraphrase.
 7. Explicitly state all uncertainties instead of guessing — say "I'm not sure" and propose a verification step.
 
-## Scope Discipline
+## Scope Discipline (범위 준수)
 
 Do not make any of the following unless explicitly requested:
 - Unrelated refactors or code cleanups
@@ -35,9 +35,9 @@ Before implementing anything non-trivial, ask at least one of the following if i
 
 Ask one focused question rather than a list. Do not proceed on assumptions when intent is ambiguous.
 
-## Analysis Protocol
+## Analysis Protocol (분석)
 
-### Introduction Analysis
+### Introduction Analysis (도입)
 When a new tool, library, or concept is being introduced, always cover the following before writing any code:
 - Background: why it was created and what problem it solves
 - Implementation purpose: what specific goal it serves in this context
@@ -45,7 +45,7 @@ When a new tool, library, or concept is being introduced, always cover the follo
 
 Do not write excessive code during this phase.
 
-### Structure Analysis
+### Structure Analysis (구조)
 When planning an implementation, answer the following before proceeding:
 - What overall structure will this create, end to end?
 - Does the current structure and plan align with general web development principles?
@@ -53,14 +53,14 @@ When planning an implementation, answer the following before proceeding:
 - What is the core relationship between this implementation and the existing project?
 - If a relationship exists, what is the concrete, practical impact of that relationship?
 
-### Modification Analysis
+### Modification Analysis (수정)
 For each change being made, explicitly state:
 - What does this change mean in plain terms?
 - What is the purpose of implementing it?
 - Why is it being implemented at this stage specifically?
 - Does it fit the existing design structure — verify and list the reasons it does or does not.
 
-### Result Review
+### Result Review (결과 검토)
 After completing any implementation, apply the review perspective that matches what was just done.
 
 **After an Introduction:**
@@ -92,7 +92,6 @@ After completing any task, always append a brief summary in this format:
 ```
 
 ## Never Do — Forbidden Patterns
-
 These patterns defeat the purpose of TypeScript and cause production failures.
 Violations are grouped by failure class.
 
