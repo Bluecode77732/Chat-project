@@ -1,6 +1,8 @@
 import {
   CanActivate,
   ExecutionContext,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
 } from '@nestjs/common';
@@ -17,10 +19,11 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isWs = context.getType() === 'ws';
     try {
       let userId: number;
 
-      if (context.getType() === 'ws') {
+      if (isWs) {
         const client = context.switchToWs().getClient();
         userId = client.data.user.sub;
       } else {
@@ -29,11 +32,11 @@ export class RateLimitGuard implements CanActivate {
       }
 
       if (!userId) {
-        throw new WsException('Cannot Find User Id');
+        if (isWs) throw new WsException('Cannot Find User Id');
+        throw new HttpException('Cannot Find User Id', HttpStatus.UNAUTHORIZED);
       }
 
-      const contextType = context.getType() === 'ws' ? 'ws' : 'gql';
-      const key = `rate_limit:${contextType}:${userId}`;
+      const key = `rate_limit:${userId}`;
       // Lua script ensures INCR and EXPIRE execute atomically —
       // prevents a permanent key if the server crashes between the two commands
       const luaScript = `
@@ -48,13 +51,18 @@ export class RateLimitGuard implements CanActivate {
       })) as number;
 
       if (count > 10) {
-        throw new WsException('Rate limit exceeded');
+        if (isWs) throw new WsException('Rate limit exceeded');
+        throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
       }
 
-      // Returns rate-limit guard
       logger.debug(`${userId} left message count: '${10 - count}'`);
       return true;
     } catch (err: unknown) {
+      // Re-throw intentional guard exceptions so NestJS propagates the correct status
+      if (err instanceof WsException || err instanceof HttpException) {
+        throw err;
+      }
+      // Unexpected errors (e.g. Redis down) → fail-closed
       const msg = err instanceof Error ? err.message : String(err);
       const stack = err instanceof Error ? (err.stack ?? '') : '';
       logger.error(`${msg}${stack ? `\n${stack}` : ''}`);

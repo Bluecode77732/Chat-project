@@ -37,10 +37,10 @@ export class WebSocketTransaction implements NestInterceptor {
       tap(async () => {
         try {
           await queryRunner.commitTransaction();
-          await queryRunner.release();
         } catch (err) {
           logger.error(`WS commit failed: ${(err as Error).message}`);
-          return;
+        } finally {
+          await queryRunner.release();
         }
 
         // cacheMessage runs after commit — prevents stale cache on rollback
