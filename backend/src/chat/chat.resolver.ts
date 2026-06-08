@@ -144,7 +144,13 @@ export class ChatResolver {
 
       const roomId = savedMessage.room?.id;
       if (roomId) {
-        await this.sessionCacheService.cacheMessage(roomId, savedMessage);
+        try {
+          await this.sessionCacheService.cacheMessage(roomId, savedMessage);
+        } catch (cacheErr) {
+          logger.warn(
+            `cacheMessage failed for room ${roomId}: ${(cacheErr as Error).message}`,
+          );
+        }
       }
       await this.pubSub.publish(`receiveMessage :${roomId}`, {
         receiveMessage: savedMessage,

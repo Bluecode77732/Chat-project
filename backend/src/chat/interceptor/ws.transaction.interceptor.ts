@@ -7,6 +7,7 @@ import {
 import { DataSource } from 'typeorm';
 import { catchError, Observable, tap } from 'rxjs';
 import { SessionCacheService } from 'src/redis/redis.service';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class WebSocketTransaction implements NestInterceptor {
@@ -34,13 +35,24 @@ export class WebSocketTransaction implements NestInterceptor {
         throw error;
       }),
       tap(async () => {
-        await queryRunner.commitTransaction();
-        await queryRunner.release();
+        try {
+          await queryRunner.commitTransaction();
+          await queryRunner.release();
+        } catch (err) {
+          logger.error(`WS commit failed: ${(err as Error).message}`);
+          return;
+        }
 
         // cacheMessage runs after commit — prevents stale cache on rollback
         const msg = client.data.pendingCacheMessage;
         if (msg?.room?.id) {
-          await this.sessionCacheService.cacheMessage(msg.room.id, msg);
+          try {
+            await this.sessionCacheService.cacheMessage(msg.room.id, msg);
+          } catch (cacheErr) {
+            logger.warn(
+              `WS cacheMessage failed for room ${msg.room.id}: ${(cacheErr as Error).message}`,
+            );
+          }
           delete client.data.pendingCacheMessage;
         }
       }),
