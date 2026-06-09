@@ -13,7 +13,7 @@ import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
-import { ForbiddenException, UseGuards } from '@nestjs/common';
+import { ForbiddenException, InternalServerErrorException, UseGuards } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
@@ -197,7 +197,7 @@ export class ChatResolver {
         `[user=${userId}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
       );
       await queryRunner.rollbackTransaction();
-      throw new Error(`Failed to send message: ${(err as Error).message}`);
+      throw new InternalServerErrorException('Failed to send message');
     } finally {
       await queryRunner.release();
     }
