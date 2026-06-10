@@ -13,7 +13,6 @@ import { EntityBase } from './base/entity/base.entity';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
-import { ChatResolver } from './chat/chat.resolver';
 
 @Module({
   imports: [
@@ -99,6 +98,6 @@ import { ChatResolver } from './chat/chat.resolver';
     AuthModule,
     AiModule,
   ],
-  providers: [Logger, ChatResolver],
+  providers: [Logger],
 })
 export class AppModule {}
