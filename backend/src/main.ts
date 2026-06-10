@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
 import { AllExceptionsFilter } from './base/filter/all-exceptions.filter';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -14,6 +15,7 @@ async function bootstrap() {
   });
 
   // Use pipes in class-validator and class-transformer libraries
+  app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
 
   app.useGlobalPipes(
