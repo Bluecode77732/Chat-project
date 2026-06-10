@@ -5,17 +5,16 @@ import { jwtDecode } from "jwt-decode";
 import api from "../api/axios";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    const { accessToken, refreshToken, setTokens, clearTokens } = useAuthStore();
-    const [initializing, setInitializing] = useState(!accessToken && !!refreshToken);
+    const { accessToken, setTokens, clearTokens } = useAuthStore();
+    const [initializing, setInitializing] = useState(!accessToken);
 
     useEffect(() => {
-        if (!accessToken && refreshToken) {
-            api.post('/auth/token/refreshaccess', null, {
-                headers: { Authorization: `Bearer ${refreshToken}` },
-            })
+        if (!accessToken) {
+            // refreshToken cookie is sent automatically via withCredentials
+            api.post('/auth/token/refreshaccess')
                 .then(({ data }) => {
                     const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
-                    setTokens(data.accessToken, refreshToken, sub);
+                    setTokens(data.accessToken, sub);
                 })
                 .catch(() => clearTokens())
                 .finally(() => setInitializing(false));
