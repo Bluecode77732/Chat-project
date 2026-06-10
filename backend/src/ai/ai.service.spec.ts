@@ -20,7 +20,12 @@ jest.mock('@google/genai', () => ({
 }));
 
 jest.mock('src/base/logger/logger', () => ({
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe('AiService', () => {

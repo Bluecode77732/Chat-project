@@ -92,7 +92,10 @@ export class AuthController {
     description: 'Issued Token Successfully.',
     type: bearerTokenType,
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized. Refresh token cookie missing or expired.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized. Refresh token cookie missing or expired.',
+  })
   async refreshAccessToken(@Req() req: ExpressRequest) {
     const rawRefreshToken: string | undefined =
       req.cookies?.[REFRESH_TOKEN_COOKIE];
@@ -114,7 +117,9 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('signin/local')
   @HttpCode(200)
-  @ApiOperation({ description: 'Sign in using alternative Passport local strategy.' })
+  @ApiOperation({
+    description: 'Sign in using alternative Passport local strategy.',
+  })
   @ApiResponse({ status: 200, description: 'Issued Token Successfully.' })
   @ApiResponse({ status: 401, description: 'Invalid Credentials.' })
   @ApiBody({ type: CreateUserDto, required: true })

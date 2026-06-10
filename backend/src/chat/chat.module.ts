@@ -19,13 +19,7 @@ import { AiModule } from 'src/ai/ai.module';
     AiModule,
     TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
-  providers: [
-    ChatGateway,
-    ChatService,
-    Server,
-    PubSubService,
-    ChatResolver,
-  ],
+  providers: [ChatGateway, ChatService, Server, PubSubService, ChatResolver],
   exports: [ChatService, PubSubService],
 })
 export class ChatModule {}

@@ -22,7 +22,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const message =
       exception instanceof HttpException
-        ? (exception.getResponse() as any).message ?? exception.message
+        ? ((exception.getResponse() as any).message ?? exception.message)
         : 'Internal server error';
 
     const stack = exception instanceof Error ? exception.stack : undefined;
@@ -33,9 +33,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     );
 
     if (isGraphQL) {
-      return this.isDev
-        ? { message, stack }
-        : { message };
+      return this.isDev ? { message, stack } : { message };
     }
 
     const ctx = host.switchToHttp();

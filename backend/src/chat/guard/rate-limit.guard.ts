@@ -46,7 +46,7 @@ export class RateLimitGuard implements CanActivate {
         end
         return count
       `;
-      const count = (await this.redis.eval(luaScript, 1, key)) as unknown as number;
+      const count = (await this.redis.eval(luaScript, 1, key)) as number;
 
       if (count > 10) {
         if (isWs) throw new WsException('Rate limit exceeded');
