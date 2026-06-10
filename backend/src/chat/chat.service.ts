@@ -1,28 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Socket, Server } from 'socket.io';
+import { Socket } from 'socket.io';
 import { QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { CreateChatDto } from './entities/dto/create-chat.dto';
 import { WsException } from '@nestjs/websockets';
-import { plainToClass } from 'class-transformer';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class ChatService {
   private readonly clientConnection = new Map<string, Socket>();
-  private server?: Server;
-
-  setBroadcastServer(server: Server): void {
-    this.server = server;
-  }
-
-  broadcastToRoom(roomId: number, message: ChatEntity): void {
-    this.server?.to(roomId.toString()).emit('sendMessage', message);
-  }
 
   // TypeORM repositories for Room and User with DataSource
   constructor(
@@ -236,42 +226,6 @@ export class ChatService {
         }),
         { participant: sender, room },
       );
-
-      // Todo: Redis adoption //
-      // Todo: Get client ID from Redis
-      const getSenderFromRedisStatusId = await this.redisService.getUserStatus(
-        sender.id,
-      );
-
-      //! Debug: Requiring socketId forcefully was the reason for unable to send msg through GraphQL
-      if (getSenderFromRedisStatusId?.socketId) {
-        // Todo: Get recipient ID from Socket
-        const senderSocketId = this.clientConnection.get(
-          getSenderFromRedisStatusId?.socketId,
-        );
-
-        // Todo: GraphQL connection
-        // Broadcast to the rooms
-        // Send back to the sender to check if the message was sent
-        //! Debug: case-sensitive strings; SendMessage => sendMessage
-        senderSocketId
-          ?.to(room.id.toString())
-          .emit('sendMessage', plainToClass(ChatEntity, messageSchema));
-
-        senderSocketId?.emit(
-          'sendMessage',
-          plainToClass(ChatEntity, messageSchema),
-        );
-      }
-
-      const getRecipientStatusId =
-        await this.redisService.getUserStatus(recipientId);
-
-      if (!getRecipientStatusId?.socketId) {
-        logger.debug(
-          `Recipient ${recipientId} is offline — message saved, will be loaded from history`,
-        );
-      }
 
       logger.info(
         `User ${payload.sub} sent message ${messageSchema.id} to room ${room.id}`,

@@ -1,24 +1,12 @@
 import {
-  ConnectedSocket,
-  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
-  OnGatewayInit,
-  SubscribeMessage,
   WebSocketGateway,
-  WebSocketServer,
 } from '@nestjs/websockets';
 import { ChatService } from './chat.service';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { logger } from 'src/base/logger/logger';
-import { UseGuards, UseInterceptors } from '@nestjs/common';
-import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
-import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { RateLimitGuard } from './guard/rate-limit.guard';
-import { RBACguard } from 'src/auth/guard/rbac.guard';
-import type { QueryRunner } from 'typeorm';
-import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
 
 @WebSocketGateway({
   cors: {
@@ -33,20 +21,11 @@ import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
     credentials: true,
   },
 })
-export class ChatGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
-  @WebSocketServer()
-  private server?: Server;
-
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
   ) {}
-
-  afterInit(server: Server): void {
-    this.chatService.setBroadcastServer(server);
-  }
 
   async handleConnection(client: Socket) {
     try {
@@ -88,24 +67,5 @@ export class ChatGateway
     }
 
     return `User: ${participant} disconnected`;
-  }
-
-  // Connect socket
-  @SubscribeMessage('sendMessage')
-  @UseInterceptors(WebSocketTransaction)
-  @UseGuards(RateLimitGuard)
-  @UseGuards(RBACguard)
-  async handleMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: CreateChatDto,
-    @WebSocketQueryRunner() queryRunner: QueryRunner,
-  ) {
-    const payload = client.data.user;
-    const message = await this.chatService.sendMessage(
-      payload,
-      dto,
-      queryRunner,
-    );
-    client.data.pendingCacheMessage = message;
   }
 }

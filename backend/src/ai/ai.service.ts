@@ -26,7 +26,6 @@ const AI_HISTORY_LIMIT = 10;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export type AiReplyCallbacks = {
-  broadcastFn: (msg: ChatEntity) => void;
   publishFn: (msg: ChatEntity) => Promise<void>;
 };
 
@@ -163,7 +162,6 @@ export class AiService implements OnModuleInit {
       await this.sessionCacheService.cacheMessage(roomId, msgWithRelations);
 
       const serialized = plainToClass(ChatEntity, msgWithRelations);
-      callbacks.broadcastFn(serialized);
       await callbacks.publishFn(serialized);
 
       logger.info(

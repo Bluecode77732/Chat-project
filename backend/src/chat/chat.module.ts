@@ -8,7 +8,6 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { RoomEntity } from './entities/room.entity';
 import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
-import { Server } from 'socket.io';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { AiModule } from 'src/ai/ai.module';
 
@@ -19,7 +18,7 @@ import { AiModule } from 'src/ai/ai.module';
     AiModule,
     TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
-  providers: [ChatGateway, ChatService, Server, PubSubService, ChatResolver],
+  providers: [ChatGateway, ChatService, PubSubService, ChatResolver],
   exports: [ChatService, PubSubService],
 })
 export class ChatModule {}

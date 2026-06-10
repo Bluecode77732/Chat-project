@@ -27,7 +27,6 @@ import { SessionCacheService } from 'src/redis/redis.service';
 import { AiService } from 'src/ai/ai.service';
 import { AiRoomService } from 'src/ai/ai-room.service';
 import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
-import { ChatEntity } from './entities/chat.entity';
 
 @Resolver()
 export class ChatResolver {
@@ -166,9 +165,7 @@ export class ChatResolver {
             }
             await this.aiService
               .handleReply(roomId, personalityToSet, {
-                broadcastFn: (msg: ChatEntity) =>
-                  this.chatService.broadcastToRoom(roomId, msg),
-                publishFn: (msg: ChatEntity) =>
+                publishFn: (msg) =>
                   this.pubSub.publish(`receiveMessage :${roomId}`, {
                     receiveMessage: msg,
                   }),
