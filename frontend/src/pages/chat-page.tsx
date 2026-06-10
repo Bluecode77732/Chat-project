@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
+import api from "../api/axios";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
@@ -356,7 +357,12 @@ function ChatPage() {
         return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const signOut = () => {
+    const signOut = async () => {
+        try {
+            await api.post('/auth/signOut');
+        } catch {
+            // token already expired — still clear local state and cookie
+        }
         socket.disconnect();
         clearTokens();
         navigate('/');
