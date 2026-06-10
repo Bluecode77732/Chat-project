@@ -32,7 +32,7 @@ function SignInPage() {
             const decoded = jwtDecode<{ sub: number }>(res.data.accessToken);
 
             // Saving respond token in Zustand
-            setTokens(res.data.accessToken, res.data.refreshToken, decoded.sub);
+            setTokens(res.data.accessToken, decoded.sub);
             // Move to the chat page
             navigate('/chat');
         } catch {
