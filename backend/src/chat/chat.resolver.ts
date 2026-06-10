@@ -13,7 +13,11 @@ import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
-import { ForbiddenException, InternalServerErrorException, UseGuards } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+  UseGuards,
+} from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
@@ -143,15 +147,6 @@ export class ChatResolver {
       await queryRunner.commitTransaction();
 
       const roomId = savedMessage.room?.id;
-      if (roomId) {
-        try {
-          await this.sessionCacheService.cacheMessage(roomId, savedMessage);
-        } catch (cacheErr) {
-          logger.warn(
-            `cacheMessage failed for room ${roomId}: ${(cacheErr as Error).message}`,
-          );
-        }
-      }
       await this.pubSub.publish(`receiveMessage :${roomId}`, {
         receiveMessage: savedMessage,
       });
