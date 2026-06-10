@@ -10,7 +10,6 @@ import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
 import { Server } from 'socket.io';
 import { PubSubService } from 'src/graphql/pubsub.service';
-import { SessionCacheService } from 'src/redis/redis.service';
 import { AiModule } from 'src/ai/ai.module';
 
 @Module({
@@ -26,7 +25,6 @@ import { AiModule } from 'src/ai/ai.module';
     Server,
     PubSubService,
     ChatResolver,
-    SessionCacheService,
   ],
   exports: [ChatService, PubSubService],
 })

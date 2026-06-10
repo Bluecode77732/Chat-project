@@ -8,14 +8,14 @@ import {
 } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { GqlExecutionContext } from '@nestjs/graphql';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
 import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   constructor(
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,9 +46,7 @@ export class RateLimitGuard implements CanActivate {
         end
         return count
       `;
-      const count = (await this.redis.eval(luaScript, {
-        keys: [key],
-      })) as number;
+      const count = (await this.redis.eval(luaScript, 1, key)) as unknown as number;
 
       if (count > 10) {
         if (isWs) throw new WsException('Rate limit exceeded');
