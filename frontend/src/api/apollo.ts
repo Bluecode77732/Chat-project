@@ -19,14 +19,13 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
     if (CombinedGraphQLErrors.is(error) &&
         error.errors.some(e => e.extensions?.['code'] === 'UNAUTHENTICATED')) {
         return new Observable<ApolloLink.Result>((observer) => {
-            const { refreshToken, setTokens } = useAuthStore.getState()
+            const { setTokens } = useAuthStore.getState()
 
-            api.post('/auth/token/refreshaccess', null, {
-                headers: { Authorization: `Bearer ${refreshToken}` },
-            })
+            // refreshToken cookie is sent automatically via withCredentials
+            api.post('/auth/token/refreshaccess')
                 .then(({ data }) => {
                     const { sub } = jwtDecode<{ sub: number }>(data.accessToken)
-                    setTokens(data.accessToken, refreshToken!, sub)
+                    setTokens(data.accessToken, sub)
                     operation.setContext(({ headers = {} }) => ({
                         headers: { ...headers, authorization: `Bearer ${data.accessToken}` },
                     }))
@@ -49,21 +48,19 @@ const authLink = new SetContextLink((prevContext) => ({
     },
 }));
 
-// `GraphQLWsLink` responses on Subscription real-time event
 const wsLink = new GraphQLWsLink(
     createClient({
         url: `${import.meta.env.VITE_WS_URL}/graphql`,
         retryAttempts: 5,
         connectionParams: async () => {
-            let { accessToken, refreshToken, setTokens } = useAuthStore.getState();
+            let { accessToken, setTokens } = useAuthStore.getState();
 
-            if (!accessToken && refreshToken) {
+            if (!accessToken) {
                 try {
-                    const { data } = await api.post('/auth/token/refreshaccess', null, {
-                        headers: { Authorization: `Bearer ${refreshToken}` },
-                    });
+                    // refreshToken cookie is sent automatically via withCredentials
+                    const { data } = await api.post('/auth/token/refreshaccess');
                     const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
-                    setTokens(data.accessToken, refreshToken!, sub);
+                    setTokens(data.accessToken, sub);
                     accessToken = data.accessToken;
                 } catch {
                     useAuthStore.getState().clearTokens();
