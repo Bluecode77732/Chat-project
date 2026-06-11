@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { QueryRunner, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
@@ -12,7 +12,11 @@ import { SessionCacheService } from 'src/redis/redis.service';
 
 @Injectable()
 export class ChatService {
-  private readonly clientConnection = new Map<string, Socket>();
+  private server?: Server;
+
+  setServer(server: Server): void {
+    this.server = server;
+  }
 
   // TypeORM repositories for Room and User with DataSource
   constructor(
@@ -33,16 +37,12 @@ export class ChatService {
   // Connect Socket
   async registerClient(participantId: number, client: Socket) {
     await this.redisService.sethUserOnline(participantId, client.id);
-    this.clientConnection.set(client.id, client);
-
     logger.info(`User ${participantId} has connected`);
   }
 
   // Disconnect Socket
-  async removeClient(participantId: number, client: Socket) {
+  async removeClient(participantId: number) {
     await this.redisService.sethUserOffline(participantId);
-    this.clientConnection.delete(client.id);
-
     logger.info(`User ${participantId} has disconnected`);
   }
 
@@ -132,11 +132,12 @@ export class ChatService {
         // Notify both users of the existing room ID so their subscriptions can start
         for (const id of [sender.id, recipientId]) {
           const status = await this.redisService.getUserStatus(id);
-          const connect = status?.socketId
-            ? this.clientConnection.get(status.socketId)
-            : null;
-          connect?.emit('CreateRoom', room.id.toString());
-          connect?.join(room.id.toString());
+          if (status?.socketId) {
+            this.server
+              ?.to(status.socketId)
+              .emit('CreateRoom', room.id.toString());
+            this.server?.in(status.socketId).socketsJoin(room.id.toString());
+          }
         }
       }
       return room;
@@ -160,24 +161,18 @@ export class ChatService {
         throw new WsException('Cannot Find Sender');
       }
 
-      // Get Client ID
-      // New code along with Redis cache
-      const getUserSocketId = await this.redisService.getUserStatus(id);
-      const connect = getUserSocketId?.socketId
-        ? this.clientConnection.get(getUserSocketId.socketId)
-        : null;
-
-      if (connect) {
+      const userStatus = await this.redisService.getUserStatus(id);
+      if (userStatus?.socketId) {
         if (!room?.id) {
           throw new WsException({
             status: 'error:400 - BadRequestException',
             message: 'Cannot Find Room',
           });
-        } else {
-          // Notifying successful connection
-          connect.emit('CreateRoom', room.id.toString());
-          connect.join(room.id.toString());
         }
+        this.server
+          ?.to(userStatus.socketId)
+          .emit('CreateRoom', room.id.toString());
+        this.server?.in(userStatus.socketId).socketsJoin(room.id.toString());
       }
     }
 

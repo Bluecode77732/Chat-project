@@ -402,7 +402,7 @@ describe('ChatService', () => {
       chatService['clientConnection'].set('socketId', {
         emit: jest.fn(),
         join: jest.fn(),
-      } as unknown as Socket);
+      });
 
       // WsException returned with promise in service
       await expect(
@@ -662,7 +662,7 @@ describe('ChatService', () => {
       chatService['clientConnection'].set('recipientId', {
         emit: jest.fn(),
         join: jest.fn(),
-      } as unknown as Socket);
+      });
 
       //* Mock all dependencies
       jest

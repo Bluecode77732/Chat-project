@@ -1,12 +1,16 @@
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   WebSocketGateway,
 } from '@nestjs/websockets';
 import { ChatService } from './chat.service';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
+import { ConfigService } from '@nestjs/config';
 import { logger } from 'src/base/logger/logger';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 
 @WebSocketGateway({
   cors: {
@@ -21,11 +25,30 @@ import { logger } from 'src/base/logger/logger';
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
+    private readonly configService: ConfigService,
   ) {}
+
+  afterInit(server: Server): void {
+    const redisUrl = this.configService.get<string>('REDIS_URL')!;
+    const url = new URL(redisUrl);
+    const isTls = url.protocol === 'rediss:';
+    const redisConfig = {
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      password: url.password || undefined,
+      ...(isTls ? { tls: {} } : {}),
+    };
+    const pubClient = new Redis(redisConfig);
+    const subClient = pubClient.duplicate();
+    server.adapter(createAdapter(pubClient, subClient));
+    this.chatService.setServer(server);
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -63,7 +86,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const participant = client.data.user;
 
     if (participant) {
-      await this.chatService.removeClient(participant.sub, client);
+      await this.chatService.removeClient(participant.sub);
     }
 
     return `User: ${participant} disconnected`;
