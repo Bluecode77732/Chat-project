@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AiRoomService } from './ai-room.service';
-import { RoomEntity } from 'src/chat/entities/room.entity';
+import { AiRoomEntity } from './entities/ai-room.entity';
 import { AiPersonality } from './enums/ai-personality.enum';
 
 jest.mock('src/base/logger/logger', () => ({
@@ -12,7 +11,7 @@ jest.mock('src/base/logger/logger', () => ({
 describe('AiRoomService', () => {
   let aiRoomService: AiRoomService;
 
-  const mockRoomRepository = {
+  const mockAiRoomRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
   };
@@ -22,8 +21,8 @@ describe('AiRoomService', () => {
       providers: [
         AiRoomService,
         {
-          provide: getRepositoryToken(RoomEntity),
-          useValue: mockRoomRepository,
+          provide: getRepositoryToken(AiRoomEntity),
+          useValue: mockAiRoomRepository,
         },
       ],
     }).compile();
@@ -40,60 +39,35 @@ describe('AiRoomService', () => {
   });
 
   describe('setPersonality', () => {
-    it('should throw NotFoundException when room does not exist', async () => {
-      mockRoomRepository.findOne.mockResolvedValue(null);
+    it('should create new AiRoomEntity when none exists', async () => {
+      mockAiRoomRepository.findOne.mockResolvedValue(null);
+      mockAiRoomRepository.save.mockResolvedValue({});
 
-      await expect(
-        aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY),
-      ).rejects.toThrow(NotFoundException);
-    });
+      await aiRoomService.setPersonality(1, AiPersonality.FRIENDLY);
 
-    it('should throw BadRequestException when user is not a participant', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
-        id: 1,
-        participants: [{ id: 2 }, { id: 3 }],
+      expect(mockAiRoomRepository.save).toHaveBeenCalledWith({
+        room: { id: 1 },
+        personality: AiPersonality.FRIENDLY,
       });
-
-      await expect(
-        aiRoomService.setPersonality(1, 99, AiPersonality.FRIENDLY),
-      ).rejects.toThrow(BadRequestException);
     });
 
-    it('should set personality successfully', async () => {
-      const room = {
-        id: 1,
-        participants: [{ id: 1 }],
-        aiPersonality: null as AiPersonality | null,
-      };
-      mockRoomRepository.findOne.mockResolvedValue(room);
-      mockRoomRepository.save.mockResolvedValue(room);
+    it('should update existing personality', async () => {
+      const existing = { id: 1, personality: AiPersonality.FRIENDLY };
+      mockAiRoomRepository.findOne.mockResolvedValue(existing);
+      mockAiRoomRepository.save.mockResolvedValue(existing);
 
-      await aiRoomService.setPersonality(1, 1, AiPersonality.FRIENDLY);
+      await aiRoomService.setPersonality(1, AiPersonality.CODING);
 
-      expect(room.aiPersonality).toBe(AiPersonality.FRIENDLY);
-      expect(mockRoomRepository.save).toHaveBeenCalledWith(room);
-    });
-
-    it('should allow overwriting an existing personality', async () => {
-      const room = {
-        id: 1,
-        participants: [{ id: 1 }],
-        aiPersonality: AiPersonality.FRIENDLY,
-      };
-      mockRoomRepository.findOne.mockResolvedValue(room);
-      mockRoomRepository.save.mockResolvedValue(room);
-
-      await aiRoomService.setPersonality(1, 1, AiPersonality.CODING);
-
-      expect(room.aiPersonality).toBe(AiPersonality.CODING);
+      expect(existing.personality).toBe(AiPersonality.CODING);
+      expect(mockAiRoomRepository.save).toHaveBeenCalledWith(existing);
     });
   });
 
   describe('getPersonality', () => {
-    it('should return the AI personality when room exists', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
+    it('should return the AI personality when AiRoomEntity exists', async () => {
+      mockAiRoomRepository.findOne.mockResolvedValue({
         id: 1,
-        aiPersonality: AiPersonality.CODING,
+        personality: AiPersonality.CODING,
       });
 
       const result = await aiRoomService.getPersonality(1);
@@ -101,19 +75,8 @@ describe('AiRoomService', () => {
       expect(result).toBe(AiPersonality.CODING);
     });
 
-    it('should return null when room does not exist', async () => {
-      mockRoomRepository.findOne.mockResolvedValue(null);
-
-      const result = await aiRoomService.getPersonality(1);
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null when room has no personality set', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
-        id: 1,
-        aiPersonality: null,
-      });
+    it('should return null when no AiRoomEntity exists for room', async () => {
+      mockAiRoomRepository.findOne.mockResolvedValue(null);
 
       const result = await aiRoomService.getPersonality(1);
 
@@ -123,9 +86,9 @@ describe('AiRoomService', () => {
 
   describe('getPersonalityInfo', () => {
     it('should return personality and canChange=true', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
+      mockAiRoomRepository.findOne.mockResolvedValue({
         id: 1,
-        aiPersonality: AiPersonality.FRIENDLY,
+        personality: AiPersonality.FRIENDLY,
       });
 
       const result = await aiRoomService.getPersonalityInfo(1);
@@ -136,19 +99,8 @@ describe('AiRoomService', () => {
       });
     });
 
-    it('should always return canChange=true regardless of history', async () => {
-      mockRoomRepository.findOne.mockResolvedValue({
-        id: 1,
-        aiPersonality: AiPersonality.CODING,
-      });
-
-      const result = await aiRoomService.getPersonalityInfo(1);
-
-      expect(result.canChange).toBe(true);
-    });
-
-    it('should return null personality and canChange=true when room does not exist', async () => {
-      mockRoomRepository.findOne.mockResolvedValue(null);
+    it('should return null personality and canChange=true when no AiRoomEntity exists', async () => {
+      mockAiRoomRepository.findOne.mockResolvedValue(null);
 
       const result = await aiRoomService.getPersonalityInfo(1);
 

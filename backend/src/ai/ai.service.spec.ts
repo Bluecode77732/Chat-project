@@ -184,7 +184,6 @@ describe('AiService', () => {
 
     beforeEach(() => {
       callbacks = {
-        broadcastFn: jest.fn(),
         publishFn: jest.fn().mockResolvedValue(undefined),
       };
       mockRedis.set.mockResolvedValue('OK');
@@ -195,7 +194,7 @@ describe('AiService', () => {
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
-      expect(callbacks.broadcastFn).not.toHaveBeenCalled();
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
       expect(mockRedis.del).not.toHaveBeenCalled();
     });
 
@@ -207,7 +206,7 @@ describe('AiService', () => {
 
       await aiService.handleReply(roomId, null, callbacks);
 
-      expect(callbacks.broadcastFn).not.toHaveBeenCalled();
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
     });
 
@@ -232,7 +231,7 @@ describe('AiService', () => {
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockAiRoomService.getPersonality).not.toHaveBeenCalled();
-      expect(callbacks.broadcastFn).toHaveBeenCalled();
+      expect(callbacks.publishFn).toHaveBeenCalled();
     });
 
     it('should fetch personality from aiRoomService when not provided', async () => {
@@ -270,7 +269,7 @@ describe('AiService', () => {
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockDataSource.transaction).not.toHaveBeenCalled();
-      expect(callbacks.broadcastFn).not.toHaveBeenCalled();
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
     });
 
@@ -294,9 +293,6 @@ describe('AiService', () => {
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
-      expect(callbacks.broadcastFn).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 10 }),
-      );
       expect(callbacks.publishFn).toHaveBeenCalledWith(
         expect.objectContaining({ id: 10 }),
       );
@@ -313,7 +309,7 @@ describe('AiService', () => {
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
-      expect(callbacks.broadcastFn).not.toHaveBeenCalled();
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
     });
 
     it('should build history with correct role mapping for AI and user messages', async () => {

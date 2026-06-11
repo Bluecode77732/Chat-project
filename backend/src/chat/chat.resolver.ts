@@ -74,7 +74,7 @@ export class ChatResolver {
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
-    await this.aiRoomService.setPersonality(roomId, userId, personality);
+    await this.aiRoomService.setPersonality(roomId, personality);
     return true;
   }
 
@@ -156,7 +156,7 @@ export class ChatResolver {
           (async () => {
             if (personalityToSet) {
               await this.aiRoomService
-                .setPersonality(roomId, userId, personalityToSet)
+                .setPersonality(roomId, personalityToSet)
                 .catch((err) => {
                   logger.error(
                     `[user=${userId}, room=${roomId}] setPersonality failed: ${(err as Error).message}`,

@@ -122,7 +122,7 @@ describe('ChatService', () => {
 
   describe('removeClient', () => {
     it('should removes client as Redis hash', async () => {
-      await chatService.removeClient(1, mockSocket as Socket);
+      await chatService.removeClient(1);
 
       expect(redisService.sethUserOffline).toHaveBeenCalledWith(1);
     });
@@ -393,16 +393,10 @@ describe('ChatService', () => {
       jest
         .spyOn(chatService, 'createRoom')
         .mockResolvedValue({ id: null } as unknown as RoomEntity);
-      //* Mocking 'getUserStatus' with `socketId` => Access to 'connect' => `room.id` condition throws WsException
+      //* Mocking 'getUserStatus' with `socketId` so the null room.id check throws WsException
       jest
         .spyOn(redisService, 'getUserStatus')
         .mockResolvedValue({ socketId: 'socketId', status: 'online' });
-
-      //* Accessed into Map of clientConnection to insert mock socket, thereby the condition throws WsException.
-      chatService['clientConnection'].set('socketId', {
-        emit: jest.fn(),
-        join: jest.fn(),
-      });
 
       // WsException returned with promise in service
       await expect(
@@ -415,14 +409,13 @@ describe('ChatService', () => {
     });
 
     it('should notify successful connection of users joining the created rooms', async () => {
-      const mockSenderSocket = {
-        emit: jest.fn(),
-        join: jest.fn(),
-      } as unknown as Socket;
-      const mockRecipientSocket = {
-        emit: jest.fn(),
-        join: jest.fn(),
-      } as unknown as Socket;
+      const mockEmit = jest.fn();
+      const mockSocketsJoin = jest.fn();
+      const mockServer = {
+        to: jest.fn().mockReturnValue({ emit: mockEmit }),
+        in: jest.fn().mockReturnValue({ socketsJoin: mockSocketsJoin }),
+      };
+      chatService.setServer(mockServer as any);
 
       const mockSender = {
         id: 1,
@@ -434,9 +427,6 @@ describe('ChatService', () => {
       const mockRooms = { id: 1, participants: [], chats: [] } as RoomEntity;
       const mockRecipient = { id: 2 } as UserEntity;
 
-      //* `let room = await this.findRoom(sender.id, recipientId, manager);`
-      //* `const recipient = await this.userRepository.findOneBy({`
-      //* `room = await this.createRoom(sender, recipient, manager);`
       jest.spyOn(chatService, 'findRoom').mockResolvedValue(null);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
       jest.spyOn(chatService, 'createRoom').mockResolvedValue(mockRooms);
@@ -445,23 +435,14 @@ describe('ChatService', () => {
         .mockResolvedValueOnce({ socketId: '1', status: 'online' })
         .mockResolvedValueOnce({ socketId: '2', status: 'online' });
 
-      //* [sender.id, recipient.id].forEach((id) => {
-      //*    const connect = clientConnection.get(id);
-      //* })
-      chatService['clientConnection'].set('1', mockSenderSocket);
-      chatService['clientConnection'].set('2', mockRecipientSocket);
-
       const result = await chatService.getOrCreateRoom(
         mockSender,
         mockRecipientId,
         mockQueryRunner as QueryRunner,
       );
 
-      //* Notify and connect two of users
-      //* connect?.join(room.id.toString());
-      //* connect?.emit("CreateRoom", room.id.toString());
-      expect(mockSenderSocket.emit).toHaveBeenCalledWith('CreateRoom', '1');
-      expect(mockSenderSocket.join).toHaveBeenCalledWith('1');
+      expect(mockServer.to).toHaveBeenCalledWith('1');
+      expect(mockEmit).toHaveBeenCalledWith('CreateRoom', '1');
       expect(result).toEqual(mockRooms);
     });
   });
@@ -651,19 +632,6 @@ describe('ChatService', () => {
         participant: mockSender,
         room: mockRooms,
       };
-      //* Inject socket in 'clientConnection'
-      const mockSenderSocket = {
-        to: jest.fn().mockReturnThis(),
-        emit: jest.fn(),
-        join: jest.fn(),
-      } as unknown as Socket;
-
-      chatService['clientConnection'].set('socketId', mockSenderSocket);
-      chatService['clientConnection'].set('recipientId', {
-        emit: jest.fn(),
-        join: jest.fn(),
-      });
-
       //* Mock all dependencies
       jest
         .spyOn(userRepository, 'findOneByOrFail')
@@ -694,9 +662,8 @@ describe('ChatService', () => {
       expect(result).toEqual(mockMessage);
     });
 
-    it('should find sender socketId in Redis', async () => {
+    it('should return message with participant and room attached', async () => {
       const mockPayload = { sub: 1 };
-
       const mockCreateChatDto: CreateChatDto = {
         message: 'a message',
         recipientId: 2,
@@ -710,12 +677,6 @@ describe('ChatService', () => {
         participant: mockSender,
         room: mockRooms,
       };
-      //* Inject socket in 'clientConnection'
-      const mockSenderSocket = {
-        to: jest.fn().mockReturnThis(),
-        emit: jest.fn(),
-        join: jest.fn(),
-      } as unknown as Socket;
 
       jest
         .spyOn(userRepository, 'findOneByOrFail')
@@ -724,23 +685,15 @@ describe('ChatService', () => {
       jest
         .spyOn(mockQueryRunner.manager as EntityManager, 'save')
         .mockResolvedValue(mockMessage);
-      jest
-        .spyOn(redisService, 'getUserStatus')
-        .mockResolvedValueOnce({ socketId: '1', status: 'online' })
-        .mockResolvedValueOnce({ socketId: '2', status: 'online' });
 
-      chatService['clientConnection'].set('1', mockSenderSocket);
-      chatService['clientConnection'].set('2', mockSenderSocket);
-
-      await chatService.sendMessage(
+      const result = await chatService.sendMessage(
         mockPayload,
         mockCreateChatDto,
         mockQueryRunner as QueryRunner,
       );
 
-      const emittedData = (mockSenderSocket.emit as jest.Mock).mock.calls[0][1];
-      expect(emittedData).toHaveProperty('id', 1);
-      expect(emittedData).toHaveProperty('message', 'a message');
+      expect(result).toHaveProperty('id', 1);
+      expect(result).toHaveProperty('message', 'a message');
     });
 
     it('should throw WsException when recipientId is invalid', async () => {
