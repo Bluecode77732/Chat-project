@@ -135,7 +135,8 @@
       "data-source.ts",
       "migrations",
       "system-prompts.ts",
-      "ai-personality.enum.ts"
+      "ai-personality.enum.ts",
+      "all-exceptions.filter.ts"
     ],
     "testEnvironment": "node",
     "moduleNameMapper": {
