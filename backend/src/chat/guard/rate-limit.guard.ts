@@ -20,9 +20,8 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isWs = context.getType() === 'ws';
+    let userId: number | undefined;
     try {
-      let userId: number | undefined;
-
       if (isWs) {
         const client = context.switchToWs().getClient();
         userId = client.data.user.sub;
@@ -64,8 +63,10 @@ export class RateLimitGuard implements CanActivate {
         throw err;
       }
       // Unexpected errors (e.g. Redis down) → fail-closed
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const errStack = err instanceof Error ? (err.stack ?? '') : '';
       logger.error(
-        `[user=${userId ?? 'unknown'}] Rate limit guard error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+        `[user=${userId ?? 'unknown'}] Rate limit guard error: ${errMessage}\n${errStack}`,
       );
       return false;
     }
