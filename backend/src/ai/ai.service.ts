@@ -9,7 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
@@ -56,7 +56,7 @@ export class AiService implements OnModuleInit {
     private readonly sessionCacheService: SessionCacheService,
 
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
   ) {
     this.genai = new GoogleGenAI({
       apiKey: this.configService.getOrThrow<string>('GEMINI_API_KEY'),
@@ -107,10 +107,13 @@ export class AiService implements OnModuleInit {
     callbacks: AiReplyCallbacks,
   ): Promise<void> {
     const lockKey = `ai:lock:${roomId}`;
-    const acquired = await this.redis.set(lockKey, '1', {
-      NX: true,
-      EX: AI_LOCK_TTL_SECONDS,
-    });
+    const acquired = await this.redis.set(
+      lockKey,
+      '1',
+      'EX',
+      AI_LOCK_TTL_SECONDS,
+      'NX',
+    );
 
     if (!acquired) {
       logger.debug(`AI lock held for room ${roomId}, skipping.`);
