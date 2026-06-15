@@ -11,7 +11,12 @@ import {
   ClassSerializerInterceptor,
   Request,
 } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
+
+type AuthenticatedRequest = ExpressRequest & {
+  user: { id: number; role: UserRole };
+};
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
@@ -35,7 +40,7 @@ export class UserController {
   }
 
   @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
+  findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
       throw new ForbiddenException('You can only view your own account');
     }
@@ -44,19 +49,19 @@ export class UserController {
 
   @Patch(':id')
   update(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    if (req.user?.id !== +id) {
+    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
       throw new ForbiddenException('You can only update your own account');
     }
     return this.userService.update(+id, updateUserDto);
   }
 
   @Delete(':id')
-  remove(@Request() req, @Param('id') id: string) {
-    if (req.user?.id !== +id) {
+  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
       throw new ForbiddenException('You can only delete your own account');
     }
     return this.userService.remove(+id);

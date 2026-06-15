@@ -160,11 +160,11 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `POST /auth/token/refreshaccess` - Refresh access token
 
 **User**
-- `GET /user` - Get all users
-- `GET /user/:id` - Get a user 
+- `GET /user` - Get all users **(admin only)**
+- `GET /user/:id` - Get a user (own account or admin)
 - `POST /user` - Create a user
-- `PATCH /user/:id` - Update a user
-- `DELETE /user/:id` - Delete a user
+- `PATCH /user/:id` - Update a user (own account or admin)
+- `DELETE /user/:id` - Delete a user (own account or admin)
 
 **Chat**
 - Socket.IO
@@ -395,7 +395,7 @@ UserEntity
   email       unique
   password    excluded from API responses
   isAI        boolean (true only for the seeded AI system account)
-  role        enum: signedIn | signedOut
+  role        enum: user (0) | admin (1)
   chats    =< ChatEntity   (OneToMany)
   rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
 
@@ -679,9 +679,31 @@ Implementation of two ways of sign-in endpoints.
 
 
 ### Role
-- When users issue bearer token, they need a raw token. Once their roles are set as `signedIn`, they can have the raw token that contains their role information.
-- The users only who have `signedIn` can send messages even if token is issued for them.
-- It throws error when user's role is `signedOut` as following log.
+- Two roles: `user` (0, default) and `admin` (1).
+- All registered users receive `user` role and can send messages normally.
+- `admin` role grants elevated access: view/update/delete any user account.
+- Admin accounts are created via direct DB INSERT — no registration endpoint exposes role assignment.
+
+
+### Admin Account Setup
+Admin accounts must be created directly in the database. No API endpoint assigns the admin role, keeping the attack surface minimal.
+
+**Step 1 — Generate a bcrypt hash** (use the same `HASH_ROUNDS` value set in your `.env`):
+```bash
+node -e "const b=require('bcrypt'); b.hash('yourPassword', 12).then(h=>console.log(h))"
+```
+
+**Step 2 — Insert into the database** (Railway query runner, `psql`, or any DB client):
+```sql
+INSERT INTO user_entity (email, password, role, "isAI")
+VALUES ('admin@example.com', '<hash from step 1>', 1, false);
+```
+
+Role values: `user = 0`, `admin = 1`
+
+**Railway**
+1. Open Railway Dashboard → your PostgreSQL service → **Query** tab
+2. Run the INSERT statement above
 
 
 ### Redis
