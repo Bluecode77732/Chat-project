@@ -13,6 +13,9 @@ import { JwtService } from '@nestjs/jwt';
 import { UserRole } from './role/role';
 import { logger } from 'src/base/logger/logger';
 import Redis from 'ioredis';
+import { Payload } from './interface/payload.interface';
+
+type JwtPayload = Payload & { iat: number; exp: number };
 
 @Injectable()
 export class AuthService {
@@ -26,7 +29,7 @@ export class AuthService {
     private readonly redis: Redis,
   ) {}
 
-  async parseBasicToken(rawToken: string) {
+  parseBasicToken(rawToken: string) {
     // 1. Splits token by basic and token. Regex(/\s+/) inserted for clearer space.
     // ['Basic', token]
     const basicToken = rawToken.split(' ');
@@ -74,7 +77,7 @@ export class AuthService {
 
   async register(rawToken: string) {
     // Extracts email and password from basic token
-    const { email, password } = await this.parseBasicToken(rawToken);
+    const { email, password } = this.parseBasicToken(rawToken);
 
     // Finds user by email
     const user = await this.userRepository.findOne({
@@ -175,7 +178,10 @@ export class AuthService {
     );
   }
 
-  async parseBearerToken(rawToken: string, isRefreshToken: boolean) {
+  async parseBearerToken(
+    rawToken: string,
+    isRefreshToken: boolean,
+  ): Promise<JwtPayload> {
     // This try/catch throws an unified error as JWT throws various error types
     try {
       const bearerToken = rawToken.split(' ');
@@ -190,7 +196,7 @@ export class AuthService {
         throw new BadRequestException('Bad Token Format.');
       }
 
-      const payload = await this.jwtService.verifyAsync(token, {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>(
           isRefreshToken ? 'REFRESH_TOKEN_SECRET' : 'ACCESS_TOKEN_SECRET',
         ),
@@ -216,7 +222,7 @@ export class AuthService {
 
   async signIn(rawToken: string) {
     // Extracts email and password
-    const { email, password } = await this.parseBasicToken(rawToken);
+    const { email, password } = this.parseBasicToken(rawToken);
 
     // Authenticates email and password
     const user = await this.validateUser(email, password);

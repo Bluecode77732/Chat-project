@@ -79,14 +79,14 @@ describe('AuthService', () => {
   });
 
   describe('parseBasicToken', () => {
-    it('should parse valid basic token', async () => {
+    it('should parse valid basic token', () => {
       // Create base64 encoded token => email:password
       const token = Buffer.from('test@gmail.com:Test123Password').toString(
         'base64',
       );
       const rawToken = `Basic ${token}`;
 
-      const result = await authService.parseBasicToken(rawToken);
+      const result = authService.parseBasicToken(rawToken);
 
       expect(result.email).toBe('test@gmail.com');
       expect(result.password).toBe('Test123Password');
@@ -94,21 +94,21 @@ describe('AuthService', () => {
 
     it('should throw `BadRequestException` for invalid token format', () => {
       const InvalidRawToken = 'InvalidTokenFormat';
-      expect(authService.parseBasicToken(InvalidRawToken)).rejects.toThrow(
+      expect(() => authService.parseBasicToken(InvalidRawToken)).toThrow(
         BadRequestException,
       );
     });
 
     it('should throw an error for invalid basic token format', () => {
       const InvalidRawToken = 'Basic token';
-      expect(authService.parseBasicToken(InvalidRawToken)).rejects.toThrow(
+      expect(() => authService.parseBasicToken(InvalidRawToken)).toThrow(
         BadRequestException,
       );
     });
 
     it('should throw an error for invalid refresh access token format', () => {
       const InvalidBearerToken = 'Bearer token';
-      expect(authService.parseBasicToken(InvalidBearerToken)).rejects.toThrow(
+      expect(() => authService.parseBasicToken(InvalidBearerToken)).toThrow(
         BadRequestException,
       );
     });
@@ -137,7 +137,7 @@ describe('AuthService', () => {
         .mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      expect(
+      await expect(
         authService.parseBearerToken('InvalidTokenFormat', false),
       ).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
@@ -148,7 +148,7 @@ describe('AuthService', () => {
         .mockResolvedValue({ type: 'refresh' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
-      expect(
+      await expect(
         authService.parseBearerToken('bEaReR token', false),
       ).rejects.toThrow(
         new UnauthorizedException(new UnauthorizedException('Token Expired')),

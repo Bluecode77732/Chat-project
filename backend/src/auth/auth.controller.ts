@@ -97,8 +97,9 @@ export class AuthController {
     description: 'Unauthorized. Refresh token cookie missing or expired.',
   })
   async refreshAccessToken(@Req() req: ExpressRequest) {
-    const rawRefreshToken: string | undefined =
-      req.cookies?.[REFRESH_TOKEN_COOKIE];
+    const rawRefreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] as
+      | string
+      | undefined;
     if (!rawRefreshToken) {
       throw new UnauthorizedException('No refresh token');
     }
