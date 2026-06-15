@@ -34,6 +34,9 @@ import { join } from 'node:path';
         // Validating CORS env via Joi
         CORS_ORIGIN: Joi.string().required(),
         GEMINI_API_KEY: Joi.string().required(),
+        USER_CACHE_TTL_SEC: Joi.number().required(),
+        SESSION_TTL_SEC: Joi.number().required(),
+        MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
       }),
       // Configuration global adoption
       isGlobal: true,
