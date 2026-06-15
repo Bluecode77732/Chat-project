@@ -8,6 +8,10 @@ import {
   ID,
   Int,
 } from '@nestjs/graphql';
+
+interface GqlContext {
+  req: { user: { id: number } };
+}
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
@@ -52,10 +56,10 @@ export class ChatResolver {
   @Query(() => AiPersonalityInfoType, { nullable: true })
   @UseGuards(GraphQLAuthGuard)
   async getAiPersonalityInfo(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
   ): Promise<AiPersonalityInfoType> {
-    const userId = ctx.req?.user?.id as number;
+    const userId = ctx.req.user.id;
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
@@ -65,12 +69,12 @@ export class ChatResolver {
   @Mutation(() => Boolean)
   @UseGuards(GraphQLAuthGuard)
   async setAiPersonality(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('personality', { type: () => AiPersonality })
     personality: AiPersonality,
   ): Promise<boolean> {
-    const userId = ctx.req?.user?.id as number;
+    const userId = ctx.req.user.id;
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
@@ -86,36 +90,36 @@ export class ChatResolver {
 
   @Query(() => [Int])
   @UseGuards(GraphQLAuthGuard)
-  async getAllUsers(@Context() ctx: any): Promise<number[]> {
-    const userId = ctx.req?.user?.id as number;
+  async getAllUsers(@Context() ctx: GqlContext): Promise<number[]> {
+    const userId = ctx.req.user.id;
     return this.chatService.getAllUsers(userId);
   }
 
   @Query(() => [RoomInfoType])
   @UseGuards(GraphQLAuthGuard)
-  async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {
-    const userId = ctx.req?.user?.id as number;
+  async getMyRooms(@Context() ctx: GqlContext): Promise<RoomInfoType[]> {
+    const userId = ctx.req.user.id;
     return this.chatService.getMyRooms(userId);
   }
 
   @Query(() => Int, { nullable: true })
   @UseGuards(GraphQLAuthGuard)
   async getRoom(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<number | null> {
-    const userId = ctx.req?.user?.id as number;
+    const userId = ctx.req.user.id;
     return this.chatService.getRoom(userId, recipientId);
   }
 
   @Query(() => [MessageType])
   @UseGuards(GraphQLAuthGuard)
   async getMessages(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
   ): Promise<MessageType[]> {
-    const userId = ctx.req?.user?.id as number;
+    const userId = ctx.req.user.id;
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
@@ -126,11 +130,11 @@ export class ChatResolver {
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard, RateLimitGuard)
   async sendMessage(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
-  ): Promise<MessageType | any | null> {
-    const userId = ctx.req?.user?.id as number;
+  ): Promise<MessageType> {
+    const userId = ctx.req.user.id;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -202,9 +206,9 @@ export class ChatResolver {
   @UseGuards(GraphQLAuthGuard)
   async receiveMessage(
     @Args('roomId', { type: () => ID }) roomId: number,
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
   ) {
-    const userId = ctx.req?.user?.id as number;
+    const userId = ctx.req.user.id;
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }

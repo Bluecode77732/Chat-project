@@ -208,8 +208,8 @@ export class AuthService {
 
       logger.debug('User parsed a bearer token successfully');
       return payload;
-    } catch (err: any) {
-      logger.warn(err.message);
+    } catch (err: unknown) {
+      logger.warn((err as Error).message);
       throw new UnauthorizedException('Token Expired');
     }
   }

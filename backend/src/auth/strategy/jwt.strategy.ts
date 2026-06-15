@@ -41,7 +41,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
 
     const cached = await this.redis.get(`user_cache:${payload.sub}`);
     if (cached) {
-      return JSON.parse(cached) as Omit<UserEntity, 'password'>;
+      try {
+        return JSON.parse(cached) as Omit<UserEntity, 'password'>;
+      } catch {
+        // corrupt cache entry — fall through to DB lookup
+      }
     }
 
     const user = await this.userService.findOne(payload.sub);

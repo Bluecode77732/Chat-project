@@ -2,6 +2,20 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
+interface CachableMessage {
+  id?: number;
+  message?: string;
+  created?: Date | string;
+  participant?: { password?: string; [key: string]: unknown };
+}
+
+interface CachedMessageEntry {
+  id: number;
+  message: string;
+  created: Date;
+  participant: Record<string, unknown>;
+}
+
 /**
  ** This Redis service replaces the in-memory(temporal store) `clientConnection` Map
  ** with Redis storage so user data persists across server restarts so it can prevent losing of data.
@@ -43,7 +57,7 @@ export class SessionCacheService implements OnModuleInit {
     try {
       const data = await this.redis.hgetall(`user:${userId}`);
       return data?.socketId ? data : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -53,8 +67,8 @@ export class SessionCacheService implements OnModuleInit {
     return members.map(Number);
   }
 
-  async cacheMessage(roomId: number, message: any): Promise<void> {
-    const { password: _pw, ...participant } = message.participant ?? {};
+  async cacheMessage(roomId: number, message: CachableMessage): Promise<void> {
+    const { password: _, ...participant } = message.participant ?? {};
     const entry = JSON.stringify({
       id: message.id,
       message: message.message,
@@ -70,14 +84,20 @@ export class SessionCacheService implements OnModuleInit {
     );
   }
 
-  async getCachedMessages(roomId: number): Promise<any[] | null> {
+  async getCachedMessages(
+    roomId: number,
+  ): Promise<CachedMessageEntry[] | null> {
     const entries = await this.redis.lrange(`room_messages:${roomId}`, 0, 14);
     if (!entries.length) return null;
     // lpush stores newest at index 0; reverse to return oldest-first (matches DB order)
     return entries
-      .map((e) => {
-        const m = JSON.parse(e);
-        return { ...m, created: new Date(m.created) };
+      .flatMap((e) => {
+        try {
+          const m = JSON.parse(e) as CachedMessageEntry;
+          return [{ ...m, created: new Date(m.created) }];
+        } catch {
+          return [];
+        }
       })
       .reverse();
   }

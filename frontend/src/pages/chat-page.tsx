@@ -126,7 +126,7 @@ function ChatPage() {
             } else {
                 shouldCheckPersonalityRef.current = false;
             }
-        });
+        }).catch(console.error);
     }, [recipientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load personality info when an existing AI room is opened
@@ -142,7 +142,7 @@ function ChatPage() {
                 }
                 shouldCheckPersonalityRef.current = false;
             }
-        });
+        }).catch(console.error);
     }, [currentRoomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadMessages = useCallback(async (roomId: number, cursor?: number) => {
@@ -180,7 +180,7 @@ function ChatPage() {
         if (!currentRoomId) return;
         setHasMore(true);
         isAtBottomRef.current = true;
-        loadMessages(currentRoomId);
+        loadMessages(currentRoomId).catch(console.error);
     }, [currentRoomId]);
 
     // Auto-scroll to bottom on new messages — only when already near bottom
@@ -197,7 +197,7 @@ function ChatPage() {
         if (!currentRoomId || !hasMore) return;
         if (el.scrollTop === 0) {
             const oldestId = messages.find(m => m.id)?.id;
-            if (oldestId) loadMessages(currentRoomId, Number(oldestId));
+            if (oldestId) loadMessages(currentRoomId, Number(oldestId)).catch(console.error);
         }
     }, [currentRoomId, hasMore, messages, loadMessages]);
 
@@ -234,12 +234,13 @@ function ChatPage() {
         if (senderId === userId) return;
 
         setMessages(prev => {
+            if (!currentRoomId) return prev;
             if (prev.some(m => m.id === subData.receiveMessage.id)) return prev;
             return [...prev, {
                 id: subData.receiveMessage.id,
                 userId: senderId,
                 message: subData.receiveMessage.message,
-                roomId: currentRoomId!,
+                roomId: currentRoomId,
                 createdAt: new Date().toISOString(),
             }];
         });
@@ -269,7 +270,7 @@ function ChatPage() {
     }, [accessToken]);
 
     const sendMessage = async () => {
-        if (!input.trim() || !recipientId) return;
+        if (!input.trim() || !recipientId || !userId) return;
 
         const isAiChat = aiUserId !== null && recipientId === aiUserId;
         const aiPersonalityToSend = isAiChat ? pendingPersonality : undefined;
@@ -293,11 +294,14 @@ function ChatPage() {
             if (isAiChat) setPendingPersonality(null);
         }
 
+        const effectiveRoomId = currentRoomId ?? newRoomId;
+        if (!effectiveRoomId) return;
+
         setMessages(prev => [...prev, {
             id: data?.sendMessage?.id,
-            userId: userId!,
+            userId,
             message: input,
-            roomId: currentRoomId ?? newRoomId!,
+            roomId: effectiveRoomId,
             createdAt: data?.sendMessage?.createdAt ?? new Date().toISOString(),
         }]);
 

@@ -35,7 +35,7 @@ export class ChatGateway
   ) {}
 
   afterInit(server: Server): void {
-    const redisUrl = this.configService.get<string>('REDIS_URL')!;
+    const redisUrl = this.configService.getOrThrow<string>('REDIS_URL');
     const url = new URL(redisUrl);
     const isTls = url.protocol === 'rediss:';
     const redisConfig = {
