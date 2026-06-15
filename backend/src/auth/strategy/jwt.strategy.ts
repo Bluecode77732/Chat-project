@@ -6,7 +6,7 @@ import { Payload } from '../interface/payload.interface';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -41,7 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
 
     const cached = await this.redis.get(`user_cache:${payload.sub}`);
     if (cached) {
-      return JSON.parse(cached);
+      return JSON.parse(cached) as Omit<UserEntity, 'password'>;
     }
 
     const user = await this.userService.findOne(payload.sub);
@@ -50,10 +50,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
       throw new UnauthorizedException('User Not Found.');
     }
 
-    const { password, ...rest } = user;
-    await this.redis.set(`user_cache:${payload.sub}`, JSON.stringify(rest), {
-      EX: this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
-    });
+    const { password: _password, ...rest } = user;
+    await this.redis.set(
+      `user_cache:${payload.sub}`,
+      JSON.stringify(rest),
+      'EX',
+      this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
+    );
 
     return rest;
   }

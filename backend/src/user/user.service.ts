@@ -13,7 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
 import { logger } from 'src/base/logger/logger';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
 
 @Injectable()
 export class UserService {
@@ -24,7 +24,7 @@ export class UserService {
     private readonly configService: ConfigService,
 
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
   ) {}
 
   async create(createUserDto: CreateUserDto) {

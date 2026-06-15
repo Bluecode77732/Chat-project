@@ -12,7 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from './role/role';
 import { logger } from 'src/base/logger/logger';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +23,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
   ) {}
 
   async parseBasicToken(rawToken: string) {
@@ -260,9 +260,12 @@ export class AuthService {
 
     if (ttl > 0) {
       // Blacklist implementation
-      await this.redis.set(`blacklist:${rawToken.split(' ')[1]}`, '1', {
-        EX: ttl,
-      });
+      await this.redis.set(
+        `blacklist:${rawToken.split(' ')[1]}`,
+        '1',
+        'EX',
+        ttl,
+      );
     }
   }
 }
