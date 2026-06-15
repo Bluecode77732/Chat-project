@@ -376,9 +376,14 @@ function ChatPage() {
         <div className="flex flex-col h-screen p-4">
             <div className="flex justify-between items-center mb-4">
                 <span className="font-bold">Chat</span>
-                <button onClick={signOut} className="text-red-500 text-sm">
-                    Sign Out
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={() => navigate('/account')} className="text-gray-500 text-sm hover:text-gray-700">
+                        계정
+                    </button>
+                    <button onClick={signOut} className="text-red-500 text-sm">
+                        Sign Out
+                    </button>
+                </div>
             </div>
             <div className="flex gap-2 mb-4 items-center">
                 <span className="text-xs text-gray-400 shrink-0">Conversations:</span>

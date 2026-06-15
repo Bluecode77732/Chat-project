@@ -2,15 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
+import { RoomEntity } from 'src/chat/entities/room.entity';
+import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ConfigService } from '@nestjs/config';
+import { SessionCacheService } from 'src/redis/redis.service';
+import { ChatService } from 'src/chat/chat.service';
 import * as bcrypt from 'bcrypt';
 
 describe('UserService', () => {
   let userService: UserService;
-  let configService: ConfigService;
 
   const mockUserRepository = {
     findOne: jest.fn(),
@@ -18,14 +21,33 @@ describe('UserService', () => {
     save: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
+
+  const mockRoomRepository = {
+    createQueryBuilder: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  const mockChatRepository = {};
 
   const mockConfigService = {
     getOrThrow: jest.fn(),
+    get: jest.fn(),
   };
 
   const mockRedisClient = {
     del: jest.fn().mockResolvedValue(1),
+    set: jest.fn().mockResolvedValue('OK'),
+  };
+
+  const mockSessionCacheService = {
+    getUserStatus: jest.fn().mockResolvedValue(null),
+    sethUserOffline: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockChatService = {
+    disconnectSocket: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -37,6 +59,14 @@ describe('UserService', () => {
           useValue: mockUserRepository,
         },
         {
+          provide: getRepositoryToken(RoomEntity),
+          useValue: mockRoomRepository,
+        },
+        {
+          provide: getRepositoryToken(ChatEntity),
+          useValue: mockChatRepository,
+        },
+        {
           provide: ConfigService,
           useValue: mockConfigService,
         },
@@ -44,11 +74,18 @@ describe('UserService', () => {
           provide: 'REDIS_CLIENT',
           useValue: mockRedisClient,
         },
+        {
+          provide: SessionCacheService,
+          useValue: mockSessionCacheService,
+        },
+        {
+          provide: ChatService,
+          useValue: mockChatService,
+        },
       ],
     }).compile();
 
     userService = module.get<UserService>(UserService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   // Clears the mock.calls and mock.instances properties of all mocks.

@@ -276,6 +276,10 @@ export class ChatService {
       .filter((r): r is { roomId: number; recipientId: number } => r !== null);
   }
 
+  disconnectSocket(socketId: string): void {
+    this.server?.sockets.sockets.get(socketId)?.disconnect(true);
+  }
+
   async isRoomParticipant(userId: number, roomId: number): Promise<boolean> {
     const count = await this.roomRepository
       .createQueryBuilder('room')

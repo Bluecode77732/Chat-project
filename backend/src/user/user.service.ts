@@ -14,6 +14,10 @@ import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
 import { logger } from 'src/base/logger/logger';
 import Redis from 'ioredis';
+import { RoomEntity } from 'src/chat/entities/room.entity';
+import { ChatEntity } from 'src/chat/entities/chat.entity';
+import { SessionCacheService } from 'src/redis/redis.service';
+import { ChatService } from 'src/chat/chat.service';
 
 @Injectable()
 export class UserService {
@@ -21,10 +25,20 @@ export class UserService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
 
+    @InjectRepository(RoomEntity)
+    private readonly roomRepository: Repository<RoomEntity>,
+
+    @InjectRepository(ChatEntity)
+    private readonly chatRepository: Repository<ChatEntity>,
+
     private readonly configService: ConfigService,
 
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
+
+    private readonly sessionCacheService: SessionCacheService,
+
+    private readonly chatService: ChatService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -126,21 +140,74 @@ export class UserService {
     });
   }
 
-  async remove(id: number) {
-    const user = await this.userRepository.findOne({
-      where: {
-        id,
-      },
-    });
-
+  async remove(id: number, password: string, rawToken?: string) {
+    // ① 존재 확인
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException(`User Not Found.`);
+      throw new NotFoundException('User Not Found.');
     }
 
-    await this.userRepository.delete(id);
-    await this.redis.del(`user_cache:${id}`);
-    logger.info(`User '${user.id}' is deleted`);
+    // ② 비밀번호 본인 확인
+    const valid = await bcrypt.compare(password, String(user.password));
+    if (!valid) {
+      throw new BadRequestException('Invalid password.');
+    }
 
+    // ③ 삭제 전: 이 유저가 속한 방 목록 수집 (고아 방 감지용)
+    const myRooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin('room.participants', 'me', 'me.id = :id', { id })
+      .select('room.id')
+      .getMany();
+    const roomIds = myRooms.map((r) => r.id!);
+
+    // ④ 소켓 강제 종료용 socketId 조회 (세션 삭제 전)
+    const sessionData = await this.sessionCacheService.getUserStatus(id);
+    const socketId = sessionData?.socketId;
+
+    // ⑤ 유저 삭제
+    //    CASCADE: room_participants 행 자동 제거
+    //    SET NULL: chat_entity.participantId = NULL (메시지 익명 보존)
+    await this.userRepository.delete(id);
+
+    // ⑥ 고아 방 정리: 참가자가 0명이 된 방 삭제
+    //    CASCADE: chat_entity.roomId 행 자동 삭제
+    for (const roomId of roomIds) {
+      const remainingCount = await this.roomRepository
+        .createQueryBuilder('room')
+        .innerJoin('room.participants', 'p')
+        .where('room.id = :roomId', { roomId })
+        .getCount();
+
+      if (remainingCount === 0) {
+        await this.roomRepository.delete(roomId);
+        await this.redis.del(`room_messages:${roomId}`);
+        logger.info(
+          `Orphaned room ${roomId} deleted after user ${id} withdrawal`,
+        );
+      }
+    }
+
+    // ⑦ Redis 세션 정리
+    await this.sessionCacheService.sethUserOffline(id);
+    await this.redis.del(`user:${id}`);
+
+    // ⑧ 현재 액세스 토큰 블랙리스트 등록
+    if (rawToken) {
+      const token = rawToken.replace(/^Bearer\s+/i, '');
+      const ttl = this.configService.get<number>(
+        'ACCESS_TOKEN_SECRET_EXPIRES_IN',
+        900,
+      );
+      await this.redis.set(`blacklist:${token}`, '1', 'EX', ttl);
+    }
+
+    // ⑨ 소켓 강제 종료
+    if (socketId) {
+      this.chatService.disconnectSocket(socketId);
+    }
+
+    logger.info(`User '${id}' is deleted`);
     return `The user ${id} is deleted`;
   }
 }

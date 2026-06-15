@@ -18,6 +18,7 @@ type AuthenticatedRequest = ExpressRequest & {
   user: { id: number; role: UserRole };
 };
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DeleteUserDto } from './dto/delete-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { RBACguard } from 'src/auth/guard/rbac.guard';
@@ -60,10 +61,17 @@ export class UserController {
   }
 
   @Delete(':id')
-  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+  remove(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() deleteUserDto: DeleteUserDto,
+  ) {
     if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
       throw new ForbiddenException('You can only delete your own account');
     }
-    return this.userService.remove(+id);
+    // admin이 타인을 삭제할 때는 rawToken 전달 생략 — admin 토큰이 블랙리스트에 등록되는 것을 방지
+    const rawToken =
+      req.user?.id === +id ? req.headers['authorization'] : undefined;
+    return this.userService.remove(+id, deleteUserDto.password, rawToken);
   }
 }
