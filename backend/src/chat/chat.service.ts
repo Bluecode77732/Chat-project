@@ -297,7 +297,7 @@ export class ChatService {
   ): Promise<ChatEntity[]> {
     if (!cursor) {
       const cached = await this.redisService.getCachedMessages(roomId);
-      if (cached) return cached as ChatEntity[];
+      if (cached) return cached;
     }
 
     const qb = this.chatRepository
