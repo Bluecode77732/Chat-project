@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Before making any change:
 1. Inspect the codebase thoroughly — read the relevant files, grep for symbols, trace the actual call chain.
+   Concern-to-entrypoint map (check these first):
+   - Auth flow change    → read `backend/src/auth/`; grep `JwtAuthGuard`, `RbacGuard`
+   - Chat/WS change      → trace `backend/src/chat/chat.gateway.ts` → `chat.service.ts` → `QueryRunnerDecorator`
+   - Redis change        → read `backend/src/redis/redis-subscriber.service.ts`; check pub/sub channel names
+   - GraphQL schema      → read `backend/src/schema.gql` before adding any type or field
+   - Frontend auth       → read `frontend/src/api/apollo.ts` (errorLink) and `frontend/src/socket/socket.ts` (reconnectSocket)
 2. Never invent APIs, files, functions, or types that you have not confirmed exist in the codebase.
 3. Reuse existing patterns only; do not introduce new abstractions unless explicitly asked.
 4. Verify every assumption with actual code, search results, or test output — not memory or inference alone.
@@ -19,19 +25,29 @@ Do not make any of the following unless explicitly requested:
 - Unrelated refactors or code cleanups
 - Architectural changes
 - New dependency additions — confirm via pnpm before installing
-- Schema or migration changes — migration files must never be auto-generated
+- Schema or migration changes — if an entity change is needed, describe the required column/relation in plain text and stop. Never run `pnpm migration:generate`.
 - Large-scale formatting edits
+
+High-blast-radius files — require explicit approval before any edit:
+`app.module.ts`, `*.entity.ts`, `*.interceptor.ts`, `backend/src/schema.gql`
+
+Touching any of the following always counts as "beyond the stated task":
+AppModule providers array, EntityBase, shared guards, `redis-subscriber.service.ts`
 
 If a change requires touching files beyond the stated task, list all affected files first and wait for approval.
 Stick strictly to the stated task.
 
 ## Clarification Protocol
 
-Before implementing anything non-trivial, ask at least one of the following if it applies:
-- Is there an existing pattern in the codebase I should follow for this?
-- Does this touch any other module, entity, or guard that I should be aware of?
-- Is there a reason this approach was not already in place?
-- Should this be behind a feature flag or environment toggle?
+Before implementing anything non-trivial, ask the one question that applies:
+
+| Trigger                               | Ask                                                                                |
+|---------------------------------------|------------------------------------------------------------------------------------|
+| New handler (Gateway or Resolver)     | Does this need `@UseInterceptors(WsQueryRunnerInterceptor)` or REST equivalent?    |
+| New Guard                             | Where in the `JwtAuthGuard → RbacGuard → handler` chain does this sit?            |
+| New Redis key                         | What TTL and does it follow `{service}:{entity}:{id}` naming?                     |
+| New GraphQL type or field             | Will this conflict with existing types in `schema.gql`?                            |
+| Frontend auth flow change             | Does `apollo.ts` errorLink or `socket.ts` reconnectSocket need a parallel update? |
 
 Ask one focused question rather than a list. Do not proceed on assumptions when intent is ambiguous.
 
@@ -53,12 +69,22 @@ When planning an implementation, answer the following before proceeding:
 - What is the core relationship between this implementation and the existing project?
 - If a relationship exists, what is the concrete, practical impact of that relationship?
 
+  Project structure checklist:
+  - Does this add a NestJS provider? → which module's `providers[]` needs it?
+  - Does this change transaction scope? → verify correct decorator: `QueryRunnerDecorator` (REST) vs `WsQueryRunnerDecorator` (WS)
+  - Does this modify the GraphQL schema? → restart server to regenerate `schema.gql`, then diff it
+
 ### Modification Analysis (수정)
 For each change being made, explicitly state:
 - What does this change mean in plain terms?
 - What is the purpose of implementing it?
 - Why is it being implemented at this stage specifically?
 - Does it fit the existing design structure — verify and list the reasons it does or does not.
+
+  Service-level impact:
+  - `ChatService` change → check `chat.service.spec.ts` for broken mocks
+  - `AuthService` change → check `auth.service.spec.ts`; verify guard chain still holds
+  - `SessionCacheService` change → verify all Redis hash field names remain consistent
 
 ### Result Review (결과 검토)
 After completing any implementation, apply the review perspective that matches what was just done.
@@ -75,6 +101,9 @@ After completing any implementation, apply the review perspective that matches w
 
 **After a Modification:**
 - Do the changes work correctly? Run `pnpm lint` and `pnpm test` to verify.
+  - Socket.IO handler changed → verify `handleConnection` and `handleDisconnect` are symmetric (every `socket.on` in connect must have a matching `socket.off` in disconnect)
+  - `apollo.ts` changed → verify split link still routes: subscription → `wsLink`, rest → `errorLink → authLink → httpLink`
+  - Redis key added → confirm TTL is set and key follows `{service}:{entity}:{id}` naming
 - Are there any regressions in existing functionality?
 - What side effects or hidden risks does this change introduce?
 - Is the change isolated enough, or does it bleed into unrelated areas?
@@ -87,7 +116,8 @@ After completing any task, always append a brief summary in this format:
 ## Change Summary
 - What changed: <one line per file or concern>
 - Why: <the stated reason>
-- Side effects: <any known or potential impact on other areas>
+- Side effects: <impact on: schema.gql / Redis key set / guard chain / frontend graphql-operations.ts>
+- Guard chain impact: <any change to guard order or new guard added — list affected endpoints; omit if no guard was touched>
 - Pending: <anything deferred, left incomplete, or requiring follow-up>
 ```
 
@@ -410,6 +440,33 @@ const mockRepository = {
 - Single quotes, trailing commas (`backend/.prettierrc`)
 - `@typescript-eslint/no-explicit-any` is off in ESLint — but `any` is still forbidden by convention (see Never Do)
 - Floating promises are warnings in ESLint — but must be awaited or caught by convention (see Never Do)
+
+### Frontend Conventions
+
+#### State (Zustand — `frontend/src/store/auth.store.ts`)
+- `accessToken`, `userId` — in-memory only; intentionally excluded from `partialize`
+- `lastRecipientId` — only persisted field via `persist` middleware
+- Non-React contexts (apollo.ts, socket.ts): always read via `useAuthStore.getState()`, not hooks
+- **Never**: add a second `persist` key for auth data; never access `localStorage` directly for tokens
+
+#### Apollo Client (`frontend/src/api/apollo.ts`)
+- `errorLink` owns all 401 recovery (refresh → retry) — do not add duplicate retry logic in components
+- `authLink` calls `useAuthStore.getState()` at request time; this is intentional, not a stale-closure bug
+- Split rule: subscriptions → `wsLink`; queries/mutations → `errorLink → authLink → httpLink`
+- **Never**: instantiate a second `ApolloClient`
+
+#### Socket.IO (`frontend/src/socket/socket.ts`)
+- `socket` is a mutable module export; `reconnectSocket()` reassigns it after token refresh
+- `autoConnect: false` is intentional — connect only after auth is confirmed
+- **Never**: call `socket.connect()` before verifying `accessToken` is non-null
+
+#### GQL Operations (`frontend/src/api/graphql-operations.ts`)
+- All queries, mutations, subscriptions in one file — do not split by feature
+- New operation: append to file, follow existing `gql` tag naming convention
+
+#### Components
+- Route auth: handled solely in `protected-route.tsx` — no auth checks inside page components
+- No component-level API instances — all data via Apollo or the shared `socket` singleton
 
 ## CI/CD
 
