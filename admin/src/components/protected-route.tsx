@@ -22,7 +22,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
     if (initializing) return null;
 
-    if (!accessToken || role !== 1) {
+    if (!accessToken || (role ?? -1) < 1) {
         return <Navigate to='/' replace />;
     }
 

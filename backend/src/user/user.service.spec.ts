@@ -10,6 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ConfigService } from '@nestjs/config';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
+import { AuditLogService } from 'src/audit-log/audit-log.service';
 import * as bcrypt from 'bcrypt';
 
 describe('UserService', () => {
@@ -50,6 +51,10 @@ describe('UserService', () => {
     disconnectSocket: jest.fn(),
   };
 
+  const mockAuditLogService = {
+    log: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -81,6 +86,10 @@ describe('UserService', () => {
         {
           provide: ChatService,
           useValue: mockChatService,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
         },
       ],
     }).compile();

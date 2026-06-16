@@ -15,6 +15,7 @@ function UsersPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
     const navigate = useNavigate();
+    const myRole = useAuthStore((s) => s.role);
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
     useEffect(() => {
@@ -114,17 +115,23 @@ function UsersPage() {
                                         <td className="px-4 py-3">{u.id}</td>
                                         <td className="px-4 py-3">{u.email}</td>
                                         <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.role === 1 ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {u.role === 1 ? 'admin' : 'user'}
+                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                u.role === 2 ? 'bg-red-100 text-red-700' :
+                                                u.role === 1 ? 'bg-purple-100 text-purple-700' :
+                                                'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {u.role === 2 ? 'superadmin' : u.role === 1 ? 'admin' : 'user'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 flex gap-2 flex-wrap">
-                                            <button
-                                                onClick={() => updateRole(u.id, u.role === 1 ? 0 : 1)}
-                                                className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                                            >
-                                                {u.role === 1 ? 'Demote' : 'Promote'}
-                                            </button>
+                                            {myRole === 2 && u.role !== 2 && (
+                                                <button
+                                                    onClick={() => updateRole(u.id, u.role === 1 ? 0 : 1)}
+                                                    className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                                                >
+                                                    {u.role === 1 ? 'Demote' : 'Promote'}
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => forceLogout(u.id)}
                                                 className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"

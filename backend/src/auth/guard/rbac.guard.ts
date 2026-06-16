@@ -31,10 +31,11 @@ export class RBACguard implements CanActivate {
       return false;
     }
 
-    // Higher number = more privilege (user=0, admin=1)
+    // Higher number = more privilege (user=0, admin=1, superadmin=2)
     const accessLevel = {
       [UserRole.user]: 0,
       [UserRole.admin]: 1,
+      [UserRole.superadmin]: 2,
     };
 
     const allowed = accessLevel[user.role] >= accessLevel[role];

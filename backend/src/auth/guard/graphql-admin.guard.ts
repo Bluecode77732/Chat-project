@@ -12,7 +12,7 @@ export class GraphQLAdminGuard extends GraphQLAuthGuard {
     const result = await super.canActivate(context);
     if (!result) return false;
     const req = this.getRequest(context) as { user?: { role?: number } };
-    if (req.user?.role !== UserRole.admin) {
+    if ((req.user?.role ?? -1) < UserRole.admin) {
       throw new ForbiddenException('Admin access required');
     }
     return true;

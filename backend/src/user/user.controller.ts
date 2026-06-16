@@ -64,16 +64,20 @@ export class UserController {
 
   @Patch(':id/role')
   @UseGuards(RBACguard)
-  @RBAC(UserRole.admin)
-  updateRole(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.userService.updateRole(+id, updateRoleDto.role);
+  @RBAC(UserRole.superadmin)
+  updateRole(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.userService.updateRole(req.user.id, +id, updateRoleDto.role);
   }
 
   @Post(':id/force-logout')
   @UseGuards(RBACguard)
   @RBAC(UserRole.admin)
-  forceLogout(@Param('id') id: string) {
-    return this.userService.forceLogout(+id);
+  forceLogout(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.userService.forceLogout(req.user.id, +id);
   }
 
   @Delete(':id')
@@ -90,6 +94,7 @@ export class UserController {
     const rawToken = isSelf ? req.headers['authorization'] : undefined;
     const skipPasswordCheck = !isSelf;
     return this.userService.remove(
+      req.user.id,
       +id,
       deleteUserDto.password,
       rawToken,

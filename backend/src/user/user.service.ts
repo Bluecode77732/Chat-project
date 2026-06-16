@@ -17,6 +17,7 @@ import Redis from 'ioredis';
 import { RoomEntity } from 'src/chat/entities/room.entity';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
+import { AuditLogService } from 'src/audit-log/audit-log.service';
 
 @Injectable()
 export class UserService {
@@ -35,6 +36,8 @@ export class UserService {
     private readonly sessionCacheService: SessionCacheService,
 
     private readonly chatService: ChatService,
+
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -136,24 +139,71 @@ export class UserService {
     });
   }
 
-  async updateRole(id: number, role: UserRole): Promise<UserEntity> {
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException('User Not Found.');
-    await this.userRepository.update({ id }, { role });
-    logger.info(`User '${id}' role updated to ${role}`);
-    return { ...user, role };
+  async updateRole(
+    actorId: number,
+    targetId: number,
+    role: UserRole,
+  ): Promise<UserEntity> {
+    const target = await this.userRepository.findOne({
+      where: { id: targetId },
+    });
+    if (!target) throw new NotFoundException('User Not Found.');
+
+    const previousRole = target.role ?? UserRole.user;
+
+    // 마지막 superadmin 강등 방지
+    if (previousRole === UserRole.superadmin && role !== UserRole.superadmin) {
+      const superadminCount = await this.userRepository.count({
+        where: { role: UserRole.superadmin },
+      });
+      if (superadminCount <= 1) {
+        throw new BadRequestException('Cannot demote the last superadmin.');
+      }
+    }
+
+    // admin 수 상한 (superadmin은 별도 카운트)
+    if (role === UserRole.admin) {
+      const adminCount = await this.userRepository.count({
+        where: { role: UserRole.admin },
+      });
+      const maxAdminCount = this.configService.get<number>(
+        'MAX_ADMIN_COUNT',
+        5,
+      );
+      if (adminCount >= maxAdminCount) {
+        throw new BadRequestException(
+          `Admin count limit (${maxAdminCount}) reached.`,
+        );
+      }
+    }
+
+    await this.userRepository.update({ id: targetId }, { role });
+
+    const roleLabel = (r: number) => UserRole[r] ?? String(r);
+    await this.auditLogService.log(
+      actorId,
+      targetId,
+      'ROLE_CHANGE',
+      `${roleLabel(previousRole)}→${roleLabel(role)}`,
+    );
+
+    return { ...target, role };
   }
 
-  async forceLogout(id: number): Promise<void> {
-    const session = await this.sessionCacheService.getUserStatus(id);
+  async forceLogout(actorId: number, targetId: number): Promise<void> {
+    const session = await this.sessionCacheService.getUserStatus(targetId);
     if (session?.socketId) {
       this.chatService.disconnectSocket(session.socketId);
     }
-    await this.sessionCacheService.sethUserOffline(id);
-    logger.info(`User '${id}' was force-logged out by admin`);
+    await this.sessionCacheService.sethUserOffline(targetId);
+    await this.auditLogService.log(actorId, targetId, 'FORCE_LOGOUT');
+    logger.info(
+      `User '${targetId}' was force-logged out by actor '${actorId}'`,
+    );
   }
 
   async remove(
+    actorId: number,
     id: number,
     password?: string,
     rawToken?: string,
@@ -228,7 +278,8 @@ export class UserService {
       this.chatService.disconnectSocket(socketId);
     }
 
-    logger.info(`User '${id}' is deleted`);
+    await this.auditLogService.log(actorId, id, 'USER_DELETE');
+    logger.info(`User '${id}' is deleted by actor '${actorId}'`);
     return `The user ${id} is deleted`;
   }
 }

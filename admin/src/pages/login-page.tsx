@@ -24,7 +24,7 @@ function LoginPage() {
                 headers: { Authorization: `Basic ${base64}` },
             });
             const { sub, role } = jwtDecode<{ sub: number; role: number }>(res.data.accessToken);
-            if (role !== 1) {
+            if (role < 1) {
                 setError('Admin access only.');
                 return;
             }
