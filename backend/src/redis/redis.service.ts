@@ -84,6 +84,10 @@ export class SessionCacheService implements OnModuleInit {
     );
   }
 
+  async deleteMessageCache(roomId: number): Promise<void> {
+    await this.redis.del(`room_messages:${roomId}`);
+  }
+
   async getCachedMessages(
     roomId: number,
   ): Promise<CachedMessageEntry[] | null> {

@@ -15,7 +15,6 @@ import { UserRole } from 'src/auth/role/role';
 import { logger } from 'src/base/logger/logger';
 import Redis from 'ioredis';
 import { RoomEntity } from 'src/chat/entities/room.entity';
-import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
 
@@ -27,9 +26,6 @@ export class UserService {
 
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
-
-    @InjectRepository(ChatEntity)
-    private readonly chatRepository: Repository<ChatEntity>,
 
     private readonly configService: ConfigService,
 
@@ -140,17 +136,42 @@ export class UserService {
     });
   }
 
-  async remove(id: number, password: string, rawToken?: string) {
+  async updateRole(id: number, role: UserRole): Promise<UserEntity> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User Not Found.');
+    await this.userRepository.update({ id }, { role });
+    logger.info(`User '${id}' role updated to ${role}`);
+    return { ...user, role };
+  }
+
+  async forceLogout(id: number): Promise<void> {
+    const session = await this.sessionCacheService.getUserStatus(id);
+    if (session?.socketId) {
+      this.chatService.disconnectSocket(session.socketId);
+    }
+    await this.sessionCacheService.sethUserOffline(id);
+    logger.info(`User '${id}' was force-logged out by admin`);
+  }
+
+  async remove(
+    id: number,
+    password?: string,
+    rawToken?: string,
+    skipPasswordCheck = false,
+  ) {
     // ① 존재 확인
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User Not Found.');
     }
 
-    // ② 비밀번호 본인 확인
-    const valid = await bcrypt.compare(password, String(user.password));
-    if (!valid) {
-      throw new BadRequestException('Invalid password.');
+    // ② 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
+    if (!skipPasswordCheck) {
+      if (!password) throw new BadRequestException('Password is required.');
+      const valid = await bcrypt.compare(password, String(user.password));
+      if (!valid) {
+        throw new BadRequestException('Invalid password.');
+      }
     }
 
     // ③ 삭제 전: 이 유저가 속한 방 목록 수집 (고아 방 감지용)

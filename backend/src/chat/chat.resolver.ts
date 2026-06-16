@@ -15,6 +15,8 @@ interface GqlContext {
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
+import { AdminRoomType } from 'src/graphql/admin-room.type';
+import { GraphQLAdminGuard } from 'src/auth/guard/graphql-admin.guard';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
 import {
@@ -42,6 +44,21 @@ export class ChatResolver {
     private readonly aiService: AiService,
     private readonly aiRoomService: AiRoomService,
   ) {}
+
+  @Query(() => [AdminRoomType])
+  @UseGuards(GraphQLAdminGuard)
+  async getAllRooms(): Promise<AdminRoomType[]> {
+    return this.chatService.findAllRooms();
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(GraphQLAdminGuard)
+  async deleteRoom(
+    @Args('roomId', { type: () => Int }) roomId: number,
+  ): Promise<boolean> {
+    await this.chatService.deleteRoom(roomId);
+    return true;
+  }
 
   @Query(() => String)
   ping(): string {

@@ -1,13 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class DeleteUserDto {
   @ApiProperty({
-    description: 'Current password for identity verification',
+    description:
+      'Current password for identity verification (required for self-deletion; omit when admin deletes another user)',
     example: 'test@!$!13',
     type: 'string',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  password!: string;
+  password?: string;
 }

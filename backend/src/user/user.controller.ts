@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Patch,
+  Post,
   Param,
   Delete,
   UseGuards,
@@ -18,6 +19,7 @@ type AuthenticatedRequest = ExpressRequest & {
   user: { id: number; role: UserRole };
 };
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
@@ -60,6 +62,20 @@ export class UserController {
     return this.userService.update(+id, updateUserDto);
   }
 
+  @Patch(':id/role')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
+  updateRole(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
+    return this.userService.updateRole(+id, updateRoleDto.role);
+  }
+
+  @Post(':id/force-logout')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
+  forceLogout(@Param('id') id: string) {
+    return this.userService.forceLogout(+id);
+  }
+
   @Delete(':id')
   remove(
     @Request() req: AuthenticatedRequest,
@@ -69,9 +85,15 @@ export class UserController {
     if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
       throw new ForbiddenException('You can only delete your own account');
     }
-    // admin이 타인을 삭제할 때는 rawToken 전달 생략 — admin 토큰이 블랙리스트에 등록되는 것을 방지
-    const rawToken =
-      req.user?.id === +id ? req.headers['authorization'] : undefined;
-    return this.userService.remove(+id, deleteUserDto.password, rawToken);
+    // admin이 타인 삭제 시: rawToken 생략(admin 토큰 블랙리스트 방지), 패스워드 검증 스킵
+    const isSelf = req.user?.id === +id;
+    const rawToken = isSelf ? req.headers['authorization'] : undefined;
+    const skipPasswordCheck = !isSelf;
+    return this.userService.remove(
+      +id,
+      deleteUserDto.password,
+      rawToken,
+      skipPasswordCheck,
+    );
   }
 }

@@ -280,6 +280,26 @@ export class ChatService {
     this.server?.sockets.sockets.get(socketId)?.disconnect(true);
   }
 
+  async findAllRooms(): Promise<
+    { roomId: number; participantIds: number[] }[]
+  > {
+    const rooms = await this.roomRepository.find({
+      relations: ['participants'],
+    });
+    return rooms.map((room) => ({
+      roomId: room.id!,
+      participantIds: room.participants?.map((p) => p.id!) ?? [],
+    }));
+  }
+
+  async deleteRoom(roomId: number): Promise<void> {
+    const room = await this.roomRepository.findOne({ where: { id: roomId } });
+    if (!room) throw new Error('Room not found');
+    await this.roomRepository.delete(roomId);
+    await this.redisService.deleteMessageCache(roomId);
+    logger.info(`Admin deleted room ${roomId}`);
+  }
+
   async isRoomParticipant(userId: number, roomId: number): Promise<boolean> {
     const count = await this.roomRepository
       .createQueryBuilder('room')
