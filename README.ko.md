@@ -161,7 +161,12 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - `GET /user/:id` - 특정 사용자 조회 (본인 또는 admin)
 - `POST /user` - 사용자 생성
 - `PATCH /user/:id` - 사용자 수정 (본인 또는 admin)
+- `PATCH /user/:id/role` - 사용자 역할 변경 **(superadmin 전용)**
+- `POST /user/:id/force-logout` - 강제 로그아웃 **(admin 전용)**
 - `DELETE /user/:id` - 사용자 삭제 (본인 또는 admin)
+
+**감사 로그**
+- `GET /audit-log` - 최근 감사 로그 100건 조회 **(admin 전용)**
 
 **채팅**
 - Socket.IO
@@ -392,7 +397,7 @@ UserEntity
   email       unique
   password    API 응답에서 제외
   isAI        boolean (시드된 AI 시스템 계정에만 true)
-  role        enum: user (0) | admin (1)
+  role        enum: user (0) | admin (1) | superadmin (2)
   chats    =< ChatEntity   (OneToMany)
   rooms    >< RoomEntity   (ManyToMany, RoomEntity 측 조인 테이블)
 
@@ -676,14 +681,16 @@ Redis 중지
 
 
 ### 역할
-- 두 가지 역할: `user` (0, 기본값)와 `admin` (1).
+- 세 가지 역할: `user` (0, 기본값), `admin` (1), `superadmin` (2).
 - 모든 가입 사용자는 `user` 역할을 부여받아 메시지 전송이 가능합니다.
-- `admin` 역할은 상위 권한을 가지며, 모든 사용자 계정을 조회·수정·삭제할 수 있습니다.
-- Admin 계정은 DB에 직접 INSERT하여 생성합니다 — 등록 엔드포인트에서 역할 지정을 노출하지 않습니다.
+- `admin` 역할은 상위 권한을 가지며, 모든 사용자 계정 조회·수정·삭제, 강제 로그아웃, 감사 로그 조회가 가능합니다.
+- `superadmin` 역할은 역할 변경 권한을 추가로 보유합니다. 다른 사용자의 역할 승격·강등은 superadmin만 가능합니다.
+- 최초 superadmin은 DB에 직접 INSERT하여 생성합니다. 이후 admin은 admin 패널에서 승격 가능합니다.
+- `MAX_ADMIN_COUNT` 환경변수(기본값: 5)로 `admin` 역할 계정 수를 제한합니다. superadmin은 이 상한에 포함되지 않습니다.
 
 
 ### Admin 계정 생성
-Admin 계정은 데이터베이스에 직접 생성해야 합니다. API 엔드포인트에서 admin 역할을 부여하지 않아 공격 면을 최소화합니다.
+최초 superadmin은 데이터베이스에 직접 생성해야 합니다. API 엔드포인트에서 `user` 이상의 역할을 부여하지 않아 공격 면을 최소화합니다.
 
 **1단계 — bcrypt 해시 생성** (`.env`의 `HASH_ROUNDS` 값과 동일하게 설정):
 ```bash
@@ -693,10 +700,10 @@ node -e "const b=require('bcrypt'); b.hash('yourPassword', 12).then(h=>console.l
 **2단계 — DB에 직접 INSERT** (Railway 쿼리 실행기 또는 DB 클라이언트):
 ```sql
 INSERT INTO user_entity (email, password, role, "isAI")
-VALUES ('admin@example.com', '<1단계에서 생성한 해시>', 1, false);
+VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 ```
 
-역할 숫자: `user = 0`, `admin = 1`
+역할 숫자: `user = 0`, `admin = 1`, `superadmin = 2`
 
 **Railway 사용 시**
 1. Railway Dashboard → PostgreSQL 서비스 → **Query** 탭 열기

@@ -164,7 +164,12 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `GET /user/:id` - Get a user (own account or admin)
 - `POST /user` - Create a user
 - `PATCH /user/:id` - Update a user (own account or admin)
+- `PATCH /user/:id/role` - Change user role **(superadmin only)**
+- `POST /user/:id/force-logout` - Force logout a user **(admin only)**
 - `DELETE /user/:id` - Delete a user (own account or admin)
+
+**Audit Log**
+- `GET /audit-log` - Get last 100 audit log entries **(admin only)**
 
 **Chat**
 - Socket.IO
@@ -395,7 +400,7 @@ UserEntity
   email       unique
   password    excluded from API responses
   isAI        boolean (true only for the seeded AI system account)
-  role        enum: user (0) | admin (1)
+  role        enum: user (0) | admin (1) | superadmin (2)
   chats    =< ChatEntity   (OneToMany)
   rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
 
@@ -679,14 +684,16 @@ Implementation of two ways of sign-in endpoints.
 
 
 ### Role
-- Two roles: `user` (0, default) and `admin` (1).
+- Three roles: `user` (0, default), `admin` (1), and `superadmin` (2).
 - All registered users receive `user` role and can send messages normally.
-- `admin` role grants elevated access: view/update/delete any user account.
-- Admin accounts are created via direct DB INSERT — no registration endpoint exposes role assignment.
+- `admin` role grants elevated access: view/update/delete any user account, force logout, view audit logs.
+- `superadmin` role additionally controls role assignment. Only superadmin can promote or demote other users.
+- First superadmin must be created via direct DB INSERT. Subsequent admins can be promoted via the admin panel.
+- `MAX_ADMIN_COUNT` env var (default: 5) limits the number of `admin`-role accounts. Superadmin accounts are not counted toward this limit.
 
 
 ### Admin Account Setup
-Admin accounts must be created directly in the database. No API endpoint assigns the admin role, keeping the attack surface minimal.
+The first superadmin must be created directly in the database. No API endpoint assigns roles above `user`, keeping the attack surface minimal.
 
 **Step 1 — Generate a bcrypt hash** (use the same `HASH_ROUNDS` value set in your `.env`):
 ```bash
@@ -696,10 +703,10 @@ node -e "const b=require('bcrypt'); b.hash('yourPassword', 12).then(h=>console.l
 **Step 2 — Insert into the database** (Railway query runner, `psql`, or any DB client):
 ```sql
 INSERT INTO user_entity (email, password, role, "isAI")
-VALUES ('admin@example.com', '<hash from step 1>', 1, false);
+VALUES ('superadmin@example.com', '<hash from step 1>', 2, false);
 ```
 
-Role values: `user = 0`, `admin = 1`
+Role values: `user = 0`, `admin = 1`, `superadmin = 2`
 
 **Railway**
 1. Open Railway Dashboard → your PostgreSQL service → **Query** tab

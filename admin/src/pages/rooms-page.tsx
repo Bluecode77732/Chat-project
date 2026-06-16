@@ -52,6 +52,12 @@ function RoomsPage() {
                             Users
                         </button>
                         <button
+                            onClick={() => navigate('/logs')}
+                            className="text-sm text-blue-600 hover:underline"
+                        >
+                            Logs
+                        </button>
+                        <button
                             onClick={signOut}
                             className="text-sm text-red-600 hover:underline"
                         >
