@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
@@ -11,6 +12,7 @@ import { RBACguard } from 'src/auth/guard/rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { AuditLogService } from './audit-log.service';
+import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 
 @ApiTags('Audit Log API')
 @ApiBearerAuth()
@@ -22,7 +24,7 @@ export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
-  findAll() {
-    return this.auditLogService.findAll();
+  findAll(@Query() query: AuditLogQueryDto) {
+    return this.auditLogService.findAll(query);
   }
 }

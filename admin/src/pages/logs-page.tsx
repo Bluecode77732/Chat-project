@@ -12,17 +12,39 @@ interface AuditLog {
     created: string;
 }
 
+interface AuditLogPage {
+    data: AuditLog[];
+    total: number;
+    page: number;
+    take: number;
+}
+
+const ACTIONS = ['ROLE_CHANGE', 'FORCE_LOGOUT', 'USER_DELETE'];
+
 function LogsPage() {
-    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [result, setResult] = useState<AuditLogPage>({ data: [], total: 0, page: 1, take: 20 });
     const [loading, setLoading] = useState(true);
+    const [action, setAction] = useState('');
+    const [page, setPage] = useState(1);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
     useEffect(() => {
-        api.get('/audit-log')
-            .then((res) => setLogs(res.data as AuditLog[]))
+        api.get('/audit-log', { params: { action: action || undefined, page } })
+            .then((res) => setResult(res.data as AuditLogPage))
             .finally(() => setLoading(false));
-    }, []);
+    }, [action, page]);
+
+    const changeAction = (value: string) => {
+        setLoading(true);
+        setAction(value);
+        setPage(1);
+    };
+
+    const changePage = (newPage: number) => {
+        setLoading(true);
+        setPage(newPage);
+    };
 
     const signOut = async () => {
         try { await api.delete('/auth/signout'); } catch { /* best effort */ }
@@ -37,6 +59,8 @@ function LogsPage() {
         return 'bg-gray-100 text-gray-600';
     };
 
+    const totalPages = Math.max(1, Math.ceil(result.total / result.take));
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-5xl mx-auto">
@@ -49,44 +73,80 @@ function LogsPage() {
                     </div>
                 </div>
 
+                <div className="flex items-center gap-3 mb-4">
+                    <label className="text-sm text-gray-600">Action</label>
+                    <select
+                        value={action}
+                        onChange={(e) => changeAction(e.target.value)}
+                        className="text-sm border rounded px-2 py-1"
+                    >
+                        <option value="">All</option>
+                        {ACTIONS.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                        ))}
+                    </select>
+                </div>
+
                 {loading ? (
                     <p className="text-gray-500">Loading...</p>
                 ) : (
-                    <div className="bg-white rounded-xl shadow overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-100 text-left">
-                                <tr>
-                                    <th className="px-4 py-3">Time</th>
-                                    <th className="px-4 py-3">Action</th>
-                                    <th className="px-4 py-3">Actor</th>
-                                    <th className="px-4 py-3">Target</th>
-                                    <th className="px-4 py-3">Detail</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {logs.map((log) => (
-                                    <tr key={log.id} className="border-t">
-                                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                                            {new Date(log.created).toLocaleString()}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>
-                                                {log.action}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">{log.actorId}</td>
-                                        <td className="px-4 py-3">{log.targetId ?? '—'}</td>
-                                        <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>
-                                    </tr>
-                                ))}
-                                {logs.length === 0 && (
+                    <>
+                        <div className="bg-white rounded-xl shadow overflow-hidden">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100 text-left">
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-6 text-center text-gray-400">No logs yet.</td>
+                                        <th className="px-4 py-3">Time</th>
+                                        <th className="px-4 py-3">Action</th>
+                                        <th className="px-4 py-3">Actor</th>
+                                        <th className="px-4 py-3">Target</th>
+                                        <th className="px-4 py-3">Detail</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {result.data.map((log) => (
+                                        <tr key={log.id} className="border-t">
+                                            <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                                {new Date(log.created).toLocaleString()}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">{log.actorId}</td>
+                                            <td className="px-4 py-3">{log.targetId ?? '—'}</td>
+                                            <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>
+                                        </tr>
+                                    ))}
+                                    {result.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-6 text-center text-gray-400">No logs yet.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
+                            <span>Page {result.page} of {totalPages} ({result.total} total)</span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => changePage(Math.max(1, result.page - 1))}
+                                    disabled={result.page <= 1}
+                                    className="px-3 py-1 rounded border disabled:opacity-40"
+                                >
+                                    Prev
+                                </button>
+                                <button
+                                    onClick={() => changePage(Math.min(totalPages, result.page + 1))}
+                                    disabled={result.page >= totalPages}
+                                    className="px-3 py-1 rounded border disabled:opacity-40"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>
