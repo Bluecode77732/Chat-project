@@ -61,6 +61,7 @@ describe('ChatService', () => {
           useValue: {
             findOneBy: jest.fn(),
             findOneByOrFail: jest.fn(),
+            find: jest.fn(),
           },
         },
         {
@@ -795,6 +796,24 @@ describe('ChatService', () => {
       );
 
       expect(result).toEqual(mockMessage);
+    });
+  });
+
+  describe('getUserNicknames', () => {
+    it('should return non-AI users with only id and nickname selected', async () => {
+      const mockUsers = [
+        { id: 1, nickname: 'Alice' },
+        { id: 2, nickname: null },
+      ] as UserEntity[];
+      jest.spyOn(userRepository, 'find').mockResolvedValue(mockUsers);
+
+      const result = await chatService.getUserNicknames();
+
+      expect(userRepository.find).toHaveBeenCalledWith({
+        where: { isAI: false },
+        select: ['id', 'nickname'],
+      });
+      expect(result).toEqual(mockUsers);
     });
   });
 });

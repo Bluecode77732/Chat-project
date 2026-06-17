@@ -122,6 +122,7 @@ function AccountPage() {
                     onChange={(e) => setNickname(e.target.value)}
                     className="w-full border p-2 rounded mb-3 text-sm"
                     placeholder="다른 유저에게 표시될 이름"
+                    maxLength={20}
                     disabled={profileLoading}
                 />
 

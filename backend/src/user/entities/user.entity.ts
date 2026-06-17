@@ -13,6 +13,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
 } from 'class-validator';
 import { EntityBase } from 'src/base/entity/base.entity';
 import { UserRole } from 'src/auth/role/role';
@@ -37,6 +38,7 @@ export class UserEntity extends EntityBase {
   @Column({ nullable: true })
   @IsString()
   @IsOptional()
+  @MaxLength(20)
   nickname?: string;
 
   @Column()
