@@ -914,6 +914,18 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 - 모노레포 패키지 해석을 위한 `pnpm-workspace.yaml`
 
 
+#### Admin 패널 - Vercel
+frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됩니다. GitHub Actions와는 무관하며, Vercel이 push 시 독립적으로 빌드·배포합니다.
+
+**CI/CD 흐름**
+`git push origin main` => Vercel 자동 배포
+
+**설정**
+- 루트 디렉토리: `admin/`
+- 모노레포 패키지 해석을 위한 `pnpm-workspace.yaml`
+- 환경변수: `VITE_API_URL` (frontend와 동일한 백엔드)
+
+
 #### 공개 - Railway
 **라이브 데모**
 - 라이브 URL: https://chat-project-production-3b22.up.railway.app

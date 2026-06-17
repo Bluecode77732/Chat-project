@@ -916,6 +916,18 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 - `pnpm-workspace.yaml` for monorepo package resolution
 
 
+#### Admin Panel - Vercel
+Deployed as a **separate Vercel project**, same pattern as the frontend. Not part of GitHub Actions — Vercel builds and deploys on push independently.
+
+**CI/CD Flow**
+`git push origin main` => Vercel Auto-deploy
+
+**Config**
+- Root Directory: `admin/`
+- `pnpm-workspace.yaml` for monorepo package resolution
+- Env vars: `VITE_API_URL` (same backend as frontend)
+
+
 #### Public - Railway
 **Live Demo**
 - Live URL: https://chat-project-production-3b22.up.railway.app
