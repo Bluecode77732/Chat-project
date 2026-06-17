@@ -5,6 +5,7 @@
 type UserType {
   id: ID!
   email: String
+  nickname: String
   role: String
 }
 
@@ -44,6 +45,7 @@ type Query {
   getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType
   getOnlineUser: [Int!]!
   getAllUsers: [Int!]!
+  getUserNicknames: [UserType!]!
   getMyRooms: [RoomInfoType!]!
   getRoom(recipientId: Int!): Int
   getMessages(roomId: Int!, cursor: Int): [MessageType!]!

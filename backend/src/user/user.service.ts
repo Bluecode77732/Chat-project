@@ -126,6 +126,7 @@ export class UserService {
       {
         email: updateUserDto.email,
         password: updateUserDto.password,
+        nickname: updateUserDto.nickname,
       },
     );
     await this.redis.del(`user_cache:${id}`);

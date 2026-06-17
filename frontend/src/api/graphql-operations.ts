@@ -48,6 +48,15 @@ export const GET_ALL_USERS = gql`
     }
 `
 
+export const GET_USER_NICKNAMES = gql`
+    query GetUserNicknames {
+        getUserNicknames {
+            id
+            nickname
+        }
+    }
+`
+
 export const GET_ROOM = gql`
     query GetRoom($recipientId: Int!) {
         getRoom(recipientId: $recipientId)

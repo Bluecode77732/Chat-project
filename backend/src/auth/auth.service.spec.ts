@@ -318,7 +318,7 @@ describe('AuthService', () => {
     it('should sign in a user', async () => {
       jest
         .spyOn(authService, 'parseBasicToken')
-        .mockResolvedValue({ email, password });
+        .mockReturnValue({ email, password });
       jest.spyOn(authService, 'validateUser').mockResolvedValue(user);
       jest.spyOn(authService, 'issueToken').mockResolvedValue('token');
 

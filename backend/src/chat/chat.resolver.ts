@@ -16,6 +16,7 @@ import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
 import { AdminRoomType } from 'src/graphql/admin-room.type';
+import { UserType } from 'src/graphql/user.type';
 import { GraphQLAdminGuard } from 'src/auth/guard/graphql-admin.guard';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
@@ -110,6 +111,12 @@ export class ChatResolver {
   async getAllUsers(@Context() ctx: GqlContext): Promise<number[]> {
     const userId = ctx.req.user.id;
     return this.chatService.getAllUsers(userId);
+  }
+
+  @Query(() => [UserType])
+  @UseGuards(GraphQLAuthGuard)
+  async getUserNicknames(): Promise<UserType[]> {
+    return this.chatService.getUserNicknames();
   }
 
   @Query(() => [RoomInfoType])

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -19,4 +19,14 @@ export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
   password!: string;
+
+  @ApiProperty({
+    description: 'Display nickname shown to other users',
+    example: 'Joon',
+    type: 'string',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  nickname?: string;
 }

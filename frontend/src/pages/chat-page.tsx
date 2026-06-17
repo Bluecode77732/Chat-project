@@ -8,6 +8,7 @@ import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/cl
 import {
     SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_ALL_USERS, GET_MESSAGES,
     GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
+    GET_USER_NICKNAMES,
     SendMessageVariables,
 } from "../api/graphql-operations";
 import AiPersonalitySelector from "../components/ai-personality-selector";
@@ -55,6 +56,10 @@ interface AllUsersData {
     getAllUsers: number[];
 }
 
+interface UserNicknamesData {
+    getUserNicknames: Array<{ id: number; nickname: string | null }>;
+}
+
 interface MyRoomsData {
     getMyRooms: Array<{
         roomId: number;
@@ -97,6 +102,13 @@ function ChatPage() {
     const { data: allUsersData } = useQuery<AllUsersData>(GET_ALL_USERS, {
         pollInterval: 60000,
     });
+    const { data: nicknamesData } = useQuery<UserNicknamesData>(GET_USER_NICKNAMES, {
+        pollInterval: 60000,
+    });
+    const nicknameById = new Map(
+        nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
+    );
+    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
     const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM, { fetchPolicy: 'network-only' });
     const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS, { fetchPolicy: 'network-only' });
@@ -419,7 +431,7 @@ function ChatPage() {
                                                         : 'bg-gray-200 hover:bg-blue-100'
                                             }`}
                                         >
-                                            {id === userId ? `Me (${id})` : id === recipientId ? `✓ User ${id}` : `User ${id}`}
+                                            {id === userId ? `Me (${displayName(id)})` : id === recipientId ? `✓ ${displayName(id)}` : displayName(id)}
                                         </span>
                                     ))}
                                 {/* Offline users — all registered users not currently online */}
@@ -438,7 +450,7 @@ function ChatPage() {
                                                         : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
                                             }`}
                                         >
-                                            {id === recipientId ? `✓ User ${id} (offline)` : `User ${id} (offline)`}
+                                            {id === recipientId ? `✓ ${displayName(id)} (offline)` : `${displayName(id)} (offline)`}
                                         </span>
                                     ))}
                                 {/* AI Chat */}

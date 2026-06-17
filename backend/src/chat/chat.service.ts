@@ -257,6 +257,13 @@ export class ChatService {
     return users.map((u) => u.id!).filter((id) => id !== currentUserId);
   }
 
+  async getUserNicknames(): Promise<UserEntity[]> {
+    return this.userRepository.find({
+      where: { isAI: false },
+      select: ['id', 'nickname'],
+    });
+  }
+
   async getMyRooms(
     userId: number,
   ): Promise<{ roomId: number; recipientId: number }[]> {

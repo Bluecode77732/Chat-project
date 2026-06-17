@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { socket } from '../socket/socket';
 import api from '../api/axios';
+
+interface UserInfo {
+    email: string;
+    nickname: string | null;
+}
 
 function AccountPage() {
     const { userId, clearTokens } = useAuthStore();
@@ -11,6 +16,46 @@ function AccountPage() {
     const [showConfirm, setShowConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const [email, setEmail] = useState('');
+    const [nickname, setNickname] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+
+    useEffect(() => {
+        if (!userId) return;
+        api.get<UserInfo>(`/user/${userId}`)
+            .then(({ data }) => {
+                setEmail(data.email);
+                setNickname(data.nickname ?? '');
+            })
+            .catch(() => setProfileError('계정 정보를 불러오지 못했습니다.'));
+    }, [userId]);
+
+    const handleProfileUpdate = async () => {
+        if (!userId) return;
+        setProfileLoading(true);
+        setProfileError(null);
+        setProfileSuccess(null);
+        try {
+            await api.patch(`/user/${userId}`, {
+                email,
+                nickname,
+                ...(newPassword ? { password: newPassword } : {}),
+            });
+            setNewPassword('');
+            setProfileSuccess('변경사항이 저장되었습니다.');
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { message?: string } } })
+                    ?.response?.data?.message ?? '저장에 실패했습니다.';
+            setProfileError(message);
+        } finally {
+            setProfileLoading(false);
+        }
+    };
 
     const handleDeleteRequest = () => {
         if (!password.trim()) {
@@ -51,6 +96,60 @@ function AccountPage() {
                     className="text-sm text-gray-500 hover:text-gray-700"
                 >
                     ← 채팅으로 돌아가기
+                </button>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg p-6 mb-6">
+                <h2 className="font-semibold mb-4">프로필</h2>
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    이메일
+                </label>
+                <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border p-2 rounded mb-3 text-sm"
+                    disabled={profileLoading}
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    닉네임
+                </label>
+                <input
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    className="w-full border p-2 rounded mb-3 text-sm"
+                    placeholder="다른 유저에게 표시될 이름"
+                    disabled={profileLoading}
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    새 비밀번호
+                </label>
+                <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full border p-2 rounded mb-3 text-sm"
+                    placeholder="변경하지 않으려면 비워두세요"
+                    disabled={profileLoading}
+                />
+
+                {profileError && (
+                    <p className="text-red-500 text-sm mb-3">{profileError}</p>
+                )}
+                {profileSuccess && (
+                    <p className="text-green-600 text-sm mb-3">{profileSuccess}</p>
+                )}
+
+                <button
+                    onClick={handleProfileUpdate}
+                    disabled={profileLoading || !email.trim()}
+                    className="w-full bg-blue-500 text-white py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50"
+                >
+                    {profileLoading ? '저장 중...' : '저장'}
                 </button>
             </div>
 

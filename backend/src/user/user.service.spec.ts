@@ -3,7 +3,6 @@ import { UserService } from './user.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
-import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -25,12 +24,18 @@ describe('UserService', () => {
     createQueryBuilder: jest.fn(),
   };
 
-  const mockRoomRepository = {
-    createQueryBuilder: jest.fn(),
-    delete: jest.fn(),
+  const mockRoomQueryBuilder = {
+    innerJoin: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+    getCount: jest.fn().mockResolvedValue(1),
   };
 
-  const mockChatRepository = {};
+  const mockRoomRepository = {
+    createQueryBuilder: jest.fn(() => mockRoomQueryBuilder),
+    delete: jest.fn(),
+  };
 
   const mockConfigService = {
     getOrThrow: jest.fn(),
@@ -66,10 +71,6 @@ describe('UserService', () => {
         {
           provide: getRepositoryToken(RoomEntity),
           useValue: mockRoomRepository,
-        },
-        {
-          provide: getRepositoryToken(ChatEntity),
-          useValue: mockChatRepository,
         },
         {
           provide: ConfigService,
@@ -229,6 +230,109 @@ describe('UserService', () => {
         where: { id: 1 },
       });
       expect(mockUserRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    const userId = 1;
+    const user = { id: userId, password: 'hashed' };
+
+    it("should throw a NotFoundException when the user doesn't exist.", async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(userService.remove(99, userId, 'pw')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw a BadRequestException when self-deletion is missing a password.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+
+      await expect(userService.remove(userId, userId)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw a BadRequestException when the password does not match.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        userService.remove(userId, userId, 'wrong-password'),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('should delete the user, clean up sessions, blacklist the token, and log the audit entry.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockRoomQueryBuilder.getMany.mockResolvedValueOnce([{ id: 10 }]);
+      mockRoomQueryBuilder.getCount.mockResolvedValueOnce(0); // room 10 becomes orphaned
+      mockSessionCacheService.getUserStatus.mockResolvedValueOnce({
+        socketId: 'socket-1',
+      });
+      mockConfigService.get.mockReturnValue(900);
+
+      const result = await userService.remove(
+        userId,
+        userId,
+        'correct-password',
+        'Bearer token-abc',
+      );
+
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'correct-password',
+        user.password,
+      );
+      expect(mockUserRepository.delete).toHaveBeenCalledWith(userId);
+      // orphaned room 10 cleaned up
+      expect(mockRoomRepository.delete).toHaveBeenCalledWith(10);
+      expect(mockRedisClient.del).toHaveBeenCalledWith('room_messages:10');
+      // session cleanup
+      expect(mockSessionCacheService.sethUserOffline).toHaveBeenCalledWith(
+        userId,
+      );
+      expect(mockRedisClient.del).toHaveBeenCalledWith(`user:${userId}`);
+      // token blacklist
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        'blacklist:token-abc',
+        '1',
+        'EX',
+        900,
+      );
+      // socket force-disconnect
+      expect(mockChatService.disconnectSocket).toHaveBeenCalledWith('socket-1');
+      // audit log
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        userId,
+        userId,
+        'USER_DELETE',
+      );
+      expect(result).toBe(`The user ${userId} is deleted`);
+    });
+
+    it('should allow an admin to delete another user without a password.', async () => {
+      const actorId = 2; // admin
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+
+      const result = await userService.remove(
+        actorId,
+        userId,
+        undefined,
+        undefined,
+        true, // skipPasswordCheck
+      );
+
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+      expect(mockUserRepository.delete).toHaveBeenCalledWith(userId);
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        actorId,
+        userId,
+        'USER_DELETE',
+      );
+      expect(result).toBe(`The user ${userId} is deleted`);
     });
   });
 });

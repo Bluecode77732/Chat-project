@@ -7,7 +7,13 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { EntityBase } from 'src/base/entity/base.entity';
 import { UserRole } from 'src/auth/role/role';
 import { RoomEntity } from 'src/chat/entities/room.entity';
@@ -27,6 +33,11 @@ export class UserEntity extends EntityBase {
 
   @Column({ default: false })
   isAI?: boolean;
+
+  @Column({ nullable: true })
+  @IsString()
+  @IsOptional()
+  nickname?: string;
 
   @Column()
   @IsString()
