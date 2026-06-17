@@ -18,6 +18,7 @@ import { RoomEntity } from 'src/chat/entities/room.entity';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class UserService {
@@ -38,6 +39,8 @@ export class UserService {
     private readonly chatService: ChatService,
 
     private readonly auditLogService: AuditLogService,
+
+    private readonly mailService: MailService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -187,6 +190,20 @@ export class UserService {
       'ROLE_CHANGE',
       `${roleLabel(previousRole)}→${roleLabel(role)}`,
     );
+
+    if (target.email) {
+      try {
+        await this.mailService.sendRoleChangeEmail(
+          target.email,
+          previousRole,
+          role,
+        );
+      } catch (err) {
+        logger.error(
+          `Failed to send role change email to user '${targetId}': ${err}`,
+        );
+      }
+    }
 
     return { ...target, role };
   }

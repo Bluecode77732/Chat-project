@@ -1,12 +1,13 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import type { UserEntity } from 'src/user/entities/user.entity';
 
-interface CachableMessage {
+export interface CachableMessage {
   id?: number;
   message?: string;
   created?: Date | string;
-  participant?: { password?: string; [key: string]: unknown };
+  participant?: Partial<UserEntity> | Record<string, unknown>;
 }
 
 interface CachedMessageEntry {

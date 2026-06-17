@@ -7,8 +7,16 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { Redis } from 'ioredis';
-import { SessionCacheService } from 'src/redis/redis.service';
+import { SessionCacheService, CachableMessage } from 'src/redis/redis.service';
 import { logger } from 'src/base/logger/logger';
+
+function isReceiveMessagePayload(
+  value: unknown,
+): value is { receiveMessage: CachableMessage } {
+  return (
+    typeof value === 'object' && value !== null && 'receiveMessage' in value
+  );
+}
 
 @Injectable()
 export class PubSubService extends RedisPubSub {
@@ -54,11 +62,13 @@ export class PubSubService extends RedisPubSub {
     await super.publish(triggerName, payload);
 
     const match = triggerName.match(/receiveMessage :(\d+)/);
-    if (match) {
+    if (match && isReceiveMessagePayload(payload)) {
       const roomId = parseInt(match[1]);
-      const message = (payload as { receiveMessage: unknown }).receiveMessage;
       try {
-        await this.sessionCacheService.cacheMessage(roomId, message);
+        await this.sessionCacheService.cacheMessage(
+          roomId,
+          payload.receiveMessage,
+        );
       } catch (err) {
         logger.warn(
           `cacheMessage failed for room ${roomId}: ${(err as Error).message}`,

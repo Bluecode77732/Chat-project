@@ -10,6 +10,8 @@ import { ConfigService } from '@nestjs/config';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
+import { MailService } from 'src/mail/mail.service';
+import { UserRole } from 'src/auth/role/role';
 import * as bcrypt from 'bcrypt';
 
 describe('UserService', () => {
@@ -21,6 +23,7 @@ describe('UserService', () => {
     save: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
     createQueryBuilder: jest.fn(),
   };
 
@@ -60,6 +63,10 @@ describe('UserService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockMailService = {
+    sendRoleChangeEmail: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -92,6 +99,10 @@ describe('UserService', () => {
           provide: AuditLogService,
           useValue: mockAuditLogService,
         },
+        {
+          provide: MailService,
+          useValue: mockMailService,
+        },
       ],
     }).compile();
 
@@ -108,7 +119,6 @@ describe('UserService', () => {
       const createUserDto: CreateUserDto = {
         email: 'email@gamil.com',
         password: 'PrivatePassword',
-        role: 0,
       };
 
       const genSalt = 10;
@@ -152,7 +162,6 @@ describe('UserService', () => {
       const createUserDto: CreateUserDto = {
         email: 'email@gamil.com',
         password: 'PrivatePassword',
-        role: 0,
       };
 
       jest
@@ -171,7 +180,6 @@ describe('UserService', () => {
       const updateUserDto: UpdateUserDto = {
         email: 'email@gamil.com',
         password: 'PrivatePassword',
-        role: 0,
       };
 
       const genSalt = 10;
@@ -230,6 +238,71 @@ describe('UserService', () => {
         where: { id: 1 },
       });
       expect(mockUserRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateRole', () => {
+    const actorId = 9;
+    const targetId = 1;
+    const target = {
+      id: targetId,
+      email: 'target@gmail.com',
+      role: UserRole.user,
+    };
+
+    it('updates the role and sends a role-change email to the target.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(target);
+
+      const result = await userService.updateRole(
+        actorId,
+        targetId,
+        UserRole.admin,
+      );
+
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: targetId },
+        { role: UserRole.admin },
+      );
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        actorId,
+        targetId,
+        'ROLE_CHANGE',
+        'user→admin',
+      );
+      expect(mockMailService.sendRoleChangeEmail).toHaveBeenCalledWith(
+        target.email,
+        UserRole.user,
+        UserRole.admin,
+      );
+      expect(result.role).toBe(UserRole.admin);
+    });
+
+    it('still updates the role when the email fails to send.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(target);
+      mockMailService.sendRoleChangeEmail.mockRejectedValueOnce(
+        new Error('SMTP down'),
+      );
+
+      const result = await userService.updateRole(
+        actorId,
+        targetId,
+        UserRole.admin,
+      );
+
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: targetId },
+        { role: UserRole.admin },
+      );
+      expect(result.role).toBe(UserRole.admin);
+    });
+
+    it('throws a NotFoundException when the target user does not exist.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        userService.updateRole(actorId, targetId, UserRole.admin),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockMailService.sendRoleChangeEmail).not.toHaveBeenCalled();
     });
   });
 

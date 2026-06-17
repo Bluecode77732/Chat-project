@@ -37,6 +37,12 @@ import { join } from 'node:path';
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
+        // Mail (SMTP) is optional — role-change emails are skipped if unset
+        SMTP_HOST: Joi.string().optional(),
+        SMTP_PORT: Joi.number().optional(),
+        SMTP_USER: Joi.string().optional(),
+        SMTP_PASS: Joi.string().optional(),
+        MAIL_FROM: Joi.string().optional(),
       }),
       // Configuration global adoption
       isGlobal: true,

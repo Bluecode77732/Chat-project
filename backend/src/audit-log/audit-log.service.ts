@@ -17,7 +17,12 @@ export class AuditLogService {
     action: string,
     detail?: string,
   ): Promise<void> {
-    await this.auditLogRepository.save({ actorId, targetId, action, detail });
+    await this.auditLogRepository.save({
+      actorId,
+      targetId: targetId ?? undefined,
+      action,
+      detail,
+    });
     logger.info(
       `[AUDIT] actor=${actorId} action=${action} target=${targetId ?? 'N/A'}${detail ? ` detail=${detail}` : ''}`,
     );
