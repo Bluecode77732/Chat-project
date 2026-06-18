@@ -239,6 +239,37 @@ describe('UserService', () => {
       });
       expect(mockUserRepository.update).not.toHaveBeenCalled();
     });
+
+    it('should throw a BadRequestException when the nickname is already taken by another user.', async () => {
+      const userId = 1;
+      const user = { id: userId, email: 'email@gamil.com', nickname: 'Old' };
+      const otherUser = { id: 2, nickname: 'Taken' };
+
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(otherUser);
+
+      await expect(
+        userService.update(userId, { nickname: 'Taken' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockUserRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('should allow keeping the same nickname without a uniqueness conflict.', async () => {
+      const userId = 1;
+      const user = { id: userId, email: 'email@gamil.com', nickname: 'Same' };
+
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(user);
+      jest.spyOn(mockUserRepository, 'update').mockResolvedValue(undefined);
+
+      await userService.update(userId, { nickname: 'Same' });
+
+      expect(mockUserRepository.update).toHaveBeenCalled();
+    });
   });
 
   describe('updateRole', () => {

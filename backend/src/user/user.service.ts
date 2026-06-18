@@ -44,7 +44,7 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { email, password } = createUserDto;
+    const { email, password, nickname } = createUserDto;
 
     const user = await this.userRepository.findOne({
       where: {
@@ -57,6 +57,15 @@ export class UserService {
       throw new BadRequestException('Registration failed');
     }
 
+    if (nickname) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname },
+      });
+      if (existingNickname) {
+        throw new BadRequestException('Nickname already in use.');
+      }
+    }
+
     // Hashing user password
     const hash = await bcrypt.hash(
       password,
@@ -67,6 +76,7 @@ export class UserService {
       email,
       password: hash,
       role: UserRole.user,
+      nickname,
     });
     logger.info(`User '${email}' is created`);
 
@@ -109,6 +119,15 @@ export class UserService {
     // Checking the user
     if (!user) {
       throw new NotFoundException('No User Found.');
+    }
+
+    if (updateUserDto.nickname && updateUserDto.nickname !== user.nickname) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname: updateUserDto.nickname },
+      });
+      if (existingNickname && existingNickname.id !== id) {
+        throw new BadRequestException('Nickname already in use.');
+      }
     }
 
     // Password verify

@@ -225,6 +225,37 @@ describe('AuthService', () => {
       // Testing that save wasn't called
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });
+
+    it('should throw `BadRequestException` when nickname already in use', async () => {
+      mockUserRepository.findOne
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce(mockUserEntity); // nickname check
+
+      await expect(
+        authService.register(BasicToken, 'TakenNickname'),
+      ).rejects.toThrow(new BadRequestException('Nickname already in use.'));
+
+      expect(mockUserRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should save the nickname when registering with one', async () => {
+      mockUserRepository.findOne
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce(null) // nickname check
+        .mockResolvedValueOnce({
+          email: 'test@gmail.com',
+          password: hashedPassword,
+          nickname: 'Joon',
+        });
+      mockUserRepository.save.mockResolvedValueOnce({});
+      mockConfigService.getOrThrow.mockReturnValue(hashRounds);
+
+      await authService.register(BasicToken, 'Joon');
+
+      expect(mockUserRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ nickname: 'Joon' }),
+      );
+    });
   });
 
   describe('validateUser', () => {

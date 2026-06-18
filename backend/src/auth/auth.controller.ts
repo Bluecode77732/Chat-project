@@ -1,4 +1,5 @@
 import {
+  Body,
   ClassSerializerInterceptor,
   Controller,
   HttpCode,
@@ -25,6 +26,7 @@ import {
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { bearerTokenType } from './dto/token-types.auth.dto';
+import { RegisterDto } from './dto/register.dto';
 
 const REFRESH_TOKEN_COOKIE = 'refreshToken';
 const COOKIE_OPTIONS = {
@@ -41,11 +43,14 @@ export class AuthController {
 
   @Post('register')
   @ApiBasicAuth()
-  @ApiBody({ type: CreateUserDto })
+  @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'Created User.', type: UserEntity })
   @ApiOperation({ description: 'Register User with Basic Token' })
-  register(@Headers('authorization') rawToken: string) {
-    return this.authService.register(rawToken);
+  register(
+    @Headers('authorization') rawToken: string,
+    @Body() registerDto: RegisterDto,
+  ) {
+    return this.authService.register(rawToken, registerDto?.nickname);
   }
 
   @Post('signin')

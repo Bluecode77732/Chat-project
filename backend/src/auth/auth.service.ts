@@ -75,7 +75,7 @@ export class AuthService {
     };
   }
 
-  async register(rawToken: string) {
+  async register(rawToken: string, nickname?: string) {
     // Extracts email and password from basic token
     const { email, password } = this.parseBasicToken(rawToken);
 
@@ -92,6 +92,15 @@ export class AuthService {
       throw new BadRequestException('User Already Exist.');
     }
 
+    if (nickname) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname },
+      });
+      if (existingNickname) {
+        throw new BadRequestException('Nickname already in use.');
+      }
+    }
+
     // Hashing the password by bcrypt in secret hashing rounds
     const hash = await bcrypt.hash(
       password,
@@ -103,6 +112,7 @@ export class AuthService {
       email,
       password: hash,
       role: UserRole.user,
+      nickname,
     });
 
     logger.info(`User '${email}' is registered`);
