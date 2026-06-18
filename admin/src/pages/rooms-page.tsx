@@ -30,7 +30,7 @@ function RoomsPage() {
 
     const signOut = async () => {
         try {
-            await api.delete('/auth/signout');
+            await api.post('/auth/signOut');
         } catch {
             // best effort
         } finally {

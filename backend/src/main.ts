@@ -63,7 +63,11 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(process.env.PORT ?? 3000);
-  logger.info(`Server running on port ${process.env.PORT ?? 3000}`);
+  // Only bare `pnpm start:dev` (NODE_ENV=development) is restricted to loopback.
+  // docker-compose sets NODE_ENV=docker and Railway's value is unconfirmed in this repo,
+  // so both must keep binding to 0.0.0.0 or the container/proxy can't reach the app.
+  const host = process.env.NODE_ENV === 'development' ? '127.0.0.1' : '0.0.0.0';
+  await app.listen(process.env.PORT ?? 3000, host);
+  logger.info(`Server running on ${host}:${process.env.PORT ?? 3000}`);
 }
 bootstrap().catch(console.error);

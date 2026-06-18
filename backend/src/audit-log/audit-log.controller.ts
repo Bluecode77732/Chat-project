@@ -17,13 +17,13 @@ import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 @ApiTags('Audit Log API')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RBACguard)
-@RBAC(UserRole.admin)
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('audit-log')
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
+  @RBAC(UserRole.admin)
   findAll(@Query() query: AuditLogQueryDto) {
     return this.auditLogService.findAll(query);
   }

@@ -27,6 +27,11 @@ type RoomInfoType {
   recipientId: Int!
 }
 
+type AdminRoomType {
+  roomId: Int!
+  participantIds: [Int!]!
+}
+
 type AiPersonalityInfoType {
   personality: AiPersonality
   canChange: Boolean!
@@ -40,6 +45,7 @@ enum AiPersonality {
 }
 
 type Query {
+  getAllRooms: [AdminRoomType!]!
   ping: String!
   getAiUserId: Int!
   getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType
@@ -52,6 +58,7 @@ type Query {
 }
 
 type Mutation {
+  deleteRoom(roomId: Int!): Boolean!
   setAiPersonality(roomId: Int!, personality: AiPersonality!): Boolean!
   sendMessage(input: CreateChatInput!, recipientId: Int!): MessageType!
 }

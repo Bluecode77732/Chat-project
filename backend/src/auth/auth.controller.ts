@@ -1,10 +1,12 @@
 import {
+  ClassSerializerInterceptor,
   Controller,
   HttpCode,
   Post,
   Headers,
   Request,
   UseGuards,
+  UseInterceptors,
   Req,
   Res,
   UnauthorizedException,
@@ -33,6 +35,7 @@ const COOKIE_OPTIONS = {
 
 @Controller('auth')
 @ApiTags('Authentication API')
+@UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

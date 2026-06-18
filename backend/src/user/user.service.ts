@@ -182,6 +182,7 @@ export class UserService {
     }
 
     await this.userRepository.update({ id: targetId }, { role });
+    await this.redis.del(`user_cache:${targetId}`);
 
     const roleLabel = (r: number) => UserRole[r] ?? String(r);
     await this.auditLogService.log(
@@ -205,7 +206,8 @@ export class UserService {
       }
     }
 
-    return { ...target, role };
+    target.role = role;
+    return target;
   }
 
   async forceLogout(actorId: number, targetId: number): Promise<void> {

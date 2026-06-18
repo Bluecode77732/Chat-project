@@ -47,7 +47,7 @@ function LogsPage() {
     };
 
     const signOut = async () => {
-        try { await api.delete('/auth/signout'); } catch { /* best effort */ }
+        try { await api.post('/auth/signOut'); } catch { /* best effort */ }
         clearTokens();
         navigate('/');
     };
