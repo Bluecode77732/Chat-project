@@ -47,7 +47,7 @@ Before implementing anything non-trivial, ask the one question that applies:
 | New Guard                             | Where in the `JwtAuthGuard → RbacGuard → handler` chain does this sit?            |
 | New Redis key                         | What TTL and does it follow `{service}:{entity}:{id}` naming?                     |
 | New GraphQL type or field             | Will this conflict with existing types in `schema.gql`?                            |
-| Frontend auth flow change             | Does `apollo.ts` errorLink or `socket.ts` reconnectSocket need a parallel update? |
+| Frontend auth flow change             | Does `apollo.ts` errorLink, `axios.ts` interceptor, `protected-route.tsx`, or `socket.ts` reconnectSocket need a parallel update via `auth/session-guard.ts`? |
 
 Ask one focused question rather than a list. Do not proceed on assumptions when intent is ambiguous.
 
@@ -398,6 +398,7 @@ docker compose up -d --build
 - **`api/graphql-operations.ts`** — all GQL queries, mutations, subscriptions in one file
 - **`socket/socket.ts`** — Socket.IO client singleton
 - **`store/auth.store.ts`** — Zustand store: JWT in memory, refresh token in localStorage
+- **`auth/session-guard.ts`** — single entry point for silent accessToken refresh; detects cross-tab account conflicts
 - **`pages/`** — `chat-page.tsx`, `signin-page.tsx`, `register-page.tsx`
 - **`components/protected-route.tsx`** — wraps authenticated routes
 
@@ -448,6 +449,13 @@ const mockRepository = {
 - `lastRecipientId` — only persisted field via `persist` middleware
 - Non-React contexts (apollo.ts, socket.ts): always read via `useAuthStore.getState()`, not hooks
 - **Never**: add a second `persist` key for auth data; never access `localStorage` directly for tokens
+
+#### Session Guard (`frontend/src/auth/session-guard.ts`)
+- `refreshAccessTokenSafely()` is the **only** way to silently re-derive an accessToken from the shared `refreshToken` cookie — `protected-route.tsx`, `apollo.ts` (errorLink + wsLink), and `axios.ts` all call this one function instead of hitting `/auth/token/refreshaccess` directly
+- Concurrent callers share one in-flight request (`pendingRefresh`) — this isn't just a thundering-herd optimization, it closes a real race where a second caller could land between a conflict's `clearSessionUser()` and the redirect, and silently adopt the conflicting account
+- `sessionStorage['chat:sessionUserId']` is a tab-scoped marker (not shared across tabs, unlike the cookie) recording which account this tab last authenticated as — a refresh that resolves to a different account means a sibling tab logged in as someone else and overwrote the shared cookie; the tab is logged out instead of silently switching identity
+- Conflict-triggered logouts redirect to `/?reason=conflict`, which `signin-page.tsx` reads to show a neutral "logged out elsewhere" notice — never a security-alarm-toned message, since this guard can't distinguish a benign second login from an actual compromise
+- **Never**: call `/auth/token/refreshaccess` directly from a new call site, or call `setTokens()`/`clearTokens()` around a silent refresh without going through this module
 
 #### Apollo Client (`frontend/src/api/apollo.ts`)
 - `errorLink` owns all 401 recovery (refresh → retry) — do not add duplicate retry logic in components
