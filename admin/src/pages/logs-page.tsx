@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@apollo/client/react';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { GET_USER_NICKNAMES } from '../api/graphql-operations';
 
 interface AuditLog {
     id: number;
@@ -28,6 +30,11 @@ function LogsPage() {
     const [page, setPage] = useState(1);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
+    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES);
+    const nicknameById = new Map(
+        nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
+    );
+    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
 
     useEffect(() => {
         api.get('/audit-log', { params: { action: action || undefined, page } })
@@ -113,8 +120,8 @@ function LogsPage() {
                                                     {log.action}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3">{log.actorId}</td>
-                                            <td className="px-4 py-3">{log.targetId ?? '—'}</td>
+                                            <td className="px-4 py-3">{displayName(log.actorId)}</td>
+                                            <td className="px-4 py-3">{log.targetId !== null ? displayName(log.targetId) : '—'}</td>
                                             <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>
                                         </tr>
                                     ))}

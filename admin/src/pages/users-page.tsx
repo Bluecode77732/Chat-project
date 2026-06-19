@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth.store';
 interface User {
     id: number;
     email: string;
+    nickname: string | null;
     role: number;
 }
 
@@ -110,6 +111,7 @@ function UsersPage() {
                             <thead className="bg-gray-100 text-left">
                                 <tr>
                                     <th className="px-4 py-3">ID</th>
+                                    <th className="px-4 py-3">Nickname</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Role</th>
                                     <th className="px-4 py-3">Actions</th>
@@ -119,6 +121,7 @@ function UsersPage() {
                                 {users.map((u) => (
                                     <tr key={u.id} className="border-t">
                                         <td className="px-4 py-3">{u.id}</td>
+                                        <td className="px-4 py-3">{u.nickname ?? '—'}</td>
                                         <td className="px-4 py-3">{u.email}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${

@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@apollo/client/react';
-import { GET_ALL_ROOMS, DELETE_ROOM } from '../api/graphql-operations';
+import { GET_ALL_ROOMS, DELETE_ROOM, GET_USER_NICKNAMES } from '../api/graphql-operations';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth.store';
@@ -12,6 +12,11 @@ interface Room {
 
 function RoomsPage() {
     const { data, loading, refetch } = useQuery<{ getAllRooms: Room[] }>(GET_ALL_ROOMS);
+    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES);
+    const nicknameById = new Map(
+        nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
+    );
+    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
     const [actionMsg, setActionMsg] = useState('');
     const navigate = useNavigate();
@@ -86,7 +91,7 @@ function RoomsPage() {
                                 {data?.getAllRooms.map((room: Room) => (
                                     <tr key={room.roomId} className="border-t">
                                         <td className="px-4 py-3">{room.roomId}</td>
-                                        <td className="px-4 py-3">{room.participantIds.join(', ')}</td>
+                                        <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                         <td className="px-4 py-3">
                                             <button
                                                 onClick={() => handleDelete(room.roomId)}

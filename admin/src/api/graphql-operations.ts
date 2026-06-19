@@ -14,3 +14,12 @@ export const DELETE_ROOM = gql`
     deleteRoom(roomId: $roomId)
   }
 `;
+
+export const GET_USER_NICKNAMES = gql`
+  query GetUserNicknames {
+    getUserNicknames {
+      id
+      nickname
+    }
+  }
+`;
