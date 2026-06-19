@@ -1,23 +1,15 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth.store";
 import { useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode";
-import api from "../api/axios";
+import { refreshAccessTokenSafely } from "../auth/session-guard";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    const { accessToken, setTokens, clearTokens } = useAuthStore();
+    const { accessToken } = useAuthStore();
     const [initializing, setInitializing] = useState(!accessToken);
 
     useEffect(() => {
         if (!accessToken) {
-            // refreshToken cookie is sent automatically via withCredentials
-            api.post('/auth/token/refreshaccess')
-                .then(({ data }) => {
-                    const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
-                    setTokens(data.accessToken, sub);
-                })
-                .catch(() => clearTokens())
-                .finally(() => setInitializing(false));
+            refreshAccessTokenSafely().finally(() => setInitializing(false));
         }
     }, []);
 

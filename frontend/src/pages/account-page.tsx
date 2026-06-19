@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { socket } from '../socket/socket';
 import api from '../api/axios';
+import { clearSessionUser } from '../auth/session-guard';
 
 interface UserInfo {
     email: string;
@@ -78,6 +79,7 @@ function AccountPage() {
             // 소켓 해제 → 토큰 정리 → 로그인 화면
             socket.disconnect();
             clearTokens();
+            clearSessionUser();
             navigate('/');
         } catch (err: unknown) {
             const message =

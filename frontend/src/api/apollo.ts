@@ -8,8 +8,7 @@ import { SetContextLink } from '@apollo/client/link/context'
 import { ErrorLink } from '@apollo/client/link/error'
 import { CombinedGraphQLErrors } from '@apollo/client/errors'
 import { Observable } from 'rxjs'
-import { jwtDecode } from 'jwt-decode'
-import api from './axios';
+import { refreshAccessTokenSafely } from '../auth/session-guard'
 
 const httpLink = new HttpLink({
     uri: `${import.meta.env.VITE_API_URL}/graphql`,
@@ -19,22 +18,13 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
     if (CombinedGraphQLErrors.is(error) &&
         error.errors.some(e => e.extensions?.['code'] === 'UNAUTHENTICATED')) {
         return new Observable<ApolloLink.Result>((observer) => {
-            const { setTokens } = useAuthStore.getState()
-
-            // refreshToken cookie is sent automatically via withCredentials
-            api.post('/auth/token/refreshaccess')
-                .then(({ data }) => {
-                    const { sub } = jwtDecode<{ sub: number }>(data.accessToken)
-                    setTokens(data.accessToken, sub)
-                    operation.setContext(({ headers = {} }) => ({
-                        headers: { ...headers, authorization: `Bearer ${data.accessToken}` },
-                    }))
-                    forward(operation).subscribe(observer)
-                })
-                .catch(() => {
-                    useAuthStore.getState().clearTokens()
-                    window.location.replace('/')
-                })
+            refreshAccessTokenSafely().then((accessToken) => {
+                if (!accessToken) return
+                operation.setContext(({ headers = {} }) => ({
+                    headers: { ...headers, authorization: `Bearer ${accessToken}` },
+                }))
+                forward(operation).subscribe(observer)
+            })
         })
     }
 })
@@ -53,22 +43,13 @@ const wsLink = new GraphQLWsLink(
         url: `${import.meta.env.VITE_WS_URL}/graphql`,
         retryAttempts: 5,
         connectionParams: async () => {
-            let { accessToken, setTokens } = useAuthStore.getState();
+            let { accessToken } = useAuthStore.getState();
 
             if (!accessToken) {
-                try {
-                    // refreshToken cookie is sent automatically via withCredentials
-                    const { data } = await api.post('/auth/token/refreshaccess');
-                    const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
-                    setTokens(data.accessToken, sub);
-                    accessToken = data.accessToken;
-                } catch {
-                    useAuthStore.getState().clearTokens();
-                    window.location.replace('/');
-                }
+                accessToken = await refreshAccessTokenSafely();
             }
 
-            return { authorization: `Bearer ${accessToken}` };
+            return { authorization: `Bearer ${accessToken ?? ''}` };
         },
     }),
 );

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import api from "../api/axios";
+import { clearSessionUser } from "../auth/session-guard";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
@@ -381,6 +382,7 @@ function ChatPage() {
         }
         socket.disconnect();
         clearTokens();
+        clearSessionUser();
         navigate('/');
     };
 
