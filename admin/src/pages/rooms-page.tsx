@@ -12,7 +12,9 @@ interface Room {
 
 function RoomsPage() {
     const { data, loading, refetch } = useQuery<{ getAllRooms: Room[] }>(GET_ALL_ROOMS);
-    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES);
+    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES, {
+        pollInterval: 60000,
+    });
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
     );

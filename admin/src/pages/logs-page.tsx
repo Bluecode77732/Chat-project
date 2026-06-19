@@ -30,7 +30,9 @@ function LogsPage() {
     const [page, setPage] = useState(1);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
-    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES);
+    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: number; nickname: string | null }> }>(GET_USER_NICKNAMES, {
+        pollInterval: 60000,
+    });
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
     );
