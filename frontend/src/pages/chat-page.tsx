@@ -58,7 +58,7 @@ interface AllUsersData {
 }
 
 interface UserNicknamesData {
-    getUserNicknames: Array<{ id: number; nickname: string | null }>;
+    getUserNicknames: Array<{ id: string; nickname: string | null }>;
 }
 
 interface MyRoomsData {
@@ -107,7 +107,7 @@ function ChatPage() {
         pollInterval: 60000,
     });
     const nicknameById = new Map(
-        nicknamesData?.getUserNicknames.map((u) => [u.id, u.nickname]) ?? []
+        nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
     );
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
