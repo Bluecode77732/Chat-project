@@ -366,7 +366,7 @@ docker compose up -d --build
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/token/refreshaccess`
 - JWT access + refresh token pair; access token in memory, refresh token in localStorage
 - Guards: `JwtAuthGuard`, `LocalAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
-- `UserRole` enum: `user` (0) | `admin` (1)
+- `UserRole` enum: `user` (0) | `admin` (1) | `superadmin` (2) — `RbacGuard` compares numeric privilege level (`rbac.guard.ts`); the last remaining `superadmin` cannot be demoted (`user.service.ts`)
 
 **ChatModule** (`backend/src/chat/`)
 - `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms, handles `sendMessage`
