@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import api from "../api/axios";
-import { clearSessionUser } from "../auth/session-guard";
+import { clearSessionUser, refreshAccessTokenSafely } from "../auth/session-guard";
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
@@ -271,8 +271,13 @@ function ChatPage() {
 
         socket.on('connect_error', (err) => {
             console.error('Socket has failed to connect: ', err.message);
-            // Recreate socket with the latest token (handles expired token reconnect loop)
-            setTimeout(() => reconnectSocket(), 3000);
+            // Refresh first: if the refresh token is also expired, refreshAccessTokenSafely()
+            // triggers rejectSession() (logout) internally, so we must not blindly retry the
+            // same stale token forever.
+            refreshAccessTokenSafely().then((accessToken) => {
+                if (!accessToken) return;
+                setTimeout(() => reconnectSocket(), 3000);
+            });
         });
 
         return () => {
