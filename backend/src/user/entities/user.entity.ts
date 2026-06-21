@@ -35,7 +35,7 @@ export class UserEntity extends EntityBase {
   @Column({ default: false })
   isAI?: boolean;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, unique: true })
   @IsString()
   @IsOptional()
   @MaxLength(20)
