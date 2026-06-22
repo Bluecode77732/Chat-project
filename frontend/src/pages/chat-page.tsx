@@ -6,6 +6,7 @@ import { clearSessionUser, refreshAccessTokenSafely } from "../auth/session-guar
 import DOMpurify from 'dompurify';
 import { useNavigate } from "react-router-dom";
 import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client/react";
+import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import {
     SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_ALL_USERS, GET_MESSAGES,
     GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
@@ -13,6 +14,9 @@ import {
     SendMessageVariables,
 } from "../api/graphql-operations";
 import AiPersonalitySelector from "../components/ai-personality-selector";
+import RateLimitModal from "../components/rate-limit-modal";
+
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 interface Message {
     id?: number;
@@ -79,6 +83,7 @@ function ChatPage() {
     const [recipientId, setRecipientId] = useState<number | null>(lastRecipientId);
     const navigate = useNavigate();
 
+    const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState<number | null>(null);
     const [pendingPersonality, setPendingPersonality] = useState<string | null>(null);
     const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
     const [isInitialSelect, setIsInitialSelect] = useState(true);
@@ -287,21 +292,40 @@ function ChatPage() {
         };
     }, [accessToken]);
 
+    // Rate-limit modal countdown: ticks down once per second, auto-closes at 0
+    useEffect(() => {
+        if (rateLimitSecondsLeft === null) return;
+        const timer = window.setTimeout(() => {
+            setRateLimitSecondsLeft(s => (s !== null && s > 1) ? s - 1 : null);
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [rateLimitSecondsLeft]);
+
     const sendMessage = async () => {
-        if (!input.trim() || !recipientId || !userId) return;
+        if (!input.trim() || !recipientId || !userId || rateLimitSecondsLeft !== null) return;
 
         const isAiChat = aiUserId !== null && recipientId === aiUserId;
         const aiPersonalityToSend = isAiChat ? pendingPersonality : undefined;
 
-        const { data } = await sendMessageMutation({
-            variables: {
-                input: {
-                    message: input,
-                    ...(aiPersonalityToSend ? { aiPersonality: aiPersonalityToSend } : {}),
+        let data: SendMessageData | null | undefined;
+        try {
+            ({ data } = await sendMessageMutation({
+                variables: {
+                    input: {
+                        message: input,
+                        ...(aiPersonalityToSend ? { aiPersonality: aiPersonalityToSend } : {}),
+                    },
+                    recipientId,
                 },
-                recipientId,
-            },
-        });
+            }));
+        } catch (err) {
+            if (CombinedGraphQLErrors.is(err) &&
+                err.errors.some(e => e.extensions?.['code'] === 'TOO_MANY_REQUESTS')) {
+                setRateLimitSecondsLeft(RATE_LIMIT_WINDOW_SECONDS);
+                return;
+            }
+            throw err;
+        }
 
         const newRoomId = data?.sendMessage?.roomId;
 
@@ -526,6 +550,9 @@ function ChatPage() {
                 isInitial={isInitialSelect}
             />
         )}
+        {rateLimitSecondsLeft !== null && (
+            <RateLimitModal secondsLeft={rateLimitSecondsLeft} />
+        )}
         <div className="flex gap-2 mt-4">
                 <input
                     value={input}
@@ -536,7 +563,12 @@ function ChatPage() {
                 />
                 <button
                     onClick={sendMessage}
-                    className="bg-blue-500 text-white px-4 rounded"
+                    disabled={rateLimitSecondsLeft !== null}
+                    className={`px-4 rounded ${
+                        rateLimitSecondsLeft !== null
+                            ? 'bg-blue-500 bg-opacity-30 text-white cursor-not-allowed'
+                            : 'bg-blue-500 text-white'
+                    }`}
                 >
                     Send
                 </button>
