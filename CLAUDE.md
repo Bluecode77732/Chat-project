@@ -372,7 +372,7 @@ docker compose up -d --build
 - `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms, handles `sendMessage`
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
-- `RateLimitGuard` — Redis-backed 10 messages/min per user
+- `RateLimitGuard` — Redis-backed 10 messages/15s per user
 - Transaction interceptors wrap both REST and WebSocket handlers for ACID message saves
 
 **RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`

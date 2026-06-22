@@ -332,7 +332,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 ## 기능
 - 실시간 양방향 메시지 전송
-- 속도 제한 - 사용자당 분당 10개 메시지
+- 속도 제한 - 사용자당 15초당 10개 메시지
 - 서버 재시작 시에도 유지되는 사용자 세션
 - 사용자 간 개인 채팅방
 - 트랜잭션 안전한 메시지 저장 및 전달
@@ -756,7 +756,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 - 시스템 프롬프트로 응답 길이 강제: 가벼운 대화·인사 1-3줄, 설명이 필요한 질문 4-5줄, 최대 5줄 초과 금지
 
 **Rate Limiting & 비용 제어**
-- 기존 `RateLimitGuard`(사용자당 분당 10개)가 `sendMessage` 뮤테이션에 동일 적용되어 AI 호출 빈도를 간접적으로 제한
+- 기존 `RateLimitGuard`(사용자당 15초당 10개)가 `sendMessage` 뮤테이션에 동일 적용되어 AI 호출 빈도를 간접적으로 제한
 - Redis 분산 락(`ai:lock:${roomId}`, TTL 30s)으로 동일 방에서 AI 응답이 동시에 중복 생성되는 것을 방지
 - AI 응답은 수신자가 AI 유저(`recipientId === aiUserId`)일 때만 트리거
 

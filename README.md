@@ -335,7 +335,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 
 ## Features
 - Real-time bidirectional messaging
-- Rate limiting - 10 messages per minute/user
+- Rate limiting - 10 messages per 15s/user
 - Persistent user sessions across server restarts
 - Private chat rooms between users
 - Transaction-safe message storage & delivery
@@ -758,7 +758,7 @@ Powered by Google Gemini 2.5 Flash. The `AiModule` contains two services:
 - System prompt enforces 1-3 lines for casual/greetings, 4-5 lines for detailed questions (never more than 5)
 
 **Rate Limiting & Cost Control**
-- The same `RateLimitGuard` (10 messages/min per user) applies to the `sendMessage` mutation, indirectly capping AI call frequency
+- The same `RateLimitGuard` (10 messages/15s per user) applies to the `sendMessage` mutation, indirectly capping AI call frequency
 - Redis distributed lock (`ai:lock:${roomId}`, 30s TTL) prevents concurrent duplicate AI replies within the same room
 - AI reply is only triggered when the recipient is the AI user (`recipientId === aiUserId`)
 
