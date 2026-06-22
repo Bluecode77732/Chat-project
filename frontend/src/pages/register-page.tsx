@@ -52,6 +52,7 @@ function RegisterPage() {
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
                 })}
                     placeholder='email'
+                    data-testid='register-email-input'
                     className='border p-2 rounded'>
                 </input>
                 {/* Sign in failure error */}
@@ -63,6 +64,7 @@ function RegisterPage() {
                 })}
                     type='password'
                     placeholder='password'
+                    data-testid='register-password-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
@@ -71,6 +73,7 @@ function RegisterPage() {
                 })}
                     placeholder='nickname (optional)'
                     maxLength={20}
+                    data-testid='register-nickname-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.nickname && <span className='text-red-500 text-sm'>{errors.nickname.message}</span>}
@@ -78,10 +81,12 @@ function RegisterPage() {
                 {success && <span className='text-green-500 text-sm'>Registration Successful! Redirecting...</span>}
                 {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
                 <button onClick={handleSubmit(onSubmit)}
+                    data-testid='register-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
                     Register
                 </button>
                 <button onClick={() => navigate('/')}
+                    data-testid='register-signin-link'
                     className='text-blue-500 text-sm'
                 >
                 Already have an account? Sign In.

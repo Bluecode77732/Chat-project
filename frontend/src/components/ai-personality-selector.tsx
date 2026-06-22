@@ -53,6 +53,7 @@ export default function AiPersonalitySelector({
                                 onClick={() => {
                                     if (!disabled) onSelect(opt.value);
                                 }}
+                                data-testid={`personality-option-${opt.value.toLowerCase()}`}
                                 className={`text-left p-3 rounded-lg border transition-colors ${
                                     isActive
                                         ? 'border-blue-500 bg-blue-50'
@@ -69,6 +70,7 @@ export default function AiPersonalitySelector({
                 </div>
                 <button
                     onClick={onClose}
+                    data-testid="personality-close-button"
                     className="mt-4 w-full text-sm text-gray-400 hover:text-gray-600"
                 >
                     닫기

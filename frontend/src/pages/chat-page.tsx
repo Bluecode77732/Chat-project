@@ -420,10 +420,10 @@ function ChatPage() {
             <div className="flex justify-between items-center mb-4">
                 <span className="font-bold">Chat</span>
                 <div className="flex gap-3">
-                    <button onClick={() => navigate('/account')} className="text-gray-500 text-sm hover:text-gray-700">
+                    <button onClick={() => navigate('/account')} data-testid="chat-account-button" className="text-gray-500 text-sm hover:text-gray-700">
                         계정
                     </button>
-                    <button onClick={signOut} className="text-red-500 text-sm">
+                    <button onClick={signOut} data-testid="chat-signout-button" className="text-red-500 text-sm">
                         Sign Out
                     </button>
                 </div>
@@ -434,6 +434,7 @@ function ChatPage() {
                     onMouseDown={() => handleScrollMouseDown('left')}
                     onMouseUp={() => handleScrollMouseUp('left')}
                     onMouseLeave={stopScroll}
+                    data-testid="chat-scroll-left-button"
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
                 >
                     ‹
@@ -515,6 +516,7 @@ function ChatPage() {
                     onMouseDown={() => handleScrollMouseDown('right')}
                     onMouseUp={() => handleScrollMouseUp('right')}
                     onMouseLeave={stopScroll}
+                    data-testid="chat-scroll-right-button"
                     className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 select-none"
                 >
                     ›
@@ -558,12 +560,14 @@ function ChatPage() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                    data-testid="chat-message-input"
                     className="flex-1 border p-2 rounded"
                     placeholder="Type Message"
                 />
                 <button
                     onClick={sendMessage}
                     disabled={rateLimitSecondsLeft !== null}
+                    data-testid="chat-send-button"
                     className={`px-4 rounded ${
                         rateLimitSecondsLeft !== null
                             ? 'bg-blue-500 bg-opacity-30 text-white cursor-not-allowed'

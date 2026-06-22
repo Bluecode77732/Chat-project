@@ -60,6 +60,7 @@ function SignInPage() {
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
                 })}
                     placeholder='email'
+                    data-testid='signin-email-input'
                     className='border p-2 rounded'>
                 </input>
                 {/* Sign in failure error */}
@@ -71,15 +72,18 @@ function SignInPage() {
                 })}
                     type='password'
                     placeholder='password'
+                    data-testid='signin-password-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
                 <button onClick={handleSubmit(onSubmit)}
+                    data-testid='signin-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
                     Sign In
                 </button>
                 <button onClick={() => navigate('/register')}
+                    data-testid='signin-register-link'
                     className='bg-white text-sm'>
                     Don't have an account? Register.
                 </button>

@@ -115,6 +115,7 @@ function AccountPage() {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        data-testid="account-email-input"
                         className="w-full border p-2 rounded-lg mb-3 text-sm"
                         disabled={profileLoading}
                     />
@@ -126,6 +127,7 @@ function AccountPage() {
                         type="text"
                         value={nickname}
                         onChange={(e) => setNickname(e.target.value)}
+                        data-testid="account-nickname-input"
                         className="w-full border p-2 rounded-lg mb-3 text-sm"
                         placeholder="다른 유저에게 표시될 이름"
                         maxLength={20}
@@ -139,6 +141,7 @@ function AccountPage() {
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
+                        data-testid="account-new-password-input"
                         className="w-full border p-2 rounded-lg mb-3 text-sm"
                         placeholder="변경하지 않으려면 비워두세요"
                         disabled={profileLoading}
@@ -154,6 +157,7 @@ function AccountPage() {
                     <button
                         onClick={handleProfileUpdate}
                         disabled={profileLoading || !email.trim()}
+                        data-testid="account-save-button"
                         className="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50"
                     >
                         {profileLoading ? '저장 중...' : '저장'}
@@ -174,6 +178,7 @@ function AccountPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleDeleteRequest(); }}
+                        data-testid="account-delete-password-input"
                         className="w-full border p-2 rounded-lg mb-3 text-sm"
                         placeholder="비밀번호 입력"
                         disabled={loading}
@@ -186,6 +191,7 @@ function AccountPage() {
                     <button
                         onClick={handleDeleteRequest}
                         disabled={loading}
+                        data-testid="account-delete-request-button"
                         className="w-full bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50"
                     >
                         계정 탈퇴
@@ -204,6 +210,7 @@ function AccountPage() {
                             <button
                                 onClick={() => setShowConfirm(false)}
                                 disabled={loading}
+                                data-testid="account-delete-cancel-button"
                                 className="flex-1 border py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
                             >
                                 취소
@@ -211,6 +218,7 @@ function AccountPage() {
                             <button
                                 onClick={handleConfirm}
                                 disabled={loading}
+                                data-testid="account-delete-confirm-button"
                                 className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
                             >
                                 {loading ? '처리 중...' : '탈퇴 확인'}
