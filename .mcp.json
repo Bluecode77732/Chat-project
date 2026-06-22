@@ -4,10 +4,18 @@
       "command": "npx",
       "args": [
         "-y",
-        "@playwright/mcp@latest",
+        "@playwright/mcp@0.0.76",
         "--isolated",
         "--allowed-origins",
-        "http://localhost:3000;http://localhost:5173"
+        "http://localhost:3000;http://localhost:5173",
+        "--allowed-hosts",
+        "localhost",
+        "--output-mode",
+        "file",
+        "--output-dir",
+        ".playwright-mcp/logs",
+        "--image-responses",
+        "omit"
       ]
     }
   }
