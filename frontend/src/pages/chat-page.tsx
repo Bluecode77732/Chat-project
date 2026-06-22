@@ -14,9 +14,9 @@ import {
     SendMessageVariables,
 } from "../api/graphql-operations";
 import AiPersonalitySelector from "../components/ai-personality-selector";
-import RateLimitModal from "../components/rate-limit-modal";
+import RateLimitNotice from "../components/rate-limit-notice";
 
-const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_WINDOW_SECONDS = 15;
 
 interface Message {
     id?: number;
@@ -553,7 +553,7 @@ function ChatPage() {
             />
         )}
         {rateLimitSecondsLeft !== null && (
-            <RateLimitModal secondsLeft={rateLimitSecondsLeft} />
+            <RateLimitNotice secondsLeft={rateLimitSecondsLeft} />
         )}
         <div className="flex gap-2 mt-4">
                 <input
@@ -570,7 +570,7 @@ function ChatPage() {
                     data-testid="chat-send-button"
                     className={`px-4 rounded ${
                         rateLimitSecondsLeft !== null
-                            ? 'bg-blue-500 bg-opacity-30 text-white cursor-not-allowed'
+                            ? 'bg-sky-200 text-sky-600 cursor-not-allowed'
                             : 'bg-blue-500 text-white'
                     }`}
                 >
