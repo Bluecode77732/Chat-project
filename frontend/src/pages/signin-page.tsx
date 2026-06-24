@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import { useState } from 'react'
 import { jwtDecode } from 'jwt-decode'
-import { recordSessionUser, SESSION_CONFLICT_REASON } from '../auth/session-guard'
+import { recordSessionUser, SESSION_CONFLICT_REASON, SESSION_EXPIRED_REASON } from '../auth/session-guard'
 
 interface SignInForm {
     email: string,
@@ -19,6 +19,7 @@ function SignInPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const sessionEnded = searchParams.get('reason') === SESSION_CONFLICT_REASON;
+    const sessionExpired = searchParams.get('reason') === SESSION_EXPIRED_REASON;
 
     const onSubmit = async (data: SignInForm) => {
         try {
@@ -52,6 +53,11 @@ function SignInPage() {
                 {sessionEnded && (
                     <span className='text-gray-500 text-sm'>
                         다른 곳에서 로그인되어 세션이 종료되었습니다. 다시 로그인해주세요.
+                    </span>
+                )}
+                {sessionExpired && (
+                    <span className='text-gray-500 text-sm'>
+                        로그인 세션이 만료되어 로그아웃되었습니다. 다시 로그인해주세요.
                     </span>
                 )}
                 {/* `register` collects the value */}

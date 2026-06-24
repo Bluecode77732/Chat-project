@@ -24,8 +24,13 @@ const assertSessionUser = (userId: number): boolean => {
 };
 
 export const SESSION_CONFLICT_REASON = 'conflict';
+export const SESSION_EXPIRED_REASON = 'expired';
 
-const rejectSession = (reason?: typeof SESSION_CONFLICT_REASON) => {
+type SessionRejectReason =
+    | typeof SESSION_CONFLICT_REASON
+    | typeof SESSION_EXPIRED_REASON;
+
+const rejectSession = (reason?: SessionRejectReason) => {
     useAuthStore.getState().clearTokens();
     clearSessionUser();
     window.location.replace(reason ? `/?reason=${reason}` : '/');
@@ -51,7 +56,7 @@ const doRefresh = async (): Promise<string | null> => {
         useAuthStore.getState().setTokens(data.accessToken, sub);
         return data.accessToken;
     } catch {
-        rejectSession();
+        rejectSession(SESSION_EXPIRED_REASON);
         return null;
     }
 };
