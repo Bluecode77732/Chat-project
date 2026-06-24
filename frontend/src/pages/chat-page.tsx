@@ -81,6 +81,8 @@ function ChatPage() {
     const { clearTokens, lastRecipientId, setLastRecipientId } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
     const [recipientId, setRecipientId] = useState<number | null>(lastRecipientId);
+    const [hideEmptyNotice, setHideEmptyNotice] = useState(() => localStorage.getItem('hideEmptyChatNotice') === 'true');
+    const [userSearchQuery, setUserSearchQuery] = useState('');
     const navigate = useNavigate();
 
     const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState<number | null>(null);
@@ -367,6 +369,11 @@ function ChatPage() {
         setLastRecipientId(aiUserId);
     };
 
+    const dismissEmptyNotice = () => {
+        localStorage.setItem('hideEmptyChatNotice', 'true');
+        setHideEmptyNotice(true);
+    };
+
     const handleScrollMouseDown = useCallback((direction: 'left' | 'right') => {
         holdTimerRef.current = window.setTimeout(() => {
             isHoldingRef.current = true;
@@ -430,6 +437,13 @@ function ChatPage() {
             </div>
             <div className="flex gap-2 mb-4 items-center">
                 <span className="text-xs text-gray-400 shrink-0">Conversations:</span>
+                <input
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    data-testid="chat-user-search-input"
+                    placeholder="검색"
+                    className="shrink-0 w-20 sm:w-28 text-xs border rounded-full px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                />
                 <button
                     onMouseDown={() => handleScrollMouseDown('left')}
                     onMouseUp={() => handleScrollMouseUp('left')}
@@ -443,11 +457,13 @@ function ChatPage() {
                     {(() => {
                         const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
                         const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
+                        const query = userSearchQuery.trim().toLowerCase();
                         return (
                             <>
                                 {/* Online users (including Me) */}
                                 {onlineData?.getOnlineUser
                                     ?.filter((id: number) => id !== aiUserId)
+                                    .filter((id: number) => id === userId || !query || displayName(id).toLowerCase().includes(query))
                                     .slice()
                                     .sort((a, b) => (a === userId ? -1 : b === userId ? 1 : 0))
                                     .map((id: number) => (
@@ -469,6 +485,7 @@ function ChatPage() {
                                 {/* Offline users — all registered users not currently online */}
                                 {allUsersData?.getAllUsers
                                     ?.filter((id) => id !== aiUserId && !onlineIds.has(id))
+                                    .filter((id) => !query || displayName(id).toLowerCase().includes(query))
                                     .map((id) => (
                                         <span
                                             key={`offline-${id}`}
@@ -528,6 +545,28 @@ function ChatPage() {
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto flex flex-col gap-2"
             >
+                {!hideEmptyNotice && !currentRoomId && messages.length === 0 && recipientId !== aiUserId && (
+                    <div className="flex-1 flex items-center justify-center">
+                        <span data-testid="chat-empty-placeholder" className="relative inline-flex items-center text-xs text-green-700 bg-green-50 rounded-full pl-4 pr-7 py-2">
+                            위를 클릭하여 대화하세요.
+                            <button
+                                onClick={dismissEmptyNotice}
+                                data-testid="chat-empty-placeholder-close"
+                                aria-label="닫기"
+                                className="absolute top-1 right-2 text-green-700/60 hover:text-green-700 leading-none"
+                            >
+                                ✕
+                            </button>
+                        </span>
+                    </div>
+                )}
+                {recipientId === aiUserId && !currentRoomId && messages.length === 0 && !showPersonalitySelector && (
+                    <div className="flex-1 flex items-center justify-center">
+                        <span data-testid="chat-ai-empty-placeholder" className="text-xs text-amber-800 bg-amber-50 rounded-full px-4 py-2">
+                            {pendingPersonality ? '성격 설정 완료! 메시지를 보내보세요.' : 'AI와의 대화도 시작해 보세요!'}
+                        </span>
+                    </div>
+                )}
                 {messages.map((msg, i) => (
                     <div
                         key={msg.id ?? i}
