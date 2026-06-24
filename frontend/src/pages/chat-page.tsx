@@ -255,7 +255,7 @@ function ChatPage() {
             if (!currentRoomId) return prev;
             if (prev.some(m => m.id === subData.receiveMessage.id)) return prev;
             return [...prev, {
-                id: subData.receiveMessage.id,
+                id: Number(subData.receiveMessage.id),
                 userId: senderId,
                 message: subData.receiveMessage.message,
                 roomId: currentRoomId,
