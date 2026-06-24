@@ -340,7 +340,7 @@ function ChatPage() {
         if (!effectiveRoomId) return;
 
         setMessages(prev => [...prev, {
-            id: data?.sendMessage?.id,
+            id: data?.sendMessage?.id !== undefined ? Number(data.sendMessage.id) : undefined,
             userId,
             message: input,
             roomId: effectiveRoomId,
