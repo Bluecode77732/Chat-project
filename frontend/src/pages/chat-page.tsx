@@ -425,7 +425,7 @@ function ChatPage() {
 
     return (
         <div className="flex flex-col h-screen p-4">
-            <div className="flex justify-between items-center mb-4 pb-3 shadow-sm">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                 <span className="text-2xl italic bg-linear-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300 }}>Chatterley</span>
                 <div className="flex gap-3">
                     <button onClick={() => navigate('/account')} data-testid="chat-account-button" className="text-gray-500 text-sm hover:text-gray-700">
