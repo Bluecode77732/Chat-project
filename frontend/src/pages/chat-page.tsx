@@ -124,6 +124,7 @@ function ChatPage() {
 
     const { data: aiUserData } = useQuery<{ getAiUserId: number }>(GET_AI_USER_ID);
     const aiUserId = aiUserData?.getAiUserId ?? null;
+    const initials = (id: number) => (aiUserId !== null && id === aiUserId) ? 'AI' : displayName(id).slice(0, 2).toUpperCase();
     const [fetchAiPersonalityInfo] = useLazyQuery<{ getAiPersonalityInfo: { personality: string | null; canChange: boolean } }>(
         GET_AI_PERSONALITY_INFO, { fetchPolicy: 'network-only' }
     );
@@ -565,20 +566,41 @@ function ChatPage() {
                         testId="chat-ai-empty-placeholder"
                     />
                 )}
-                {messages.map((msg, i) => (
-                    <div
-                        key={msg.id ?? i}
-                        className={`flex flex-col max-w-xs ${msg.userId === userId ? 'ml-auto items-end' : 'mr-auto items-start'}`}
-                    >
+                {messages.reduce<Message[][]>((groups, msg) => {
+                    const lastGroup = groups[groups.length - 1];
+                    if (lastGroup && lastGroup[0].userId === msg.userId) {
+                        lastGroup.push(msg);
+                    } else {
+                        groups.push([msg]);
+                    }
+                    return groups;
+                }, []).map((group, gi) => {
+                    const isMine = group[0].userId === userId;
+                    const isAi = aiUserId !== null && group[0].userId === aiUserId;
+                    return (
                         <div
-                            className={`p-2 rounded ${msg.userId === userId ? 'bg-blue-100' : 'bg-gray-100'}`}
-                            dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
-                        />
-                        {msg.createdAt && (
-                            <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
-                        )}
-                    </div>
-                ))}
+                            key={group[0].id ?? gi}
+                            className={`flex gap-2 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+                        >
+                            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-center text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
+                                {initials(group[0].userId)}
+                            </div>
+                            <div className={`flex flex-col gap-0.5 ${isMine ? 'items-end' : 'items-start'}`}>
+                                {group.map((msg, i) => (
+                                    <div key={msg.id ?? i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                                        <div
+                                            className={`p-2 rounded ${isMine ? 'bg-blue-100' : 'bg-gray-100'}`}
+                                            dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
+                                        />
+                                        {msg.createdAt && (
+                                            <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
             {showPersonalitySelector && (
             <AiPersonalitySelector
