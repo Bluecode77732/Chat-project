@@ -454,7 +454,10 @@ function ChatPage() {
                 >
                     ‹
                 </button>
-                <div ref={bannerRef} className="flex gap-2 overflow-x-hidden flex-1">
+                <div className="relative flex-1 overflow-hidden">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-white to-transparent z-10" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-white to-transparent z-10" />
+                    <div ref={bannerRef} className="flex gap-2 overflow-x-hidden">
                     {(() => {
                         const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
                         const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
@@ -494,7 +497,7 @@ function ChatPage() {
                                             onClick={() => { setRecipientId(id); setLastRecipientId(id); }}
                                             className={`shrink-0 px-3 py-1 rounded-full text-sm cursor-pointer ${
                                                 id === recipientId
-                                                    ? 'bg-blue-400 text-white opacity-50'
+                                                    ? 'bg-blue-400 text-white'
                                                     : myRoomUserIds.has(id)
                                                         ? 'border bg-white border-gray-300 hover:bg-gray-50'
                                                         : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
@@ -529,6 +532,7 @@ function ChatPage() {
                             </>
                         );
                     })()}
+                    </div>
                 </div>
                 <button
                     onMouseDown={() => handleScrollMouseDown('right')}
