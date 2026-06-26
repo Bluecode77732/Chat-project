@@ -149,6 +149,7 @@ export class UserService {
         email: updateUserDto.email,
         password: updateUserDto.password,
         nickname: updateUserDto.nickname,
+        profileImage: updateUserDto.profileImage,
       },
     );
     await this.redis.del(`user_cache:${id}`);

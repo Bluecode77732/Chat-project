@@ -260,7 +260,7 @@ export class ChatService {
   async getUserNicknames(): Promise<UserEntity[]> {
     return this.userRepository.find({
       where: { isAI: false },
-      select: ['id', 'nickname'],
+      select: ['id', 'nickname', 'profileImage'],
     });
   }
 

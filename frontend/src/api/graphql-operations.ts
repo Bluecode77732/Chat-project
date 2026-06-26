@@ -53,6 +53,7 @@ export const GET_USER_NICKNAMES = gql`
         getUserNicknames {
             id
             nickname
+            profileImage
         }
     }
 `

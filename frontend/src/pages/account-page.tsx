@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { socket } from '../socket/socket';
@@ -8,7 +8,11 @@ import { clearSessionUser } from '../auth/session-guard';
 interface UserInfo {
     email: string;
     nickname: string | null;
+    profileImage: string | null;
 }
+
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 function AccountPage() {
     const { userId, clearTokens } = useAuthStore();
@@ -20,6 +24,7 @@ function AccountPage() {
 
     const [email, setEmail] = useState('');
     const [nickname, setNickname] = useState('');
+    const [profileImage, setProfileImage] = useState<string | null>(null);
     const [newPassword, setNewPassword] = useState('');
     const [profileError, setProfileError] = useState<string | null>(null);
     const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
@@ -31,9 +36,29 @@ function AccountPage() {
             .then(({ data }) => {
                 setEmail(data.email);
                 setNickname(data.nickname ?? '');
+                setProfileImage(data.profileImage ?? null);
             })
             .catch(() => setProfileError('계정 정보를 불러오지 못했습니다.'));
     }, [userId]);
+
+    const handleProfileImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setProfileError(null);
+        if (!ALLOWED_PROFILE_IMAGE_TYPES.includes(file.type)) {
+            setProfileError('jpeg, png, webp 형식의 이미지만 업로드할 수 있습니다.');
+            return;
+        }
+        if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+            setProfileError('이미지 용량은 2MB 이하여야 합니다.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => setProfileImage(reader.result as string);
+        reader.onerror = () => setProfileError('이미지를 읽지 못했습니다.');
+        reader.readAsDataURL(file);
+    };
 
     const handleProfileUpdate = async () => {
         if (!userId) return;
@@ -44,6 +69,7 @@ function AccountPage() {
             await api.patch(`/user/${userId}`, {
                 email,
                 nickname,
+                profileImage,
                 ...(newPassword ? { password: newPassword } : {}),
             });
             setNewPassword('');
@@ -107,6 +133,31 @@ function AccountPage() {
 
                 <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                     <h2 className="font-semibold mb-4">프로필</h2>
+
+                    <div className="flex items-center gap-4 mb-4">
+                        {profileImage ? (
+                            <img
+                                src={profileImage}
+                                alt="프로필 이미지"
+                                className="w-16 h-16 rounded-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-white font-semibold">
+                                {(nickname || email).slice(0, 2)}
+                            </div>
+                        )}
+                        <label className="text-sm text-blue-500 hover:text-blue-600 cursor-pointer">
+                            이미지 변경
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleProfileImageSelect}
+                                data-testid="account-profile-image-input"
+                                className="hidden"
+                                disabled={profileLoading}
+                            />
+                        </label>
+                    </div>
 
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         이메일

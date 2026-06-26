@@ -63,7 +63,7 @@ interface AllUsersData {
 }
 
 interface UserNicknamesData {
-    getUserNicknames: Array<{ id: string; nickname: string | null }>;
+    getUserNicknames: Array<{ id: string; nickname: string | null; profileImage: string | null }>;
 }
 
 interface MyRoomsData {
@@ -116,6 +116,9 @@ function ChatPage() {
     });
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
+    );
+    const profileImageById = new Map(
+        nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.profileImage]) ?? []
     );
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
@@ -577,14 +580,23 @@ function ChatPage() {
                 }, []).map((group, gi) => {
                     const isMine = group[0].userId === userId;
                     const isAi = aiUserId !== null && group[0].userId === aiUserId;
+                    const profileImage = isAi ? null : profileImageById.get(group[0].userId);
                     return (
                         <div
                             key={group[0].id ?? gi}
                             className={`flex gap-2 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
                         >
-                            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-end text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
-                                {initials(group[0].userId)}
-                            </div>
+                            {profileImage ? (
+                                <img
+                                    src={profileImage}
+                                    alt={displayName(group[0].userId)}
+                                    className="shrink-0 w-7 h-7 rounded-full object-cover self-end"
+                                />
+                            ) : (
+                                <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-end text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
+                                    {initials(group[0].userId)}
+                                </div>
+                            )}
                             <div className={`flex flex-col gap-0.5 ${isMine ? 'items-end' : 'items-start'}`}>
                                 {group.map((msg, i) => (
                                     <div key={msg.id ?? i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>

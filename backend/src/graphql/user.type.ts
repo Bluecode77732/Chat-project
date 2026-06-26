@@ -13,6 +13,9 @@ export class UserType extends BaseType {
   @Field({ nullable: true })
   nickname?: string;
 
+  @Field({ nullable: true })
+  profileImage?: string;
+
   //* Fix: Removed showing password
   // @Field({ nullable: true })
   // password?: string;

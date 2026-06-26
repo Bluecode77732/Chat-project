@@ -41,6 +41,11 @@ export class UserEntity extends EntityBase {
   @MaxLength(20)
   nickname?: string;
 
+  @Column({ type: 'text', nullable: true })
+  @IsString()
+  @IsOptional()
+  profileImage?: string;
+
   @Column()
   @IsString()
   @IsNotEmpty()
