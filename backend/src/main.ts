@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
@@ -8,7 +9,7 @@ import { AllExceptionsFilter } from './base/filter/all-exceptions.filter';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Direct import of logger
     // It catches all bootstrap and failure errors when starting, which occurs before app.module.
     logger: WinstonModule.createLogger(logger),
@@ -17,6 +18,11 @@ async function bootstrap() {
   // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Default Express body limit (100kb) is far smaller than a base64-encoded
+  // profile image (~2.8MB at the 2MB raw-image cap) — raise it accordingly.
+  app.useBodyParser('json', { limit: '3mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '3mb' });
 
   app.useGlobalPipes(
     new ValidationPipe({

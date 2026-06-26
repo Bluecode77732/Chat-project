@@ -16,15 +16,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const isGraphQL = host.getType<'http' | 'ws' | 'graphql'>() === 'graphql';
 
-    const status: HttpStatus =
-      exception instanceof HttpException
+    // body-parser throws a plain Error (not an HttpException) when the request
+    // body exceeds the configured limit — surface it as a clean 413 instead of
+    // letting it fall through to a generic "Internal server error".
+    const isPayloadTooLarge =
+      !(exception instanceof HttpException) &&
+      typeof exception === 'object' &&
+      exception !== null &&
+      'type' in exception &&
+      exception.type === 'entity.too.large';
+
+    const status: HttpStatus = isPayloadTooLarge
+      ? HttpStatus.PAYLOAD_TOO_LARGE
+      : exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const responseBody =
       exception instanceof HttpException ? exception.getResponse() : undefined;
-    const message: string =
-      exception instanceof HttpException
+    const message: string = isPayloadTooLarge
+      ? '이미지 용량 크기가 너무 커요!'
+      : exception instanceof HttpException
         ? typeof responseBody === 'object' &&
           responseBody !== null &&
           'message' in responseBody &&

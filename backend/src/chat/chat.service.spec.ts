@@ -804,7 +804,7 @@ describe('ChatService', () => {
       const mockUsers = [
         { id: 1, nickname: 'Alice', profileImage: null },
         { id: 2, nickname: null, profileImage: null },
-      ] as UserEntity[];
+      ] as unknown as UserEntity[];
       jest.spyOn(userRepository, 'find').mockResolvedValue(mockUsers);
 
       const result = await chatService.getUserNicknames();
