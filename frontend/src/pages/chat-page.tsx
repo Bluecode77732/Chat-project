@@ -99,6 +99,7 @@ function ChatPage() {
     const holdTimerRef = useRef<number | null>(null);
     const scrollIntervalRef = useRef<number | null>(null);
     const isHoldingRef = useRef(false);
+    const messageInputRef = useRef<HTMLInputElement>(null);
 
     const [sendMessageMutation] = useMutation<SendMessageData, SendMessageVariables>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
@@ -128,10 +129,29 @@ function ChatPage() {
     const { data: aiUserData } = useQuery<{ getAiUserId: number }>(GET_AI_USER_ID);
     const aiUserId = aiUserData?.getAiUserId ?? null;
     const initials = (id: number) => (aiUserId !== null && id === aiUserId) ? 'AI' : displayName(id).slice(0, 2);
+    // iMessage-style tail: a small same-color blob plus a page-background-color mask curving part of it away.
+    const bubbleTailClass = (isMine: boolean) =>
+        isMine
+            ? "before:content-[''] before:absolute before:bottom-[-2px] before:right-[-7px] before:w-[15px] before:h-[15px] before:bg-blue-100 before:rounded-bl-[15px] after:content-[''] after:absolute after:bottom-[-2px] after:right-[-10px] after:w-[10px] after:h-[15px] after:bg-white after:rounded-bl-[10px]"
+            : "before:content-[''] before:absolute before:bottom-[-2px] before:left-[-7px] before:w-[15px] before:h-[15px] before:bg-gray-100 before:rounded-br-[15px] after:content-[''] after:absolute after:bottom-[-2px] after:left-[-10px] after:w-[10px] after:h-[15px] after:bg-white after:rounded-br-[10px]";
     const [fetchAiPersonalityInfo] = useLazyQuery<{ getAiPersonalityInfo: { personality: string | null; canChange: boolean } }>(
         GET_AI_PERSONALITY_INFO, { fetchPolicy: 'network-only' }
     );
     const [setAiPersonalityMutation] = useMutation<{ setAiPersonality: boolean }>(SET_AI_PERSONALITY);
+
+    useEffect(() => {
+        const handleSlashFocus = (e: KeyboardEvent) => {
+            if (e.key !== '/') return;
+            if (showPersonalitySelector) return;
+            const target = e.target as HTMLElement;
+            const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+            if (isTyping) return;
+            e.preventDefault();
+            messageInputRef.current?.focus();
+        };
+        document.addEventListener('keydown', handleSlashFocus);
+        return () => document.removeEventListener('keydown', handleSlashFocus);
+    }, [showPersonalitySelector]);
 
     useEffect(() => {
         if (!recipientId) return;
@@ -552,7 +572,7 @@ function ChatPage() {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto flex flex-col gap-2"
+                className="flex-1 min-w-0 overflow-y-auto flex flex-col gap-2"
             >
                 {!hideEmptyNotice && !currentRoomId && messages.length === 0 && recipientId !== aiUserId && (
                     <EmptyStateNotice
@@ -584,7 +604,7 @@ function ChatPage() {
                     return (
                         <div
                             key={group[0].id ?? gi}
-                            className={`flex gap-2 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+                            className={`flex gap-2.5 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
                         >
                             {profileImage ? (
                                 <img
@@ -597,18 +617,21 @@ function ChatPage() {
                                     {initials(group[0].userId)}
                                 </div>
                             )}
-                            <div className={`flex flex-col gap-0.5 ${isMine ? 'items-end' : 'items-start'}`}>
-                                {group.map((msg, i) => (
-                                    <div key={msg.id ?? i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                                        <div
-                                            className={`p-2 rounded ${isMine ? 'bg-blue-100' : 'bg-gray-100'}`}
-                                            dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
-                                        />
-                                        {msg.createdAt && (
-                                            <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
-                                        )}
-                                    </div>
-                                ))}
+                            <div className={`flex flex-col gap-0.5 min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
+                                {group.map((msg, i) => {
+                                    const isLast = i === group.length - 1;
+                                    return (
+                                        <div key={msg.id ?? i} className={`flex flex-col min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
+                                            <div
+                                                className={`relative p-2 rounded-2xl wrap-break-word max-w-[70vw] ${isMine ? 'bg-blue-100' : 'bg-gray-100'} ${isLast ? bubbleTailClass(isMine) : ''}`}
+                                                dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
+                                            />
+                                            {msg.createdAt && (
+                                                <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -628,24 +651,28 @@ function ChatPage() {
         )}
         <div className="flex gap-2 mt-4">
                 <input
+                    ref={messageInputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     data-testid="chat-message-input"
-                    className="flex-1 border p-2 rounded"
+                    className="flex-1 border border-gray-300 px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
                     placeholder="Type Message"
                 />
                 <button
                     onClick={sendMessage}
                     disabled={rateLimitSecondsLeft !== null}
                     data-testid="chat-send-button"
-                    className={`px-4 rounded ${
+                    aria-label="Send"
+                    className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-full ${
                         rateLimitSecondsLeft !== null
                             ? 'bg-sky-200 text-sky-600 cursor-not-allowed'
-                            : 'bg-blue-500 text-white'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
                     }`}
                 >
-                    Send
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                        <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a1 1 0 0 0-1.39 1.21L4.5 12 2 18.79a1 1 0 0 0 1.4 1.21z" />
+                    </svg>
                 </button>
             </div>
         </div>
