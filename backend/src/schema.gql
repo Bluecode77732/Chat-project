@@ -6,6 +6,7 @@ type UserType {
   id: ID!
   email: String
   nickname: String
+  profileImage: String
   role: String
 }
 
