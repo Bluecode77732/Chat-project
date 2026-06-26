@@ -124,7 +124,7 @@ function ChatPage() {
 
     const { data: aiUserData } = useQuery<{ getAiUserId: number }>(GET_AI_USER_ID);
     const aiUserId = aiUserData?.getAiUserId ?? null;
-    const initials = (id: number) => (aiUserId !== null && id === aiUserId) ? 'AI' : displayName(id).slice(0, 2).toUpperCase();
+    const initials = (id: number) => (aiUserId !== null && id === aiUserId) ? 'AI' : displayName(id).slice(0, 2);
     const [fetchAiPersonalityInfo] = useLazyQuery<{ getAiPersonalityInfo: { personality: string | null; canChange: boolean } }>(
         GET_AI_PERSONALITY_INFO, { fetchPolicy: 'network-only' }
     );
@@ -582,7 +582,7 @@ function ChatPage() {
                             key={group[0].id ?? gi}
                             className={`flex gap-2 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
                         >
-                            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-center text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
+                            <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-end text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
                                 {initials(group[0].userId)}
                             </div>
                             <div className={`flex flex-col gap-0.5 ${isMine ? 'items-end' : 'items-start'}`}>
