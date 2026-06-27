@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { Fragment, useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "../store/auth.store";
 import { reconnectSocket, socket } from "../socket/socket";
 import api from "../api/axios";
@@ -474,6 +474,15 @@ function ChatPage() {
         return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     };
 
+    // Local calendar day the message was actually sent on — used to show one
+    // date divider per day, independent of the per-message time already shown.
+    const dateKey = (iso?: string) => (iso ? new Date(iso).toDateString() : null);
+    const formatDate = (iso?: string) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
     const signOut = async () => {
         try {
             await api.post('/auth/signOut');
@@ -658,43 +667,52 @@ function ChatPage() {
                         groups.push([msg]);
                     }
                     return groups;
-                }, []).map((group, gi) => {
+                }, []).map((group, gi, allGroups) => {
                     const isMine = group[0].userId === userId;
                     const isAi = aiUserId !== null && group[0].userId === aiUserId;
                     const profileImage = isAi ? null : profileImageById.get(group[0].userId);
+                    const showDateDivider = dateKey(group[0].createdAt) !== dateKey(allGroups[gi - 1]?.[0]?.createdAt);
                     return (
-                        <div
-                            key={group[0].id ?? gi}
-                            className={`flex gap-2.5 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
-                        >
-                            {profileImage ? (
-                                <img
-                                    src={profileImage}
-                                    alt={displayName(group[0].userId)}
-                                    className="shrink-0 w-7 h-7 rounded-full object-cover self-end"
-                                />
-                            ) : (
-                                <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-end text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
-                                    {initials(group[0].userId)}
+                        <Fragment key={group[0].id ?? gi}>
+                            {showDateDivider && group[0].createdAt && (
+                                <div className="flex justify-center my-1">
+                                    <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1">
+                                        {formatDate(group[0].createdAt)}
+                                    </span>
                                 </div>
                             )}
-                            <div className={`flex flex-col gap-0.5 min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
-                                {group.map((msg, i) => {
-                                    const isLast = i === group.length - 1;
-                                    return (
-                                        <div key={msg.id ?? i} className={`flex flex-col min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
-                                            <div
-                                                className={`relative p-2 rounded-2xl wrap-break-word max-w-[70vw] ${isMine ? 'bg-blue-100' : 'bg-gray-100'} ${isLast ? bubbleTailClass(isMine) : ''}`}
-                                                dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
-                                            />
-                                            {msg.createdAt && (
-                                                <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                            <div
+                                className={`flex gap-2.5 max-w-md ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+                            >
+                                {profileImage ? (
+                                    <img
+                                        src={profileImage}
+                                        alt={displayName(group[0].userId)}
+                                        className="shrink-0 w-7 h-7 rounded-full object-cover self-end"
+                                    />
+                                ) : (
+                                    <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center self-end text-xs font-semibold text-white ${isAi ? 'bg-purple-500' : 'bg-gray-400'}`}>
+                                        {initials(group[0].userId)}
+                                    </div>
+                                )}
+                                <div className={`flex flex-col gap-0.5 min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
+                                    {group.map((msg, i) => {
+                                        const isLast = i === group.length - 1;
+                                        return (
+                                            <div key={msg.id ?? i} className={`flex flex-col min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
+                                                <div
+                                                    className={`relative p-2 rounded-2xl wrap-break-word max-w-[70vw] ${isMine ? 'bg-blue-100' : 'bg-gray-100'} ${isLast ? bubbleTailClass(isMine) : ''}`}
+                                                    dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
+                                                />
+                                                {msg.createdAt && (
+                                                    <span className="text-xs text-gray-400 mt-0.5">{formatTime(msg.createdAt)}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        </Fragment>
                     );
                 })}
             </div>
