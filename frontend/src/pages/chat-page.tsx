@@ -491,22 +491,23 @@ function ChatPage() {
             <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                 <span className="text-2xl italic bg-linear-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300 }}>Chatterley</span>
                 <div className="flex gap-3">
-                    <button onClick={() => navigate('/account')} data-testid="chat-account-button" className="text-gray-500 text-sm hover:text-gray-700">
+                    <button onClick={() => navigate('/account')} data-testid="chat-account-button" className="text-gray-500 text-sm hover:text-gray-700" style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}>
                         계정
                     </button>
-                    <button onClick={signOut} data-testid="chat-signout-button" className="text-red-500 text-sm">
-                        Sign Out
+                    <button onClick={signOut} data-testid="chat-signout-button" className="text-red-500 text-sm" style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}>
+                        로그아웃
                     </button>
                 </div>
             </div>
             <div className="flex gap-2 mb-4 items-center">
-                <span className="text-xs text-gray-400 shrink-0">Conversations:</span>
+                <span className="hidden sm:inline text-base text-gray-400 shrink-0" style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}>Conversations:</span>
                 <input
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
                     data-testid="chat-user-search-input"
-                    placeholder="검색"
-                    className="shrink-0 w-20 sm:w-28 text-xs border rounded-full px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                    placeholder="유저 검색"
+                    style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}
+                    className="shrink-0 w-16 sm:w-28 text-xs text-center border rounded-full px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300"
                 />
                 <button
                     onMouseDown={() => handleScrollMouseDown('left')}
@@ -718,7 +719,8 @@ function ChatPage() {
                     data-testid="chat-message-input"
                     rows={1}
                     className="flex-1 resize-none border border-gray-300 px-4 py-2 rounded-2xl max-h-32 overflow-y-auto scrollbar-none transition-[height] duration-250 ease-out focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
-                    placeholder="Type Message"
+                    style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}
+                    placeholder="채팅하세요!"
                 />
                 <button
                     onClick={sendMessage}
