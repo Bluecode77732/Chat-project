@@ -97,6 +97,8 @@ function ChatPage() {
     // smart scroll: true when user is near the bottom
     const isAtBottomRef = useRef(true);
     const bannerRef = useRef<HTMLDivElement>(null);
+    const [canScrollBannerLeft, setCanScrollBannerLeft] = useState(false);
+    const [canScrollBannerRight, setCanScrollBannerRight] = useState(false);
     const holdTimerRef = useRef<number | null>(null);
     const scrollIntervalRef = useRef<number | null>(null);
     const isHoldingRef = useRef(false);
@@ -449,6 +451,23 @@ function ChatPage() {
         }
     }, [stopScroll]);
 
+    const updateBannerScrollState = useCallback(() => {
+        const el = bannerRef.current;
+        if (!el) return;
+        setCanScrollBannerLeft(el.scrollLeft > 1);
+        setCanScrollBannerRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    }, []);
+
+    // Re-measure whenever the banner's content (and therefore its scrollWidth) can change.
+    useEffect(() => {
+        updateBannerScrollState();
+    }, [updateBannerScrollState, onlineData, allUsersData, userSearchQuery, recipientId, nicknamesData]);
+
+    useEffect(() => {
+        window.addEventListener('resize', updateBannerScrollState);
+        return () => window.removeEventListener('resize', updateBannerScrollState);
+    }, [updateBannerScrollState]);
+
     const formatTime = (iso?: string) => {
         if (!iso) return '';
         const d = new Date(iso);
@@ -499,9 +518,13 @@ function ChatPage() {
                     ‹
                 </button>
                 <div className="relative flex-1 overflow-hidden">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-white to-transparent z-10" />
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-white to-transparent z-10" />
-                    <div ref={bannerRef} className="flex gap-2 overflow-x-hidden">
+                    {canScrollBannerLeft && (
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-white to-transparent z-10" />
+                    )}
+                    {canScrollBannerRight && (
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-white to-transparent z-10" />
+                    )}
+                    <div ref={bannerRef} onScroll={updateBannerScrollState} className="flex gap-2 overflow-x-hidden">
                     {(() => {
                         const onlineIds = new Set(onlineData?.getOnlineUser ?? []);
                         const myRoomUserIds = new Set(myRoomsData?.getMyRooms?.map(r => r.recipientId) ?? []);
