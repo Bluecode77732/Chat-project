@@ -43,7 +43,17 @@ const doRefresh = async (): Promise<string | null> => {
             method: 'POST',
             credentials: 'include',
         });
-        if (!res.ok) throw new Error('Refresh failed');
+        if (!res.ok) {
+            // Backend rejects this refresh token because a newer login (e.g. another
+            // browser) has superseded it — distinguish this from a plain expiry so
+            // the user sees "logged in elsewhere" instead of "session expired".
+            const body: { message?: string } = await res.json().catch(() => ({}));
+            if (body.message === 'Session Superseded') {
+                rejectSession(SESSION_CONFLICT_REASON);
+                return null;
+            }
+            throw new Error('Refresh failed');
+        }
 
         const data = await res.json();
         const { sub } = jwtDecode<{ sub: number }>(data.accessToken);

@@ -6,12 +6,13 @@ import api from '../api/axios'
 interface RegisterForm {
     email: string,
     password: string,
+    confirmPassword: string,
     nickname?: string,
 };
 
 function RegisterPage() {
     // The `useForm`, a react-hook-form, tracks, validates, and submits the input value.
-    const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>();
+    const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const navigate = useNavigate();
@@ -68,6 +69,16 @@ function RegisterPage() {
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
+                <input {...register('confirmPassword', {
+                    required: 'Please Re-enter Your Password',
+                    validate: (value) => value === watch('password') || 'Passwords do not match.',
+                })}
+                    type='password'
+                    placeholder='confirm password'
+                    data-testid='register-confirm-password-input'
+                    className='border p-2 rounded'>
+                </input>
+                {errors.confirmPassword && <span className='text-red-500 text-sm'>{errors.confirmPassword.message}</span>}
                 <input {...register('nickname', {
                     maxLength: { value: 20, message: 'Nickname must be 20 characters or fewer.' },
                 })}

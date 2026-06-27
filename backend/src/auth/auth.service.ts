@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -164,6 +165,19 @@ export class AuthService {
     const accessToken = this.configService.getOrThrow<string>(
       'ACCESS_TOKEN_SECRET',
     );
+    const expiresIn = this.configService.getOrThrow<number>(
+      isRefreshToken
+        ? 'REFRESH_TOKEN_SECRET_EXPIRES_IN'
+        : 'ACCESS_TOKEN_SECRET_EXPIRES_IN',
+    );
+
+    // A freshly issued refresh token becomes the only valid one for this user —
+    // recording its id here lets a later login (e.g. from another browser)
+    // supersede this one; `parseBearerToken` checks against it on refresh.
+    const jti = isRefreshToken ? randomUUID() : undefined;
+    if (isRefreshToken) {
+      await this.redis.set(`auth:session:${user.id}`, jti!, 'EX', expiresIn);
+    }
 
     logger.debug(`User '${user.id}' issued refresh and access tokens`);
 
@@ -173,17 +187,12 @@ export class AuthService {
         sub: user.id,
         type: isRefreshToken ? 'refresh' : 'access',
         role: user.role,
+        ...(jti ? { jti } : {}),
       },
       // `JwtSignOptions` Can also be set in `auth.module.ts` file, since it requires separated tokens, the options should be set manually.
       {
         secret: isRefreshToken ? refreshToken : accessToken,
-        expiresIn: isRefreshToken
-          ? this.configService.getOrThrow<number>(
-              'REFRESH_TOKEN_SECRET_EXPIRES_IN',
-            )
-          : this.configService.getOrThrow<number>(
-              'ACCESS_TOKEN_SECRET_EXPIRES_IN',
-            ),
+        expiresIn,
       },
     );
   }
@@ -193,6 +202,7 @@ export class AuthService {
     isRefreshToken: boolean,
   ): Promise<JwtPayload> {
     // This try/catch throws an unified error as JWT throws various error types
+    let payload: JwtPayload;
     try {
       const bearerToken = rawToken.split(' ');
 
@@ -206,7 +216,7 @@ export class AuthService {
         throw new BadRequestException('Bad Token Format.');
       }
 
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>(
           isRefreshToken ? 'REFRESH_TOKEN_SECRET' : 'ACCESS_TOKEN_SECRET',
         ),
@@ -221,13 +231,24 @@ export class AuthService {
           throw new BadRequestException('Insert Access Token.');
         }
       }
-
-      logger.debug('User parsed a bearer token successfully');
-      return payload;
     } catch (err: unknown) {
       logger.warn((err as Error).message);
       throw new UnauthorizedException('Token Expired');
     }
+
+    // Kept outside the try/catch above so this distinct message reaches the
+    // client instead of being flattened into the generic 'Token Expired' —
+    // the frontend needs to tell "logged in elsewhere" apart from "expired".
+    if (isRefreshToken) {
+      const currentJti = await this.redis.get(`auth:session:${payload.sub}`);
+      if (!currentJti || currentJti !== payload.jti) {
+        logger.warn(`Refresh token superseded for user '${payload.sub}'`);
+        throw new UnauthorizedException('Session Superseded');
+      }
+    }
+
+    logger.debug('User parsed a bearer token successfully');
+    return payload;
   }
 
   async signIn(rawToken: string) {

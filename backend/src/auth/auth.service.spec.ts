@@ -38,6 +38,11 @@ describe('AuthService', () => {
     verifyAsync: jest.fn(),
   };
 
+  const mockRedis = {
+    set: jest.fn(),
+    get: jest.fn(),
+  };
+
   beforeEach(async () => {
     // Testing basic mocks
     const module: TestingModule = await Test.createTestingModule({
@@ -57,10 +62,7 @@ describe('AuthService', () => {
         },
         {
           provide: 'REDIS_CLIENT',
-          useValue: {
-            set: jest.fn(),
-            get: jest.fn(),
-          },
+          useValue: mockRedis,
         },
       ],
     }).compile();
@@ -164,6 +166,36 @@ describe('AuthService', () => {
       await expect(
         authService.parseBearerToken('Bearer validToken', false),
       ).rejects.toThrow(new UnauthorizedException('Token Expired'));
+    });
+
+    it('should throw "Session Superseded" when a newer refresh token has been issued', async () => {
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+        type: 'refresh',
+        sub: 1,
+        jti: 'old-jti',
+      });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+      mockRedis.get.mockResolvedValue('new-jti');
+
+      await expect(
+        authService.parseBearerToken('Bearer refreshToken', true),
+      ).rejects.toThrow(new UnauthorizedException('Session Superseded'));
+    });
+
+    it('should accept a refresh token matching the current session', async () => {
+      jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue({
+        type: 'refresh',
+        sub: 1,
+        jti: 'current-jti',
+      });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+      mockRedis.get.mockResolvedValue('current-jti');
+
+      const result = await authService.parseBearerToken(
+        'Bearer refreshToken',
+        true,
+      );
+      expect(result.jti).toBe('current-jti');
     });
   });
 
@@ -320,8 +352,20 @@ describe('AuthService', () => {
 
       // Jwt decoded payload
       expect(jwtService.signAsync).toHaveBeenCalledWith(
-        { sub: user.id, role: 0, type: 'refresh' },
+        {
+          sub: user.id,
+          role: 0,
+          type: 'refresh',
+          jti: expect.any(String),
+        },
         { secret: 10, expiresIn: 10 },
+      );
+      // The newly issued refresh token becomes this user's only valid session
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'auth:session:1',
+        expect.any(String),
+        'EX',
+        10,
       );
       expect(result).toBe(token);
     });
