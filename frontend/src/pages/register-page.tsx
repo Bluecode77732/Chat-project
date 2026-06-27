@@ -12,7 +12,7 @@ interface RegisterForm {
 
 function RegisterPage() {
     // The `useForm`, a react-hook-form, tracks, validates, and submits the input value.
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>();
+    const { register, handleSubmit, getValues, formState: { errors } } = useForm<RegisterForm>();
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const navigate = useNavigate();
@@ -71,7 +71,7 @@ function RegisterPage() {
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 <input {...register('confirmPassword', {
                     required: 'Please Re-enter Your Password',
-                    validate: (value) => value === watch('password') || 'Passwords do not match.',
+                    validate: (value) => value === getValues('password') || 'Passwords do not match.',
                 })}
                     type='password'
                     placeholder='confirm password'
