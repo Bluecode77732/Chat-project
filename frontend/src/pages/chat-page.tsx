@@ -78,6 +78,7 @@ function ChatPage() {
     const [input, setInput] = useState('');
     const [currentRoomId, setCurrentRoomId] = useState<number | null>(null);
     const [hasMore, setHasMore] = useState(true);
+    const [messagesLoading, setMessagesLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { clearTokens, lastRecipientId, setLastRecipientId } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
@@ -99,7 +100,7 @@ function ChatPage() {
     const holdTimerRef = useRef<number | null>(null);
     const scrollIntervalRef = useRef<number | null>(null);
     const isHoldingRef = useRef(false);
-    const messageInputRef = useRef<HTMLInputElement>(null);
+    const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
     const [sendMessageMutation] = useMutation<SendMessageData, SendMessageVariables>(SEND_MESSAGE);
     const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
@@ -152,6 +153,22 @@ function ChatPage() {
         document.addEventListener('keydown', handleSlashFocus);
         return () => document.removeEventListener('keydown', handleSlashFocus);
     }, [showPersonalitySelector]);
+
+    // Auto-grow the message textarea with its content, capped by max-h-32 (matches the CSS cap).
+    // Measuring requires a transient height:auto, but applying the result in the same tick gives the
+    // browser no "previous" frame to transition from — it just jumps. Restoring prevHeight and forcing
+    // a reflow (reading offsetHeight) commits that state before we write the new height, so the
+    // browser actually has two distinct values to animate between.
+    useEffect(() => {
+        const textarea = messageInputRef.current;
+        if (!textarea) return;
+        const prevHeight = textarea.style.height;
+        textarea.style.height = 'auto';
+        const next = `${Math.min(textarea.scrollHeight, 128)}px`;
+        textarea.style.height = prevHeight;
+        void textarea.offsetHeight;
+        textarea.style.height = next;
+    }, [input]);
 
     useEffect(() => {
         if (!recipientId) return;
@@ -225,7 +242,10 @@ function ChatPage() {
         if (!currentRoomId) return;
         setHasMore(true);
         isAtBottomRef.current = true;
-        loadMessages(currentRoomId).catch(console.error);
+        setMessagesLoading(true);
+        loadMessages(currentRoomId)
+            .catch(console.error)
+            .finally(() => setMessagesLoading(false));
     }, [currentRoomId]);
 
     // Auto-scroll to bottom on new messages — only when already near bottom
@@ -574,6 +594,23 @@ function ChatPage() {
                 onScroll={handleScroll}
                 className="flex-1 min-w-0 overflow-y-auto flex flex-col gap-2"
             >
+                {messagesLoading && messages.length === 0 && (
+                    <div data-testid="chat-messages-skeleton" className="flex flex-col gap-3 animate-pulse">
+                        <div className="flex gap-2.5 max-w-md mr-auto">
+                            <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300" />
+                            <div className="flex flex-col gap-1">
+                                <div className="h-8 w-40 bg-gray-200 rounded-2xl" />
+                                <div className="h-8 w-28 bg-gray-200 rounded-2xl" />
+                            </div>
+                        </div>
+                        <div className="flex gap-2.5 max-w-md ml-auto flex-row-reverse">
+                            <div className="shrink-0 w-7 h-7 rounded-full bg-gray-300" />
+                            <div className="flex flex-col gap-1 items-end">
+                                <div className="h-8 w-32 bg-blue-100 rounded-2xl" />
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {!hideEmptyNotice && !currentRoomId && messages.length === 0 && recipientId !== aiUserId && (
                     <EmptyStateNotice
                         text="위를 클릭하여 대화하세요."
@@ -649,14 +686,15 @@ function ChatPage() {
         {rateLimitSecondsLeft !== null && (
             <RateLimitNotice secondsLeft={rateLimitSecondsLeft} />
         )}
-        <div className="flex gap-2 mt-4">
-                <input
+        <div className="flex gap-2 mt-4 items-end">
+                <textarea
                     ref={messageInputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     data-testid="chat-message-input"
-                    className="flex-1 border border-gray-300 px-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
+                    rows={1}
+                    className="flex-1 resize-none border border-gray-300 px-4 py-2 rounded-2xl max-h-32 overflow-y-auto scrollbar-none transition-[height] duration-250 ease-out focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
                     placeholder="Type Message"
                 />
                 <button
