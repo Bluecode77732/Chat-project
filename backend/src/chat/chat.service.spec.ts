@@ -115,17 +115,64 @@ describe('ChatService', () => {
 
   describe('registerClient', () => {
     it('should stores client as Redis hash', async () => {
+      jest.spyOn(redisService, 'getUserStatus').mockResolvedValue(null);
+
       await chatService.registerClient(1, mockSocket as Socket);
 
+      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+    });
+
+    it('should not kick anything when the same socket reconnects', async () => {
+      jest
+        .spyOn(redisService, 'getUserStatus')
+        .mockResolvedValue({ socketId: '1', status: 'online' });
+      const mockServer = { sockets: { sockets: new Map() } };
+      (chatService as unknown as { server: unknown }).server = mockServer;
+
+      await chatService.registerClient(1, mockSocket as Socket);
+
+      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+    });
+
+    it('should notify and disconnect a previous session superseded by a new login', async () => {
+      jest
+        .spyOn(redisService, 'getUserStatus')
+        .mockResolvedValue({ socketId: 'old-socket', status: 'online' });
+      const oldSocket = { emit: jest.fn(), disconnect: jest.fn() };
+      const mockServer = {
+        sockets: { sockets: new Map([['old-socket', oldSocket]]) },
+      };
+      (chatService as unknown as { server: unknown }).server = mockServer;
+
+      await chatService.registerClient(1, mockSocket as Socket);
+
+      expect(oldSocket.emit).toHaveBeenCalledWith('forceLogout', {
+        reason: 'conflict',
+      });
+      expect(oldSocket.disconnect).toHaveBeenCalledWith(true);
       expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
     });
   });
 
   describe('removeClient', () => {
-    it('should removes client as Redis hash', async () => {
-      await chatService.removeClient(1);
+    it('should remove client as Redis hash when the socket matches the current session', async () => {
+      jest
+        .spyOn(redisService, 'getUserStatus')
+        .mockResolvedValue({ socketId: '1', status: 'online' });
+
+      await chatService.removeClient(1, '1');
 
       expect(redisService.sethUserOffline).toHaveBeenCalledWith(1);
+    });
+
+    it('should not touch online status when a newer session already replaced it', async () => {
+      jest
+        .spyOn(redisService, 'getUserStatus')
+        .mockResolvedValue({ socketId: 'new-socket', status: 'online' });
+
+      await chatService.removeClient(1, 'stale-socket');
+
+      expect(redisService.sethUserOffline).not.toHaveBeenCalled();
     });
   });
 

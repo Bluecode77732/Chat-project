@@ -86,7 +86,7 @@ export class ChatGateway
     const participant = client.data.user;
 
     if (participant) {
-      await this.chatService.removeClient(participant.sub);
+      await this.chatService.removeClient(participant.sub, client.id);
     }
 
     return `User: ${participant} disconnected`;

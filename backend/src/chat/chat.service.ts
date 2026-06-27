@@ -36,12 +36,39 @@ export class ChatService {
 
   // Connect Socket
   async registerClient(participantId: number, client: Socket) {
+    const previous = await this.redisService.getUserStatus(participantId);
+
+    // Record the new socket as current BEFORE kicking the old one — the kick
+    // triggers the old socket's disconnect handler asynchronously, and that
+    // handler's own "is this still the current session" guard (in
+    // `removeClient`) would race against this write if it ran first,
+    // clobbering the new session's online status back to offline.
     await this.redisService.sethUserOnline(participantId, client.id);
     logger.info(`User ${participantId} has connected`);
+
+    if (previous?.socketId && previous.socketId !== client.id) {
+      // Logging in elsewhere (e.g. another browser) takes over this user's
+      // single active connection — notify the superseded socket so its
+      // frontend shows "logged in elsewhere" instead of silently dropping.
+      this.kickPreviousSession(previous.socketId);
+    }
+  }
+
+  private kickPreviousSession(socketId: string): void {
+    const previousSocket = this.server?.sockets.sockets.get(socketId);
+    if (!previousSocket) return;
+    previousSocket.emit('forceLogout', { reason: 'conflict' });
+    previousSocket.disconnect(true);
   }
 
   // Disconnect Socket
-  async removeClient(participantId: number) {
+  async removeClient(participantId: number, socketId: string) {
+    const current = await this.redisService.getUserStatus(participantId);
+    if (current?.socketId !== socketId) {
+      // A newer session already replaced this one — don't clobber its online status.
+      return;
+    }
+
     await this.redisService.sethUserOffline(participantId);
     logger.info(`User ${participantId} has disconnected`);
   }

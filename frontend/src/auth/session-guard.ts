@@ -36,6 +36,10 @@ const rejectSession = (reason?: SessionRejectReason) => {
     window.location.replace(reason ? `/?reason=${reason}` : '/');
 };
 
+// Called when the server's socket pushes a forced logout (this user just
+// signed in elsewhere). Reuses the same exit path as a refresh-time conflict.
+export const rejectSessionConflict = () => rejectSession(SESSION_CONFLICT_REASON);
+
 const doRefresh = async (): Promise<string | null> => {
     try {
         // refreshToken cookie is sent automatically via credentials: 'include'
