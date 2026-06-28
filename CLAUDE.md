@@ -121,6 +121,26 @@ After completing any task, always append a brief summary in this format:
 - Pending: <anything deferred, left incomplete, or requiring follow-up>
 ```
 
+## File Creation Convention
+
+When creating a new file (not when editing an existing one), add a short header
+comment above the imports stating:
+- Purpose: why this file exists (the gap it fills)
+- Usage: who/what is expected to import or call into it
+- Rationale: why it was added now, or why an existing file could not absorb this
+
+```typescript
+// Purpose: isolates Redis lock acquisition for per-room AI replies.
+// Usage: imported by AiService.handleReply(); not intended for direct use elsewhere.
+// Rationale: lock logic was inline in ai.service.ts and untestable in isolation.
+
+import ...
+```
+
+Keep it to three lines, one per field — no exceptions for "obvious" files. This is the
+one place a header comment is required regardless of how self-explanatory the file
+seems. Do not retroactively add this header to existing files being edited.
+
 ## Never Do — Forbidden Patterns
 These patterns defeat the purpose of TypeScript and cause production failures.
 Violations are grouped by failure class.
@@ -269,6 +289,252 @@ await this.redis.set(key, value)
 await this.redis.set(key, value, 'EX', 86400)
 ```
 
+## Engineering Principles
+
+Reference for judgment calls, not a literal per-change checklist. Where a principle
+restates an existing rule, the cited rule governs. Where it conflicts, follow
+Principle Conflict Protocol.
+
+### Philosophy
+- KISS, YAGNI, Simplicity First — enforced procedurally by Scope Discipline
+- Boy Scout Rule, Refactor Continuously — conflicts with Scope Discipline
+  ("no unrelated refactors unless requested"); routed through Principle Conflict Protocol
+- Principle of Least Astonishment — covered by "reuse existing patterns only"
+- Convention over Configuration — favor the project's existing framework and
+  validation conventions over introducing custom configuration
+- Pragmatism over Perfection — conflicts with Never Do's zero-tolerance rules;
+  routed through Principle Conflict Protocol — does not excuse a violation by default
+- Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct rules
+- Incremental Development — reflected in Introduction Analysis
+- Continuous Improvement — reflected in Result Review; in-session only
+
+### Design
+- Separation of Concerns, Modularity, High Cohesion & Low Coupling — basis of
+  the Architecture section's module boundaries
+- Information Hiding, Encapsulation — reflected in centralized config/env access
+  (see Architecture Decisions)
+- Composition over Inheritance — prefer composition via dependency injection over
+  building new class hierarchies; see SOLID > LSP below for a known counter-example
+- Abstraction — conflicts with "no new abstractions unless asked"; routed through
+  Principle Conflict Protocol
+- Layered Architecture, Dependency Direction — reflected in the existing layering
+  between request handling, business logic, and data access
+- Feature Isolation — may conflict with an existing single-file-per-concern
+  convention; routed through Principle Conflict Protocol
+- Domain-Driven Design Mindset — not adopted. Current modules map to technical
+  layers, not bounded domain contexts. Aspirational reference only — introducing
+  domain layers/aggregates requires explicit request (architectural change under
+  Scope Discipline)
+
+### SOLID
+- SRP — basis of the project's module/service boundaries
+- OCP — extend via new classes/strategies, don't modify existing logic in place
+  to add a new case
+- DIP — favor constructor injection over direct instantiation
+- LSP — watch for subclasses that strengthen a parent method's precondition
+  (rejecting cases the parent would accept) — prefer composition over inheritance
+  when adding a stricter variant of existing behavior. Routed through Principle
+  Conflict Protocol when an existing pattern already does this
+- ISP — no confirmed violation; do not introduce an interface layer until one is found
+
+### Object Interaction
+- Dependency Injection, Inversion of Control — already the framework's core
+  mechanism; no new rule needed
+- Command–Query Separation — reflected in the existing read/write API split,
+  where one exists
+- Favor Explicit Interfaces — already enforced via `any` ban / `unknown` narrowing
+- Law of Demeter, Tell Don't Ask — judgment calls, no current violation identified
+
+### Maintainability
+- DRY, Fail Fast, Testability, Input Validation — covered by Testing conventions
+  and Never Do Groups 1-3
+- Idempotence — check whether retry/duplicate-submission behavior is documented
+  for write operations; flag gaps rather than assuming idempotency
+- Immutability — may conflict with an existing intentionally-mutable shared
+  instance; routed through Principle Conflict Protocol — default is to leave as-is
+- Self-Documenting Code, Readability over Cleverness, Keep Functions Small,
+  Minimize Cognitive Load — judgment calls
+- Refactor Continuously — see Boy Scout Rule above
+
+### Reliability
+- Input Validation, Fail Securely — covered by Never Do Group 3
+- Defensive Programming — conflicts with boundary-only validation stance; routed
+  through Principle Conflict Protocol — boundary-only wins by default
+- Robustness Principle (Postel's Law) — conflicts with strict input validation and
+  is a known security anti-pattern for parsing untrusted input; do not apply
+- Graceful Degradation — reflected in existing client-side auth-refresh/retry
+  handling, where one exists
+- Error Transparency — conflicts with the existing practice of stripping internal
+  error details from client-facing responses in production; transparency applies
+  to internal logs only, never client responses
+- Design by Contract, Deterministic Behavior — judgment calls, not adopted
+- Safe Defaults — duplicate of Secure by Default below
+
+### Performance & Security
+- Secure by Default, Protect Sensitive Data, Fail Securely, Input Validation —
+  covered by Never Do Group 3 and Logging conventions
+- Principle of Least Privilege — already implemented via the existing numeric
+  role/privilege-level comparison
+- Avoid Premature Optimization / Measure Before Optimizing — same principle, treat as one
+- Resource Efficiency — covered by pagination/N+1 examples
+- Minimize Attack Surface — reflected in the existing API-surface boundary rules
+  and upload validation, where applicable
+
+### Collaboration & Quality
+- Consistent Naming, Coding Standards — covered by the existing key-naming
+  convention and Code Style section
+- Automated Testing, Continuous Integration — covered by Testing and CI/CD sections
+- Code Reviews — out of scope for this file; handled by code review tooling/process
+- Version Control Discipline — out of scope; handled by the development tool's
+  standard git safety practices
+- Documentation as Code — reflected in auto-generated schema/API documentation
+  and the Change Summary requirement, where applicable
+- Reproducible Builds — check whether the lockfile and toolchain versions are
+  pinned, and whether the base build environment is pinned by digest or only by
+  tag. State only the guarantee that actually exists — do not imply stronger
+  reproducibility
+- Observability (Logging, Metrics, Tracing) — verify which of the three actually
+  exist before claiming coverage. Do not claim metrics/tracing coverage if absent;
+  adding either is a new dependency requiring explicit request
+
+## Principle Conflict Protocol
+
+When applying a principle from "Engineering Principles" would conflict with an existing
+rule, established pattern, or current implementation — including when a violation is
+discovered mid-task — stop work immediately. Do not continue past the conflict, and do
+not silently resolve it by picking a side.
+
+1. **Stop and explain**: state which principle is in tension with which existing rule or
+   pattern (cite file:line), and why the conflict exists.
+2. **State a prevention plan**: a concrete, scoped way to avoid this same conflict
+   recurring (e.g., a new row in Clarification Protocol, a documented convention).
+3. **Ask step-by-step, not as one flat question**: narrow down with the developer what
+   is negotiable and what is not before proposing a resolution.
+4. **Offer three resolution paths and let the developer choose** — do not default to one:
+   - **Autonomous implementation** — proceed with the original plan, knowingly accepting
+     the principle violation. State exactly what is being violated and why it is
+     acceptable to leave as-is.
+   - **Alternative implementation** — a scoped change that satisfies both the principle
+     and the existing rule/pattern. State the concrete diff and its cost.
+   - **Principle-faithful implementation** — fully honor the new principle, accepting
+     the cost to the existing rule/pattern. State what changes and its cost.
+   If two paths converge on the same concrete change, say so rather than presenting
+   artificial alternatives.
+
+Do not implement any path until the developer selects one.
+
+## Project-Specific Principles
+
+Concrete, project-grounded restatements of the generic principles above, plus
+invariants discovered by tracing actual code paths. Overlap with "Engineering
+Principles" is intentional — these are specific instantiations, not new rules. Where
+one of these is violated, follow Principle Conflict Protocol.
+
+### Module & Guard Architecture
+
+**Guard Composition over Guard Inheritance**
+- Breakdown: a concrete instance of SOLID > LSP. The REST guard chain composes
+  (`@UseGuards(JwtAuthGuard, RBACguard)`, `user.controller.ts`), but the GraphQL admin
+  guard subclasses instead (`GraphQLAdminGuard extends GraphQLAuthGuard`,
+  `graphql-admin.guard.ts:10`), strengthening the parent's `canActivate` precondition.
+- Rationale: the REST pattern already proves composition works for this exact
+  requirement (auth + role check) without inheritance.
+- Goal: any new role-gated guard is composed with existing guards, never built as a
+  subclass that adds a stricter precondition.
+
+**Transaction Boundary per Mutation**
+- Breakdown: a concrete instance of the Data Integrity rules in Never Do Group 2,
+  elevated to a design-time check rather than a code-review-time catch.
+- Rationale: multi-table writes without a shared `QueryRunner` orphan partial state on
+  failure; this is already enforced by `QueryRunnerDecorator` / `WsQueryRunnerDecorator`,
+  but only as an implementation detail, not a stated design constraint.
+- Goal: before implementing any handler with more than one repository write, the
+  transaction boundary decision is made explicitly, not discovered after the fact.
+
+### Auth & Session
+
+**Single Refresh Authority**
+- Breakdown: a concrete instance of DRY / Single Source of Truth, already documented
+  in Frontend Conventions (`session-guard.ts`'s `refreshAccessTokenSafely()`).
+- Rationale: concurrent callers sharing one in-flight refresh closes a real race where
+  a second caller could adopt a conflicting account mid-redirect.
+- Goal: no new call site ever calls the refresh endpoint directly; this prevents the
+  race condition from resurfacing as the codebase grows.
+
+**Single Active Session Enforcement**
+- Breakdown: a concrete instance of a consistency invariant — at most one live socket
+  per user. Enforced via `forceLogout` (`chat.service.ts:58-61`), which disconnects the
+  previous socket when a new connection registers for the same user.
+- Rationale: without this, a user with two open tabs/devices could receive duplicate or
+  conflicting real-time state.
+- Goal: any new per-user real-time registration (not just the existing socket path)
+  must check for and evict a prior registration, not assume one connection per user.
+
+### Privilege & Audit (Security)
+
+**Role Population Invariants**
+- Breakdown: two related checks in `user.service.ts` guard the role-distribution state
+  itself, not just a single user's permissions: the last `superadmin` cannot be demoted
+  (`:178-186`), and `admin` count is capped at `MAX_ADMIN_COUNT` (default 5, `:188-199`).
+- Rationale: without these, a role-management bug could leave the system with zero
+  superadmins (irrecoverable without DB access) or an unbounded admin population.
+- Goal: any new role-mutation path (not just the existing one) must re-check these two
+  population invariants — do not assume they only apply to the current update endpoint.
+
+**Audit Trail for Privileged Actions**
+- Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
+  privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
+  (`user.service.ts:208,239,321`) — as a separate, queryable entity.
+- Rationale: privileged actions need an attributable record independent of the
+  application logs (which rotate/are unstructured); this already exists but isn't
+  named as a requirement anywhere in this file.
+- Goal: any new privileged action (role change, force logout, deletion, ban, etc.)
+  calls `AuditLogService.log()` — do not add a privileged mutation without an audit entry.
+
+### Chat & Caching
+
+**Render-Surface Sanitization**
+- Breakdown: the backend validates message shape (`@IsString()`,
+  `create-chat.dto.ts`) but does not sanitize or escape HTML — `ChatEntity.message` is
+  stored exactly as submitted. The only sanitization point today is the React render
+  boundary (`DOMPurify.sanitize`, `chat-page.tsx:705`).
+- Rationale: this means stored content is untrusted by default; any other surface that
+  later reads `ChatEntity.message` (an admin viewer, an export, a log line, an AI prompt
+  context) inherits that risk if it assumes the value is already safe.
+- Goal: any new consumer of `ChatEntity.message` sanitizes or escapes at its own
+  boundary — never assume a prior layer already did it.
+
+**AI Reply Channel Parity**
+- Breakdown: AI-generated replies publish through the exact same channel and shape as
+  human messages — `aiService.handleReply()` is given a `publishFn` that calls
+  `pubSub.publish('receiveMessage :${roomId}', { receiveMessage: msg })`
+  (`chat.resolver.ts:194-199`), identical to the human-message publish call (`:177`).
+- Rationale: this is what lets the frontend render AI and human messages through one
+  code path with no sender-type branching.
+- Goal: any new automated/system message source (not just the AI service) publishes
+  through this same channel and shape — do not introduce a second message-delivery path.
+
+**Redis Adapter for Socket Horizontal Scaling**
+- Breakdown: `ChatGateway.afterInit()` wires Socket.IO to a Redis-backed adapter
+  (`@socket.io/redis-adapter`, `chat.gateway.ts:47-49`) so room membership and emits
+  work correctly when more than one server instance is running.
+- Rationale: without the adapter, `server.to(socketId).emit(...)` and room broadcasts
+  only reach clients connected to the same process — silently broken under horizontal
+  scaling.
+- Goal: any new Socket.IO room/event assumes a multi-instance deployment; do not rely on
+  in-memory socket state being visible across instances without the adapter.
+
+**Distributed Lock for Concurrent Write Prevention**
+- Breakdown: `AiService.handleReply()` acquires an atomic Redis lock
+  (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:109-116`) before generating a reply,
+  and releases it in a `finally` block (`:178`); a failed acquisition skips the reply
+  rather than queuing it.
+- Rationale: without this, two messages arriving in quick succession for the same room
+  could trigger two concurrent AI replies.
+- Goal: any new per-room (or per-resource) background operation that must not run
+  concurrently for the same key follows this same acquire-with-NX/TTL,
+  release-in-finally pattern — do not introduce an unguarded concurrent write path.
+
 ## Architecture Decisions
 
 Do not suggest alternatives to these decisions without explicit request.
@@ -380,12 +646,18 @@ docker compose up -d --build
 **GraphQL PubSub** (`backend/src/graphql/pubsub.service.ts`) — `RedisPubSub` singleton bridging mutations to subscriptions
 
 ### Data Flow for Sending a Message
-1. Client emits `sendMessage` via Socket.IO or GraphQL mutation
+1. Client invokes the `sendMessage` GraphQL mutation (not Socket.IO — Socket.IO carries no
+   chat-message traffic; see note below)
 2. `RateLimitGuard` checks Redis counter
 3. Transaction interceptor opens a `QueryRunner`
 4. `ChatService.sendMessage()` resolves or creates `RoomEntity`, saves `ChatEntity` in the transaction
-5. Publishes to Redis Pub/Sub channel; subscribers receive via `receiveMessage` subscription
-6. Socket.IO also broadcasts to the room
+5. Resolver publishes to the Redis Pub/Sub channel (`pubSub.publish`); subscribers receive
+   exclusively via the `receiveMessage` GraphQL subscription
+
+Socket.IO (`ChatGateway`) is a separate channel with no overlap in message delivery: it
+only handles connection auth (`handleConnection`/`handleDisconnect`), pushing a `CreateRoom`
+event when a new room is created (`chat.service.ts`), and `forceLogout` on session conflict.
+It has no `@SubscribeMessage` handler for chat messages and emits none.
 
 ### Entities (TypeORM)
 - `UserEntity` — email (unique), hashed password, role, relations to chats/rooms
