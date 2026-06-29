@@ -5,15 +5,12 @@ import {
   HttpCode,
   Post,
   Headers,
-  Request,
-  UseGuards,
   UseInterceptors,
   Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LocalAuthGuard } from './guard/local-auth.guard';
 import type { Request as ExpressRequest, Response } from 'express';
 import {
   ApiBasicAuth,
@@ -23,7 +20,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { bearerTokenType } from './dto/token-types.auth.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -120,29 +116,6 @@ export class AuthController {
         { id: payload.sub, role: payload.role },
         false,
       ),
-    };
-  }
-
-  @UseGuards(LocalAuthGuard)
-  @Post('signin/local')
-  @HttpCode(200)
-  @ApiOperation({
-    description: 'Sign in using alternative Passport local strategy.',
-  })
-  @ApiResponse({ status: 200, description: 'Issued Token Successfully.' })
-  @ApiResponse({ status: 401, description: 'Invalid Credentials.' })
-  @ApiBody({ type: CreateUserDto, required: true })
-  async userLocalLoginPassport(
-    @Request() req: ExpressRequest & { user: { id: number; role: number } },
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const refreshToken = await this.authService.issueToken(req.user, true);
-    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
-      ...COOKIE_OPTIONS,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-    return {
-      accessToken: await this.authService.issueToken(req.user, false),
     };
   }
 }
