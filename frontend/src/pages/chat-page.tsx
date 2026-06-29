@@ -77,12 +77,14 @@ function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [currentRoomId, setCurrentRoomId] = useState<number | null>(null);
+    const [prevLoadedRoomId, setPrevLoadedRoomId] = useState<number | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const [messagesLoading, setMessagesLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { clearTokens, lastRecipientId, setLastRecipientId } = useAuthStore();
     const { accessToken, userId } = useAuthStore();
     const [recipientId, setRecipientId] = useState<number | null>(lastRecipientId);
+    const [prevRecipientId, setPrevRecipientId] = useState<number | null>(lastRecipientId);
     const [hideEmptyNotice, setHideEmptyNotice] = useState(() => localStorage.getItem('hideEmptyChatNotice') === 'true');
     const [userSearchQuery, setUserSearchQuery] = useState('');
     const navigate = useNavigate();
@@ -105,9 +107,30 @@ function ChatPage() {
     const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
     const [sendMessageMutation] = useMutation<SendMessageData, SendMessageVariables>(SEND_MESSAGE);
-    const { data: subData } = useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
+    useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
+        // onData is Apollo's recommended replacement for useEffect(..., [subData]) here:
+        // it fires once per delivered message (not re-fired on every re-render), avoiding
+        // the cascading-render setState-in-effect pattern flagged by react-hooks lint.
+        onData: ({ data }) => {
+            const receiveMessage = data.data?.receiveMessage;
+            if (!receiveMessage) return;
+            const senderId = Number(receiveMessage.participant?.id);
+            if (senderId === userId) return;
+
+            setMessages(prev => {
+                if (!currentRoomId) return prev;
+                if (prev.some(m => m.id === receiveMessage.id)) return prev;
+                return [...prev, {
+                    id: Number(receiveMessage.id),
+                    userId: senderId,
+                    message: receiveMessage.message,
+                    roomId: currentRoomId,
+                    createdAt: new Date().toISOString(),
+                }];
+            });
+        },
     });
     const { data: onlineData } = useQuery<OnlineUsersData>(GET_ONLINE_USERS, {
         pollInterval: 5000,
@@ -172,12 +195,19 @@ function ChatPage() {
         textarea.style.height = next;
     }, [input]);
 
-    useEffect(() => {
-        if (!recipientId) return;
+    // Reset room-scoped state synchronously during render when recipientId changes,
+    // instead of via setState calls in the effect body (react-hooks/set-state-in-effect) —
+    // see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    if (recipientId !== prevRecipientId) {
+        setPrevRecipientId(recipientId);
         setCurrentRoomId(null);
         setMessages([]);
         setHasMore(true);
         setAiPersonalityInfo(null);
+    }
+
+    useEffect(() => {
+        if (!recipientId) return;
         fetchRoom({ variables: { recipientId } }).then(({ data }) => {
             if (data?.getRoom) {
                 setCurrentRoomId(data.getRoom);
@@ -239,16 +269,25 @@ function ChatPage() {
         }
     }, [fetchMessages]);
 
+    // Reset pagination/loading state synchronously during render when currentRoomId
+    // changes, instead of via setState calls in the effect body (react-hooks/set-state-in-effect)
+    if (currentRoomId !== prevLoadedRoomId) {
+        setPrevLoadedRoomId(currentRoomId);
+        if (currentRoomId) {
+            setHasMore(true);
+            setMessagesLoading(true);
+        }
+    }
+
     // Load message history when room is first known
     useEffect(() => {
         if (!currentRoomId) return;
-        setHasMore(true);
         isAtBottomRef.current = true;
-        setMessagesLoading(true);
-        loadMessages(currentRoomId)
+        Promise.resolve()
+            .then(() => loadMessages(currentRoomId))
             .catch(console.error)
             .finally(() => setMessagesLoading(false));
-    }, [currentRoomId]);
+    }, [currentRoomId, loadMessages]);
 
     // Auto-scroll to bottom on new messages — only when already near bottom
     useEffect(() => {
@@ -293,25 +332,6 @@ function ChatPage() {
             if (scrollIntervalRef.current !== null) clearInterval(scrollIntervalRef.current);
         };
     }, []);
-
-    // Incoming messages from subscription (others only)
-    useEffect(() => {
-        if (!subData?.receiveMessage) return;
-        const senderId = Number(subData.receiveMessage.participant?.id);
-        if (senderId === userId) return;
-
-        setMessages(prev => {
-            if (!currentRoomId) return prev;
-            if (prev.some(m => m.id === subData.receiveMessage.id)) return prev;
-            return [...prev, {
-                id: Number(subData.receiveMessage.id),
-                userId: senderId,
-                message: subData.receiveMessage.message,
-                roomId: currentRoomId,
-                createdAt: new Date().toISOString(),
-            }];
-        });
-    }, [subData]);
 
     useEffect(() => {
         if (!accessToken) return;
