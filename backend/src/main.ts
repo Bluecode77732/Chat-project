@@ -37,8 +37,9 @@ async function bootstrap() {
 
   // Implementing CORS
   app.enableCors({
-    // Front Origin Allowance
-    origin: process.env.CORS_ORIGIN,
+    // Front Origin Allowance — comma-separated list, since the main frontend and the
+    // admin dashboard run as separate deployments on different origins.
+    origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()),
     // Cookie Authorization In Header Allowance
     credentials: true,
     // Allowance Method
