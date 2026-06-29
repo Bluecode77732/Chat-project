@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import { useAuthStore } from '../store/auth.store';
+import { refreshAccessTokenSafely } from '../auth/session-guard';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
@@ -23,18 +23,11 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !original._retry) {
             original._retry = true;
 
-            try {
-                const { setTokens } = useAuthStore.getState();
-                const { data } = await api.post('/auth/token/refreshaccess');
-                const { sub, role } = jwtDecode<{ sub: number; role: number }>(data.accessToken);
-                setTokens(data.accessToken, sub, role);
-                original.headers.Authorization = `Bearer ${data.accessToken}`;
-                return api(original);
-            } catch {
-                useAuthStore.getState().clearTokens();
-                window.location.replace('/');
-                return Promise.reject(error);
-            }
+            const accessToken = await refreshAccessTokenSafely();
+            if (!accessToken) return Promise.reject(error);
+
+            original.headers.Authorization = `Bearer ${accessToken}`;
+            return api(original);
         }
 
         return Promise.reject(error);

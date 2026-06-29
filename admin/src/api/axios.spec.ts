@@ -26,11 +26,11 @@ vi.mock('axios', () => ({
     default: { create: vi.fn(() => mockAxiosInstance) },
 }));
 
-vi.mock('jwt-decode', () => ({
-    jwtDecode: vi.fn(),
+vi.mock('../auth/session-guard', () => ({
+    refreshAccessTokenSafely: vi.fn(),
 }));
 
-import { jwtDecode } from 'jwt-decode';
+import { refreshAccessTokenSafely } from '../auth/session-guard';
 
 await import('./axios');
 
@@ -45,17 +45,10 @@ const responseErrorHandler = mockAxiosInstance.interceptors.response.use.mock.ca
 ) => Promise<unknown>;
 
 describe('admin axios instance', () => {
-    let replaceSpy: ReturnType<typeof vi.fn>;
-
     beforeEach(() => {
         mockAxiosInstance.mockReset();
         mockAxiosInstance.post.mockReset();
-
-        replaceSpy = vi.fn();
-        vi.spyOn(window, 'location', 'get').mockReturnValue({
-            ...window.location,
-            replace: replaceSpy,
-        } as Location);
+        (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockReset();
 
         useAuthStore.getState().clearTokens();
     });
@@ -94,32 +87,27 @@ describe('admin axios instance', () => {
             const original: FakeRequestConfig = { headers: {}, _retry: false };
             const error: FakeAxiosError = { response: { status: 401 }, config: original };
 
-            mockAxiosInstance.post.mockResolvedValue({ data: { accessToken: 'new-token' } });
-            (jwtDecode as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 7, role: 1 });
+            (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockResolvedValue('new-token');
             mockAxiosInstance.mockResolvedValue('retried-response');
 
             const result = await responseErrorHandler(error);
 
-            expect(mockAxiosInstance.post).toHaveBeenCalledWith('/auth/token/refreshaccess');
-            expect(useAuthStore.getState().accessToken).toBe('new-token');
-            expect(useAuthStore.getState().userId).toBe(7);
+            expect(refreshAccessTokenSafely).toHaveBeenCalled();
             expect(original.headers.Authorization).toBe('Bearer new-token');
             expect(original._retry).toBe(true);
             expect(mockAxiosInstance).toHaveBeenCalledWith(original);
             expect(result).toBe('retried-response');
         });
 
-        it('clears tokens and redirects to the login page when the refresh itself fails.', async () => {
+        it('rejects with the original error and does not retry when the refresh fails.', async () => {
             const original: FakeRequestConfig = { headers: {}, _retry: false };
             const error: FakeAxiosError = { response: { status: 401 }, config: original };
 
-            mockAxiosInstance.post.mockRejectedValue(new Error('refresh failed'));
-            useAuthStore.getState().setTokens('stale-token', 1, 1);
+            (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
             await expect(responseErrorHandler(error)).rejects.toBe(error);
 
-            expect(useAuthStore.getState().accessToken).toBeNull();
-            expect(replaceSpy).toHaveBeenCalledWith('/');
+            expect(mockAxiosInstance).not.toHaveBeenCalled();
         });
 
         it('does not retry a request that already failed once.', async () => {
@@ -128,7 +116,7 @@ describe('admin axios instance', () => {
 
             await expect(responseErrorHandler(error)).rejects.toBe(error);
 
-            expect(mockAxiosInstance.post).not.toHaveBeenCalled();
+            expect(refreshAccessTokenSafely).not.toHaveBeenCalled();
         });
 
         it('passes through non-401 errors untouched.', async () => {
@@ -137,7 +125,7 @@ describe('admin axios instance', () => {
 
             await expect(responseErrorHandler(error)).rejects.toBe(error);
 
-            expect(mockAxiosInstance.post).not.toHaveBeenCalled();
+            expect(refreshAccessTokenSafely).not.toHaveBeenCalled();
         });
     });
 });

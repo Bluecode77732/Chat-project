@@ -4,16 +4,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import ProtectedRoute from './protected-route';
 
-vi.mock('../api/axios', () => ({
-    default: { post: vi.fn() },
+vi.mock('../auth/session-guard', () => ({
+    refreshAccessTokenSafely: vi.fn(),
 }));
 
-vi.mock('jwt-decode', () => ({
-    jwtDecode: vi.fn(),
-}));
-
-import api from '../api/axios';
-import { jwtDecode } from 'jwt-decode';
+import { refreshAccessTokenSafely } from '../auth/session-guard';
 
 function renderProtectedRoute() {
     return render(
@@ -49,7 +44,7 @@ describe('ProtectedRoute', () => {
         renderProtectedRoute();
 
         expect(await screen.findByText('Secret Content')).toBeInTheDocument();
-        expect(api.post).not.toHaveBeenCalled();
+        expect(refreshAccessTokenSafely).not.toHaveBeenCalled();
     });
 
     it('redirects a regular user (role 0) away from the protected content.', async () => {
@@ -62,20 +57,22 @@ describe('ProtectedRoute', () => {
     });
 
     it('refreshes the token on mount when none is stored, then renders for an admin.', async () => {
-        (api.post as ReturnType<typeof vi.fn>).mockResolvedValue({
-            data: { accessToken: 'new-token' },
+        // refreshAccessTokenSafely's real implementation sets the store as a side effect;
+        // the mock must replicate that since ProtectedRoute no longer touches the store itself.
+        (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+            useAuthStore.getState().setTokens('new-token', 5, 1);
+            return 'new-token';
         });
-        (jwtDecode as ReturnType<typeof vi.fn>).mockReturnValue({ sub: 5, role: 1 });
 
         renderProtectedRoute();
 
-        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/auth/token/refreshaccess'));
+        await waitFor(() => expect(refreshAccessTokenSafely).toHaveBeenCalled());
         expect(await screen.findByText('Secret Content')).toBeInTheDocument();
         expect(useAuthStore.getState().accessToken).toBe('new-token');
     });
 
     it('redirects to the login page when the silent refresh fails.', async () => {
-        (api.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no refresh token'));
+        (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
         renderProtectedRoute();
 

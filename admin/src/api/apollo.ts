@@ -4,9 +4,8 @@ import { SetContextLink } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { Observable } from 'rxjs';
-import { jwtDecode } from 'jwt-decode';
 import { useAuthStore } from '../store/auth.store';
-import api from './axios';
+import { refreshAccessTokenSafely } from '../auth/session-guard';
 
 const httpLink = new HttpLink({
     uri: `${import.meta.env.VITE_API_URL}/graphql`,
@@ -18,18 +17,16 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
         error.errors.some((e) => e.extensions?.['code'] === 'UNAUTHENTICATED')
     ) {
         return new Observable<ApolloLink.Result>((observer) => {
-            api.post('/auth/token/refreshaccess')
-                .then(({ data }) => {
-                    const { sub, role } = jwtDecode<{ sub: number; role: number }>(data.accessToken);
-                    useAuthStore.getState().setTokens(data.accessToken, sub, role);
+            refreshAccessTokenSafely()
+                .then((accessToken) => {
+                    if (!accessToken) {
+                        observer.error(error);
+                        return;
+                    }
                     operation.setContext(({ headers = {} }) => ({
-                        headers: { ...headers, authorization: `Bearer ${data.accessToken}` },
+                        headers: { ...headers, authorization: `Bearer ${accessToken}` },
                     }));
                     forward(operation).subscribe(observer);
-                })
-                .catch(() => {
-                    useAuthStore.getState().clearTokens();
-                    window.location.replace('/');
                 });
         });
     }
