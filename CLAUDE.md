@@ -564,6 +564,18 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: adding REST controllers where GraphQL infrastructure exists
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
+### CORS
+- `CORS_ORIGIN` (`backend/src/app.module.ts:35`, `Joi.string().required()`) is a single
+  env var holding a **comma-separated list** of allowed origins, split into an array in
+  `backend/src/main.ts:42` before being passed to `app.enableCors({ origin })`
+- Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
+  separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
+  `backend/.env.example:36` for the local-dev example value
+- `credentials: true` is required alongside this — both `frontend/` and `admin/` rely on
+  the httpOnly refreshToken cookie (`withCredentials`/`credentials: 'include'`)
+- **Never suggest**: `origin: '*'`, hardcoding origins in `main.ts` instead of the env var,
+  or adding a new frontend/admin consumer without also adding its origin to `CORS_ORIGIN`
+
 ## Project Overview
 
 Real-time one-to-one chat application. NestJS backend + React frontend in a **pnpm monorepo** (`backend/` and `frontend/` as workspace packages). Deployed on Railway (backend) and Vercel (frontend).
