@@ -3,7 +3,7 @@
 //* Using a module-level const pubSub = new PubSub() which creates separate instances per import. */
 //* Implementing `PubSub` module-level will send mutation data over subscription. */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { Redis } from 'ioredis';
@@ -19,7 +19,7 @@ function isReceiveMessagePayload(
 }
 
 @Injectable()
-export class PubSubService extends RedisPubSub {
+export class PubSubService extends RedisPubSub implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly sessionCacheService: SessionCacheService,
@@ -56,6 +56,16 @@ export class PubSubService extends RedisPubSub {
     );
 
     super({ publisher, subscriber });
+  }
+
+  // RedisPubSub.close() quits both the publisher and subscriber ioredis clients.
+  async onModuleDestroy() {
+    try {
+      await this.close();
+    } catch (err) {
+      logger.error(`PubSub shutdown error: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async publish(triggerName: string, payload: unknown): Promise<void> {

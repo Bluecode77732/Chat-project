@@ -1,7 +1,13 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import type { UserEntity } from 'src/user/entities/user.entity';
+import { logger } from 'src/base/logger/logger';
 
 export interface CachableMessage {
   id?: number;
@@ -24,7 +30,7 @@ interface CachedMessageEntry {
  */
 
 @Injectable()
-export class SessionCacheService implements OnModuleInit {
+export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
@@ -33,6 +39,18 @@ export class SessionCacheService implements OnModuleInit {
 
   async onModuleInit() {
     await this.redis.del('online_users');
+  }
+
+  // REDIS_CLIENT is a Global module-scoped singleton shared by several other
+  // services (ai/auth/user/rate-limit guard) — quitting it once here on shutdown
+  // is sufficient since they all hold a reference to the same connection.
+  async onModuleDestroy() {
+    try {
+      await this.redis.quit();
+    } catch (err) {
+      logger.error(`REDIS_CLIENT shutdown error: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async sethUserOnline(userId: number, socketId: string) {
