@@ -17,7 +17,6 @@ import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
 import { AdminRoomType } from 'src/graphql/admin-room.type';
 import { UserType } from 'src/graphql/user.type';
-import { GraphQLAdminGuard } from 'src/auth/guard/graphql-admin.guard';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
 import {
@@ -26,6 +25,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
+import { GraphQLRBACGuard } from 'src/auth/guard/graphql-rbac.guard';
+import { RBAC } from 'src/auth/decorator/rbac.decorator';
+import { UserRole } from 'src/auth/role/role';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { DataSource } from 'typeorm';
@@ -47,13 +49,15 @@ export class ChatResolver {
   ) {}
 
   @Query(() => [AdminRoomType])
-  @UseGuards(GraphQLAdminGuard)
+  @RBAC(UserRole.admin)
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async getAllRooms(): Promise<AdminRoomType[]> {
     return this.chatService.findAllRooms();
   }
 
   @Mutation(() => Boolean)
-  @UseGuards(GraphQLAdminGuard)
+  @RBAC(UserRole.admin)
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async deleteRoom(
     @Args('roomId', { type: () => Int }) roomId: number,
   ): Promise<boolean> {

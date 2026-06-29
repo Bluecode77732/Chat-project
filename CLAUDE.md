@@ -434,10 +434,12 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Guard Composition over Guard Inheritance**
 - Breakdown: a concrete instance of SOLID > LSP. The REST guard chain composes
-  (`@UseGuards(JwtAuthGuard, RBACguard)`, `user.controller.ts`), but the GraphQL admin
-  guard subclasses instead (`GraphQLAdminGuard extends GraphQLAuthGuard`,
-  `graphql-admin.guard.ts:10`), strengthening the parent's `canActivate` precondition.
-- Rationale: the REST pattern already proves composition works for this exact
+  (`@UseGuards(JwtAuthGuard, RBACguard)`, `user.controller.ts`); GraphQL admin-gated
+  resolvers now follow the same pattern (`@RBAC(UserRole.admin)` +
+  `@UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)`, `chat.resolver.ts`). The previous
+  `GraphQLAdminGuard extends GraphQLAuthGuard` subclass — which strengthened the
+  parent's `canActivate` precondition, an LSP violation — has been removed.
+- Rationale: the REST pattern already proved composition works for this exact
   requirement (auth + role check) without inheritance.
 - Goal: any new role-gated guard is composed with existing guards, never built as a
   subclass that adds a stricter precondition.
