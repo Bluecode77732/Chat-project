@@ -20,7 +20,11 @@ import Redis from 'ioredis';
       origin: string,
       callback: (err: Error | null, allow: boolean) => void,
     ) => {
-      callback(null, !origin || origin === process.env.CORS_ORIGIN);
+      const allowed = (process.env.CORS_ORIGIN ?? '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+      callback(null, !origin || allowed.includes(origin));
     },
     credentials: true,
   },
