@@ -649,7 +649,7 @@ function ChatPage() {
                         className="relative inline-flex items-center text-lg rounded-full py-2 pl-5 pr-9 text-green-700 bg-green-50"
                         style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}
                     >
-                        위를 클릭하여 대화하세요.
+                        위를 눌러 검색, 혹은 대화하세요.
                         <button
                             onClick={dismissEmptyNotice}
                             data-testid="chat-empty-placeholder-close"
