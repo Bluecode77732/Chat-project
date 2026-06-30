@@ -543,9 +543,9 @@ Do not suggest alternatives to these decisions without explicit request.
 
 ### Auth
 - accessToken: 15m lifetime, stored in-memory on frontend (Zustand store)
-- refreshToken: 7d lifetime, stored in localStorage (httpOnly cookie migration pending)
+- refreshToken: 7d lifetime, stored in httpOnly cookie (set by backend on sign-in; `secure: true`, `sameSite: 'none'`)
 - Guard order: `JwtAuthGuard` → `RbacGuard` → handler
-- WebSocket auth: JWT validated on `handleConnection` via connectionParams
+- WebSocket auth: JWT validated on `handleConnection` via `client.handshake.headers.authorization` (Bearer token in Socket.IO handshake header)
 - **Never suggest**: REST-only auth, session-based auth, storing accessToken in localStorage
 
 ### Cache (Redis via ioredis)
@@ -644,12 +644,12 @@ docker compose up -d --build
 
 **AuthModule** (`backend/src/auth/`)
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/token/refreshaccess`
-- JWT access + refresh token pair; access token in memory, refresh token in localStorage
-- Guards: `JwtAuthGuard`, `LocalAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
+- JWT access + refresh token pair; access token in memory, refreshToken in httpOnly cookie
+- Guards: `JwtAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
 - `UserRole` enum: `user` (0) | `admin` (1) | `superadmin` (2) — `RbacGuard` compares numeric privilege level (`rbac.guard.ts`); the last remaining `superadmin` cannot be demoted (`user.service.ts`)
 
 **ChatModule** (`backend/src/chat/`)
-- `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms, handles `sendMessage`
+- `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms (no chat-message handling)
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
 - `RateLimitGuard` — Redis-backed 10 messages/15s per user
@@ -683,7 +683,7 @@ It has no `@SubscribeMessage` handler for chat messages and emits none.
 - **`api/apollo.ts`** — Apollo Client config
 - **`api/graphql-operations.ts`** — all GQL queries, mutations, subscriptions in one file
 - **`socket/socket.ts`** — Socket.IO client singleton
-- **`store/auth.store.ts`** — Zustand store: JWT in memory, refresh token in localStorage
+- **`store/auth.store.ts`** — Zustand store: JWT in memory (refreshToken is httpOnly cookie, not in store)
 - **`auth/session-guard.ts`** — single entry point for silent accessToken refresh; detects cross-tab account conflicts
 - **`pages/`** — `chat-page.tsx`, `signin-page.tsx`, `register-page.tsx`
 - **`components/protected-route.tsx`** — wraps authenticated routes
