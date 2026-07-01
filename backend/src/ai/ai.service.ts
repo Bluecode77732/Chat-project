@@ -37,7 +37,6 @@ type GeminiContent = {
 
 @Injectable()
 export class AiService implements OnModuleInit {
-  private genai: GoogleGenAI;
   private aiUser!: UserEntity;
 
   constructor(
@@ -57,11 +56,10 @@ export class AiService implements OnModuleInit {
 
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
-  ) {
-    this.genai = new GoogleGenAI({
-      apiKey: this.configService.getOrThrow<string>('GEMINI_API_KEY'),
-    });
-  }
+
+    @Inject('GENAI_CLIENT')
+    private readonly genai: GoogleGenAI,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.seedAiUser();

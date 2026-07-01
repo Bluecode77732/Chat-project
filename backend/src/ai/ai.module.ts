@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
+import { GoogleGenAI } from '@google/genai';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
@@ -16,7 +18,18 @@ import { AiRoomService } from './ai-room.service';
       AiRoomEntity,
     ]),
   ],
-  providers: [AiService, AiRoomService],
+  providers: [
+    AiService,
+    AiRoomService,
+    {
+      provide: 'GENAI_CLIENT',
+      useFactory: (configService: ConfigService) =>
+        new GoogleGenAI({
+          apiKey: configService.getOrThrow<string>('GEMINI_API_KEY'),
+        }),
+      inject: [ConfigService],
+    },
+  ],
   exports: [AiService, AiRoomService],
 })
 export class AiModule {}

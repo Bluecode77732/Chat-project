@@ -166,67 +166,62 @@ export class ChatResolver {
   ): Promise<MessageType> {
     const userId = ctx.req.user.id;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
+    let savedMessage: Awaited<ReturnType<ChatService['sendMessage']>>;
     try {
-      const savedMessage = await this.chatService.sendMessage(
-        { sub: userId },
-        { message: input.message, recipientId },
-        queryRunner,
+      savedMessage = await this.dataSource.transaction(async (manager) =>
+        this.chatService.sendMessage(
+          { sub: userId },
+          { message: input.message, recipientId },
+          manager,
+        ),
       );
-
-      await queryRunner.commitTransaction();
-
-      const roomId = savedMessage.room?.id;
-      await this.pubSub.publish(`receiveMessage :${roomId}`, {
-        receiveMessage: savedMessage,
-      });
-      // Trigger AI reply asynchronously after transaction commits
-      if (roomId && recipientId === this.aiService.getAiUserId()) {
-        const personalityToSet = input.aiPersonality ?? null;
-        setImmediate(() => {
-          (async () => {
-            if (personalityToSet) {
-              await this.aiRoomService
-                .setPersonality(roomId, personalityToSet)
-                .catch((err) => {
-                  logger.error(
-                    `[user=${userId}, room=${roomId}] setPersonality failed: ${(err as Error).message}`,
-                  );
-                });
-            }
-            await this.aiService
-              .handleReply(roomId, personalityToSet, {
-                publishFn: (msg) =>
-                  this.pubSub.publish(`receiveMessage :${roomId}`, {
-                    receiveMessage: msg,
-                  }),
-              })
-              .catch((err) => {
-                logger.error(
-                  `[user=${userId}, room=${roomId}] AI reply error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
-                );
-              });
-          })();
-        });
-      }
-
-      return {
-        ...savedMessage,
-        roomId,
-        createdAt: savedMessage.created,
-      };
     } catch (err) {
       logger.error(
         `[user=${userId}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
       );
-      await queryRunner.rollbackTransaction();
       throw new InternalServerErrorException('Failed to send message');
-    } finally {
-      await queryRunner.release();
     }
+
+    const roomId = savedMessage.room?.id;
+    await this.pubSub.publish(`receiveMessage :${roomId}`, {
+      receiveMessage: savedMessage,
+    });
+
+    // Trigger AI reply asynchronously after transaction commits
+    if (roomId && recipientId === this.aiService.getAiUserId()) {
+      const personalityToSet = input.aiPersonality ?? null;
+      setImmediate(() => {
+        (async () => {
+          if (personalityToSet) {
+            await this.aiRoomService
+              .setPersonality(roomId, personalityToSet)
+              .catch((err) => {
+                logger.error(
+                  `[user=${userId}, room=${roomId}] setPersonality failed: ${(err as Error).message}`,
+                );
+              });
+          }
+          await this.aiService
+            .handleReply(roomId, personalityToSet, {
+              publishFn: (msg) =>
+                this.pubSub.publish(`receiveMessage :${roomId}`, {
+                  receiveMessage: msg,
+                }),
+            })
+            .catch((err) => {
+              logger.error(
+                `[user=${userId}, room=${roomId}] AI reply error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+              );
+            });
+        })();
+      });
+    }
+
+    return {
+      ...savedMessage,
+      roomId,
+      createdAt: savedMessage.created,
+    };
   }
 
   @Subscription(() => MessageType, {

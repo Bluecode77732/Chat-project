@@ -11,14 +11,6 @@ import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
 import { AiPersonality } from './enums/ai-personality.enum';
 
-jest.mock('@google/genai', () => ({
-  GoogleGenAI: jest.fn().mockImplementation(() => ({
-    models: {
-      generateContent: jest.fn(),
-    },
-  })),
-}));
-
 jest.mock('src/base/logger/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -27,6 +19,10 @@ jest.mock('src/base/logger/logger', () => ({
     debug: jest.fn(),
   },
 }));
+
+const mockGenai = {
+  models: { generateContent: jest.fn() },
+};
 
 describe('AiService', () => {
   let aiService: AiService;
@@ -107,6 +103,10 @@ describe('AiService', () => {
         {
           provide: 'REDIS_CLIENT',
           useValue: mockRedis,
+        },
+        {
+          provide: 'GENAI_CLIENT',
+          useValue: mockGenai,
         },
       ],
     }).compile();

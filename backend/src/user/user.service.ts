@@ -8,7 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
@@ -28,6 +28,8 @@ export class UserService {
 
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
+
+    private readonly dataSource: DataSource,
 
     private readonly configService: ConfigService,
 
@@ -277,27 +279,33 @@ export class UserService {
     const sessionData = await this.sessionCacheService.getUserStatus(id);
     const socketId = sessionData?.socketId;
 
-    // ⑤ 유저 삭제
+    // ⑤+⑥ DB 삭제 (단일 트랜잭션)
     //    CASCADE: room_participants 행 자동 제거
     //    SET NULL: chat_entity.participantId = NULL (메시지 익명 보존)
-    await this.userRepository.delete(id);
+    const orphanedRoomIds: number[] = [];
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(UserEntity, id);
 
-    // ⑥ 고아 방 정리: 참가자가 0명이 된 방 삭제
-    //    CASCADE: chat_entity.roomId 행 자동 삭제
-    for (const roomId of roomIds) {
-      const remainingCount = await this.roomRepository
-        .createQueryBuilder('room')
-        .innerJoin('room.participants', 'p')
-        .where('room.id = :roomId', { roomId })
-        .getCount();
+      for (const roomId of roomIds) {
+        const remainingCount = await manager
+          .createQueryBuilder(RoomEntity, 'room')
+          .innerJoin('room.participants', 'p')
+          .where('room.id = :roomId', { roomId })
+          .getCount();
 
-      if (remainingCount === 0) {
-        await this.roomRepository.delete(roomId);
-        await this.redis.del(`room_messages:${roomId}`);
-        logger.info(
-          `Orphaned room ${roomId} deleted after user ${id} withdrawal`,
-        );
+        if (remainingCount === 0) {
+          await manager.delete(RoomEntity, roomId);
+          orphanedRoomIds.push(roomId);
+        }
       }
+    });
+
+    // 커밋 후 고아 방 Redis 캐시 정리
+    for (const roomId of orphanedRoomIds) {
+      await this.redis.del(`room_messages:${roomId}`);
+      logger.info(
+        `Orphaned room ${roomId} deleted after user ${id} withdrawal`,
+      );
     }
 
     // ⑦ Redis 세션 정리

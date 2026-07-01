@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Server, Socket } from 'socket.io';
-import { QueryRunner, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { RoomEntity } from './entities/room.entity';
 import { ChatEntity } from './entities/chat.entity';
 import { UserEntity } from 'src/user/entities/user.entity';
@@ -103,14 +103,14 @@ export class ChatService {
   // Looks for an existing private chat room between exactly two users
   // Uses sorted IDs to ensure consistent lookup (avoids duplicate rooms)
   // returns existing RoomEntity or null
-  async findRoom(user1: number, user2: number, qr: QueryRunner) {
+  async findRoom(user1: number, user2: number, manager: EntityManager) {
     if (!user1 || !user2) {
       return null;
     }
 
     const ids = [user1, user2].sort((a, b) => a - b);
 
-    const room = await qr.manager
+    const room = await manager
       .createQueryBuilder(RoomEntity, 'room')
       .innerJoin('room.participants', 'participant1')
       .innerJoin('room.participants', 'participant2')
@@ -126,12 +126,16 @@ export class ChatService {
 
   // Creates a new private chat room between two users
   // Saves both participants in the many-to-many relation
-  async createRoom(user1: UserEntity, user2: UserEntity, qr: QueryRunner) {
-    const room = qr.manager.create(RoomEntity, {
+  async createRoom(
+    user1: UserEntity,
+    user2: UserEntity,
+    manager: EntityManager,
+  ) {
+    const room = manager.create(RoomEntity, {
       participants: [user1, user2],
     });
 
-    const saved = await qr.manager.save(room);
+    const saved = await manager.save(room);
 
     if (!saved?.id) {
       throw new WsException('Cannot Find Room');
@@ -146,13 +150,13 @@ export class ChatService {
   async getOrCreateRoom(
     sender: UserEntity,
     recipientId: number,
-    qr: QueryRunner,
+    manager: EntityManager,
   ) {
     if (!sender?.id) {
       throw new WsException('Cannot Find Sender');
     }
 
-    let room = await this.findRoom(sender.id, recipientId, qr);
+    let room = await this.findRoom(sender.id, recipientId, manager);
 
     if (room) {
       if (room.id) {
@@ -180,7 +184,7 @@ export class ChatService {
     }
 
     // Create new room
-    room = await this.createRoom(sender, recipient, qr);
+    room = await this.createRoom(sender, recipient, manager);
 
     // Notify and join users when they connected
     for (const id of [sender.id, recipient.id]) {
@@ -215,7 +219,7 @@ export class ChatService {
   async sendMessage(
     payload: { sub: number },
     { message, recipientId }: CreateChatDto,
-    queryRunner: QueryRunner,
+    manager: EntityManager,
   ) {
     try {
       // Todo: Find a client
@@ -233,7 +237,7 @@ export class ChatService {
       }
 
       // Todo: Get and create a chat room : transactional
-      const room = await this.getOrCreateRoom(sender, recipientId, queryRunner);
+      const room = await this.getOrCreateRoom(sender, recipientId, manager);
 
       // Check if room exist
       if (!room?.id) throw new WsException('Cannot Find Room');
@@ -241,7 +245,7 @@ export class ChatService {
       // Todo: Save message in the chat database permanently
       //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
       const messageSchema = Object.assign(
-        await queryRunner.manager.save(ChatEntity, {
+        await manager.save(ChatEntity, {
           participant: sender,
           message,
           room,

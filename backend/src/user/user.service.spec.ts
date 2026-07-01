@@ -7,6 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { ChatService } from 'src/chat/chat.service';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
@@ -16,6 +17,25 @@ import * as bcrypt from 'bcrypt';
 
 describe('UserService', () => {
   let userService: UserService;
+
+  const mockManagerQB = {
+    innerJoin: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getCount: jest.fn().mockResolvedValue(1),
+  };
+
+  const mockManager = {
+    delete: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockManagerQB),
+  };
+
+  const mockDataSource = {
+    transaction: jest
+      .fn()
+      .mockImplementation((cb: (m: typeof mockManager) => Promise<unknown>) =>
+        cb(mockManager),
+      ),
+  };
 
   const mockUserRepository = {
     findOne: jest.fn(),
@@ -78,6 +98,10 @@ describe('UserService', () => {
         {
           provide: getRepositoryToken(RoomEntity),
           useValue: mockRoomRepository,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
         {
           provide: ConfigService,
@@ -345,7 +369,7 @@ describe('UserService', () => {
       await expect(userService.remove(99, userId, 'pw')).rejects.toThrow(
         NotFoundException,
       );
-      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+      expect(mockManager.delete).not.toHaveBeenCalled();
     });
 
     it('should throw a BadRequestException when self-deletion is missing a password.', async () => {
@@ -354,7 +378,7 @@ describe('UserService', () => {
       await expect(userService.remove(userId, userId)).rejects.toThrow(
         BadRequestException,
       );
-      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+      expect(mockManager.delete).not.toHaveBeenCalled();
     });
 
     it('should throw a BadRequestException when the password does not match.', async () => {
@@ -364,14 +388,14 @@ describe('UserService', () => {
       await expect(
         userService.remove(userId, userId, 'wrong-password'),
       ).rejects.toThrow(BadRequestException);
-      expect(mockUserRepository.delete).not.toHaveBeenCalled();
+      expect(mockManager.delete).not.toHaveBeenCalled();
     });
 
     it('should delete the user, clean up sessions, blacklist the token, and log the audit entry.', async () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockRoomQueryBuilder.getMany.mockResolvedValueOnce([{ id: 10 }]);
-      mockRoomQueryBuilder.getCount.mockResolvedValueOnce(0); // room 10 becomes orphaned
+      mockManagerQB.getCount.mockResolvedValueOnce(0); // room 10 becomes orphaned
       mockSessionCacheService.getUserStatus.mockResolvedValueOnce({
         socketId: 'socket-1',
       });
@@ -388,9 +412,9 @@ describe('UserService', () => {
         'correct-password',
         user.password,
       );
-      expect(mockUserRepository.delete).toHaveBeenCalledWith(userId);
-      // orphaned room 10 cleaned up
-      expect(mockRoomRepository.delete).toHaveBeenCalledWith(10);
+      expect(mockManager.delete).toHaveBeenCalledWith(UserEntity, userId);
+      // orphaned room 10 cleaned up inside transaction
+      expect(mockManager.delete).toHaveBeenCalledWith(RoomEntity, 10);
       expect(mockRedisClient.del).toHaveBeenCalledWith('room_messages:10');
       // session cleanup
       expect(mockSessionCacheService.sethUserOffline).toHaveBeenCalledWith(
@@ -428,7 +452,7 @@ describe('UserService', () => {
       );
 
       expect(bcrypt.compare).not.toHaveBeenCalled();
-      expect(mockUserRepository.delete).toHaveBeenCalledWith(userId);
+      expect(mockManager.delete).toHaveBeenCalledWith(UserEntity, userId);
       expect(mockAuditLogService.log).toHaveBeenCalledWith(
         actorId,
         userId,
