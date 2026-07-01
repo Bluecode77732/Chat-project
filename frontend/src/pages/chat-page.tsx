@@ -644,21 +644,15 @@ function ChatPage() {
             {!hideEmptyNotice && !currentRoomId && messages.length === 0 && recipientId !== aiUserId && (
                 <div className="flex items-center gap-2 mb-3 pl-[4.5rem] sm:pl-[14rem]">
                     <span className="text-green-300 text-sm select-none">↑</span>
-                    <span
-                        data-testid="chat-empty-placeholder"
-                        className="relative inline-flex items-center text-lg rounded-full py-2 pl-5 pr-9 text-green-700 bg-green-50"
-                        style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}
-                    >
-                        위를 눌러 검색, 혹은 대화하세요.
-                        <button
-                            onClick={dismissEmptyNotice}
-                            data-testid="chat-empty-placeholder-close"
-                            aria-label="닫기"
-                            className="absolute top-1.5 right-3 opacity-60 hover:opacity-100 leading-none text-xs"
-                        >
-                            ✕
-                        </button>
-                    </span>
+                    <EmptyStateNotice
+                        text="위를 눌러 검색, 혹은 대화하세요."
+                        colorClass="text-green-700 bg-green-50"
+                        testId="chat-empty-placeholder"
+                        onDismiss={dismissEmptyNotice}
+                        noWrapper
+                        spanClassName="relative inline-flex items-center text-lg rounded-full py-2 pl-5 pr-9 text-green-700 bg-green-50"
+                        spanStyle={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}
+                    />
                 </div>
             )}
 
