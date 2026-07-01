@@ -32,7 +32,8 @@ import { join } from 'node:path';
         REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         // Validating CORS env via Joi
-        CORS_ORIGIN: Joi.string().required(),
+        // pattern(/\S/) rejects whitespace-only strings that satisfy .required() but produce an empty allowlist.
+        CORS_ORIGIN: Joi.string().pattern(/\S/).required(),
         GEMINI_API_KEY: Joi.string().required(),
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
@@ -85,7 +86,13 @@ import { join } from 'node:path';
           },
         },
       },
-      context: ({ req, extra }) => {
+      context: ({
+        req,
+        extra,
+      }: {
+        req?: import('express').Request;
+        extra?: { authorization?: string };
+      }) => {
         // Returns HTTP request
         if (req) {
           return { req };

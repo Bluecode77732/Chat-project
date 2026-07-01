@@ -3,12 +3,15 @@ import {
   ExecutionContext,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { QueryRunner } from 'typeorm';
 
 export const QueryRunnerDecorator = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx
+      .switchToHttp()
+      .getRequest<{ queryRunner?: QueryRunner }>();
 
-    if (!request || !request.queryRunner) {
+    if (!request?.queryRunner) {
       throw new InternalServerErrorException('Cannot find QueryRunner.');
     }
 

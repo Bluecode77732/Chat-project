@@ -129,6 +129,7 @@ describe('AiService', () => {
         expect.objectContaining({
           email: 'ai@system.local',
           isAI: true,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           role: expect.any(Number),
         }),
       );
@@ -158,7 +159,7 @@ describe('AiService', () => {
     });
 
     it('should throw BadRequestException when AI user is not initialized', () => {
-      (aiService as any).aiUser = undefined;
+      (aiService as { aiUser: UserEntity | undefined }).aiUser = undefined;
 
       expect(() => aiService.getAiUserId()).toThrow(BadRequestException);
     });
@@ -214,7 +215,11 @@ describe('AiService', () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
-      (aiService as any).genai.models.generateContent.mockResolvedValue({
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockResolvedValue({
         text: 'AI reply text',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
@@ -239,7 +244,11 @@ describe('AiService', () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
-      (aiService as any).genai.models.generateContent.mockResolvedValue({
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockResolvedValue({
         text: 'Code answer',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
@@ -262,7 +271,11 @@ describe('AiService', () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
-      (aiService as any).genai.models.generateContent.mockResolvedValue({
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockResolvedValue({
         text: '',
       });
 
@@ -277,7 +290,11 @@ describe('AiService', () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
-      (aiService as any).genai.models.generateContent.mockResolvedValue({
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockResolvedValue({
         text: 'AI reply text',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
@@ -302,7 +319,11 @@ describe('AiService', () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
-      (aiService as any).genai.models.generateContent.mockRejectedValue(
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockRejectedValue(
         new Error('Gemini API error'),
       );
 
@@ -327,7 +348,11 @@ describe('AiService', () => {
       // buildHistory orders DESC then reverses, so mock returns newest-first
       const qb = buildMockQueryBuilder([userMsg, aiMessage]);
       mockChatRepository.createQueryBuilder.mockReturnValue(qb);
-      (aiService as any).genai.models.generateContent.mockResolvedValue({
+      (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai.models.generateContent.mockResolvedValue({
         text: 'Response',
       });
       mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
@@ -343,8 +368,15 @@ describe('AiService', () => {
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
-      const generateContentCall = (aiService as any).genai.models
-        .generateContent.mock.calls[0][0];
+      type GenContent = { contents: Array<{ role: string }> };
+      const genaiMock = (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai;
+      const generateContentCall = (
+        genaiMock.models.generateContent.mock.calls as GenContent[][]
+      )[0][0];
       expect(generateContentCall.contents[0].role).toBe('model');
       expect(generateContentCall.contents[1].role).toBe('user');
     });

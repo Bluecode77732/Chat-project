@@ -50,6 +50,7 @@ export class ChatResolver {
 
   @Query(() => [AdminRoomType])
   @RBAC(UserRole.admin)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async getAllRooms(): Promise<AdminRoomType[]> {
     return this.chatService.findAllRooms();
@@ -57,6 +58,7 @@ export class ChatResolver {
 
   @Mutation(() => Boolean)
   @RBAC(UserRole.admin)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async deleteRoom(
     @Args('roomId', { type: () => Int }) roomId: number,
@@ -228,7 +230,8 @@ export class ChatResolver {
   }
 
   @Subscription(() => MessageType, {
-    resolve: (payload) => payload.receiveMessage,
+    resolve: (payload: { receiveMessage: MessageType }) =>
+      payload.receiveMessage,
     filter: () => true,
   })
   @UseGuards(GraphQLAuthGuard)
@@ -240,6 +243,8 @@ export class ChatResolver {
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
-    return this.pubSub.asyncIterableIterator(`receiveMessage :${roomId}`);
+    return this.pubSub.asyncIterableIterator(
+      `receiveMessage :${roomId}`,
+    ) as AsyncIterableIterator<{ receiveMessage: MessageType }>;
   }
 }

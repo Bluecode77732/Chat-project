@@ -88,14 +88,14 @@ export class ChatService {
       )
       .getMany();
     // Join each room by its string ID (Socket.IO room names are strings)
-    rooms.forEach((room) => {
+    for (const room of rooms) {
       if (!room?.id) {
         throw new WsException('Cannot Find Room');
       }
 
-      client.join(room.id.toString());
+      await client.join(room.id.toString());
       logger.debug(`User ${user.sub} has joined room ${room.id}`);
-    });
+    }
 
     logger.info(`User ${user.sub} has registered`);
   }

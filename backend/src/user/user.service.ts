@@ -176,6 +176,7 @@ export class UserService {
     const previousRole = target.role ?? UserRole.user;
 
     // 마지막 superadmin 강등 방지
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (previousRole === UserRole.superadmin && role !== UserRole.superadmin) {
       const superadminCount = await this.userRepository.count({
         where: { role: UserRole.superadmin },

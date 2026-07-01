@@ -6,12 +6,13 @@ import {
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { AuthGuard } from '@nestjs/passport';
 import { logger } from 'src/base/logger/logger';
+import { Payload } from '../interface/payload.interface';
 
 @Injectable()
 export class GraphQLAuthGuard extends AuthGuard('jwt-auth-guard') {
   getRequest(context: ExecutionContext) {
     const GqlCtx = GqlExecutionContext.create(context);
-    const ctx = GqlCtx.getContext();
+    const ctx = GqlCtx.getContext<{ req?: { user?: Payload } }>();
     if (!ctx.req) {
       throw new UnauthorizedException('Unauthorized');
     }

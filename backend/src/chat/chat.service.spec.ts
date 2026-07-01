@@ -119,7 +119,11 @@ describe('ChatService', () => {
 
       await chatService.registerClient(1, mockSocket as Socket);
 
-      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.sethUserOnline)).toHaveBeenCalledWith(
+        1,
+        '1',
+      );
     });
 
     it('should not kick anything when the same socket reconnects', async () => {
@@ -131,7 +135,11 @@ describe('ChatService', () => {
 
       await chatService.registerClient(1, mockSocket as Socket);
 
-      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.sethUserOnline)).toHaveBeenCalledWith(
+        1,
+        '1',
+      );
     });
 
     it('should notify and disconnect a previous session superseded by a new login', async () => {
@@ -150,7 +158,11 @@ describe('ChatService', () => {
         reason: 'conflict',
       });
       expect(oldSocket.disconnect).toHaveBeenCalledWith(true);
-      expect(redisService.sethUserOnline).toHaveBeenCalledWith(1, '1');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.sethUserOnline)).toHaveBeenCalledWith(
+        1,
+        '1',
+      );
     });
   });
 
@@ -162,7 +174,8 @@ describe('ChatService', () => {
 
       await chatService.removeClient(1, '1');
 
-      expect(redisService.sethUserOffline).toHaveBeenCalledWith(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.sethUserOffline)).toHaveBeenCalledWith(1);
     });
 
     it('should not touch online status when a newer session already replaced it', async () => {
@@ -172,7 +185,8 @@ describe('ChatService', () => {
 
       await chatService.removeClient(1, 'stale-socket');
 
-      expect(redisService.sethUserOffline).not.toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.sethUserOffline)).not.toHaveBeenCalled();
     });
   });
 
@@ -295,10 +309,15 @@ describe('ChatService', () => {
         mockQueryRunner as unknown as QueryRunner,
       );
 
-      expect(mockQueryRunner.manager?.create).toHaveBeenCalledWith(RoomEntity, {
-        participants: [user1, user2],
-      });
-      expect(mockQueryRunner.manager?.save).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockQueryRunner.manager?.create as jest.Mock).toHaveBeenCalledWith(
+        RoomEntity,
+        {
+          participants: [user1, user2],
+        },
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockQueryRunner.manager?.save as jest.Mock).toHaveBeenCalled();
     });
 
     it('should throw WebSocket exception if the room id does not exist', async () => {
@@ -343,7 +362,8 @@ describe('ChatService', () => {
         mockQueryRunner as QueryRunner,
       );
 
-      expect(chatService.findRoom).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(chatService.findRoom)).toHaveBeenCalledWith(
         mockSender.id,
         mockRecipient.id,
         mockQueryRunner as QueryRunner,
@@ -384,11 +404,18 @@ describe('ChatService', () => {
         mockQueryRunner as QueryRunner,
       );
 
-      expect(chatService.findRoom).toHaveBeenCalledWith(1, 2, mockQueryRunner);
-      expect(userRepository.findOneBy).toHaveBeenCalledWith({
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(chatService.findRoom)).toHaveBeenCalledWith(
+        1,
+        2,
+        mockQueryRunner,
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(userRepository.findOneBy)).toHaveBeenCalledWith({
         id: mockRecipientId,
       });
-      expect(chatService.createRoom).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(chatService.createRoom)).toHaveBeenCalledWith(
         mockSender,
         mockRecipient,
         mockQueryRunner,
@@ -418,7 +445,7 @@ describe('ChatService', () => {
       ).rejects.toThrow(WsException);
     });
 
-    it('should throw null if cannot connect to socket', async () => {
+    it('should throw null if cannot connect to socket', () => {
       const clientConnection = new Map<number, Socket>();
 
       expect(clientConnection).toBeInstanceOf(Map);
@@ -566,7 +593,10 @@ describe('ChatService', () => {
 
       const result = await chatService.getMessages(roomId);
 
-      expect(chatRepository.createQueryBuilder).toHaveBeenCalledWith('chat');
+      expect(
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        jest.mocked(chatRepository.createQueryBuilder),
+      ).toHaveBeenCalledWith('chat');
       expect(mockQueryBuilder.where).toHaveBeenCalledWith(
         'chat.room = :roomId',
         { roomId },
@@ -856,7 +886,8 @@ describe('ChatService', () => {
 
       const result = await chatService.getUserNicknames();
 
-      expect(userRepository.find).toHaveBeenCalledWith({
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(userRepository.find)).toHaveBeenCalledWith({
         where: { isAI: false },
         select: ['id', 'nickname', 'profileImage'],
       });

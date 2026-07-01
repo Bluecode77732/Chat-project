@@ -9,6 +9,7 @@ import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import { logger } from 'src/base/logger/logger';
+import { Payload } from 'src/auth/interface/payload.interface';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 
@@ -68,7 +69,8 @@ export class ChatGateway
 
       if (payload) {
         // Put bearer token into data.user to be extracted by
-        client.data.user = payload;
+        // socket.data is typed as any by socket.io; we narrow it to the shape we control
+        (client.data as { user?: Payload }).user = payload;
 
         // Remember the specific client with a certain key
         await this.chatService.registerClient(payload.sub, client);
@@ -87,12 +89,13 @@ export class ChatGateway
   }
 
   async handleDisconnect(client: Socket) {
-    const participant = client.data.user;
+    // socket.data is typed as any by socket.io; we narrow it to the shape we set in handleConnection
+    const participant = (client.data as { user?: Payload }).user;
 
     if (participant) {
       await this.chatService.removeClient(participant.sub, client.id);
     }
 
-    return `User: ${participant} disconnected`;
+    return `User: ${participant?.sub ?? 'unknown'} disconnected`;
   }
 }

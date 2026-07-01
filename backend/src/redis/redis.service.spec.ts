@@ -192,9 +192,13 @@ describe('SessionCacheService', () => {
       expect(mockRedisClient.ltrim).toHaveBeenCalledWith(key, 0, 14);
       expect(mockRedisClient.expire).toHaveBeenCalledWith(key, 86400);
 
-      const stored = JSON.parse(
-        (mockRedisClient.lpush as jest.Mock).mock.calls[0][1],
-      );
+      const lpushCall = (mockRedisClient.lpush as jest.Mock).mock.calls[0] as [
+        string,
+        string,
+      ];
+      const stored = JSON.parse(lpushCall[1]) as {
+        participant?: Record<string, unknown>;
+      };
       expect(stored).not.toHaveProperty('password');
       expect(stored.participant).not.toHaveProperty('password');
     });

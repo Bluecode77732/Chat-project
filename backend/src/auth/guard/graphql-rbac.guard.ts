@@ -12,6 +12,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { GqlExecutionContext } from '@nestjs/graphql';
@@ -35,31 +36,26 @@ export class GraphQLRBACGuard implements CanActivate {
 
     // Switch context to GraphQL and extract the request.
     const ctx = GqlExecutionContext.create(context);
-    const user = ctx.getContext().req?.user;
+    const user = ctx.getContext<{
+      req?: { user?: { sub?: number; id?: number; role?: UserRole } };
+    }>().req?.user;
 
     // If a user does not exist in request, deny access.
     if (!user) {
       logger.warn(
         `RBAC denied (GraphQL): no authenticated user (required role=${role})`,
       );
-      throw new ForbiddenException('Admin access required');
+      throw new UnauthorizedException();
     }
 
-    // Higher number = more privilege (user=0, admin=1, superadmin=2)
-    const accessLevel = {
-      [UserRole.user]: 0,
-      [UserRole.admin]: 1,
-      [UserRole.superadmin]: 2,
-    };
-
-    const allowed = accessLevel[user.role] >= accessLevel[role];
+    // UserRole enum values are already numeric (user=0, admin=1, superadmin=2).
+    const allowed = (user.role ?? UserRole.user) >= role;
     if (!allowed) {
       logger.warn(
         `[user=${user.sub ?? user.id ?? 'unknown'}] RBAC denied (GraphQL): role=${user.role} < required=${role}`,
       );
-      throw new ForbiddenException('Admin access required');
+      throw new ForbiddenException();
     }
-    // Admin can access user-level endpoints; exact match is not required
     return true;
   }
 }

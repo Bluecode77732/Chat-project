@@ -20,7 +20,9 @@ export class RBACguard implements CanActivate {
     }
 
     // Switch context to HTTP and extract the request.
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<{
+      user?: { sub?: number; id?: number; role?: UserRole };
+    }>();
 
     // Get the authenticated user from the request in auth router.
     const user = request.user;
@@ -38,7 +40,8 @@ export class RBACguard implements CanActivate {
       [UserRole.superadmin]: 2,
     };
 
-    const allowed = accessLevel[user.role] >= accessLevel[role];
+    const allowed =
+      accessLevel[user.role ?? UserRole.user] >= accessLevel[role];
     if (!allowed) {
       logger.warn(
         `[user=${user.sub ?? user.id ?? 'unknown'}] RBAC denied: role=${user.role} < required=${role}`,

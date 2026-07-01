@@ -4,7 +4,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { catchError, Observable, tap } from 'rxjs';
 import { logger } from 'src/base/logger/logger';
 
@@ -17,7 +17,10 @@ export class Transaction implements NestInterceptor {
     ctx: ExecutionContext,
     next: CallHandler<string>,
   ): Promise<Observable<string>> {
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx.switchToHttp().getRequest<{
+      queryRunner?: QueryRunner;
+      user?: { sub?: number; id?: number };
+    }>();
     const queryRunner = this.dataSource.createQueryRunner();
 
     await queryRunner.connect();
@@ -37,10 +40,12 @@ export class Transaction implements NestInterceptor {
 
         throw error;
       }),
-      tap(async () => {
+      tap(() => {
         //! Debug - Save message in DB: `rollbackTransaction` => `commitTransaction` which wasn't added.
-        await queryRunner.commitTransaction();
-        await queryRunner.release();
+        void (async () => {
+          await queryRunner.commitTransaction();
+          await queryRunner.release();
+        })();
       }),
     );
   }

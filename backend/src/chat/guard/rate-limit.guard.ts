@@ -23,10 +23,14 @@ export class RateLimitGuard implements CanActivate {
     let userId: number | undefined;
     try {
       if (isWs) {
-        const client = context.switchToWs().getClient();
-        userId = client.data.user.sub;
+        const client = context
+          .switchToWs()
+          .getClient<{ data: { user?: { sub?: number } } }>();
+        userId = client.data.user?.sub;
       } else {
-        const gqlCtx = GqlExecutionContext.create(context).getContext();
+        const gqlCtx = GqlExecutionContext.create(context).getContext<{
+          req?: { user?: { id?: number } };
+        }>();
         userId = gqlCtx.req?.user?.id;
       }
 

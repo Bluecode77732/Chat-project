@@ -27,7 +27,8 @@ export const logger = winston.createLogger({
       format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
         winston.format.printf(
-          (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+          (info) =>
+            `${String(info.timestamp)} | ${String(info.level)} | ${String(info.message)}`,
         ),
       ),
     }),
@@ -37,7 +38,8 @@ export const logger = winston.createLogger({
             format: winston.format.combine(
               winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
               winston.format.printf(
-                (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+                (info) =>
+                  `${String(info.timestamp)} | ${String(info.level)} | ${String(info.message)}`,
               ),
             ),
             dirname: join(process.cwd(), 'logs'),
@@ -47,7 +49,8 @@ export const logger = winston.createLogger({
             format: winston.format.combine(
               winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss ZZ' }),
               winston.format.printf(
-                (info) => `${info.timestamp} | ${info.level} | ${info.message}`,
+                (info) =>
+                  `${String(info.timestamp)} | ${String(info.level)} | ${String(info.message)}`,
               ),
             ),
             dirname: join(process.cwd(), 'logs'),

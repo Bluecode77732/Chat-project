@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiRoomEntity } from './entities/ai-room.entity';
-import { RoomEntity } from 'src/chat/entities/room.entity';
 import { AiPersonality } from './enums/ai-personality.enum';
 import { logger } from 'src/base/logger/logger';
 

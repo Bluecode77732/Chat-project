@@ -168,7 +168,7 @@ describe('UserService', () => {
         .spyOn(mockUserRepository, 'findOne')
         .mockResolvedValue({ id: 1, email: createUserDto.email });
 
-      expect(userService.create(createUserDto)).rejects.toThrow(
+      await expect(userService.create(createUserDto)).rejects.toThrow(
         BadRequestException,
       );
       expect(mockUserRepository.save).not.toHaveBeenCalledWith();
@@ -198,9 +198,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce(user)
         .mockResolvedValueOnce({ ...user, password: 'PrivatePassword' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
-      jest
-        .spyOn(bcrypt, 'hash')
-        .mockImplementation(() => Promise.resolve(hashed));
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
       jest
         .spyOn(mockUserRepository, 'update')
         .mockImplementation(() => Promise.resolve(user));
@@ -231,7 +229,7 @@ describe('UserService', () => {
 
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
 
-      expect(userService.update(1, updateUserDto)).rejects.toThrow(
+      await expect(userService.update(1, updateUserDto)).rejects.toThrow(
         NotFoundException,
       );
       expect(mockUserRepository.findOne).toHaveBeenCalledWith({

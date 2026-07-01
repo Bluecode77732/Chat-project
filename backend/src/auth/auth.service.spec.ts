@@ -5,6 +5,7 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -324,6 +325,7 @@ describe('AuthService', () => {
 
       const result = await authService.validateUser(email, password);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(userRepository.findOne)).toHaveBeenCalledWith({
         where: { email },
       });
@@ -368,6 +370,7 @@ describe('AuthService', () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, true);
 
       // Jwt decoded payload
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         {
           sub: user.id,
@@ -392,6 +395,7 @@ describe('AuthService', () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, false);
 
       // Jwt decoded payloads
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         { sub: user.id, role: 0, type: 'access' },
         { secret: 10, expiresIn: 10 },
@@ -417,13 +421,16 @@ describe('AuthService', () => {
 
       const result = await authService.signIn(rawToken);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(authService.parseBasicToken)).toHaveBeenCalledWith(
         rawToken,
       );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(authService.validateUser)).toHaveBeenCalledWith(
         email,
         password,
       );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(authService.issueToken)).toHaveBeenCalledTimes(2);
       expect(result).toEqual({
         refreshToken: 'token',
