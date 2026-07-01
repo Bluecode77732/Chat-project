@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { Repository } from 'typeorm';
 import { UserEntity } from 'src/user/entities/user.entity';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
@@ -11,7 +10,6 @@ import * as bcrypt from 'bcrypt';
 describe('AuthService', () => {
   let authService: AuthService;
   let userRepository: Repository<UserEntity>;
-  let configService: ConfigService;
   let jwtService: JwtService;
 
   // Mocking
@@ -71,7 +69,6 @@ describe('AuthService', () => {
     userRepository = module.get<Repository<UserEntity>>(
       getRepositoryToken(UserEntity),
     );
-    configService = module.get<ConfigService>(ConfigService);
     jwtService = module.get<JwtService>(JwtService);
   });
 
@@ -197,6 +194,32 @@ describe('AuthService', () => {
       );
       expect(result.jti).toBe('current-jti');
     });
+
+    it('should throw UnauthorizedException for a blacklisted access token', async () => {
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'access', sub: 1 });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+      mockRedis.get.mockResolvedValue('1');
+
+      await expect(
+        authService.parseBearerToken('Bearer revokedToken', false),
+      ).rejects.toThrow(new UnauthorizedException('Token has been revoked.'));
+    });
+
+    it('should pass when access token is not blacklisted', async () => {
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'access', sub: 1 });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+      mockRedis.get.mockResolvedValue(null);
+
+      const result = await authService.parseBearerToken(
+        'Bearer validToken',
+        false,
+      );
+      expect(result.type).toBe('access');
+    });
   });
 
   describe('register', () => {
@@ -232,10 +255,7 @@ describe('AuthService', () => {
       // Mocking ConfigService's getOrThrow to return value
       mockConfigService.getOrThrow.mockReturnValue(hashRounds);
 
-      // `bcrypt.compare` is async, thus it returns a `Promise`.
-      jest
-        .spyOn(bcrypt, 'hash')
-        .mockImplementation(() => Promise.resolve(hashedPassword));
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
 
       const result = await authService.register(BasicToken);
 
@@ -300,14 +320,13 @@ describe('AuthService', () => {
 
     it('should validate user', async () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
-      // `bcrypt.compare` is async, thus it returns a `Promise`.
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(true));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await authService.validateUser(email, password);
 
-      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { email } });
+      expect(jest.mocked(userRepository.findOne)).toHaveBeenCalledWith({
+        where: { email },
+      });
       expect(bcrypt.compare).toHaveBeenCalledWith(
         password,
         'Hashed@123!Password',
@@ -325,9 +344,7 @@ describe('AuthService', () => {
 
     it('should throw a BadRequestException when user password is incorrect', async () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(false));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(authService.validateUser(email, password)).rejects.toThrow(
         new BadRequestException('Invalid User.'),
@@ -351,11 +368,12 @@ describe('AuthService', () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, true);
 
       // Jwt decoded payload
-      expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         {
           sub: user.id,
           role: 0,
           type: 'refresh',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           jti: expect.any(String),
         },
         { secret: 10, expiresIn: 10 },
@@ -374,7 +392,7 @@ describe('AuthService', () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, false);
 
       // Jwt decoded payloads
-      expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         { sub: user.id, role: 0, type: 'access' },
         { secret: 10, expiresIn: 10 },
       );
@@ -399,9 +417,14 @@ describe('AuthService', () => {
 
       const result = await authService.signIn(rawToken);
 
-      expect(authService.parseBasicToken).toHaveBeenCalledWith(rawToken);
-      expect(authService.validateUser).toHaveBeenCalledWith(email, password);
-      expect(authService.issueToken).toHaveBeenCalledTimes(2);
+      expect(jest.mocked(authService.parseBasicToken)).toHaveBeenCalledWith(
+        rawToken,
+      );
+      expect(jest.mocked(authService.validateUser)).toHaveBeenCalledWith(
+        email,
+        password,
+      );
+      expect(jest.mocked(authService.issueToken)).toHaveBeenCalledTimes(2);
       expect(result).toEqual({
         refreshToken: 'token',
         accessToken: 'token',

@@ -236,9 +236,17 @@ export class AuthService {
       throw new UnauthorizedException('Token Expired');
     }
 
-    // Kept outside the try/catch above so this distinct message reaches the
-    // client instead of being flattened into the generic 'Token Expired' —
-    // the frontend needs to tell "logged in elsewhere" apart from "expired".
+    // Kept outside the try/catch above so distinct messages reach the client
+    // instead of being flattened into the generic 'Token Expired'.
+    if (!isRefreshToken) {
+      const token = rawToken.split(' ')[1];
+      const isBlacklisted = await this.redis.get(`blacklist:${token}`);
+      if (isBlacklisted) {
+        logger.warn(`Revoked access token used for WS/socket connection`);
+        throw new UnauthorizedException('Token has been revoked.');
+      }
+    }
+
     if (isRefreshToken) {
       const currentJti = await this.redis.get(`auth:session:${payload.sub}`);
       if (!currentJti || currentJti !== payload.jti) {
