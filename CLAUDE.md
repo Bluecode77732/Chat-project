@@ -153,7 +153,8 @@ Patterns that pass compilation but crash at runtime — they nullify the reason 
 // ❌ Non-null assertion → Cannot read properties of null
 user!.email
 // ✅
-user?.email ?? throw new Error('user is null')
+if (!user) throw new Error('user is null');
+user.email
 
 // ❌ Type casting bypasses type checker → wrong type propagates to DB
 const req = context.req as AuthRequest
@@ -546,6 +547,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - refreshToken: 7d lifetime, stored in httpOnly cookie (set by backend on sign-in; `secure: true`, `sameSite: 'none'`)
 - Guard order: `JwtAuthGuard` → `RbacGuard` → handler
 - WebSocket auth: JWT validated on `handleConnection` via `client.handshake.headers.authorization` (Bearer token in Socket.IO handshake header)
+- signOut: `POST /auth/signOut` — backend calls `res.clearCookie('refreshToken')` server-side; frontend clears Zustand store and redirects
 - **Never suggest**: REST-only auth, session-based auth, storing accessToken in localStorage
 
 ### Cache (Redis via ioredis)
@@ -643,7 +645,7 @@ docker compose up -d --build
 - `UserModule`, `ChatModule`, `AuthModule`
 
 **AuthModule** (`backend/src/auth/`)
-- REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/token/refreshaccess`
+- REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/signOut`, `POST /auth/token/refreshaccess`
 - JWT access + refresh token pair; access token in memory, refreshToken in httpOnly cookie
 - Guards: `JwtAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
 - `UserRole` enum: `user` (0) | `admin` (1) | `superadmin` (2) — `RbacGuard` compares numeric privilege level (`rbac.guard.ts`); the last remaining `superadmin` cannot be demoted (`user.service.ts`)
