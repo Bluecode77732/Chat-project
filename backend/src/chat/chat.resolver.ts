@@ -10,7 +10,7 @@ import {
 } from '@nestjs/graphql';
 
 interface GqlContext {
-  req: { user: { id: number } };
+  req: { user: { id: number }; transactionCommitted?: Promise<void> };
 }
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
@@ -19,30 +19,27 @@ import { AdminRoomType } from 'src/graphql/admin-room.type';
 import { UserType } from 'src/graphql/user.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
-import {
-  ForbiddenException,
-  InternalServerErrorException,
-  UseGuards,
-} from '@nestjs/common';
+import { ForbiddenException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
 import { GraphQLRBACGuard } from 'src/auth/guard/graphql-rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
-import { DataSource } from 'typeorm';
+import type { QueryRunner } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
 import { AiService } from 'src/ai/ai.service';
 import { AiRoomService } from 'src/ai/ai-room.service';
 import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
+import { GqlTransactionInterceptor } from './interceptor/gql-transaction.interceptor';
+import { GqlQueryRunnerDecorator } from './decorator/gql-query-runner.decorator';
 
 @Resolver()
 export class ChatResolver {
   constructor(
     private readonly chatService: ChatService,
     private readonly pubSub: PubSubService,
-    private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
     private readonly aiService: AiService,
     private readonly aiRoomService: AiRoomService,
@@ -159,39 +156,35 @@ export class ChatResolver {
 
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard, RateLimitGuard)
+  @UseInterceptors(GqlTransactionInterceptor)
   async sendMessage(
     @Context() ctx: GqlContext,
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
+    @GqlQueryRunnerDecorator() queryRunner: QueryRunner,
   ): Promise<MessageType> {
     const userId = ctx.req.user.id;
+    const transactionCommitted = ctx.req.transactionCommitted;
 
-    let savedMessage: Awaited<ReturnType<ChatService['sendMessage']>>;
-    try {
-      savedMessage = await this.dataSource.transaction(async (manager) =>
-        this.chatService.sendMessage(
-          { sub: userId },
-          { message: input.message, recipientId },
-          manager,
-        ),
-      );
-    } catch (err) {
-      logger.error(
-        `[user=${userId}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
-      );
-      throw new InternalServerErrorException('Failed to send message');
-    }
+    const savedMessage = await this.chatService.sendMessage(
+      { sub: userId },
+      { message: input.message, recipientId },
+      queryRunner.manager,
+    );
 
     const roomId = savedMessage.room?.id;
     await this.pubSub.publish(`receiveMessage :${roomId}`, {
       receiveMessage: savedMessage,
     });
 
-    // Trigger AI reply asynchronously after transaction commits
+    // Trigger AI reply asynchronously after transaction commits.
+    // GqlTransactionInterceptor commits after this resolver returns, so the trigger
+    // awaits ctx.req.transactionCommitted before touching data that depends on the commit.
     if (roomId && recipientId === this.aiService.getAiUserId()) {
       const personalityToSet = input.aiPersonality ?? null;
       setImmediate(() => {
         (async () => {
+          await transactionCommitted;
           if (personalityToSet) {
             await this.aiRoomService
               .setPersonality(roomId, personalityToSet)

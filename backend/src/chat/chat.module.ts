@@ -10,6 +10,7 @@ import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { AiModule } from 'src/ai/ai.module';
+import { GqlTransactionInterceptor } from './interceptor/gql-transaction.interceptor';
 
 @Module({
   imports: [
@@ -18,7 +19,13 @@ import { AiModule } from 'src/ai/ai.module';
     AiModule,
     TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
-  providers: [ChatGateway, ChatService, PubSubService, ChatResolver],
+  providers: [
+    ChatGateway,
+    ChatService,
+    PubSubService,
+    ChatResolver,
+    GqlTransactionInterceptor,
+  ],
   exports: [ChatService, PubSubService],
 })
 export class ChatModule {}
