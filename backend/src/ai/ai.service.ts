@@ -18,8 +18,6 @@ import { AiPersonality } from './enums/ai-personality.enum';
 import { AiRoomService } from './ai-room.service';
 import { AI_USER_EMAIL, SYSTEM_PROMPTS } from './constants/system-prompts';
 import { logger } from 'src/base/logger/logger';
-import { plainToClass } from 'class-transformer';
-import { SessionCacheService } from 'src/redis/redis.service';
 
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
@@ -63,7 +61,6 @@ export class AiService implements OnModuleInit {
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly aiRoomService: AiRoomService,
-    private readonly sessionCacheService: SessionCacheService,
 
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
@@ -180,10 +177,7 @@ export class AiService implements OnModuleInit {
         room,
       });
 
-      await this.sessionCacheService.cacheMessage(roomId, msgWithRelations);
-
-      const serialized = plainToClass(ChatEntity, msgWithRelations);
-      await callbacks.publishFn(serialized);
+      await callbacks.publishFn(msgWithRelations);
 
       logger.info(
         isFallbackReply

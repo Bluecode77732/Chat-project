@@ -250,5 +250,17 @@ describe('SessionCacheService', () => {
       expect(result![1].id).toBe(2);
       expect(result![0].created).toBeInstanceOf(Date);
     });
+
+    it('produces an Invalid Date when a cached entry has no created field', async () => {
+      const entries = [
+        JSON.stringify({ id: 1, message: 'hello', participant: { id: 1 } }),
+      ];
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue(entries);
+
+      const result = await redisService.getCachedMessages(1);
+
+      expect(result![0].created).toBeInstanceOf(Date);
+      expect(Number.isNaN(result![0].created.getTime())).toBe(true);
+    });
   });
 });
