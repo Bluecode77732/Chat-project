@@ -141,7 +141,7 @@ List of Troubleshooting when the program runs
 - Message saving failure in DB
 
   - Solution 
-    - ✅ Take a look in files where to save messages such as 'service' or 'resolver' whether transaction elements: `commitTransaction()`, `rollbackTransaction()`, `release()` are implemented.
+    - ✅ Take a look at `backend/src/chat/interceptor/gql-transaction.interceptor.ts`, which owns the transaction elements: `commitTransaction()`, `rollbackTransaction()`, `release()`. The commit runs after the resolver returns, so check that any post-commit logic awaits `ctx.req.transactionCommitted`.
 
 
 ## API Documentation
@@ -363,11 +363,11 @@ Chat Project/                   <= monorepo root
 │       │   ├── entity/         <= EntityBase (created/updated timestamps)
 │       │   └── logger/         <= winston logger
 │       ├── chat/               <= ChatGateway, ChatService, ChatResolver
-│       │   ├── decorator/      <= ws-query-runner.decorator
+│       │   ├── decorator/      <= gql-query-runner.decorator
 │       │   ├── entities/       <= ChatEntity, RoomEntity
 │       │   │   └── dto/        <= CreateChatDto
 │       │   ├── guard/          <= RateLimitGuard
-│       │   └── interceptor/    <= WsTransactionInterceptor
+│       │   └── interceptor/    <= GqlTransactionInterceptor
 │       ├── graphql/            <= PubSubService, GraphQL input/return types
 │       ├── migrations/         <= TypeORM migration files
 │       ├── mocks/              <= bcrypt mock for tests
@@ -423,64 +423,44 @@ EntityBase (inherited by all three)
 
 
 ## Flow
-The frontend uses the **GraphQL Mutation Path** for sending messages; the **Socket.IO Path** remains available for direct WebSocket clients.
+All chat messages are sent and delivered through the **GraphQL Mutation Path**. Socket.IO
+(`ChatGateway`) only handles the WebSocket connection lifecycle — it has no
+`@SubscribeMessage` handler for chat messages and emits none.
 
-### Socket.IO Path
-1. Client connects WebSocket with handleConnection in `chat.gateway`
-  1.1. Authenticate JWT token
-  1.2. Store `userId` => `socketId` in Redis
-  1.3. Store `socketId` => Socket in Map
-  1.4. `joinRooms()` users to join in the existing rooms
+### Socket.IO Connection Lifecycle
+1. Client connects WebSocket, `handleConnection` runs in `chat.gateway.ts`
+  1.1. Authenticate JWT token via `AuthService.parseBearerToken()`
+  1.2. `ChatService.registerClient()` maps `userId` => `socketId`/Socket
+  1.3. `ChatService.joinRooms()` joins the client to their existing rooms
+  1.4. On a session conflict, the previous socket for that user receives `forceLogout` and is disconnected
 
-2. Client calls `sendMessage` function
-  2.1. RateLimitGuard: Redis increment user: `${userId}`
-  2.2. Condition: `count > 10? Throw 'WsException' : Continue`
-  2.3. Set TTL for 60s if first message per user
+2. Room creation notification
+  2.1. When `ChatService` creates a new `RoomEntity` (first message between two users), it
+       emits `CreateRoom` to the recipient's socket so their client can join the new room
 
-3. Process of `sendMessage`
-  3.1. Execute `sendMessage`
-  3.2. Start QueryRunner transaction
-  3.3. Validate sender and recipient existence
-  3.4. Execute `findRoom` or `createRoom`
-  3.5. Save 'ChatEntity' to DB with room foreign key
+3. Client disconnects
+  3.1. `handleDisconnect` runs in `chat.gateway.ts`
+  3.2. `ChatService.removeClient()` removes the `socketId` entry from the in-memory Map
 
-4. Retrieve sender Socket
-  4.1. Redis: `getUserStatus` gets `socketId`
-  4.2. Map: `clientConnection.get(getUserSocketId.socketId)` gets Socket object`
-
-5. Emit to Socket.io room
-  5.1. `senderSocketId.to(room.id.toString())`, then `emit('sendMessage')` to `(ChatEntity, messageSchema)`, broadcasts to room members through `room.id`
-  5.2. `senderSocketId.emit('sendMessage')` confirms delivery to sender in `(ChatEntity, messageSchema)`
-
-6. `WsTransactionInterceptor` (runs after handler returns)
-  6.1. `commitTransaction()` — or `rollbackTransaction()` on error
-  6.2. `SessionCacheService.cacheMessage()` write-after-commit
-
-7. Recipient receives Sender's message
-  7.1. `joinRooms()` already made users to join the existing rooms
-  7.2. Client receives 'sendMessage' with message schema
-
-8. Client Disconnects
-  8.1 Clients performs `handleDisconnect()` to disconnect from socket in `chat.gateway`
-  8.2 Clients disconnects from Redis => status: offline
-  8.3 When clients disconnects, the `removeClient` performs `Map` to delete `socketId` entry in `chat.service`
-
-### GraphQL Mutation Path
+### GraphQL Mutation Path (`sendMessage`)
 1. Client calls `sendMessage` mutation
   1.1. `GraphQLAuthGuard` + `RateLimitGuard` run
-  1.2. Inline `QueryRunner` opens and starts a transaction
-  1.3. `ChatService.sendMessage()` validates sender/recipient, finds or creates room, saves `ChatEntity`
-  1.4. `queryRunner.commitTransaction()`
+  1.2. `GqlTransactionInterceptor` opens a `QueryRunner` and starts a transaction before the
+       resolver runs, injecting it via `@GqlQueryRunnerDecorator()`
+  1.3. `ChatService.sendMessage()` validates sender/recipient, finds or creates room, saves
+       `ChatEntity` within that transaction
+  1.4. Resolver publishes to `receiveMessage :${roomId}` via `PubSubService.publish()` and returns
 
-2. Post-commit delivery
-  2.1. `SessionCacheService.cacheMessage()` stores message in Redis
-  2.2. `PubSubService.publish()` pushes to `receiveMessage :${roomId}` channel
-  2.3. `ChatService.broadcastToRoom()` emits `'sendMessage'` to Socket.IO room
+2. Post-return commit
+  2.1. `GqlTransactionInterceptor` commits the transaction *after* the resolver returns
+  2.2. Any logic that depends on the write being durable awaits `ctx.req.transactionCommitted`
+       rather than assuming the commit already happened at return time
 
 3. AI reply (if recipient is AI user)
-  3.1. `setImmediate` fires after response returns
-  3.2. `AiService.handleReply()` acquires Redis lock, builds conversation history, calls Gemini API
-  3.3. AI reply saved to DB, cached in Redis, broadcast to room, published to Pub/Sub
+  3.1. `setImmediate` schedules the AI reply trigger, which first awaits `ctx.req.transactionCommitted`
+  3.2. `AiService.handleReply()` acquires a Redis lock, builds conversation history, calls the Gemini API
+  3.3. AI reply saved to DB, cached in Redis via `SessionCacheService.cacheMessage()`, published to
+       Pub/Sub through the same `receiveMessage :${roomId}` channel as human messages
 
 4. Subscriber receives message
   4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers

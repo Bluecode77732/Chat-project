@@ -8,7 +8,7 @@ Before making any change:
 1. Inspect the codebase thoroughly — read the relevant files, grep for symbols, trace the actual call chain.
    Concern-to-entrypoint map (check these first):
    - Auth flow change    → read `backend/src/auth/`; grep `JwtAuthGuard`, `RbacGuard`
-   - Chat/WS change      → trace `backend/src/chat/chat.gateway.ts` → `chat.service.ts` → `QueryRunnerDecorator`
+   - Chat/WS change      → trace `backend/src/chat/chat.gateway.ts` → `chat.service.ts`; for `sendMessage` transactions see `GqlTransactionInterceptor`
    - Redis change        → read `backend/src/redis/redis-subscriber.service.ts`; check pub/sub channel names
    - GraphQL schema      → read `backend/src/schema.gql` before adding any type or field
    - Frontend auth       → read `frontend/src/api/apollo.ts` (errorLink) and `frontend/src/socket/socket.ts` (reconnectSocket)
@@ -43,7 +43,7 @@ Before implementing anything non-trivial, ask the one question that applies:
 
 | Trigger                               | Ask                                                                                |
 |---------------------------------------|------------------------------------------------------------------------------------|
-| New handler (Gateway or Resolver)     | Does this need `@UseInterceptors(WsQueryRunnerInterceptor)` or REST equivalent?    |
+| New handler (Gateway or Resolver)     | Does this need `@UseInterceptors(GqlTransactionInterceptor)` (GraphQL mutations only — Socket.IO carries no chat-message traffic)? |
 | New Guard                             | Where in the `JwtAuthGuard → RbacGuard → handler` chain does this sit?            |
 | New Redis key                         | What TTL and does it follow `{service}:{entity}:{id}` naming?                     |
 | New GraphQL type or field             | Will this conflict with existing types in `schema.gql`?                            |
@@ -71,7 +71,7 @@ When planning an implementation, answer the following before proceeding:
 
   Project structure checklist:
   - Does this add a NestJS provider? → which module's `providers[]` needs it?
-  - Does this change transaction scope? → verify correct decorator: `QueryRunnerDecorator` (REST) vs `WsQueryRunnerDecorator` (WS)
+  - Does this change transaction scope? → GraphQL mutations use `@UseInterceptors(GqlTransactionInterceptor)` + `@GqlQueryRunnerDecorator()`; there is no REST or WS equivalent (Socket.IO carries no chat-message traffic)
   - Does this modify the GraphQL schema? → restart server to regenerate `schema.gql`, then diff it
 
 ### Modification Analysis (수정)
@@ -204,7 +204,7 @@ socket.on('disconnect', () => socket.off('message', handler))
 
 // ❌ DB connection pool exhaustion → all new requests hang
 const conn = await dataSource.getConnection()  // never released
-// ✅ Always use QueryRunnerDecorator — interceptor handles release
+// ✅ Always use GqlTransactionInterceptor — interceptor handles release
 ```
 
 ### GROUP 2 — Data Integrity
@@ -221,7 +221,7 @@ TypeOrmModule.forRoot({ synchronize: false })
 // ❌ Multiple DB writes without transaction → partial update on failure
 await this.roomRepository.save(room)
 await this.chatRepository.save(message)  // if this fails, room is orphaned
-// ✅ Use QueryRunnerDecorator — interceptor handles commit/rollback
+// ✅ Use GqlTransactionInterceptor — interceptor handles commit/rollback
 
 // ❌ N+1 query → DB overload under traffic
 const rooms = await this.roomRepository.find()
@@ -449,8 +449,8 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: a concrete instance of the Data Integrity rules in Never Do Group 2,
   elevated to a design-time check rather than a code-review-time catch.
 - Rationale: multi-table writes without a shared `QueryRunner` orphan partial state on
-  failure; this is already enforced by `QueryRunnerDecorator` / `WsQueryRunnerDecorator`,
-  but only as an implementation detail, not a stated design constraint.
+  failure; this is already enforced by `GqlTransactionInterceptor` for the `sendMessage`
+  GraphQL mutation, but only as an implementation detail, not a stated design constraint.
 - Goal: before implementing any handler with more than one repository write, the
   transaction boundary decision is made explicitly, not discovered after the fact.
 
@@ -558,7 +558,7 @@ Do not suggest alternatives to these decisions without explicit request.
 
 ### Database (PostgreSQL + TypeORM)
 - `synchronize: false` always — migrations only
-- All multi-write operations via `QueryRunnerDecorator` or `WsQueryRunnerDecorator`
+- Multi-write GraphQL mutations via `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` (currently `sendMessage` only)
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
 - **Never suggest**: `synchronize: true`, inline raw transactions
 
@@ -655,7 +655,7 @@ docker compose up -d --build
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
 - `RateLimitGuard` — Redis-backed 10 messages/15s per user
-- Transaction interceptors wrap both REST and WebSocket handlers for ACID message saves
+- `GqlTransactionInterceptor` wraps the `sendMessage` GraphQL mutation for ACID message saves (GraphQL-only — Socket.IO carries no chat-message traffic, so no REST/WS equivalent exists)
 
 **RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
 
@@ -665,10 +665,14 @@ docker compose up -d --build
 1. Client invokes the `sendMessage` GraphQL mutation (not Socket.IO — Socket.IO carries no
    chat-message traffic; see note below)
 2. `RateLimitGuard` checks Redis counter
-3. Transaction interceptor opens a `QueryRunner`
+3. `GqlTransactionInterceptor` opens a `QueryRunner` before the resolver runs, and injects it
+   via `@GqlQueryRunnerDecorator()`
 4. `ChatService.sendMessage()` resolves or creates `RoomEntity`, saves `ChatEntity` in the transaction
-5. Resolver publishes to the Redis Pub/Sub channel (`pubSub.publish`); subscribers receive
-   exclusively via the `receiveMessage` GraphQL subscription
+5. Resolver publishes to the Redis Pub/Sub channel (`pubSub.publish`) and returns; subscribers
+   receive exclusively via the `receiveMessage` GraphQL subscription
+6. `GqlTransactionInterceptor` commits the transaction *after* the resolver returns — any logic
+   that depends on the write being durable (e.g. the AI reply trigger) awaits
+   `ctx.req.transactionCommitted` rather than assuming the commit already happened
 
 Socket.IO (`ChatGateway`) is a separate channel with no overlap in message delivery: it
 only handles connection auth (`handleConnection`/`handleDisconnect`), pushing a `CreateRoom`
@@ -716,9 +720,11 @@ const mockRepository = {
 - Never access `process.env` directly — use `ConfigService`
 
 ### Transactions
-- Use `QueryRunnerDecorator` (REST) or `WsQueryRunnerDecorator` (WebSocket) to inject `QueryRunner`
+- Use `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` to inject `QueryRunner` into
+  GraphQL mutations (currently `sendMessage`) — there is no REST or WS equivalent
 - Do not create raw transactions inline
-- Interceptors handle commit/rollback automatically
+- Interceptor handles commit/rollback automatically; the commit happens after the resolver
+  returns, so post-commit logic must await `ctx.req.transactionCommitted`
 
 ### Logging
 - Use injected NestJS `Logger` (winston under the hood)

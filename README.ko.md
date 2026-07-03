@@ -138,7 +138,7 @@
 - DB에 메시지 저장 실패
 
   - 해결책 
-    - ✅ 메시지를 저장하는 'service' 또는 'resolver' 파일에서 트랜잭션 요소인 `commitTransaction()`, `rollbackTransaction()`, `release()`가 구현되어 있는지 확인하세요.
+    - ✅ 트랜잭션 요소(`commitTransaction()`, `rollbackTransaction()`, `release()`)는 `backend/src/chat/interceptor/gql-transaction.interceptor.ts`에서 확인하세요. 커밋은 리졸버가 반환한 이후에 실행되므로, 커밋 이후 로직은 `ctx.req.transactionCommitted`를 대기하는지 확인하세요.
 
 
 ## API 문서
@@ -360,11 +360,11 @@ Chat Project/                   ← 모노레포 루트
 │       │   ├── entity/         ← EntityBase (생성/수정 타임스탬프)
 │       │   └── logger/         ← winston 로거
 │       ├── chat/               ← ChatGateway, ChatService, ChatResolver
-│       │   ├── decorator/      ← ws-query-runner.decorator
+│       │   ├── decorator/      ← gql-query-runner.decorator
 │       │   ├── entities/       ← ChatEntity, RoomEntity
 │       │   │   └── dto/        ← CreateChatDto
 │       │   ├── guard/          ← RateLimitGuard
-│       │   └── interceptor/    ← WsTransactionInterceptor
+│       │   └── interceptor/    ← GqlTransactionInterceptor
 │       ├── graphql/            ← PubSubService, GraphQL 입력/반환 타입
 │       ├── migrations/         ← TypeORM 마이그레이션 파일
 │       ├── mocks/              ← 테스트용 bcrypt 목
@@ -420,64 +420,44 @@ EntityBase (세 엔티티 모두 상속)
 
 
 ## 흐름
-프론트엔드는 메시지 전송에 **GraphQL Mutation 경로**를 사용합니다. **Socket.IO 경로**는 직접 WebSocket 클라이언트에서도 사용 가능합니다.
+모든 채팅 메시지는 **GraphQL Mutation 경로**로만 전송·전달됩니다. Socket.IO(`ChatGateway`)는
+WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@SubscribeMessage` 핸들러가 없고
+어떤 메시지도 emit하지 않습니다.
 
-### Socket.IO 경로
-1. 클라이언트가 `chat.gateway`의 handleConnection으로 WebSocket 연결
-  1.1. JWT 토큰 인증
-  1.2. Redis에 `userId` => `socketId` 저장
-  1.3. Map에 `socketId` => Socket 저장
-  1.4. `joinRooms()`로 사용자를 기존 방에 참여시킴
+### Socket.IO 연결 생명주기
+1. 클라이언트가 `chat.gateway.ts`의 handleConnection으로 WebSocket 연결
+  1.1. `AuthService.parseBearerToken()`으로 JWT 토큰 인증
+  1.2. `ChatService.registerClient()`가 `userId` => `socketId`/Socket 매핑
+  1.3. `ChatService.joinRooms()`로 클라이언트를 기존 방에 참여시킴
+  1.4. 세션 충돌 시, 해당 유저의 이전 소켓은 `forceLogout`을 받고 연결 해제됨
 
-2. 클라이언트가 `sendMessage` 함수 호출
-  2.1. RateLimitGuard: Redis로 `${userId}` 카운터 증가
-  2.2. 조건: `count > 10? 'WsException' 발생 : 계속`
-  2.3. 사용자의 첫 메시지인 경우 60초 TTL 설정
+2. 방 생성 알림
+  2.1. `ChatService`가 새 `RoomEntity`를 생성하면(두 사용자 간 첫 메시지), 수신자 소켓에
+       `CreateRoom`을 emit하여 클라이언트가 새 방에 참여할 수 있게 함
 
-3. `sendMessage` 처리 과정
-  3.1. `sendMessage` 실행
-  3.2. QueryRunner 트랜잭션 시작
-  3.3. 발신자 및 수신자 존재 여부 확인
-  3.4. `findRoom` 또는 `createRoom` 실행
-  3.5. 방 외래키와 함께 DB에 'ChatEntity' 저장
+3. 클라이언트 연결 해제
+  3.1. `chat.gateway.ts`에서 `handleDisconnect` 실행
+  3.2. `ChatService.removeClient()`가 인메모리 Map에서 `socketId` 항목 제거
 
-4. 발신자 Socket 가져오기
-  4.1. Redis: `getUserStatus`로 `socketId` 조회
-  4.2. Map: `clientConnection.get(getUserSocketId.socketId)`로 Socket 객체 조회
-
-5. Socket.IO 방에 emit
-  5.1. `senderSocketId.to(room.id.toString())`로 `(ChatEntity, messageSchema)`에 `emit('sendMessage')`하여 `room.id`를 통해 방 멤버에게 브로드캐스트
-  5.2. `senderSocketId.emit('sendMessage')`로 발신자에게 `(ChatEntity, messageSchema)` 전달 확인
-
-6. `WsTransactionInterceptor` (핸들러 반환 후 실행)
-  6.1. `commitTransaction()` - 오류 시 `rollbackTransaction()`
-  6.2. `SessionCacheService.cacheMessage()` 커밋 후 캐시 저장
-
-7. 수신자가 발신자의 메시지 수신
-  7.1. `joinRooms()`로 이미 사용자가 기존 방에 참여해 있음
-  7.2. 클라이언트가 메시지 스키마와 함께 'sendMessage' 수신
-
-8. 클라이언트 연결 해제
-  8.1 클라이언트가 `chat.gateway`에서 `handleDisconnect()` 수행하여 소켓 연결 해제
-  8.2 클라이언트가 Redis에서 연결 해제 => 상태: 오프라인
-  8.3 클라이언트 연결 해제 시 `removeClient`가 `chat.service`에서 `socketId` 항목을 Map에서 삭제
-
-### GraphQL Mutation 경로
+### GraphQL Mutation 경로 (`sendMessage`)
 1. 클라이언트가 `sendMessage` 뮤테이션 호출
   1.1. `GraphQLAuthGuard` + `RateLimitGuard` 실행
-  1.2. 인라인 `QueryRunner` 트랜잭션 시작
-  1.3. `ChatService.sendMessage()`로 발신자/수신자 검증, 방 조회 또는 생성, `ChatEntity` 저장
-  1.4. `queryRunner.commitTransaction()`
+  1.2. `GqlTransactionInterceptor`가 리졸버 실행 전에 `QueryRunner`를 열고 트랜잭션을 시작한 뒤,
+       `@GqlQueryRunnerDecorator()`로 주입
+  1.3. `ChatService.sendMessage()`가 발신자/수신자 검증, 방 조회 또는 생성, 해당 트랜잭션
+       내에서 `ChatEntity` 저장
+  1.4. 리졸버가 `PubSubService.publish()`로 `receiveMessage :${roomId}` 채널에 발행 후 반환
 
-2. 커밋 후 전달
-  2.1. `SessionCacheService.cacheMessage()`로 Redis에 메시지 캐싱
-  2.2. `PubSubService.publish()`로 `receiveMessage :${roomId}` 채널에 발행
-  2.3. `ChatService.broadcastToRoom()`으로 Socket.IO 방에 `'sendMessage'` emit
+2. 반환 이후 커밋
+  2.1. `GqlTransactionInterceptor`가 리졸버 반환 **이후**에 트랜잭션을 커밋
+  2.2. 커밋된 데이터에 의존하는 로직은 반환 시점에 커밋이 끝났다고 가정하지 않고
+       `ctx.req.transactionCommitted`를 대기함
 
 3. AI 응답 (수신자가 AI 유저인 경우)
-  3.1. 응답 반환 후 `setImmediate` 실행
+  3.1. `setImmediate`로 AI 응답 트리거를 예약하며, 가장 먼저 `ctx.req.transactionCommitted`를 대기
   3.2. `AiService.handleReply()`가 Redis 락 획득, 대화 히스토리 구성, Gemini API 호출
-  3.3. AI 응답 DB 저장 → Redis 캐싱 → 방 브로드캐스트 → Pub/Sub 발행
+  3.3. AI 응답을 DB에 저장하고, `SessionCacheService.cacheMessage()`로 Redis에 캐싱한 뒤,
+       사람 메시지와 동일한 `receiveMessage :${roomId}` 채널로 Pub/Sub 발행
 
 4. 구독자 메시지 수신
   4.1. Redis Pub/Sub이 활성 `receiveMessage(roomId)` 구독자에게 전달
