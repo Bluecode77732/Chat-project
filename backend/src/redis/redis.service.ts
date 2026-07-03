@@ -66,8 +66,14 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sethUserOffline(userId: number) {
-    await this.redis.hset(`user:${userId}`, 'status', 'offline');
-    await this.redis.srem('online_users', String(userId));
+    const key = `user:${userId}`;
+    const ttl = this.configService.get<number>('SESSION_TTL_SEC', 86400);
+    await this.redis
+      .multi()
+      .hset(key, 'status', 'offline')
+      .expire(key, ttl)
+      .srem('online_users', String(userId))
+      .exec();
   }
 
   async getUserStatus(

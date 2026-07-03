@@ -27,14 +27,19 @@ describe('UserService', () => {
   const mockManager = {
     delete: jest.fn(),
     createQueryBuilder: jest.fn(() => mockManagerQB),
+    findOne: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+    update: jest.fn(),
   };
 
   const mockDataSource = {
-    transaction: jest
-      .fn()
-      .mockImplementation((cb: (m: typeof mockManager) => Promise<unknown>) =>
-        cb(mockManager),
-      ),
+    transaction: jest.fn().mockImplementation((...args: unknown[]) => {
+      const cb =
+        args.length === 2
+          ? (args[1] as (m: typeof mockManager) => Promise<unknown>)
+          : (args[0] as (m: typeof mockManager) => Promise<unknown>);
+      return cb(mockManager);
+    }),
   };
 
   const mockUserRepository = {
@@ -304,7 +309,7 @@ describe('UserService', () => {
     };
 
     it('updates the role and sends a role-change email to the target.', async () => {
-      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(target);
+      mockManager.findOne.mockResolvedValueOnce(target);
 
       const result = await userService.updateRole(
         actorId,
@@ -312,7 +317,8 @@ describe('UserService', () => {
         UserRole.admin,
       );
 
-      expect(mockUserRepository.update).toHaveBeenCalledWith(
+      expect(mockManager.update).toHaveBeenCalledWith(
+        UserEntity,
         { id: targetId },
         { role: UserRole.admin },
       );
@@ -331,7 +337,7 @@ describe('UserService', () => {
     });
 
     it('still updates the role when the email fails to send.', async () => {
-      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(target);
+      mockManager.findOne.mockResolvedValueOnce(target);
       mockMailService.sendRoleChangeEmail.mockRejectedValueOnce(
         new Error('SMTP down'),
       );
@@ -342,7 +348,8 @@ describe('UserService', () => {
         UserRole.admin,
       );
 
-      expect(mockUserRepository.update).toHaveBeenCalledWith(
+      expect(mockManager.update).toHaveBeenCalledWith(
+        UserEntity,
         { id: targetId },
         { role: UserRole.admin },
       );
@@ -350,7 +357,7 @@ describe('UserService', () => {
     });
 
     it('throws a NotFoundException when the target user does not exist.', async () => {
-      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
+      mockManager.findOne.mockResolvedValueOnce(null);
 
       await expect(
         userService.updateRole(actorId, targetId, UserRole.admin),

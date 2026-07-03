@@ -170,41 +170,52 @@ export class UserService {
     targetId: number,
     role: UserRole,
   ): Promise<UserEntity> {
-    const target = await this.userRepository.findOne({
-      where: { id: targetId },
-    });
-    if (!target) throw new NotFoundException('User Not Found.');
+    const { previousRole, email } = await this.dataSource.transaction(
+      'SERIALIZABLE',
+      async (manager) => {
+        const target = await manager.findOne(UserEntity, {
+          where: { id: targetId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!target) throw new NotFoundException('User Not Found.');
 
-    const previousRole = target.role ?? UserRole.user;
+        const previousRole = target.role ?? UserRole.user;
 
-    // 마지막 superadmin 강등 방지
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-    if (previousRole === UserRole.superadmin && role !== UserRole.superadmin) {
-      const superadminCount = await this.userRepository.count({
-        where: { role: UserRole.superadmin },
-      });
-      if (superadminCount <= 1) {
-        throw new BadRequestException('Cannot demote the last superadmin.');
-      }
-    }
+        // 마지막 superadmin 강등 방지
+        if (
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+          previousRole === UserRole.superadmin &&
+          role !== UserRole.superadmin
+        ) {
+          const superadminCount = await manager.count(UserEntity, {
+            where: { role: UserRole.superadmin },
+          });
+          if (superadminCount <= 1) {
+            throw new BadRequestException('Cannot demote the last superadmin.');
+          }
+        }
 
-    // admin 수 상한 (superadmin은 별도 카운트)
-    if (role === UserRole.admin) {
-      const adminCount = await this.userRepository.count({
-        where: { role: UserRole.admin },
-      });
-      const maxAdminCount = this.configService.get<number>(
-        'MAX_ADMIN_COUNT',
-        5,
-      );
-      if (adminCount >= maxAdminCount) {
-        throw new BadRequestException(
-          `Admin count limit (${maxAdminCount}) reached.`,
-        );
-      }
-    }
+        // admin 수 상한 (superadmin은 별도 카운트)
+        if (role === UserRole.admin) {
+          const adminCount = await manager.count(UserEntity, {
+            where: { role: UserRole.admin },
+          });
+          const maxAdminCount = this.configService.get<number>(
+            'MAX_ADMIN_COUNT',
+            5,
+          );
+          if (adminCount >= maxAdminCount) {
+            throw new BadRequestException(
+              `Admin count limit (${maxAdminCount}) reached.`,
+            );
+          }
+        }
 
-    await this.userRepository.update({ id: targetId }, { role });
+        await manager.update(UserEntity, { id: targetId }, { role });
+        return { previousRole, email: target.email };
+      },
+    );
+
     await this.redis.del(`user_cache:${targetId}`);
 
     const roleLabel = (r: number) => UserRole[r] ?? String(r);
@@ -215,13 +226,9 @@ export class UserService {
       `${roleLabel(previousRole)}→${roleLabel(role)}`,
     );
 
-    if (target.email) {
+    if (email) {
       try {
-        await this.mailService.sendRoleChangeEmail(
-          target.email,
-          previousRole,
-          role,
-        );
+        await this.mailService.sendRoleChangeEmail(email, previousRole, role);
       } catch (err) {
         logger.error(
           `Failed to send role change email to user '${targetId}': ${err}`,
@@ -229,8 +236,7 @@ export class UserService {
       }
     }
 
-    target.role = role;
-    return target;
+    return { id: targetId, role };
   }
 
   async forceLogout(actorId: number, targetId: number): Promise<void> {

@@ -94,17 +94,25 @@ describe('SessionCacheService', () => {
     it('should update status field and remove from online_users Set', async () => {
       const mockUserId = 1;
 
-      jest.spyOn(mockRedisClient, 'hset').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'srem').mockResolvedValue(1);
+      const mockChain = {
+        hset: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        srem: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(mockRedisClient, 'multi').mockReturnValue(mockChain as any);
 
       await redisService.sethUserOffline(mockUserId);
 
-      expect(mockRedisClient.hset).toHaveBeenCalledWith(
+      expect(mockRedisClient.multi).toHaveBeenCalled();
+      expect(mockChain.hset).toHaveBeenCalledWith(
         'user:1',
         'status',
         'offline',
       );
-      expect(mockRedisClient.srem).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.expire).toHaveBeenCalledWith('user:1', 86400);
+      expect(mockChain.srem).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.exec).toHaveBeenCalled();
     });
   });
 
