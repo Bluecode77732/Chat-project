@@ -365,6 +365,7 @@ Chat Project/                   <= monorepo root
 
 ### Redis Pub/Sub
 - `RedisPubSub` singleton (`pubsub.service.ts`): bridges GraphQL mutations to active subscriptions. After commit the resolver publishes to a `receiveMessage :${roomId}` channel; all connected `receiveMessage` subscribers receive the message in real time.
+- `PubSubService.publish()` also caches the published message via `SessionCacheService.cacheMessage()` as a side effect — this is the **only** place message caching happens, identically for human and AI messages. Callers (resolver, `AiService`) never call `cacheMessage()` directly.
 
 ### Entities (TypeORM)
 ```
@@ -432,8 +433,9 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
 3. AI reply (if recipient is AI user)
   3.1. `setImmediate` schedules the AI reply trigger, which first awaits `ctx.req.transactionCommitted`
   3.2. `AiService.handleReply()` acquires a Redis lock, builds conversation history, calls the Gemini API
-  3.3. AI reply saved to DB, cached in Redis via `SessionCacheService.cacheMessage()`, published to
-       Pub/Sub through the same `receiveMessage :${roomId}` channel as human messages
+  3.3. AI reply saved to DB, then published to Pub/Sub through the same `receiveMessage :${roomId}`
+       channel as human messages — `PubSubService.publish()` caches it as a side effect (see Redis
+       Pub/Sub above); `AiService` does not cache directly
 
 4. Subscriber receives message
   4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers
@@ -1000,3 +1002,22 @@ Deleting the ransomware database first was considered, but doing so while the ac
 - AI-assisted live testing surfaces deployment-environment vulnerabilities that code review and CI pipelines alone would miss
 - Having an AI tool directly read externally created content (DB rows, uploaded files) creates a prompt injection vector — a human must read and summarize the content instead
 - The correct incident response order is **contain → rotate → clean**. Reversing the order makes cleanup ineffective
+
+### Case: AI Reply Cache Corruption Found During Live Browser Testing
+
+While manually verifying a newly added AI-reply retry/fallback feature in a live browser session, a console error (`CombinedGraphQLErrors: Invalid time value`) appeared after a backend restart triggered a socket reconnect, which reloaded the room's message history from cache.
+
+**Root cause**
+`AiService` cached its own reply directly, and `PubSubService`'s publish-time hook cached it a second time — but using a `plainToClass`'d copy whose `@Exclude()`-decorated `created` field had been stripped. The corrupted cache entry later round-tripped through `getCachedMessages` as `new Date(undefined)` (a valid `Date` instance, but internally `NaN`), which crashed GraphQL's default `DateTime` scalar (`value.toISOString()`) the next time a cache-served `getMessages` read included it.
+
+**What the AI did**
+1. Verified the DB `created` column directly via `psql` to rule out data corruption at the source
+2. Read `@nestjs/graphql`'s actual `DateTime` scalar implementation to confirm the exact throw condition
+3. Traced both cache-write call sites (`ai.service.ts`, `pubsub.service.ts`) to find the duplicate, inconsistent caching path
+4. Used `git show --stat` on the historical caching-refactor commit to confirm the duplication was a leftover oversight (that refactor never touched `ai.service.ts`), not an intentional design
+5. Fixed by publishing the raw entity from `AiService` (matching the human-message path) and removing the now-redundant direct cache call
+6. Added regression coverage: a `getCachedMessages` case for a missing `created` field, and a new `pubsub.service.spec.ts`
+
+**Takeaways**
+- Live browser testing surfaced a cross-service bug that unit tests never could — the existing mocks isolated exactly the layer (`PubSubService`'s cache-on-publish side effect) where the corruption occurred
+- Git history tracing (`git show --stat` on the suspected commit) can objectively confirm "leftover from an incomplete refactor" vs. "intentional design," rather than guessing

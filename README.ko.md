@@ -391,6 +391,7 @@ Chat Project/                   ← 모노레포 루트
 
 ### Redis Pub/Sub
 - `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신합니다.
+- `PubSubService.publish()`는 발행 시점에 부수효과로 `SessionCacheService.cacheMessage()`를 호출해 메시지를 캐싱합니다 — 사람 메시지와 AI 메시지 모두 동일하게, 메시지 캐싱이 일어나는 **유일한** 지점입니다. 리졸버나 `AiService`가 직접 `cacheMessage()`를 호출하지 않습니다.
 
 ### 엔티티 (TypeORM)
 ```
@@ -458,8 +459,9 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
 3. AI 응답 (수신자가 AI 유저인 경우)
   3.1. `setImmediate`로 AI 응답 트리거를 예약하며, 가장 먼저 `ctx.req.transactionCommitted`를 대기
   3.2. `AiService.handleReply()`가 Redis 락 획득, 대화 히스토리 구성, Gemini API 호출
-  3.3. AI 응답을 DB에 저장하고, `SessionCacheService.cacheMessage()`로 Redis에 캐싱한 뒤,
-       사람 메시지와 동일한 `receiveMessage :${roomId}` 채널로 Pub/Sub 발행
+  3.3. AI 응답을 DB에 저장한 뒤, 사람 메시지와 동일한 `receiveMessage :${roomId}` 채널로 Pub/Sub
+       발행 — 캐싱은 `PubSubService.publish()`가 부수효과로 처리함(위 Redis Pub/Sub 참고),
+       `AiService`가 직접 캐싱하지 않음
 
 4. 구독자 메시지 수신
   4.1. Redis Pub/Sub이 활성 `receiveMessage(roomId)` 구독자에게 전달
@@ -1029,3 +1031,22 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 - AI 보조 라이브 테스트는 코드 리뷰와 CI만으로는 드러나지 않는 배포 환경 취약점을 탐지합니다
 - AI 도구가 외부에서 생성된 컨텐츠(DB 행, 업로드 파일 등)를 직접 읽는 것은 프롬프트 인젝션 경로가 됩니다. 내용 확인은 사람이 직접 해야 합니다
 - 보안 사고 대응 순서는 **봉쇄 → 로테이션 → 정리**입니다. 순서가 바뀌면 정리가 무의미해집니다
+
+### 라이브 브라우저 테스트 중 발견한 AI 응답 캐시 손상
+
+새로 추가한 AI 응답 재시도/폴백 기능을 라이브 브라우저 세션에서 수동 검증하던 중, 백엔드 재시작으로 소켓이 재연결되며 방의 메시지 기록을 캐시에서 다시 불러올 때 콘솔 에러(`CombinedGraphQLErrors: Invalid time value`)가 발생했습니다.
+
+**근본 원인**
+`AiService`가 자신의 응답을 직접 캐싱하고, `PubSubService`의 발행 시점 훅이 한 번 더 캐싱했는데 — 이때 넘어간 값은 `plainToClass`로 직렬화된 사본이라 `@Exclude()`가 붙은 `created` 필드가 이미 제거된 상태였습니다. 이 손상된 캐시 항목은 이후 `getCachedMessages`를 거치며 `new Date(undefined)`(유효한 `Date` 인스턴스이지만 내부적으로 `NaN`)가 되었고, 캐시에서 읽은 `getMessages` 응답에 그 항목이 포함되는 순간 GraphQL의 기본 `DateTime` 스칼라(`value.toISOString()`)가 크래시했습니다.
+
+**AI가 수행한 것**
+1. `psql`로 DB의 `created` 컬럼을 직접 조회해 데이터 자체의 손상 여부를 배제
+2. `@nestjs/graphql`의 실제 `DateTime` 스칼라 구현을 읽어 정확한 크래시 조건 확인
+3. 캐시 쓰기 지점 두 곳(`ai.service.ts`, `pubsub.service.ts`)을 추적해 중복되고 일관되지 않은 캐싱 경로를 발견
+4. 과거 캐싱 리팩터링 커밋에 `git show --stat`을 실행해, 이 중복이 의도된 설계가 아니라 그 리팩터링이 `ai.service.ts`를 건드리지 않아 생긴 누락임을 확인
+5. `AiService`가 원본 엔티티를 발행하도록 수정(사람 메시지 경로와 동일하게 맞춤)하고, 중복된 직접 캐싱 호출 제거
+6. 회귀 테스트 추가: `created` 필드가 없는 경우의 `getCachedMessages` 케이스, 그리고 신규 `pubsub.service.spec.ts`
+
+**교훈**
+- 라이브 브라우저 테스트가 단위 테스트로는 절대 못 잡는 서비스 간 버그를 드러냈습니다 — 기존 목(mock)들이 정확히 손상이 발생하던 계층(`PubSubService`의 발행-시-캐싱 부수효과)을 격리하고 있었기 때문입니다
+- 의심되는 커밋에 `git show --stat`을 실행하는 것으로 "불완전한 리팩터링의 누락"인지 "의도된 설계"인지 추측 없이 객관적으로 확인할 수 있습니다
