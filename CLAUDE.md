@@ -559,8 +559,9 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Database (PostgreSQL + TypeORM)
 - `synchronize: false` always — migrations only
 - Multi-write GraphQL mutations via `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` (currently `sendMessage` only)
+- Service-level ACID (non-GraphQL, e.g. `updateRole`): `dataSource.transaction('SERIALIZABLE', callback)` — TypeORM manages begin/commit/rollback
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
-- **Never suggest**: `synchronize: true`, inline raw transactions
+- **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)
 
 ### API Layer
 - GraphQL (Apollo) for all queries, mutations, subscriptions
@@ -642,7 +643,7 @@ docker compose up -d --build
 - `ConfigModule` — Joi-validated env (see `backend/.env.example` for all required vars)
 - `TypeOrmModule` — PostgreSQL with `synchronize: false`; auto-runs migrations in prod
 - `GraphQLModule` — Apollo Driver, auto-generates `backend/src/schema.gql`, subscriptions via `graphql-ws`
-- `UserModule`, `ChatModule`, `AuthModule`
+- `UserModule`, `ChatModule`, `AuthModule`, `AiModule`
 
 **AuthModule** (`backend/src/auth/`)
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/signOut`, `POST /auth/token/refreshaccess`
@@ -656,6 +657,17 @@ docker compose up -d --build
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
 - `RateLimitGuard` — Redis-backed 10 messages/15s per user
 - `GqlTransactionInterceptor` wraps the `sendMessage` GraphQL mutation for ACID message saves (GraphQL-only — Socket.IO carries no chat-message traffic, so no REST/WS equivalent exists)
+
+**UserModule** (`backend/src/user/`)
+- REST: `GET /user`, `PATCH /user/:id`, `DELETE /user/:id`, `PATCH /user/:id/role` (admin-gated via `JwtAuthGuard` + `RBACguard`)
+- `UserService` — CRUD, role management (`updateRole` uses SERIALIZABLE transaction + pessimistic lock), cascade room cleanup on delete
+- Depends on `ChatModule`, `AuditLogModule`, `MailModule`
+
+**AiModule** (`backend/src/ai/`)
+- Provides `AiService` (Gemini reply generation) and `AiRoomService` (AI room configuration)
+- `AiService.handleReply()` acquires `ai:lock:{roomId}` (NX/EX 30 s) before generating — prevents concurrent replies per room
+- Triggered by `ChatResolver` after `ctx.req.transactionCommitted` resolves (post-commit hook, not inline)
+- Registers `GENAI_CLIENT` (`@google/genai` `GoogleGenAI`) via `useFactory`
 
 **RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
 
@@ -720,11 +732,9 @@ const mockRepository = {
 - Never access `process.env` directly — use `ConfigService`
 
 ### Transactions
-- Use `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` to inject `QueryRunner` into
-  GraphQL mutations (currently `sendMessage`) — there is no REST or WS equivalent
-- Do not create raw transactions inline
-- Interceptor handles commit/rollback automatically; the commit happens after the resolver
-  returns, so post-commit logic must await `ctx.req.transactionCommitted`
+- **GraphQL mutations** (`sendMessage`): use `@UseInterceptors(GqlTransactionInterceptor)` + `@GqlQueryRunnerDecorator()` — interceptor opens/commits/rolls back the `QueryRunner`; post-commit logic must await `ctx.req.transactionCommitted`
+- **Service-level ACID** (non-GraphQL, e.g. `UserService.updateRole`): use `dataSource.transaction('SERIALIZABLE', async manager => { ... })` — TypeORM manages the full lifecycle
+- **Never**: manual `createQueryRunner → connect → startTransaction → commit/rollback → release` inline in any method
 
 ### Logging
 - Use injected NestJS `Logger` (winston under the hood)

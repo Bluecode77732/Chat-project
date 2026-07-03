@@ -60,15 +60,9 @@ A casual private One-to-One chatting project that enables communication real-tim
   cp backend/.env.example backend/.env
   ```
  
-  # Create database manually
-  Set 'synchronize: true' in 'backend/src/app.module.ts' for automatic DB creation.
-
-  # Migration Schema Set Up
-  Set 'synchronize: false' in 'backend/src/app.module.ts' for DB migration to record schema any changes.
+  # Create database schema via migrations
   ```powershell
   cd backend
-  pnpm migration:generate
-  pnpm build
   pnpm migration:run
   ```
 
@@ -172,38 +166,15 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `GET /audit-log` - Get last 100 audit log entries **(admin only)**
 
 **Chat**
-- Socket.IO
-  ***Tap 1***
+- Socket.IO (connection lifecycle and room-creation events only — no chat-message traffic)
+  ***Tap 1 & 2***
   - URL: `ws://localhost:3000`
-  - Description: Open two Socket.IO taps on 'Postman' and send message through it.
+  - Description: Open two Socket.IO taps on 'Postman'. Socket.IO handles connection auth and notifies clients when a new room is created. Chat messages are sent and received via the GraphQL Mutation/Subscription paths below.
   - Request Handlers
     - Default Request Handler: Socket.IO
     - Headers
       - key : authorization; value: Bearer token
-    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
-  - Message
-    ```json
-    {
-      "message": "Message from Participant 1 to 2",
-      "recipientId": 2
-    }
-    ```
-
-  ***Tap 2***
-  - URL: `ws://localhost:3000`
-  - Description: Open two Socket.IO taps on 'Postman' and send message through it.
-  - Request Handlers
-    - Default Request Handler: Socket.IO
-    - Headers
-      - key : authorization; value: Bearer token
-    - Events: sendMessage(Listen: ON), CreateRoom(Listen: ON)
-  - Message
-    ```json
-    {
-      "message": "Message from Participant 2 to 1",
-      "recipientId": 1
-    }
-    ```
+    - Events: `CreateRoom` (Listen: ON) — emitted by the server when a new room is created between two users
 
 
 - Altair (Subscription)
@@ -984,10 +955,8 @@ Remove container (keeps image)
 
 
 ## Scale Up In Future
-- Backend: Store conversation list per user (last message, unread message, etc)
-- Backend: Broadcast via `roomId` to scale to create group chats, or notification with `Redis Pub/Sub` package
-- Backend: Let users delete rooms and conversation
-- Backend: Let users see "User is typing" when one side is typing a message
-- Frontend: httpOnly Cookie for refreshToken security hardening
-- Frontend: Apollo Client token refresh on WebSocket reconnection
+- Backend: Store conversation list per user (last message, unread message count, etc)
+- Backend: Group chat rooms (broadcast via `roomId` to multiple participants)
+- Backend: Let users delete rooms and conversation history
+- Backend: "User is typing" indicator via Socket.IO event
 - Frontend: Chat room list UI with unread message count
