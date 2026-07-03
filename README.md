@@ -963,3 +963,40 @@ Remove container (keeps image)
 - Backend: Let users delete rooms and conversation history
 - Backend: "User is typing" indicator via Socket.IO event
 - Frontend: Chat room list UI with unread message count
+
+
+## AI-Assisted Development Notes
+
+### Case: Infrastructure Security Threat Detected During Live Testing
+
+An infrastructure-level vulnerability — difficult to catch through code review or unit tests alone — was discovered and remediated during an AI-assisted live testing session.
+
+**How it was found**
+During live API testing with Swagger and curl, AI (Claude Code) reviewed the Docker Compose configuration and identified the following:
+- All service ports were bound to `0.0.0.0:PORT:PORT`, exposing them on every network interface
+- The development machine's Ethernet adapter held a public IP while the Windows Firewall profile was set to "Private (trusted)", activating a Docker Desktop firewall rule that allowed inbound connections on any port
+- Result: PostgreSQL (5432), Redis (6379), and the backend (3000) were reachable from the internet
+
+**Confirmed damage**
+An automated ransomware bot accessed PostgreSQL using default credentials, wiped the databases, and left a Bitcoin ransom note in a `readme` table inside a newly created `readme_to_recover` database.
+
+**What the AI did**
+1. Changed Docker port bindings from `0.0.0.0` to `127.0.0.1` (`docker-compose.yml`)
+2. Restricted `backend/src/main.ts` host binding to `127.0.0.1` in the development environment
+3. Added Redis `requirepass` authentication
+4. Rotated DB password, Redis password, and JWT Access/Refresh secrets
+5. Guided the developer to switch the Windows Firewall profile to Public (performed by the developer directly)
+
+**What the AI deliberately did not do — prompt injection prevention**
+The AI did not issue a SQL query to read the contents of `readme_to_recover.readme`. If an attacker had embedded AI instructions inside the DB row, loading that text into the AI's context window could have caused unintended tool calls. The AI described the table's location and existence, then delegated content inspection to the developer. The developer confirmed it was a standard ransom demand.
+
+**Response order — containment first**
+Deleting the ransomware database first was considered, but doing so while the access path was still open would have been ineffective — the bot could recreate it immediately. The following order was followed instead:
+1. Network containment (port bindings + firewall profile)
+2. Credential rotation
+3. Artifact cleanup
+
+**Takeaways**
+- AI-assisted live testing surfaces deployment-environment vulnerabilities that code review and CI pipelines alone would miss
+- Having an AI tool directly read externally created content (DB rows, uploaded files) creates a prompt injection vector — a human must read and summarize the content instead
+- The correct incident response order is **contain → rotate → clean**. Reversing the order makes cleanup ineffective
