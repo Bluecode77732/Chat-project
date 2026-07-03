@@ -22,6 +22,8 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter backend lint || true
       - run: pnpm --filter backend test
+      - run: pnpm --filter admin lint || true
+      - run: pnpm --filter admin test
 
   deploy:
     needs: test
