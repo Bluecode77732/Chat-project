@@ -455,8 +455,9 @@ one of these is violated, follow Principle Conflict Protocol.
   transaction boundary decision is made explicitly, not discovered after the fact.
 
 **Interface/Type Placement by Cross-File Usage**
-- Breakdown: applies equally to `interface` and object-shape `type` aliases — the syntax
-  doesn't matter, only whether something outside the defining file depends on it. One
+- Breakdown: a concrete instance of Separation of Concerns / Information Hiding. Applies
+  equally to `interface` and object-shape `type` aliases — the syntax doesn't matter,
+  only whether something outside the defining file depends on it. One
   consumed only within its defining file stays inline there (e.g. `CachedMessageEntry`
   in `redis.service.ts`, `GqlTransactionRequest` in `gql-transaction.interceptor.ts`,
   `JwtPayload` in `auth.service.ts`, `AuthenticatedRequest` in `user.controller.ts`,
