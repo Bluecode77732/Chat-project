@@ -4,6 +4,7 @@ import {
   OnGatewayInit,
   WebSocketGateway,
 } from '@nestjs/websockets';
+import { OnApplicationShutdown } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
@@ -31,8 +32,15 @@ import Redis from 'ioredis';
   },
 })
 export class ChatGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnApplicationShutdown
 {
+  private pubClient?: Redis;
+  private subClient?: Redis;
+
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
@@ -49,10 +57,26 @@ export class ChatGateway
       password: url.password || undefined,
       ...(isTls ? { tls: {} } : {}),
     };
-    const pubClient = new Redis(redisConfig);
-    const subClient = pubClient.duplicate();
-    server.adapter(createAdapter(pubClient, subClient));
+    this.pubClient = new Redis(redisConfig);
+    this.subClient = this.pubClient.duplicate();
+    server.adapter(createAdapter(this.pubClient, this.subClient));
     this.chatService.setServer(server);
+  }
+
+  // OnModuleDestroy runs before dispose() closes the Socket.IO server, so quitting
+  // here would race @socket.io/redis-adapter's own unsubscribe commands on server
+  // close (confirmed by reading the installed socket.io/@nestjs/core source).
+  // OnApplicationShutdown runs after dispose(), so the adapter's server-close
+  // cleanup has already fired before these clients are quit.
+  async onApplicationShutdown() {
+    try {
+      await Promise.all([this.pubClient?.quit(), this.subClient?.quit()]);
+    } catch (err) {
+      logger.error(
+        `ChatGateway Redis adapter shutdown error: ${(err as Error).message}`,
+      );
+      throw err;
+    }
   }
 
   async handleConnection(client: Socket) {
