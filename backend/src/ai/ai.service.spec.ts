@@ -173,6 +173,8 @@ describe('AiService', () => {
       id: 10,
       message: 'AI reply text',
     };
+    const AI_REPLY_FAILURE_MESSAGE =
+      '지금은 답장을 드릴 수 없어요. 잠시 후 다시 시도해주세요.';
 
     let callbacks: AiReplyCallbacks;
 
@@ -316,7 +318,7 @@ describe('AiService', () => {
       );
     });
 
-    it('should always release the Redis lock even when Gemini throws', async () => {
+    it('should send a fallback notice and release the lock when Gemini throws', async () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
@@ -327,11 +329,28 @@ describe('AiService', () => {
       ).genai.models.generateContent.mockRejectedValue(
         new Error('Gemini API error'),
       );
+      mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
+      const createSpy = jest.fn().mockReturnValue(mockSavedMsg);
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: createSpy,
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
-      expect(callbacks.publishFn).not.toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalledWith(
+        ChatEntity,
+        expect.objectContaining({ message: AI_REPLY_FAILURE_MESSAGE }),
+      );
+      expect(callbacks.publishFn).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 10 }),
+      );
     });
 
     it('should retry and succeed after a retryable Gemini error (429)', async () => {
@@ -365,7 +384,7 @@ describe('AiService', () => {
       expect(callbacks.publishFn).toHaveBeenCalled();
     }, 10000);
 
-    it('should not retry a non-retryable Gemini error (400)', async () => {
+    it('should not retry a non-retryable Gemini error (400) and send a fallback notice', async () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
@@ -377,15 +396,30 @@ describe('AiService', () => {
       genaiMock.models.generateContent.mockRejectedValue(
         new ApiError({ message: 'bad request', status: 400 }),
       );
+      mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
+      const createSpy = jest.fn().mockReturnValue(mockSavedMsg);
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: createSpy,
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(genaiMock.models.generateContent).toHaveBeenCalledTimes(1);
-      expect(callbacks.publishFn).not.toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalledWith(
+        ChatEntity,
+        expect.objectContaining({ message: AI_REPLY_FAILURE_MESSAGE }),
+      );
+      expect(callbacks.publishFn).toHaveBeenCalled();
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
     });
 
-    it('should exhaust retries and give up after repeated 500 errors', async () => {
+    it('should exhaust retries after repeated 500 errors and send a fallback notice', async () => {
       mockChatRepository.createQueryBuilder.mockReturnValue(
         buildMockQueryBuilder(),
       );
@@ -397,11 +431,26 @@ describe('AiService', () => {
       genaiMock.models.generateContent.mockRejectedValue(
         new ApiError({ message: 'server error', status: 500 }),
       );
+      mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
+      const createSpy = jest.fn().mockReturnValue(mockSavedMsg);
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: createSpy,
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
 
       await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
 
       expect(genaiMock.models.generateContent).toHaveBeenCalledTimes(3);
-      expect(callbacks.publishFn).not.toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalledWith(
+        ChatEntity,
+        expect.objectContaining({ message: AI_REPLY_FAILURE_MESSAGE }),
+      );
+      expect(callbacks.publishFn).toHaveBeenCalled();
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
     }, 10000);
 

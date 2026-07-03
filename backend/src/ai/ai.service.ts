@@ -26,6 +26,8 @@ const AI_HISTORY_LIMIT = 10;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const AI_REPLY_MAX_ATTEMPTS = 3;
 const AI_REPLY_BASE_DELAY_MS = 300;
+const AI_REPLY_FAILURE_MESSAGE =
+  '지금은 답장을 드릴 수 없어요. 잠시 후 다시 시도해주세요.';
 
 export type AiReplyCallbacks = {
   publishFn: (msg: ChatEntity) => Promise<void>;
@@ -139,16 +141,25 @@ export class AiService implements OnModuleInit {
       const history = await this.buildHistory(roomId);
       const systemPrompt = SYSTEM_PROMPTS[personality];
 
-      const response = await this.generateWithRetry({
-        model: GEMINI_MODEL,
-        contents: history,
-        config: {
-          systemInstruction: systemPrompt,
-          maxOutputTokens: 300,
-        },
-      });
-
-      const replyText = response.text ?? '';
+      let replyText: string;
+      let isFallbackReply = false;
+      try {
+        const response = await this.generateWithRetry({
+          model: GEMINI_MODEL,
+          contents: history,
+          config: {
+            systemInstruction: systemPrompt,
+            maxOutputTokens: 300,
+          },
+        });
+        replyText = response.text ?? '';
+      } catch (error) {
+        logger.error(
+          `AI reply generation failed for room ${roomId} after retries: ${(error as Error).message}`,
+        );
+        replyText = AI_REPLY_FAILURE_MESSAGE;
+        isFallbackReply = true;
+      }
 
       if (!replyText) return;
 
@@ -175,7 +186,9 @@ export class AiService implements OnModuleInit {
       await callbacks.publishFn(serialized);
 
       logger.info(
-        `AI replied in room ${roomId}, message id=${savedMessage.id}`,
+        isFallbackReply
+          ? `Sent AI failure notice in room ${roomId}, message id=${savedMessage.id}`
+          : `AI replied in room ${roomId}, message id=${savedMessage.id}`,
       );
     } catch (error) {
       logger.error(
