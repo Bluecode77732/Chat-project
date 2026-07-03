@@ -7,8 +7,9 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import { Redis } from 'ioredis';
-import { SessionCacheService, CachableMessage } from 'src/redis/redis.service';
+import { SessionCacheService } from 'src/redis/redis.service';
 import { logger } from 'src/base/logger/logger';
+import type { CachableMessage } from 'src/redis/interface/cachable-message.interface';
 
 function isReceiveMessagePayload(
   value: unknown,

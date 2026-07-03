@@ -6,15 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import type { UserEntity } from 'src/user/entities/user.entity';
 import { logger } from 'src/base/logger/logger';
-
-export interface CachableMessage {
-  id?: number;
-  message?: string;
-  created?: Date | string;
-  participant?: Partial<UserEntity> | Record<string, unknown>;
-}
+import type { CachableMessage } from './interface/cachable-message.interface';
 
 interface CachedMessageEntry {
   id: number;
