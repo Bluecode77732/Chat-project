@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { GoogleGenAI } from '@google/genai';
+import { ApiError, GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import Redis from 'ioredis';
@@ -24,6 +24,8 @@ import { SessionCacheService } from 'src/redis/redis.service';
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
 const GEMINI_MODEL = 'gemini-2.5-flash';
+const AI_REPLY_MAX_ATTEMPTS = 3;
+const AI_REPLY_BASE_DELAY_MS = 300;
 
 export type AiReplyCallbacks = {
   publishFn: (msg: ChatEntity) => Promise<void>;
@@ -34,6 +36,13 @@ type GeminiContent = {
   role: 'user' | 'model';
   parts: { text: string }[];
 };
+
+type GenerateContentParams = Parameters<
+  GoogleGenAI['models']['generateContent']
+>[0];
+type GenerateContentResult = Awaited<
+  ReturnType<GoogleGenAI['models']['generateContent']>
+>;
 
 @Injectable()
 export class AiService implements OnModuleInit {
@@ -130,7 +139,7 @@ export class AiService implements OnModuleInit {
       const history = await this.buildHistory(roomId);
       const systemPrompt = SYSTEM_PROMPTS[personality];
 
-      const response = await this.genai.models.generateContent({
+      const response = await this.generateWithRetry({
         model: GEMINI_MODEL,
         contents: history,
         config: {
@@ -175,6 +184,32 @@ export class AiService implements OnModuleInit {
     } finally {
       await this.redis.del(lockKey);
     }
+  }
+
+  private isRetryableGeminiError(error: unknown): boolean {
+    return (
+      error instanceof ApiError && (error.status === 429 || error.status >= 500)
+    );
+  }
+
+  private async generateWithRetry(
+    params: GenerateContentParams,
+  ): Promise<GenerateContentResult> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < AI_REPLY_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.genai.models.generateContent(params);
+      } catch (error) {
+        lastError = error;
+        if (!this.isRetryableGeminiError(error)) break;
+        if (attempt < AI_REPLY_MAX_ATTEMPTS - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, AI_REPLY_BASE_DELAY_MS * 3 ** attempt),
+          );
+        }
+      }
+    }
+    throw lastError;
   }
 
   private async buildHistory(roomId: number): Promise<GeminiContent[]> {

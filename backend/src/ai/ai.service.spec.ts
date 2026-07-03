@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { ApiError } from '@google/genai';
 import { AiService, AiReplyCallbacks } from './ai.service';
 import { AiRoomService } from './ai-room.service';
 import { SessionCacheService } from 'src/redis/redis.service';
@@ -332,6 +333,77 @@ describe('AiService', () => {
       expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
       expect(callbacks.publishFn).not.toHaveBeenCalled();
     });
+
+    it('should retry and succeed after a retryable Gemini error (429)', async () => {
+      mockChatRepository.createQueryBuilder.mockReturnValue(
+        buildMockQueryBuilder(),
+      );
+      const genaiMock = (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai;
+      genaiMock.models.generateContent
+        .mockRejectedValueOnce(
+          new ApiError({ message: 'rate limited', status: 429 }),
+        )
+        .mockResolvedValueOnce({ text: 'Recovered reply' });
+      mockRoomRepository.findOneByOrFail.mockResolvedValue(mockRoom);
+      mockDataSource.transaction.mockImplementation(
+        async (cb: (m: any) => Promise<ChatEntity>) => {
+          const manager = {
+            create: jest.fn().mockReturnValue(mockSavedMsg),
+            save: jest.fn().mockResolvedValue(mockSavedMsg),
+          };
+          return cb(manager);
+        },
+      );
+
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
+
+      expect(genaiMock.models.generateContent).toHaveBeenCalledTimes(2);
+      expect(callbacks.publishFn).toHaveBeenCalled();
+    }, 10000);
+
+    it('should not retry a non-retryable Gemini error (400)', async () => {
+      mockChatRepository.createQueryBuilder.mockReturnValue(
+        buildMockQueryBuilder(),
+      );
+      const genaiMock = (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai;
+      genaiMock.models.generateContent.mockRejectedValue(
+        new ApiError({ message: 'bad request', status: 400 }),
+      );
+
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
+
+      expect(genaiMock.models.generateContent).toHaveBeenCalledTimes(1);
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
+    });
+
+    it('should exhaust retries and give up after repeated 500 errors', async () => {
+      mockChatRepository.createQueryBuilder.mockReturnValue(
+        buildMockQueryBuilder(),
+      );
+      const genaiMock = (
+        aiService as unknown as {
+          genai: { models: { generateContent: jest.Mock } };
+        }
+      ).genai;
+      genaiMock.models.generateContent.mockRejectedValue(
+        new ApiError({ message: 'server error', status: 500 }),
+      );
+
+      await aiService.handleReply(roomId, AiPersonality.FRIENDLY, callbacks);
+
+      expect(genaiMock.models.generateContent).toHaveBeenCalledTimes(3);
+      expect(callbacks.publishFn).not.toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalledWith(`ai:lock:${roomId}`);
+    }, 10000);
 
     it('should build history with correct role mapping for AI and user messages', async () => {
       const aiMessage = {
