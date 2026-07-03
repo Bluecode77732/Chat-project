@@ -454,18 +454,27 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: before implementing any handler with more than one repository write, the
   transaction boundary decision is made explicitly, not discovered after the fact.
 
-**Interface Placement by Cross-File Usage**
-- Breakdown: an interface consumed only within the file that defines it stays inline
-  there (e.g. `CachedMessageEntry` in `redis.service.ts`, `GqlTransactionRequest` in
-  `gql-transaction.interceptor.ts`); an interface that is `export`ed and imported from
-  a different file is extracted to `{module}/interface/{name}.interface.ts`
+**Interface/Type Placement by Cross-File Usage**
+- Breakdown: applies equally to `interface` and object-shape `type` aliases — the syntax
+  doesn't matter, only whether something outside the defining file depends on it. One
+  consumed only within its defining file stays inline there (e.g. `CachedMessageEntry`
+  in `redis.service.ts`, `GqlTransactionRequest` in `gql-transaction.interceptor.ts`,
+  `JwtPayload` in `auth.service.ts`, `AuthenticatedRequest` in `user.controller.ts`,
+  `GeminiContent` in `ai.service.ts`). One that is `export`ed and imported from a
+  different *production* file is extracted to `{module}/interface/{name}.interface.ts`
   (`auth/interface/payload.interface.ts`, `redis/interface/cachable-message.interface.ts`).
+  The folder keeps the `interface/` name regardless of whether the file inside holds an
+  `interface` or a `type` alias.
+- Exception: a type/interface whose only outside consumer is its own `*.spec.ts` (e.g.
+  `AiReplyCallbacks` in `ai.service.ts`, imported solely by `ai.service.spec.ts` for mock
+  typing) stays inline — a test importing its subject's exported type isn't the kind of
+  cross-module dependency this folder exists to signal.
 - Rationale: a module's `interface/` folder exists to signal "this is a contract other
-  files depend on" — filling it with file-local types (non-exported or single-consumer)
-  dilutes that signal and makes the folder untrustworthy as a map of the module's public
-  surface.
-- Goal: before adding a new interface, check whether anything outside its defining file
-  imports it. If not, keep it inline. If yes, place it under `{module}/interface/`.
+  files depend on" — filling it with file-local types or test-only consumers dilutes that
+  signal and makes the folder untrustworthy as a map of the module's public surface.
+- Goal: before adding a new interface or type alias, check whether anything outside its
+  defining file — excluding its own spec file — imports it. If not, keep it inline. If
+  yes, place it under `{module}/interface/`.
 
 ### Auth & Session
 
