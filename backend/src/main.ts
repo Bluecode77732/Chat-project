@@ -15,6 +15,11 @@ async function bootstrap() {
     logger: WinstonModule.createLogger(logger),
   });
 
+  // Without this, OnModuleDestroy hooks (PubSubService, SessionCacheService,
+  // ChatGateway) never run on SIGTERM/SIGINT — Redis connections would be
+  // dropped abruptly on every deploy instead of closed gracefully.
+  app.enableShutdownHooks();
+
   // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
