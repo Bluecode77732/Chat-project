@@ -454,6 +454,19 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: before implementing any handler with more than one repository write, the
   transaction boundary decision is made explicitly, not discovered after the fact.
 
+**Interface Placement by Cross-File Usage**
+- Breakdown: an interface consumed only within the file that defines it stays inline
+  there (e.g. `CachedMessageEntry` in `redis.service.ts`, `GqlTransactionRequest` in
+  `gql-transaction.interceptor.ts`); an interface that is `export`ed and imported from
+  a different file is extracted to `{module}/interface/{name}.interface.ts`
+  (`auth/interface/payload.interface.ts`, `redis/interface/cachable-message.interface.ts`).
+- Rationale: a module's `interface/` folder exists to signal "this is a contract other
+  files depend on" — filling it with file-local types (non-exported or single-consumer)
+  dilutes that signal and makes the folder untrustworthy as a map of the module's public
+  surface.
+- Goal: before adding a new interface, check whether anything outside its defining file
+  imports it. If not, keep it inline. If yes, place it under `{module}/interface/`.
+
 ### Auth & Session
 
 **Single Refresh Authority**

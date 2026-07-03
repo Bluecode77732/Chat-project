@@ -354,6 +354,7 @@ Chat Project/                   ← 모노레포 루트
 │       │   ├── decorator/
 │       │   ├── dto/
 │       │   ├── guard/          ← JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── interface/      ← Payload (JWT payload shape)
 │       │   ├── role/
 │       │   └── strategy/       ← passport-local, passport-jwt
 │       ├── base/
@@ -369,6 +370,7 @@ Chat Project/                   ← 모노레포 루트
 │       ├── migrations/         ← TypeORM 마이그레이션 파일
 │       ├── mocks/              ← 테스트용 bcrypt 목
 │       ├── redis/              ← RedisModule, SessionCacheService
+│       │   └── interface/      ← CachableMessage (graphql/pubsub.service.ts와 공유)
 │       └── user/               ← UserController, UserService, UserEntity
 │           ├── dto/
 │           └── entities/

@@ -328,6 +328,7 @@ Chat Project/                   <= monorepo root
 │       │   ├── decorator/
 │       │   ├── dto/
 │       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── interface/      <= Payload (JWT payload shape)
 │       │   ├── role/
 │       │   └── strategy/       <= passport-local, passport-jwt
 │       ├── base/
@@ -343,6 +344,7 @@ Chat Project/                   <= monorepo root
 │       ├── migrations/         <= TypeORM migration files
 │       ├── mocks/              <= bcrypt mock for tests
 │       ├── redis/              <= RedisModule, SessionCacheService
+│       │   └── interface/      <= CachableMessage (shared with graphql/pubsub.service.ts)
 │       └── user/               <= UserController, UserService, UserEntity
 │           ├── dto/
 │           └── entities/
