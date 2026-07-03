@@ -9,7 +9,7 @@ Before making any change:
    Concern-to-entrypoint map (check these first):
    - Auth flow change    → read `backend/src/auth/`; grep `JwtAuthGuard`, `RbacGuard`
    - Chat/WS change      → trace `backend/src/chat/chat.gateway.ts` → `chat.service.ts`; for `sendMessage` transactions see `GqlTransactionInterceptor`
-   - Redis change        → read `backend/src/redis/redis-subscriber.service.ts`; check pub/sub channel names
+   - Redis change        → read `backend/src/redis/redis.service.ts` (SessionCacheService) and `backend/src/graphql/pubsub.service.ts` (pub/sub subscriber connection); check pub/sub channel names
    - GraphQL schema      → read `backend/src/schema.gql` before adding any type or field
    - Frontend auth       → read `frontend/src/api/apollo.ts` (errorLink) and `frontend/src/socket/socket.ts` (reconnectSocket)
 2. Never invent APIs, files, functions, or types that you have not confirmed exist in the codebase.
@@ -32,7 +32,7 @@ High-blast-radius files — require explicit approval before any edit:
 `app.module.ts`, `*.entity.ts`, `*.interceptor.ts`, `backend/src/schema.gql`
 
 Touching any of the following always counts as "beyond the stated task":
-AppModule providers array, EntityBase, shared guards, `redis-subscriber.service.ts`
+AppModule providers array, EntityBase, shared guards, `graphql/pubsub.service.ts`
 
 If a change requires touching files beyond the stated task, list all affected files first and wait for approval.
 Stick strictly to the stated task.
@@ -566,7 +566,7 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- pub/sub uses dedicated subscriber connection (`redis-subscriber.service.ts`)
+- pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
 - **Never suggest**: node-redis (ioredis is unified across codebase)
 
 ### Database (PostgreSQL + TypeORM)
