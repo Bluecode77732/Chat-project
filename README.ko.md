@@ -866,17 +866,18 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
         const result = await chatService.getOrCreateRoom(
           mockSender,
           mockRecipientId,
-          mockQueryRunner as QueryRunner,
+          mockManager as EntityManager,
         );
 
-        expect(chatService.findRoom).toHaveBeenCalledWith(
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        expect(jest.mocked(chatService.findRoom)).toHaveBeenCalledWith(
           mockSender.id,
           mockRecipient.id,
-          mockQueryRunner as QueryRunner,
+          mockManager as EntityManager,
         );
         expect(result).toEqual(mockRooms);
       });
-    }
+    });
   });
 ```
 

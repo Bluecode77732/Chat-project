@@ -839,17 +839,18 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
         const result = await chatService.getOrCreateRoom(
           mockSender,
           mockRecipientId,
-          mockQueryRunner as QueryRunner,
+          mockManager as EntityManager,
         );
 
-        expect(chatService.findRoom).toHaveBeenCalledWith(
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        expect(jest.mocked(chatService.findRoom)).toHaveBeenCalledWith(
           mockSender.id,
           mockRecipient.id,
-          mockQueryRunner as QueryRunner,
+          mockManager as EntityManager,
         );
         expect(result).toEqual(mockRooms);
       });
-    }
+    });
   });
 ```
 
