@@ -24,9 +24,10 @@ Before making any change:
 Do not make any of the following unless explicitly requested:
 - Unrelated refactors or code cleanups
 - Architectural changes
-- New dependency additions — confirm via pnpm before installing
+- New dependency additions — confirm via pnpm before installing; check license type (MIT/Apache-2/BSD preferred); runtime-bundled GPL/AGPL carries copyleft risk — note this before adding. Run `pnpm audit` for known CVEs.
 - Schema or migration changes — if an entity change is needed, describe the required column/relation in plain text and stop. Never run `pnpm migration:generate`.
 - Large-scale formatting edits
+- Permanent data deletion paths (hard-delete service methods, CASCADE drops in migrations) — describe the cascade depth and confirm the operation is intentionally irreversible before writing any code
 
 High-blast-radius files — require explicit approval before any edit:
 `app.module.ts`, `*.entity.ts`, `*.interceptor.ts`, `backend/src/schema.gql`
@@ -388,6 +389,10 @@ Principle Conflict Protocol.
 - Resource Efficiency — covered by pagination/N+1 examples
 - Minimize Attack Surface — reflected in the existing API-surface boundary rules
   and upload validation, where applicable
+- Cost Awareness — advisory: external API calls with per-token billing (Gemini) should
+  cap token count per request and limit retry attempts; unbounded calls under traffic
+  translate directly to cost spikes. DB-side equivalent: pagination and N+1 prevention
+  (Never Do Group 2).
 
 ### Collaboration & Quality
 - Consistent Naming, Coding Standards — covered by the existing key-naming
@@ -405,6 +410,14 @@ Principle Conflict Protocol.
 - Observability (Logging, Metrics, Tracing) — verify which of the three actually
   exist before claiming coverage. Do not claim metrics/tracing coverage if absent;
   adding either is a new dependency requiring explicit request
+- Privacy & Compliance — advisory: before adding any user data collection (analytics,
+  tracking SDKs, third-party pixels), check whether a consent mechanism is required;
+  right-to-erasure for this app's current data model is covered by `DELETE /user/:id`.
+  PII log prohibition is mandatory (see Never Do Group 3). Full GDPR audit is out of
+  scope for this file — flag gaps rather than asserting coverage.
+- Accessibility (a11y) — advisory: new interactive components should carry ARIA labels
+  where the component library does not supply them automatically; apply to new code only,
+  not a retroactive audit. Project-specific patterns: Frontend Conventions > Accessibility.
 
 ## Principle Conflict Protocol
 
@@ -630,6 +643,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - Multi-write GraphQL mutations via `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` (currently `sendMessage` only)
 - Service-level ACID (non-GraphQL, e.g. `updateRole`): `dataSource.transaction('SERIALIZABLE', callback)` — TypeORM manages begin/commit/rollback
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
+- Migration rollback: implement `down()` wherever reversal is meaningful; if a migration is intentionally irreversible (e.g. destructive column drop after data copy), document it with a comment in the migration file — never leave `down()` silently empty or throwing without explanation
 - **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)
 
 ### API Layer
@@ -848,6 +862,39 @@ const mockRepository = {
 #### Components
 - Route auth: handled solely in `protected-route.tsx` — no auth checks inside page components
 - No component-level API instances — all data via Apollo or the shared `socket` singleton
+
+#### UX & Error Handling
+- Mutations with user-visible failure states **must** declare an `onError` handler —
+  silent failure is equivalent to an empty `catch` (see Never Do Group 1). Auth/network
+  errors are handled globally by `errorLink`; business-logic errors (room not found, rate
+  limit exceeded, validation failure) are not and must be surfaced locally.
+- Advisory: async operations should reflect loading state in the UI (disable submit button,
+  show spinner) to prevent double-submission and communicate progress.
+- Advisory: `receiveMessage` subscription disconnections should surface a reconnecting
+  notice rather than silently dropping incoming messages.
+- Advisory: public routes (signin, register) should set a meaningful `document.title` per
+  page and include `<meta name="description">` — these are the only routes visible to
+  search engines and link-preview renderers.
+
+#### Accessibility (a11y)
+Advisory. Apply to new components; do not retroactively audit existing ones.
+- Interactive elements (buttons, inputs, dialogs) should carry `aria-label` or visible
+  label text where the component library does not supply ARIA roles automatically.
+- Every pointer-only interaction (click, hover action) should have a keyboard equivalent
+  (`onKeyDown`, `role`, `tabIndex`).
+- Real-time incoming messages benefit from an `aria-live` region so screen readers
+  announce new content without requiring focus movement.
+- Focus should return to a logical anchor element after a modal or drawer closes.
+
+#### Internationalization (i18n)
+Advisory. No i18n library is currently in place; this convention activates when one is adopted.
+- UI-visible strings in new components should be externalized to a named constant or
+  key map rather than inlined in JSX — this makes future i18n adoption a mechanical
+  substitution rather than a codebase-wide search.
+- When an i18n library is chosen, update this section with the key-access pattern before
+  writing new components that use it.
+- **Never**: introduce an i18n library dependency without confirming via pnpm and updating
+  this convention.
 
 ## CI/CD
 
