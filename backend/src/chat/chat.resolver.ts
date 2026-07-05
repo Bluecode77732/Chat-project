@@ -183,7 +183,7 @@ export class ChatResolver {
     // an uncommitted room and get rejected by isRoomParticipant's access check.
     if (roomId) {
       setImmediate(() => {
-        (async () => {
+        void (async () => {
           await transactionCommitted;
           await this.chatService
             .notifyRoomParticipants(roomId, [userId, recipientId])
@@ -202,7 +202,7 @@ export class ChatResolver {
     if (roomId && recipientId === this.aiService.getAiUserId()) {
       const personalityToSet = input.aiPersonality ?? null;
       setImmediate(() => {
-        (async () => {
+        void (async () => {
           await transactionCommitted;
           if (personalityToSet) {
             await this.aiRoomService

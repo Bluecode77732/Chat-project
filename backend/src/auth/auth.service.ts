@@ -175,8 +175,8 @@ export class AuthService {
     // recording its id here lets a later login (e.g. from another browser)
     // supersede this one; `parseBearerToken` checks against it on refresh.
     const jti = isRefreshToken ? randomUUID() : undefined;
-    if (isRefreshToken) {
-      await this.redis.set(`auth:session:${user.id}`, jti!, 'EX', expiresIn);
+    if (jti) {
+      await this.redis.set(`auth:session:${user.id}`, jti, 'EX', expiresIn);
     }
 
     logger.debug(`User '${user.id}' issued refresh and access tokens`);

@@ -75,7 +75,10 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       const data = await this.redis.hgetall(`user:${userId}`);
       return data?.socketId ? data : null;
-    } catch {
+    } catch (err) {
+      logger.warn(
+        `[user=${userId}] getUserStatus Redis error: ${(err as Error).message}`,
+      );
       return null;
     }
   }
@@ -117,7 +120,10 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
         try {
           const m = JSON.parse(e) as CachedMessageEntry;
           return [{ ...m, created: new Date(m.created) }];
-        } catch {
+        } catch (err) {
+          logger.warn(
+            `[room=${roomId}] Cache entry parse failed: ${(err as Error).message}`,
+          );
           return [];
         }
       })

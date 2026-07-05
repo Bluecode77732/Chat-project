@@ -271,7 +271,9 @@ export class ChatService {
       where: { isAI: false },
       select: ['id'],
     });
-    return users.map((u) => u.id!).filter((id) => id !== currentUserId);
+    return users
+      .map((u) => u.id)
+      .filter((id): id is number => id !== undefined && id !== currentUserId);
   }
 
   async getUserNicknames(): Promise<UserEntity[]> {
@@ -293,8 +295,10 @@ export class ChatService {
     return rooms
       .map((room) => {
         const recipient = room.participants?.find((p) => p.id !== userId);
-        return recipient?.id
-          ? { roomId: room.id!, recipientId: recipient.id }
+        const recipientId = recipient?.id;
+        const roomId = room.id;
+        return recipientId !== undefined && roomId !== undefined
+          ? { roomId, recipientId }
           : null;
       })
       .filter((r): r is { roomId: number; recipientId: number } => r !== null);
@@ -310,10 +314,18 @@ export class ChatService {
     const rooms = await this.roomRepository.find({
       relations: ['participants'],
     });
-    return rooms.map((room) => ({
-      roomId: room.id!,
-      participantIds: room.participants?.map((p) => p.id!) ?? [],
-    }));
+    return rooms.flatMap((room) => {
+      const roomId = room.id;
+      if (roomId === undefined) return [];
+      return [
+        {
+          roomId,
+          participantIds: (room.participants ?? [])
+            .map((p) => p.id)
+            .filter((id): id is number => id !== undefined),
+        },
+      ];
+    });
   }
 
   async deleteRoom(roomId: number): Promise<void> {

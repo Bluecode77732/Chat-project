@@ -231,7 +231,7 @@ export class UserService {
         await this.mailService.sendRoleChangeEmail(email, previousRole, role);
       } catch (err) {
         logger.error(
-          `Failed to send role change email to user '${targetId}': ${err}`,
+          `[actor=${actorId}, user=${targetId}] Role change email failed: ${(err as Error).message}`,
         );
       }
     }
@@ -279,7 +279,9 @@ export class UserService {
       .innerJoin('room.participants', 'me', 'me.id = :id', { id })
       .select('room.id')
       .getMany();
-    const roomIds = myRooms.map((r) => r.id!);
+    const roomIds = myRooms
+      .map((r) => r.id)
+      .filter((roomId): roomId is number => roomId !== undefined);
 
     // ④ 소켓 강제 종료용 socketId 조회 (세션 삭제 전)
     const sessionData = await this.sessionCacheService.getUserStatus(id);

@@ -47,7 +47,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const stack = exception instanceof Error ? exception.stack : undefined;
 
-    logger.error(
+    const level = Number(status) >= 500 ? 'error' : 'warn';
+    logger[level](
       `[${isGraphQL ? 'GraphQL' : 'HTTP'}] ${status} — ${exception instanceof Error ? exception.message : String(exception)}`,
       { stack },
     );

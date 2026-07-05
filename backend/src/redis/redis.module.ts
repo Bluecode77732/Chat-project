@@ -11,8 +11,8 @@ import { logger } from 'src/base/logger/logger';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {
-        const redisUrl = configService.get<string>('REDIS_URL');
-        const url = new URL(redisUrl!);
+        const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+        const url = new URL(redisUrl);
         const isTls = url.protocol === 'rediss:';
 
         const client = new Redis({
