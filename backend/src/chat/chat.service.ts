@@ -145,8 +145,9 @@ export class ChatService {
     return saved;
   }
 
-  // Find existing room between sender and recipient => or create new one
-  // Also notifies both users (if online) about the new room and joins them
+  // Find existing room between sender and recipient => or create new one.
+  // Does not notify participants — the caller must do so only after its
+  // enclosing transaction commits (see notifyRoomParticipants below).
   async getOrCreateRoom(
     sender: UserEntity,
     recipientId: number,
@@ -156,21 +157,8 @@ export class ChatService {
       throw new WsException('Cannot Find Sender');
     }
 
-    let room = await this.findRoom(sender.id, recipientId, manager);
-
+    const room = await this.findRoom(sender.id, recipientId, manager);
     if (room) {
-      if (room.id) {
-        // Notify both users of the existing room ID so their subscriptions can start
-        for (const id of [sender.id, recipientId]) {
-          const status = await this.redisService.getUserStatus(id);
-          if (status?.socketId) {
-            this.server
-              ?.to(status.socketId)
-              .emit('CreateRoom', room.id.toString());
-            this.server?.in(status.socketId).socketsJoin(room.id.toString());
-          }
-        }
-      }
       return room;
     }
 
@@ -184,31 +172,29 @@ export class ChatService {
     }
 
     // Create new room
-    room = await this.createRoom(sender, recipient, manager);
-
-    // Notify and join users when they connected
-    for (const id of [sender.id, recipient.id]) {
-      if (!id) {
-        throw new WsException('Cannot Find Sender');
-      }
-
-      const userStatus = await this.redisService.getUserStatus(id);
-      if (userStatus?.socketId) {
-        if (!room?.id) {
-          throw new WsException({
-            status: 'error:400 - BadRequestException',
-            message: 'Cannot Find Room',
-          });
-        }
-        this.server
-          ?.to(userStatus.socketId)
-          .emit('CreateRoom', room.id.toString());
-        this.server?.in(userStatus.socketId).socketsJoin(room.id.toString());
-      }
-    }
+    const created = await this.createRoom(sender, recipient, manager);
 
     logger.info(`User ${sender.id}, ${recipient.id} created a room`);
-    return room;
+    return created;
+  }
+
+  // Notifies each online participant's socket about a room (existing or newly
+  // created) and joins their current socket to it.
+  // Must only be called after the transaction that found/created the room has
+  // committed: emitting 'CreateRoom' earlier let a recipient's immediate
+  // subscribe attempt race the commit and get rejected by isRoomParticipant's
+  // access check, permanently losing live updates for that room.
+  async notifyRoomParticipants(
+    roomId: number,
+    participantIds: number[],
+  ): Promise<void> {
+    for (const id of participantIds) {
+      const status = await this.redisService.getUserStatus(id);
+      if (status?.socketId) {
+        this.server?.to(status.socketId).emit('CreateRoom', roomId.toString());
+        this.server?.in(status.socketId).socketsJoin(roomId.toString());
+      }
+    }
   }
 
   // Main message sending flow (called from gateway on 'sendMessage' event)
