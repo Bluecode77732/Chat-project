@@ -382,9 +382,8 @@ Principle Conflict Protocol.
 - Retry Limits — advisory: external API calls (Gemini) must cap retry attempts and apply
   backoff; unbounded retry converts a transient failure into sustained cost and load.
   New retry paths must declare an attempt ceiling and delay strategy.
-- Timeout — advisory: calls to external dependencies (Gemini API, DB queries beyond
-  simple lookups) should carry an explicit timeout; a hanging call occupies resources
-  (AI lock TTL window, connection pool slot) for its full duration.
+- Timeout — advisory: calls to external dependencies (Gemini API) should carry an
+  explicit timeout; a hanging external call holds acquired resources for its full duration.
 
 ### Performance & Security
 - Secure by Default, Protect Sensitive Data, Fail Securely, Input Validation —
@@ -480,10 +479,6 @@ one of these is violated, follow Principle Conflict Protocol.
   GraphQL mutation, but only as an implementation detail, not a stated design constraint.
 - Goal: before implementing any handler with more than one repository write, the
   transaction boundary decision is made explicitly, not discovered after the fact.
-- Known limitation: `sendMessage` is not idempotent — a client retry after a timeout
-  produces a duplicate `ChatEntity`. `RateLimitGuard` reduces the window but does not
-  guarantee at-most-once writes. Any retry mechanism added to this mutation must
-  account for this.
 
 **Interface/Type Placement by Cross-File Usage**
 - Breakdown: a concrete instance of Separation of Concerns / Information Hiding. Applies
@@ -658,7 +653,6 @@ Do not suggest alternatives to these decisions without explicit request.
 - Multi-write GraphQL mutations via `GqlTransactionInterceptor` + `@GqlQueryRunnerDecorator()` (currently `sendMessage` only)
 - Service-level ACID (non-GraphQL, e.g. `updateRole`): `dataSource.transaction('SERIALIZABLE', callback)` — TypeORM manages begin/commit/rollback
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
-- Index: add `@Index()` on columns used in WHERE clauses or FK joins — omitting indexes on high-read columns causes full table scans at scale; verify new entity fields against existing query patterns before deciding
 - Isolation level: `SERIALIZABLE` is used specifically for `updateRole` to prevent phantom reads in concurrent role-mutation checks (required by Role Population Invariants); do not apply `SERIALIZABLE` to other operations without explicit justification — it adds serialization overhead and retry costs under contention
 - Migration rollback: implement `down()` wherever reversal is meaningful; if a migration is intentionally irreversible (e.g. destructive column drop after data copy), document it with a comment in the migration file — never leave `down()` silently empty or throwing without explanation
 - **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)

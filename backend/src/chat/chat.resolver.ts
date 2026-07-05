@@ -154,6 +154,7 @@ export class ChatResolver {
     return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
 
+  // Non-idempotent: a client retry after timeout produces a duplicate ChatEntity; RateLimitGuard reduces but does not prevent this.
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard, RateLimitGuard)
   @UseInterceptors(GqlTransactionInterceptor)
@@ -176,6 +177,24 @@ export class ChatResolver {
     await this.pubSub.publish(`receiveMessage :${roomId}`, {
       receiveMessage: savedMessage,
     });
+
+    // Notify both participants' sockets about the room only after the transaction
+    // commits — emitting earlier let a recipient's immediate subscribe attempt see
+    // an uncommitted room and get rejected by isRoomParticipant's access check.
+    if (roomId) {
+      setImmediate(() => {
+        (async () => {
+          await transactionCommitted;
+          await this.chatService
+            .notifyRoomParticipants(roomId, [userId, recipientId])
+            .catch((err) => {
+              logger.error(
+                `[user=${userId}, room=${roomId}] notifyRoomParticipants failed: ${(err as Error).message}`,
+              );
+            });
+        })();
+      });
+    }
 
     // Trigger AI reply asynchronously after transaction commits.
     // GqlTransactionInterceptor commits after this resolver returns, so the trigger
