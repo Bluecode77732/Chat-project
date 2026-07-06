@@ -72,9 +72,8 @@ export class ChatGateway
     try {
       await Promise.all([this.pubClient?.quit(), this.subClient?.quit()]);
     } catch (err) {
-      logger.error(
-        `ChatGateway Redis adapter shutdown error: ${(err as Error).message}`,
-      );
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`ChatGateway Redis adapter shutdown error: ${errMessage}`);
       throw err;
     }
   }
@@ -105,8 +104,9 @@ export class ChatGateway
         client.disconnect();
       }
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       logger.warn(
-        `WebSocket connection rejected (client=${client.id}): ${(error as Error).message}`,
+        `WebSocket connection rejected (client=${client.id}): ${errMessage}`,
       );
       client.disconnect();
     }

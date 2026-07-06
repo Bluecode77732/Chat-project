@@ -230,8 +230,9 @@ export class UserService {
       try {
         await this.mailService.sendRoleChangeEmail(email, previousRole, role);
       } catch (err) {
+        const errMessage = err instanceof Error ? err.message : String(err);
         logger.error(
-          `[actor=${actorId}, user=${targetId}] Role change email failed: ${(err as Error).message}`,
+          `[actor=${actorId}, user=${targetId}] Role change email failed: ${errMessage}`,
         );
       }
     }

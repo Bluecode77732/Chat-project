@@ -64,7 +64,8 @@ export class PubSubService extends RedisPubSub implements OnModuleDestroy {
     try {
       await this.close();
     } catch (err) {
-      logger.error(`PubSub shutdown error: ${(err as Error).message}`);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`PubSub shutdown error: ${errMessage}`);
       throw err;
     }
   }
@@ -81,9 +82,8 @@ export class PubSubService extends RedisPubSub implements OnModuleDestroy {
           payload.receiveMessage,
         );
       } catch (err) {
-        logger.warn(
-          `cacheMessage failed for room ${roomId}: ${(err as Error).message}`,
-        );
+        const errMessage = err instanceof Error ? err.message : String(err);
+        logger.warn(`cacheMessage failed for room ${roomId}: ${errMessage}`);
       }
     }
   }

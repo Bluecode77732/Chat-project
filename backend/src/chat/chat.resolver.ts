@@ -188,8 +188,10 @@ export class ChatResolver {
           await this.chatService
             .notifyRoomParticipants(roomId, [userId, recipientId])
             .catch((err) => {
+              const errMessage =
+                err instanceof Error ? err.message : String(err);
               logger.error(
-                `[user=${userId}, room=${roomId}] notifyRoomParticipants failed: ${(err as Error).message}`,
+                `[user=${userId}, room=${roomId}] notifyRoomParticipants failed: ${errMessage}`,
               );
             });
         })();
@@ -208,8 +210,10 @@ export class ChatResolver {
             await this.aiRoomService
               .setPersonality(roomId, personalityToSet)
               .catch((err) => {
+                const errMessage =
+                  err instanceof Error ? err.message : String(err);
                 logger.error(
-                  `[user=${userId}, room=${roomId}] setPersonality failed: ${(err as Error).message}`,
+                  `[user=${userId}, room=${roomId}] setPersonality failed: ${errMessage}`,
                 );
               });
           }
@@ -221,8 +225,11 @@ export class ChatResolver {
                 }),
             })
             .catch((err) => {
+              const errMessage =
+                err instanceof Error ? err.message : String(err);
+              const errStack = err instanceof Error ? (err.stack ?? '') : '';
               logger.error(
-                `[user=${userId}, room=${roomId}] AI reply error: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+                `[user=${userId}, room=${roomId}] AI reply error: ${errMessage}\n${errStack}`,
               );
             });
         })();

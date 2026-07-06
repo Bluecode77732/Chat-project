@@ -41,7 +41,8 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.redis.quit();
     } catch (err) {
-      logger.error(`REDIS_CLIENT shutdown error: ${(err as Error).message}`);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`REDIS_CLIENT shutdown error: ${errMessage}`);
       throw err;
     }
   }
@@ -76,9 +77,8 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
       const data = await this.redis.hgetall(`user:${userId}`);
       return data?.socketId ? data : null;
     } catch (err) {
-      logger.warn(
-        `[user=${userId}] getUserStatus Redis error: ${(err as Error).message}`,
-      );
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.warn(`[user=${userId}] getUserStatus Redis error: ${errMessage}`);
       return null;
     }
   }
@@ -121,8 +121,9 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
           const m = JSON.parse(e) as CachedMessageEntry;
           return [{ ...m, created: new Date(m.created) }];
         } catch (err) {
+          const errMessage = err instanceof Error ? err.message : String(err);
           logger.warn(
-            `[room=${roomId}] Cache entry parse failed: ${(err as Error).message}`,
+            `[room=${roomId}] Cache entry parse failed: ${errMessage}`,
           );
           return [];
         }

@@ -151,8 +151,10 @@ export class AiService implements OnModuleInit {
         });
         replyText = response.text ?? '';
       } catch (error) {
+        const errMessage =
+          error instanceof Error ? error.message : String(error);
         logger.error(
-          `AI reply generation failed for room ${roomId} after retries: ${(error as Error).message}`,
+          `AI reply generation failed for room ${roomId} after retries: ${errMessage}`,
         );
         replyText = AI_REPLY_FAILURE_MESSAGE;
         isFallbackReply = true;
@@ -185,8 +187,10 @@ export class AiService implements OnModuleInit {
           : `AI replied in room ${roomId}, message id=${savedMessage.id}`,
       );
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? (error.stack ?? '') : '';
       logger.error(
-        `AI reply failed for room ${roomId}: ${(error as Error).message}\n${(error as Error).stack ?? ''}`,
+        `AI reply failed for room ${roomId}: ${errMessage}\n${errStack}`,
       );
     } finally {
       await this.redis.del(lockKey);

@@ -232,7 +232,8 @@ export class AuthService {
         }
       }
     } catch (err: unknown) {
-      logger.warn((err as Error).message);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.warn(errMessage);
       throw new UnauthorizedException('Token Expired');
     }
 

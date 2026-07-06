@@ -245,12 +245,10 @@ export class ChatService {
 
       return messageSchema;
     } catch (err) {
-      logger.error(
-        `[user=${payload.sub}] ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
-      );
-      throw new WsException(
-        `Failed to send message: ${(err as Error).message}`,
-      );
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const errStack = err instanceof Error ? (err.stack ?? '') : '';
+      logger.error(`[user=${payload.sub}] ${errMessage}\n${errStack}`);
+      throw new WsException(`Failed to send message: ${errMessage}`);
     }
   }
 
