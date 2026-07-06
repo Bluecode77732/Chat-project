@@ -61,3 +61,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Playwright MCP verification artifacts
 /.playwright-mcp/
+
+# Claude Code local settings (machine-specific paths and permissions)
+.claude/settings.local.json
