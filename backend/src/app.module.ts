@@ -35,6 +35,8 @@ import { join } from 'node:path';
         // pattern(/\S/) rejects whitespace-only strings that satisfy .required() but produce an empty allowlist.
         CORS_ORIGIN: Joi.string().pattern(/\S/).required(),
         GEMINI_API_KEY: Joi.string().required(),
+        // Redis connection string — required by RedisModule and PubSubService
+        REDIS_URL: Joi.string().required(),
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
