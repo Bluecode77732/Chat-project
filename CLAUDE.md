@@ -644,7 +644,7 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is NOT invalidated on role change — privilege updates take effect only after TTL expiry. Any path that mutates a user's role or permissions must either call `redis.del(`user_cache:${userId}`)` explicitly or accept the staleness window. Leaving this unhandled is a privilege-escalation window.
+- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:219`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
 - **Never suggest**: node-redis (ioredis is unified across codebase)
 
