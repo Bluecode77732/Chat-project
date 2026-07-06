@@ -3,6 +3,7 @@ import ProtectedRoute from './components/protected-route'
 import SignInPage from './pages/signin-page';
 import ChatPage from './pages/chat-page';
 import RegisterPage from './pages/register-page';
+import AccountPage from './pages/account-page';
 
 function App() {
   return (
@@ -17,6 +18,11 @@ function App() {
             <ChatPage>
 
             </ChatPage>
+          </ProtectedRoute>
+        } />
+        <Route path='/account' element={
+          <ProtectedRoute>
+            <AccountPage />
           </ProtectedRoute>
         } />
       </Routes>

@@ -1,9 +1,10 @@
 import { useForm } from 'react-hook-form'
 import { useAuthStore } from '../store/auth.store'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import { useState } from 'react'
 import { jwtDecode } from 'jwt-decode'
+import { recordSessionUser, SESSION_CONFLICT_REASON, SESSION_EXPIRED_REASON } from '../auth/session-guard'
 
 interface SignInForm {
     email: string,
@@ -16,7 +17,10 @@ function SignInPage() {
     const { setTokens } = useAuthStore();
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
-    
+    const [searchParams] = useSearchParams();
+    const sessionEnded = searchParams.get('reason') === SESSION_CONFLICT_REASON;
+    const sessionExpired = searchParams.get('reason') === SESSION_EXPIRED_REASON;
+
     const onSubmit = async (data: SignInForm) => {
         try {
             // The `btoa` encodes email and password as Base64 based format, same as `register()` and `singIn()` in backend authentication.
@@ -32,7 +36,9 @@ function SignInPage() {
             const decoded = jwtDecode<{ sub: number }>(res.data.accessToken);
 
             // Saving respond token in Zustand
-            setTokens(res.data.accessToken, res.data.refreshToken, decoded.sub);
+            setTokens(res.data.accessToken, decoded.sub);
+            // Establish this tab's baseline identity for cross-tab session checks
+            recordSessionUser(decoded.sub);
             // Move to the chat page
             navigate('/chat');
         } catch {
@@ -44,12 +50,23 @@ function SignInPage() {
         <div className='flex items-center justify-center h-screen'>
             <div className='flex flex-col gap-4 w-80'>
                 <h1 className='text-2xl font-bold'>Sign In</h1>
+                {sessionEnded && (
+                    <span className='text-gray-500 text-sm'>
+                        다른 곳에서 로그인되어 세션이 종료되었습니다. 다시 로그인해주세요.
+                    </span>
+                )}
+                {sessionExpired && (
+                    <span className='text-gray-500 text-sm'>
+                        로그인 세션이 만료되어 로그아웃되었습니다. 다시 로그인해주세요.
+                    </span>
+                )}
                 {/* `register` collects the value */}
                 <input {...register('email', {
                     required: 'Please Enter Your Email',
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
                 })}
                     placeholder='email'
+                    data-testid='signin-email-input'
                     className='border p-2 rounded'>
                 </input>
                 {/* Sign in failure error */}
@@ -61,15 +78,18 @@ function SignInPage() {
                 })}
                     type='password'
                     placeholder='password'
+                    data-testid='signin-password-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
                 <button onClick={handleSubmit(onSubmit)}
+                    data-testid='signin-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
                     Sign In
                 </button>
                 <button onClick={() => navigate('/register')}
+                    data-testid='signin-register-link'
                     className='bg-white text-sm'>
                     Don't have an account? Register.
                 </button>

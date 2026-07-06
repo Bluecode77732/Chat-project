@@ -5,6 +5,8 @@
 type UserType {
   id: ID!
   email: String
+  nickname: String
+  profileImage: String
   role: String
 }
 
@@ -12,7 +14,8 @@ type MessageType {
   id: ID!
   message: String!
   participant: UserType
-  createdAt: DateTime!
+  createdAt: DateTime
+  roomId: Int
 }
 
 """
@@ -20,19 +23,50 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type RoomInfoType {
+  roomId: Int!
+  recipientId: Int!
+}
+
+type AdminRoomType {
+  roomId: Int!
+  participantIds: [Int!]!
+}
+
+type AiPersonalityInfoType {
+  personality: AiPersonality
+  canChange: Boolean!
+}
+
+enum AiPersonality {
+  FRIENDLY
+  CODING
+  ENGLISH
+  CREATIVE
+}
+
 type Query {
-  ping: MessageType!
+  getAllRooms: [AdminRoomType!]!
+  ping: String!
+  getAiUserId: Int!
+  getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType
   getOnlineUser: [Int!]!
+  getAllUsers: [Int!]!
+  getUserNicknames: [UserType!]!
+  getMyRooms: [RoomInfoType!]!
+  getRoom(recipientId: Int!): Int
+  getMessages(roomId: Int!, cursor: Int): [MessageType!]!
 }
 
 type Mutation {
+  deleteRoom(roomId: Int!): Boolean!
+  setAiPersonality(roomId: Int!, personality: AiPersonality!): Boolean!
   sendMessage(input: CreateChatInput!, recipientId: Int!): MessageType!
 }
 
 input CreateChatInput {
   message: String!
-  recipientId: ID!
-  room: Int
+  aiPersonality: AiPersonality
 }
 
 type Subscription {

@@ -9,7 +9,11 @@ export interface Payload {
   type: 'refresh' | 'access';
 
   // Distinguish Authorization Level
-  role: UserRole.signedIn | UserRole.signedOut;
+  role: UserRole;
+
+  // Unique id of the issued refresh token, used to detect a newer login
+  // superseding this one. Only present on refresh tokens.
+  jti?: string;
 
   // JWT library handles automatically the `iat/exp` dates.
 }

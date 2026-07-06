@@ -1,23 +1,33 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SessionCacheService } from './redis.service';
-import { RedisClientType } from 'redis';
+import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
 
 describe('SessionCacheService', () => {
   let redisService: SessionCacheService;
-  let mockRedisClient: Partial<RedisClientType>;
+  let mockRedisClient: Partial<Redis>;
+
+  const mockConfigService = {
+    get: jest
+      .fn()
+      .mockImplementation(
+        (_key: string, defaultValue: unknown) => defaultValue,
+      ),
+  };
 
   beforeEach(async () => {
     mockRedisClient = {
-      hSet: jest.fn(),
+      hset: jest.fn(),
       expire: jest.fn(),
-      hGetAll: jest.fn(),
-      sAdd: jest.fn(),
-      sRem: jest.fn(),
-      sMembers: jest.fn(),
-      lPush: jest.fn(),
-      lTrim: jest.fn(),
-      lRange: jest.fn(),
+      hgetall: jest.fn(),
+      sadd: jest.fn(),
+      srem: jest.fn(),
+      smembers: jest.fn(),
+      lpush: jest.fn(),
+      ltrim: jest.fn(),
+      lrange: jest.fn(),
       del: jest.fn(),
+      multi: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -26,6 +36,10 @@ describe('SessionCacheService', () => {
         {
           provide: 'REDIS_CLIENT',
           useValue: mockRedisClient,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -52,18 +66,27 @@ describe('SessionCacheService', () => {
       const mockUserId = 1;
       const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
-      jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'sAdd').mockResolvedValue(1);
+      const mockChain = {
+        hset: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        sadd: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(mockRedisClient, 'multi').mockReturnValue(mockChain as any);
 
       await redisService.sethUserOnline(mockUserId, socketId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith('user:1', {
+      expect(mockRedisClient.multi).toHaveBeenCalled();
+      expect(mockChain.hset).toHaveBeenCalledWith(
+        'user:1',
+        'socketId',
         socketId,
-        status: 'online',
-      });
-      expect(mockRedisClient.expire).toHaveBeenCalledWith('user:1', 86400);
-      expect(mockRedisClient.sAdd).toHaveBeenCalledWith('online_users', '1');
+        'status',
+        'online',
+      );
+      expect(mockChain.expire).toHaveBeenCalledWith('user:1', 86400);
+      expect(mockChain.sadd).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.exec).toHaveBeenCalled();
     });
   });
 
@@ -71,17 +94,25 @@ describe('SessionCacheService', () => {
     it('should update status field and remove from online_users Set', async () => {
       const mockUserId = 1;
 
-      jest.spyOn(mockRedisClient, 'hSet').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'sRem').mockResolvedValue(1);
+      const mockChain = {
+        hset: jest.fn().mockReturnThis(),
+        expire: jest.fn().mockReturnThis(),
+        srem: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(mockRedisClient, 'multi').mockReturnValue(mockChain as any);
 
       await redisService.sethUserOffline(mockUserId);
 
-      expect(mockRedisClient.hSet).toHaveBeenCalledWith(
+      expect(mockRedisClient.multi).toHaveBeenCalled();
+      expect(mockChain.hset).toHaveBeenCalledWith(
         'user:1',
         'status',
         'offline',
       );
-      expect(mockRedisClient.sRem).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.expire).toHaveBeenCalledWith('user:1', 86400);
+      expect(mockChain.srem).toHaveBeenCalledWith('online_users', '1');
+      expect(mockChain.exec).toHaveBeenCalled();
     });
   });
 
@@ -91,18 +122,18 @@ describe('SessionCacheService', () => {
       const socketId = 'mVkMdDQwpyoiEsDqSocketId';
 
       jest
-        .spyOn(mockRedisClient, 'hGetAll')
+        .spyOn(mockRedisClient, 'hgetall')
         .mockResolvedValue({ socketId, status: 'online' });
 
       const result = await redisService.getUserStatus(mockUserId);
 
-      expect(mockRedisClient.hGetAll).toHaveBeenCalledWith('user:1');
+      expect(mockRedisClient.hgetall).toHaveBeenCalledWith('user:1');
       expect(result).toEqual({ socketId, status: 'online' });
     });
 
     it('should return null when socketId does not exist', async () => {
       jest
-        .spyOn(mockRedisClient, 'hGetAll')
+        .spyOn(mockRedisClient, 'hgetall')
         .mockResolvedValue({ status: 'offline' });
 
       const result = await redisService.getUserStatus(1);
@@ -112,7 +143,7 @@ describe('SessionCacheService', () => {
 
     it('should return null when hGetAll throws an error', async () => {
       jest
-        .spyOn(mockRedisClient, 'hGetAll')
+        .spyOn(mockRedisClient, 'hgetall')
         .mockRejectedValue(new Error('Redis error'));
 
       const result = await redisService.getUserStatus(1);
@@ -123,16 +154,16 @@ describe('SessionCacheService', () => {
 
   describe('getOnlineUser', () => {
     it('should return online user ids from Set', async () => {
-      jest.spyOn(mockRedisClient, 'sMembers').mockResolvedValue(['1', '2']);
+      jest.spyOn(mockRedisClient, 'smembers').mockResolvedValue(['1', '2']);
 
       const result = await redisService.getOnlineUser();
 
-      expect(mockRedisClient.sMembers).toHaveBeenCalledWith('online_users');
+      expect(mockRedisClient.smembers).toHaveBeenCalledWith('online_users');
       expect(result).toEqual([1, 2]);
     });
 
     it('should return empty array when no online users', async () => {
-      jest.spyOn(mockRedisClient, 'sMembers').mockResolvedValue([]);
+      jest.spyOn(mockRedisClient, 'smembers').mockResolvedValue([]);
 
       const result = await redisService.getOnlineUser();
 
@@ -155,23 +186,27 @@ describe('SessionCacheService', () => {
         },
       };
 
-      jest.spyOn(mockRedisClient, 'lPush').mockResolvedValue(1);
-      jest.spyOn(mockRedisClient, 'lTrim').mockResolvedValue('OK');
+      jest.spyOn(mockRedisClient, 'lpush').mockResolvedValue(1);
+      jest.spyOn(mockRedisClient, 'ltrim').mockResolvedValue('OK');
       jest.spyOn(mockRedisClient, 'expire').mockResolvedValue(1);
 
       await redisService.cacheMessage(roomId, message);
 
       const key = 'room_messages:1';
-      expect(mockRedisClient.lPush).toHaveBeenCalledWith(
+      expect(mockRedisClient.lpush).toHaveBeenCalledWith(
         key,
         expect.any(String),
       );
-      expect(mockRedisClient.lTrim).toHaveBeenCalledWith(key, 0, 9);
+      expect(mockRedisClient.ltrim).toHaveBeenCalledWith(key, 0, 14);
       expect(mockRedisClient.expire).toHaveBeenCalledWith(key, 86400);
 
-      const stored = JSON.parse(
-        (mockRedisClient.lPush as jest.Mock).mock.calls[0][1],
-      );
+      const lpushCall = (mockRedisClient.lpush as jest.Mock).mock.calls[0] as [
+        string,
+        string,
+      ];
+      const stored = JSON.parse(lpushCall[1]) as {
+        participant?: Record<string, unknown>;
+      };
       expect(stored).not.toHaveProperty('password');
       expect(stored.participant).not.toHaveProperty('password');
     });
@@ -179,7 +214,7 @@ describe('SessionCacheService', () => {
 
   describe('getCachedMessages', () => {
     it('should return null when cache is empty', async () => {
-      jest.spyOn(mockRedisClient, 'lRange').mockResolvedValue([]);
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue([]);
 
       const result = await redisService.getCachedMessages(1);
 
@@ -201,19 +236,31 @@ describe('SessionCacheService', () => {
           participant: { id: 1 },
         }),
       ];
-      jest.spyOn(mockRedisClient, 'lRange').mockResolvedValue(entries);
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue(entries);
 
       const result = await redisService.getCachedMessages(1);
 
-      expect(mockRedisClient.lRange).toHaveBeenCalledWith(
+      expect(mockRedisClient.lrange).toHaveBeenCalledWith(
         'room_messages:1',
         0,
-        9,
+        14,
       );
       expect(result).toHaveLength(2);
       expect(result![0].id).toBe(1);
       expect(result![1].id).toBe(2);
       expect(result![0].created).toBeInstanceOf(Date);
+    });
+
+    it('produces an Invalid Date when a cached entry has no created field', async () => {
+      const entries = [
+        JSON.stringify({ id: 1, message: 'hello', participant: { id: 1 } }),
+      ];
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue(entries);
+
+      const result = await redisService.getCachedMessages(1);
+
+      expect(result![0].created).toBeInstanceOf(Date);
+      expect(Number.isNaN(result![0].created.getTime())).toBe(true);
     });
   });
 });

@@ -1,18 +1,34 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
+import { AllExceptionsFilter } from './base/filter/all-exceptions.filter';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Direct import of logger
     // It catches all bootstrap and failure errors when starting, which occurs before app.module.
     logger: WinstonModule.createLogger(logger),
   });
 
+  // Without this, OnModuleDestroy hooks (PubSubService, SessionCacheService,
+  // ChatGateway) never run on SIGTERM/SIGINT — Redis connections would be
+  // dropped abruptly on every deploy instead of closed gracefully.
+  app.enableShutdownHooks();
+
   // Use pipes in class-validator and class-transformer libraries
+  app.use(cookieParser());
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Default Express body limit (100kb) is far smaller than a base64-encoded
+  // profile image (~2.8MB at the 2MB raw-image cap) — raise it accordingly.
+  app.useBodyParser('json', { limit: '3mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '3mb' });
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -26,8 +42,9 @@ async function bootstrap() {
 
   // Implementing CORS
   app.enableCors({
-    // Front Origin Allowance
-    origin: process.env.CORS_ORIGIN,
+    // Front Origin Allowance — comma-separated list, since the main frontend and the
+    // admin dashboard run as separate deployments on different origins.
+    origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()),
     // Cookie Authorization In Header Allowance
     credentials: true,
     // Allowance Method
@@ -58,7 +75,11 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Server running on port ${process.env.PORT ?? 3000}`);
+  // Only bare `pnpm start:dev` (NODE_ENV=development) is restricted to loopback.
+  // docker-compose sets NODE_ENV=docker and Railway's value is unconfirmed in this repo,
+  // so both must keep binding to 0.0.0.0 or the container/proxy can't reach the app.
+  const host = process.env.NODE_ENV === 'development' ? '127.0.0.1' : '0.0.0.0';
+  await app.listen(process.env.PORT ?? 3000, host);
+  logger.info(`Server running on ${host}:${process.env.PORT ?? 3000}`);
 }
-bootstrap();
+bootstrap().catch(console.error);

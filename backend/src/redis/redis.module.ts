@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient } from 'redis';
+import Redis from 'ioredis';
 import { SessionCacheService } from './redis.service';
 import { logger } from 'src/base/logger/logger';
 
@@ -8,29 +8,27 @@ import { logger } from 'src/base/logger/logger';
 @Module({
   providers: [
     SessionCacheService,
-    // Implementing Redis module, in chat.module to limit and scoped its connection in chat module only, for sending messages rate-limit and keep user's data
     {
-      // Client registers as 'REDIS_CLIENT' provider in NestJS dependency injection
       provide: 'REDIS_CLIENT',
-      useFactory: async (configService: ConfigService) => {
-        try {
-          // Creates client instance to connect Redis server
-          const client = createClient({
-            url: configService.get<string>('REDIS_URL'),
-          });
-          client.on('error', (err) => console.error('Redis Error:', err));
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.getOrThrow<string>('REDIS_URL');
+        const url = new URL(redisUrl);
+        const isTls = url.protocol === 'rediss:';
 
-          // Connect to Redis server
-          await client.connect();
+        const client = new Redis({
+          host: url.hostname,
+          port: parseInt(url.port || '6379'),
+          password: url.password || undefined,
+          ...(isTls ? { tls: {} } : {}),
+        });
 
-          // Returns connection
-          return client;
-        } catch (error) {
-          logger.error(`Redis Connection Fail`, {
-            timestamp: new Date().toISOString(),
-          });
-          throw error;
-        }
+        client.on('error', (err: Error) =>
+          logger.error(
+            `Redis runtime error: ${err.message}\n${err.stack ?? ''}`,
+          ),
+        );
+
+        return client;
       },
       inject: [ConfigService],
     },

@@ -1,20 +1,31 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
-  Post,
   Body,
   Patch,
+  Post,
   Param,
   Delete,
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
+  Request,
 } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
+
+type AuthenticatedRequest = ExpressRequest & {
+  user: { id: number; role: UserRole };
+};
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
+import { DeleteUserDto } from './dto/delete-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
+import { RBACguard } from 'src/auth/guard/rbac.guard';
+import { RBAC } from 'src/auth/decorator/rbac.decorator';
+import { UserRole } from 'src/auth/role/role';
 
 @ApiTags('User API')
 @ApiBearerAuth()
@@ -24,28 +35,70 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
-
   @Get()
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
   findAll() {
     return this.userService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+      throw new ForbiddenException('You can only view your own account');
+    }
     return this.userService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+      throw new ForbiddenException('You can only update your own account');
+    }
     return this.userService.update(+id, updateUserDto);
   }
 
+  @Patch(':id/role')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.superadmin)
+  updateRole(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() updateRoleDto: UpdateRoleDto,
+  ) {
+    return this.userService.updateRole(req.user.id, +id, updateRoleDto.role);
+  }
+
+  @Post(':id/force-logout')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
+  forceLogout(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.userService.forceLogout(req.user.id, +id);
+  }
+
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  remove(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() deleteUserDto: DeleteUserDto,
+  ) {
+    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+      throw new ForbiddenException('You can only delete your own account');
+    }
+    // admin이 타인 삭제 시: rawToken 생략(admin 토큰 블랙리스트 방지), 패스워드 검증 스킵
+    const isSelf = req.user?.id === +id;
+    const rawToken = isSelf ? req.headers['authorization'] : undefined;
+    const skipPasswordCheck = !isSelf;
+    return this.userService.remove(
+      req.user.id,
+      +id,
+      deleteUserDto.password,
+      rawToken,
+      skipPasswordCheck,
+    );
   }
 }

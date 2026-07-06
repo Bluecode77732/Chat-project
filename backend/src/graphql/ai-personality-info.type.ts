@@ -7,5 +7,5 @@ export class AiPersonalityInfoType {
   personality?: AiPersonality | null;
 
   @Field()
-  canChange: boolean;
+  canChange?: boolean;
 }

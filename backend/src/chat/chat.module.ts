@@ -8,10 +8,9 @@ import { UserEntity } from 'src/user/entities/user.entity';
 import { RoomEntity } from './entities/room.entity';
 import { ChatResolver } from './chat.resolver';
 import { RedisModule } from 'src/redis/redis.module';
-import { Server } from 'socket.io';
 import { PubSubService } from 'src/graphql/pubsub.service';
-import { SessionCacheService } from 'src/redis/redis.service';
 import { AiModule } from 'src/ai/ai.module';
+import { GqlTransactionInterceptor } from './interceptor/gql-transaction.interceptor';
 
 @Module({
   imports: [
@@ -23,10 +22,9 @@ import { AiModule } from 'src/ai/ai.module';
   providers: [
     ChatGateway,
     ChatService,
-    Server,
     PubSubService,
     ChatResolver,
-    SessionCacheService,
+    GqlTransactionInterceptor,
   ],
   exports: [ChatService, PubSubService],
 })

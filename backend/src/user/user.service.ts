@@ -8,12 +8,17 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
 import { logger } from 'src/base/logger/logger';
-import * as RedisClient from 'redis';
+import Redis from 'ioredis';
+import { RoomEntity } from 'src/chat/entities/room.entity';
+import { SessionCacheService } from 'src/redis/redis.service';
+import { ChatService } from 'src/chat/chat.service';
+import { AuditLogService } from 'src/audit-log/audit-log.service';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class UserService {
@@ -21,14 +26,27 @@ export class UserService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
 
+    @InjectRepository(RoomEntity)
+    private readonly roomRepository: Repository<RoomEntity>,
+
+    private readonly dataSource: DataSource,
+
     private readonly configService: ConfigService,
 
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
+    private readonly redis: Redis,
+
+    private readonly sessionCacheService: SessionCacheService,
+
+    private readonly chatService: ChatService,
+
+    private readonly auditLogService: AuditLogService,
+
+    private readonly mailService: MailService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { email, password } = createUserDto;
+    const { email, password, nickname } = createUserDto;
 
     const user = await this.userRepository.findOne({
       where: {
@@ -37,10 +55,17 @@ export class UserService {
     });
 
     if (user) {
-      logger.error(`User '${user}' failed to register`, {
-        timestamp: new Date().toISOString(),
-      });
+      logger.warn(`Registration attempt for already-existing email: ${email}`);
       throw new BadRequestException('Registration failed');
+    }
+
+    if (nickname) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname },
+      });
+      if (existingNickname) {
+        throw new BadRequestException('Nickname already in use.');
+      }
     }
 
     // Hashing user password
@@ -52,11 +77,10 @@ export class UserService {
     await this.userRepository.save({
       email,
       password: hash,
-      role: UserRole.signedIn,
+      role: UserRole.user,
+      nickname,
     });
-    logger.info(`User '${user}' is created`, {
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(`User '${email}' is created`);
 
     return await this.userRepository.findOne({
       where: {
@@ -66,7 +90,7 @@ export class UserService {
   }
 
   async findAll() {
-    return await this.userRepository.findAndCount();
+    return await this.userRepository.find();
   }
 
   async findOne(id: number) {
@@ -99,6 +123,15 @@ export class UserService {
       throw new NotFoundException('No User Found.');
     }
 
+    if (updateUserDto.nickname && updateUserDto.nickname !== user.nickname) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname: updateUserDto.nickname },
+      });
+      if (existingNickname && existingNickname.id !== id) {
+        throw new BadRequestException('Nickname already in use.');
+      }
+    }
+
     // Password verify
     if (password) {
       // Password
@@ -117,13 +150,12 @@ export class UserService {
       {
         email: updateUserDto.email,
         password: updateUserDto.password,
-        role: updateUserDto.role,
+        nickname: updateUserDto.nickname,
+        profileImage: updateUserDto.profileImage,
       },
     );
     await this.redis.del(`user_cache:${id}`);
-    logger.info(`User '${user.id}' is updated`, {
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(`User '${user.id}' is updated`);
 
     // Returning result to client
     return await this.userRepository.findOne({
@@ -133,22 +165,179 @@ export class UserService {
     });
   }
 
-  async remove(id: number) {
-    const user = await this.userRepository.findOne({
-      where: {
-        id,
-      },
-    });
+  async updateRole(
+    actorId: number,
+    targetId: number,
+    role: UserRole,
+  ): Promise<UserEntity> {
+    const { previousRole, email } = await this.dataSource.transaction(
+      'SERIALIZABLE',
+      async (manager) => {
+        const target = await manager.findOne(UserEntity, {
+          where: { id: targetId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!target) throw new NotFoundException('User Not Found.');
 
-    if (!user) {
-      throw new NotFoundException(`User Not Found.`);
+        const previousRole = target.role ?? UserRole.user;
+
+        // 마지막 superadmin 강등 방지
+        if (
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+          previousRole === UserRole.superadmin &&
+          role !== UserRole.superadmin
+        ) {
+          const superadminCount = await manager.count(UserEntity, {
+            where: { role: UserRole.superadmin },
+          });
+          if (superadminCount <= 1) {
+            throw new BadRequestException('Cannot demote the last superadmin.');
+          }
+        }
+
+        // admin 수 상한 (superadmin은 별도 카운트)
+        if (role === UserRole.admin) {
+          const adminCount = await manager.count(UserEntity, {
+            where: { role: UserRole.admin },
+          });
+          const maxAdminCount = this.configService.get<number>(
+            'MAX_ADMIN_COUNT',
+            5,
+          );
+          if (adminCount >= maxAdminCount) {
+            throw new BadRequestException(
+              `Admin count limit (${maxAdminCount}) reached.`,
+            );
+          }
+        }
+
+        await manager.update(UserEntity, { id: targetId }, { role });
+        return { previousRole, email: target.email };
+      },
+    );
+
+    await this.redis.del(`user_cache:${targetId}`);
+
+    const roleLabel = (r: number) => UserRole[r] ?? String(r);
+    await this.auditLogService.log(
+      actorId,
+      targetId,
+      'ROLE_CHANGE',
+      `${roleLabel(previousRole)}→${roleLabel(role)}`,
+    );
+
+    if (email) {
+      try {
+        await this.mailService.sendRoleChangeEmail(email, previousRole, role);
+      } catch (err) {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        logger.error(
+          `[actor=${actorId}, user=${targetId}] Role change email failed: ${errMessage}`,
+        );
+      }
     }
 
-    await this.userRepository.delete(id);
-    logger.info(`User '${user.id}' is deleted`, {
-      timestamp: new Date().toISOString(),
+    return { id: targetId, role };
+  }
+
+  async forceLogout(actorId: number, targetId: number): Promise<void> {
+    const session = await this.sessionCacheService.getUserStatus(targetId);
+    if (session?.socketId) {
+      this.chatService.disconnectSocket(session.socketId);
+    }
+    await this.sessionCacheService.sethUserOffline(targetId);
+    await this.auditLogService.log(actorId, targetId, 'FORCE_LOGOUT');
+    logger.info(
+      `User '${targetId}' was force-logged out by actor '${actorId}'`,
+    );
+  }
+
+  async remove(
+    actorId: number,
+    id: number,
+    password?: string,
+    rawToken?: string,
+    skipPasswordCheck = false,
+  ) {
+    // ① 존재 확인
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User Not Found.');
+    }
+
+    // ② 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
+    if (!skipPasswordCheck) {
+      if (!password) throw new BadRequestException('Password is required.');
+      const valid = await bcrypt.compare(password, String(user.password));
+      if (!valid) {
+        throw new BadRequestException('Invalid password.');
+      }
+    }
+
+    // ③ 삭제 전: 이 유저가 속한 방 목록 수집 (고아 방 감지용)
+    const myRooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .innerJoin('room.participants', 'me', 'me.id = :id', { id })
+      .select('room.id')
+      .getMany();
+    const roomIds = myRooms
+      .map((r) => r.id)
+      .filter((roomId): roomId is number => roomId !== undefined);
+
+    // ④ 소켓 강제 종료용 socketId 조회 (세션 삭제 전)
+    const sessionData = await this.sessionCacheService.getUserStatus(id);
+    const socketId = sessionData?.socketId;
+
+    // ⑤+⑥ DB 삭제 (단일 트랜잭션)
+    //    CASCADE: room_participants 행 자동 제거
+    //    SET NULL: chat_entity.participantId = NULL (메시지 익명 보존)
+    const orphanedRoomIds: number[] = [];
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(UserEntity, id);
+
+      for (const roomId of roomIds) {
+        const remainingCount = await manager
+          .createQueryBuilder(RoomEntity, 'room')
+          .innerJoin('room.participants', 'p')
+          .where('room.id = :roomId', { roomId })
+          .getCount();
+
+        if (remainingCount === 0) {
+          await manager.delete(RoomEntity, roomId);
+          orphanedRoomIds.push(roomId);
+        }
+      }
     });
 
+    // 커밋 후 고아 방 Redis 캐시 정리
+    for (const roomId of orphanedRoomIds) {
+      await this.redis.del(`room_messages:${roomId}`);
+      logger.info(
+        `Orphaned room ${roomId} deleted after user ${id} withdrawal`,
+      );
+    }
+
+    // ⑦ Redis 세션 정리
+    await this.sessionCacheService.sethUserOffline(id);
+    await this.redis.del(`user:${id}`);
+
+    // ⑧ 현재 액세스 토큰 블랙리스트 등록
+    if (rawToken) {
+      const token = rawToken.replace(/^Bearer\s+/i, '');
+      const ttl = this.configService.get<number>(
+        'ACCESS_TOKEN_SECRET_EXPIRES_IN',
+        900,
+      );
+      await this.redis.set(`blacklist:${token}`, '1', 'EX', ttl);
+    }
+
+    // ⑨ 소켓 강제 종료
+    if (socketId) {
+      this.chatService.disconnectSocket(socketId);
+    }
+
+    await this.auditLogService.log(actorId, id, 'USER_DELETE');
+    logger.info(`User '${id}' is deleted by actor '${actorId}'`);
     return `The user ${id} is deleted`;
   }
 }

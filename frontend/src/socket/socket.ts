@@ -1,16 +1,26 @@
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/auth.store';
 import { Socket } from 'socket.io-client';
+import { rejectSessionConflict } from '../auth/session-guard';
 
-const createSocket = () =>
+const createSocket = () => {
     // `io` connection to `@WebSocketGateway()` in 'chat.gateway'.
-    io(import.meta.env.VITE_API_URL, {
+    const newSocket = io(import.meta.env.VITE_API_URL, {
         autoConnect: false,
         forceNew: true,
         extraHeaders: {
             authorization: `Bearer ${useAuthStore.getState().accessToken}`,
         },
     });
+
+    // Backend kicks this socket when the same account signs in elsewhere —
+    // tear down locally right away instead of waiting on the next refresh.
+    newSocket.on('forceLogout', () => {
+        rejectSessionConflict();
+    });
+
+    return newSocket;
+};
 
 // `createSocket()` for Issuing of new socket via renewal of token.
 // Using same `socket` instance on any component for global share of it.

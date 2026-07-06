@@ -13,7 +13,6 @@ import { EntityBase } from './base/entity/base.entity';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
-import { ChatResolver } from './chat/chat.resolver';
 
 @Module({
   imports: [
@@ -33,8 +32,18 @@ import { ChatResolver } from './chat/chat.resolver';
         REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
         // Validating CORS env via Joi
-        CORS_ORIGIN: Joi.string().required(),
+        // pattern(/\S/) rejects whitespace-only strings that satisfy .required() but produce an empty allowlist.
+        CORS_ORIGIN: Joi.string().pattern(/\S/).required(),
         GEMINI_API_KEY: Joi.string().required(),
+        USER_CACHE_TTL_SEC: Joi.number().required(),
+        SESSION_TTL_SEC: Joi.number().required(),
+        MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
+        // Mail (SMTP) is optional — role-change emails are skipped if unset
+        SMTP_HOST: Joi.string().optional(),
+        SMTP_PORT: Joi.number().optional(),
+        SMTP_USER: Joi.string().optional(),
+        SMTP_PASS: Joi.string().optional(),
+        MAIL_FROM: Joi.string().optional(),
       }),
       // Configuration global adoption
       isGlobal: true,
@@ -77,7 +86,13 @@ import { ChatResolver } from './chat/chat.resolver';
           },
         },
       },
-      context: ({ req, extra }) => {
+      context: ({
+        req,
+        extra,
+      }: {
+        req?: import('express').Request;
+        extra?: { authorization?: string };
+      }) => {
         // Returns HTTP request
         if (req) {
           return { req };
@@ -99,6 +114,6 @@ import { ChatResolver } from './chat/chat.resolver';
     AuthModule,
     AiModule,
   ],
-  providers: [Logger, ChatResolver],
+  providers: [Logger],
 })
 export class AppModule {}

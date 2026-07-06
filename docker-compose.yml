@@ -14,8 +14,8 @@ services:
         condition: service_healthy
     env_file:
       - .env.local
-    ports: 
-      - "${PORT:-3000}:3000"
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
     restart: unless-stopped
     command: sh -c "cd backend && pnpm migration:run && node dist/main"
     environment:
@@ -26,19 +26,18 @@ services:
     image: postgres:18
     env_file:
       - .env.local
-    environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE}
-    ports: 
-      - "5432:5432"
+    # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are set directly in .env.local
+    # and passed into the container via env_file — no host-env interpolation needed
+    ports:
+      - "127.0.0.1:5432:5432"
     restart: unless-stopped
-    volumes: 
-      # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
-      - postgres:/var/lib/postgresql/18/main
+    volumes:
+      # postgres 18+ images use a version-specific PGDATA (/var/lib/postgresql/<major>/docker)
+      # and recommend mounting the parent dir so it survives major-version upgrades.
+      - postgres:/var/lib/postgresql
     healthcheck:
       # Server health check command
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       # How often start in
       interval: 5s
       # Take a break for how long 
@@ -53,15 +52,16 @@ services:
     image: redis:alpine
     env_file:
       - .env.local
-    ports: 
-      - "6379:6379"
+    ports:
+      - "127.0.0.1:6379:6379"
     restart: unless-stopped
-    volumes: 
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
       # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
       - redis:/data
     healthcheck:
       # Server health check command
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping"]
       # How often start in
       interval: 5s
       # Take a break for how long 

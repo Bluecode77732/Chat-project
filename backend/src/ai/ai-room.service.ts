@@ -1,62 +1,52 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RoomEntity } from 'src/chat/entities/room.entity';
+import { AiRoomEntity } from './entities/ai-room.entity';
 import { AiPersonality } from './enums/ai-personality.enum';
 import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class AiRoomService {
   constructor(
-    @InjectRepository(RoomEntity)
-    private readonly roomRepository: Repository<RoomEntity>,
+    @InjectRepository(AiRoomEntity)
+    private readonly aiRoomRepository: Repository<AiRoomEntity>,
   ) {}
 
   async setPersonality(
     roomId: number,
-    userId: number,
     personality: AiPersonality,
-    isInitial: boolean,
   ): Promise<void> {
-    const room = await this.roomRepository.findOne({
-      where: { id: roomId },
-      relations: ['participants'],
+    const existing = await this.aiRoomRepository.findOne({
+      where: { room: { id: roomId } },
     });
-
-    if (!room) throw new NotFoundException('Room not found.');
-
-    const isMember = room.participants?.some((p) => p.id === userId);
-    if (!isMember) throw new BadRequestException('Not a room participant.');
-
-    if (!isInitial && room.aiPersonalityChangedOnce) {
-      throw new BadRequestException('AI personality can only be changed once.');
+    if (existing) {
+      existing.personality = personality;
+      await this.aiRoomRepository.save(existing);
+    } else {
+      await this.aiRoomRepository.save({
+        room: { id: roomId },
+        personality,
+      });
     }
-
-    room.aiPersonality = personality;
-    if (!isInitial) {
-      room.aiPersonalityChangedOnce = true;
-    }
-
-    await this.roomRepository.save(room);
     logger.info(`Room ${roomId} AI personality set to ${personality}`);
   }
 
   async getPersonality(roomId: number): Promise<AiPersonality | null> {
-    const room = await this.roomRepository.findOne({ where: { id: roomId } });
-    return room?.aiPersonality ?? null;
+    const aiRoom = await this.aiRoomRepository.findOne({
+      where: { room: { id: roomId } },
+    });
+    return aiRoom?.personality ?? null;
   }
 
   async getPersonalityInfo(
     roomId: number,
   ): Promise<{ personality: AiPersonality | null; canChange: boolean }> {
-    const room = await this.roomRepository.findOne({ where: { id: roomId } });
+    const aiRoom = await this.aiRoomRepository.findOne({
+      where: { room: { id: roomId } },
+    });
     return {
-      personality: room?.aiPersonality ?? null,
-      canChange: !(room?.aiPersonalityChangedOnce ?? false),
+      personality: aiRoom?.personality ?? null,
+      canChange: true,
     };
   }
 }

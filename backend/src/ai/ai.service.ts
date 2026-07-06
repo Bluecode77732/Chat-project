@@ -2,14 +2,14 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  Logger,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { GoogleGenAI } from '@google/genai';
+import { ApiError, GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
-import * as RedisClient from 'redis';
+import * as bcrypt from 'bcrypt';
+import Redis from 'ioredis';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { ChatEntity } from 'src/chat/entities/chat.entity';
 import { RoomEntity } from 'src/chat/entities/room.entity';
@@ -18,14 +18,16 @@ import { AiPersonality } from './enums/ai-personality.enum';
 import { AiRoomService } from './ai-room.service';
 import { AI_USER_EMAIL, SYSTEM_PROMPTS } from './constants/system-prompts';
 import { logger } from 'src/base/logger/logger';
-import { plainToClass } from 'class-transformer';
 
 const AI_LOCK_TTL_SECONDS = 30;
 const AI_HISTORY_LIMIT = 10;
-const GEMINI_MODEL = 'gemini-2.5-flash-lite-preview-06-17';
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const AI_REPLY_MAX_ATTEMPTS = 3;
+const AI_REPLY_BASE_DELAY_MS = 300;
+const AI_REPLY_FAILURE_MESSAGE =
+  '지금은 답장을 드릴 수 없어요. 잠시 후 다시 시도해주세요.';
 
 export type AiReplyCallbacks = {
-  broadcastFn: (msg: ChatEntity) => void;
   publishFn: (msg: ChatEntity) => Promise<void>;
 };
 
@@ -35,11 +37,16 @@ type GeminiContent = {
   parts: { text: string }[];
 };
 
+type GenerateContentParams = Parameters<
+  GoogleGenAI['models']['generateContent']
+>[0];
+type GenerateContentResult = Awaited<
+  ReturnType<GoogleGenAI['models']['generateContent']>
+>;
+
 @Injectable()
 export class AiService implements OnModuleInit {
-  private readonly nestLogger = new Logger(AiService.name);
-  private genai: GoogleGenAI;
-  private aiUser: UserEntity;
+  private aiUser!: UserEntity;
 
   constructor(
     @InjectRepository(UserEntity)
@@ -56,31 +63,40 @@ export class AiService implements OnModuleInit {
     private readonly aiRoomService: AiRoomService,
 
     @Inject('REDIS_CLIENT')
-    private readonly redis: RedisClient.RedisClientType,
-  ) {
-    this.genai = new GoogleGenAI({
-      apiKey: this.configService.getOrThrow<string>('GEMINI_API_KEY'),
-    });
-  }
+    private readonly redis: Redis,
+
+    @Inject('GENAI_CLIENT')
+    private readonly genai: GoogleGenAI,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.seedAiUser();
   }
 
   private async seedAiUser(): Promise<void> {
-    // UPSERT: safe for multi-instance startup
-    await this.userRepository.upsert(
-      {
-        email: AI_USER_EMAIL,
-        password: 'NO_LOGIN_SYSTEM_ACCOUNT',
-        role: UserRole.signedIn,
-        isAI: true,
-      },
-      { conflictPaths: ['email'], skipUpdateIfNoValuesChanged: true },
-    );
-    this.aiUser = await this.userRepository.findOneByOrFail({
-      email: AI_USER_EMAIL,
+    let aiUser = await this.userRepository.findOne({
+      where: { email: AI_USER_EMAIL },
     });
+    if (!aiUser) {
+      const hashedPassword = await bcrypt.hash(
+        'NO_LOGIN_SYSTEM_ACCOUNT',
+        this.configService.getOrThrow<number>('HASH_ROUNDS'),
+      );
+      try {
+        await this.userRepository.save({
+          email: AI_USER_EMAIL,
+          password: hashedPassword,
+          role: UserRole.user,
+          isAI: true,
+        });
+      } catch {
+        // Race condition on multi-instance startup — another instance already created it
+      }
+      aiUser = await this.userRepository.findOneByOrFail({
+        email: AI_USER_EMAIL,
+      });
+    }
+    this.aiUser = aiUser;
     logger.info(`AI user ready: id=${this.aiUser.id}`);
   }
 
@@ -93,18 +109,20 @@ export class AiService implements OnModuleInit {
 
   async handleReply(
     roomId: number,
-    userMessage: string,
     aiPersonality: AiPersonality | undefined | null,
     callbacks: AiReplyCallbacks,
   ): Promise<void> {
     const lockKey = `ai:lock:${roomId}`;
-    const acquired = await this.redis.set(lockKey, '1', {
-      NX: true,
-      EX: AI_LOCK_TTL_SECONDS,
-    });
+    const acquired = await this.redis.set(
+      lockKey,
+      '1',
+      'EX',
+      AI_LOCK_TTL_SECONDS,
+      'NX',
+    );
 
     if (!acquired) {
-      logger.info(`AI lock held for room ${roomId}, skipping.`);
+      logger.debug(`AI lock held for room ${roomId}, skipping.`);
       return;
     }
 
@@ -113,23 +131,34 @@ export class AiService implements OnModuleInit {
         aiPersonality ?? (await this.aiRoomService.getPersonality(roomId));
 
       if (!personality) {
-        logger.info(`No AI personality set for room ${roomId}, skipping.`);
+        logger.debug(`No AI personality set for room ${roomId}, skipping.`);
         return;
       }
 
       const history = await this.buildHistory(roomId);
       const systemPrompt = SYSTEM_PROMPTS[personality];
 
-      const response = await this.genai.models.generateContent({
-        model: GEMINI_MODEL,
-        contents: history,
-        config: {
-          systemInstruction: systemPrompt,
-          maxOutputTokens: 1024,
-        },
-      });
-
-      const replyText = response.text ?? '';
+      let replyText: string;
+      let isFallbackReply = false;
+      try {
+        const response = await this.generateWithRetry({
+          model: GEMINI_MODEL,
+          contents: history,
+          config: {
+            systemInstruction: systemPrompt,
+            maxOutputTokens: 300,
+          },
+        });
+        replyText = response.text ?? '';
+      } catch (error) {
+        const errMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error(
+          `AI reply generation failed for room ${roomId} after retries: ${errMessage}`,
+        );
+        replyText = AI_REPLY_FAILURE_MESSAGE;
+        isFallbackReply = true;
+      }
 
       if (!replyText) return;
 
@@ -150,19 +179,48 @@ export class AiService implements OnModuleInit {
         room,
       });
 
-      const serialized = plainToClass(ChatEntity, msgWithRelations);
-      callbacks.broadcastFn(serialized);
-      await callbacks.publishFn(serialized);
+      await callbacks.publishFn(msgWithRelations);
 
       logger.info(
-        `AI replied in room ${roomId}, message id=${savedMessage.id}`,
+        isFallbackReply
+          ? `Sent AI failure notice in room ${roomId}, message id=${savedMessage.id}`
+          : `AI replied in room ${roomId}, message id=${savedMessage.id}`,
       );
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`AI reply failed for room ${roomId}: ${msg}`);
+    } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? (error.stack ?? '') : '';
+      logger.error(
+        `AI reply failed for room ${roomId}: ${errMessage}\n${errStack}`,
+      );
     } finally {
       await this.redis.del(lockKey);
     }
+  }
+
+  private isRetryableGeminiError(error: unknown): boolean {
+    return (
+      error instanceof ApiError && (error.status === 429 || error.status >= 500)
+    );
+  }
+
+  private async generateWithRetry(
+    params: GenerateContentParams,
+  ): Promise<GenerateContentResult> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < AI_REPLY_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.genai.models.generateContent(params);
+      } catch (error) {
+        lastError = error;
+        if (!this.isRetryableGeminiError(error)) break;
+        if (attempt < AI_REPLY_MAX_ATTEMPTS - 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, AI_REPLY_BASE_DELAY_MS * 3 ** attempt),
+          );
+        }
+      }
+    }
+    throw lastError;
   }
 
   private async buildHistory(roomId: number): Promise<GeminiContent[]> {

@@ -1,24 +1,15 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/auth.store";
 import { useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode";
-import api from "../api/axios";
+import { refreshAccessTokenSafely } from "../auth/session-guard";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    const { accessToken, refreshToken, setTokens, clearTokens } = useAuthStore();
-    const [initializing, setInitializing] = useState(!accessToken && !!refreshToken);
+    const { accessToken } = useAuthStore();
+    const [initializing, setInitializing] = useState(!accessToken);
 
     useEffect(() => {
-        if (!accessToken && refreshToken) {
-            api.post('/auth/token/refreshaccess', null, {
-                headers: { Authorization: `Bearer ${refreshToken}` },
-            })
-                .then(({ data }) => {
-                    const { sub } = jwtDecode<{ sub: number }>(data.accessToken);
-                    setTokens(data.accessToken, refreshToken, sub);
-                })
-                .catch(() => clearTokens())
-                .finally(() => setInitializing(false));
+        if (!accessToken) {
+            refreshAccessTokenSafely().finally(() => setInitializing(false));
         }
     }, []);
 

@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../role/role';
 import { RBAC } from '../decorator/rbac.decorator';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class RBACguard implements CanActivate {
@@ -19,24 +20,34 @@ export class RBACguard implements CanActivate {
     }
 
     // Switch context to HTTP and extract the request.
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<{
+      user?: { sub?: number; id?: number; role?: UserRole };
+    }>();
 
     // Get the authenticated user from the request in auth router.
     const user = request.user;
 
     // If an user does not exist in request, deny access.
     if (!user) {
+      logger.warn(`RBAC denied: no authenticated user (required role=${role})`);
       return false;
     }
 
-    // Define access levels for each role
+    // Higher number = more privilege (user=0, admin=1, superadmin=2)
     const accessLevel = {
-      [UserRole.signedIn]: 0,
-      [UserRole.signedOut]: 1,
+      [UserRole.user]: 0,
+      [UserRole.admin]: 1,
+      [UserRole.superadmin]: 2,
     };
 
-    // Compare user's role level with required role level
-    // It means user's role level <= required level, can access smaller or equal than required level
-    return accessLevel[user.role] == accessLevel[role];
+    const allowed =
+      accessLevel[user.role ?? UserRole.user] >= accessLevel[role];
+    if (!allowed) {
+      logger.warn(
+        `[user=${user.sub ?? user.id ?? 'unknown'}] RBAC denied: role=${user.role} < required=${role}`,
+      );
+    }
+    // Admin can access user-level endpoints; exact match is not required
+    return allowed;
   }
 }

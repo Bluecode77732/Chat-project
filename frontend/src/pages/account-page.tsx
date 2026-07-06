@@ -1,0 +1,285 @@
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/auth.store';
+import { socket } from '../socket/socket';
+import api from '../api/axios';
+import { clearSessionUser } from '../auth/session-guard';
+
+interface UserInfo {
+    email: string;
+    nickname: string | null;
+    profileImage: string | null;
+}
+
+const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function AccountPage() {
+    const { userId, clearTokens } = useAuthStore();
+    const navigate = useNavigate();
+    const [password, setPassword] = useState('');
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const [email, setEmail] = useState('');
+    const [nickname, setNickname] = useState('');
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [profileError, setProfileError] = useState<string | null>(null);
+    const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+
+    useEffect(() => {
+        if (!userId) return;
+        api.get<UserInfo>(`/user/${userId}`)
+            .then(({ data }) => {
+                setEmail(data.email);
+                setNickname(data.nickname ?? '');
+                setProfileImage(data.profileImage ?? null);
+            })
+            .catch(() => setProfileError('계정 정보를 불러오지 못했습니다.'));
+    }, [userId]);
+
+    const handleProfileImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setProfileError(null);
+        if (!ALLOWED_PROFILE_IMAGE_TYPES.includes(file.type)) {
+            setProfileError('jpeg, png, webp 형식의 이미지만 업로드할 수 있습니다.');
+            return;
+        }
+        if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+            setProfileError('이미지 용량은 2MB 이하여야 합니다.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => setProfileImage(reader.result as string);
+        reader.onerror = () => setProfileError('이미지를 읽지 못했습니다.');
+        reader.readAsDataURL(file);
+    };
+
+    const handleProfileUpdate = async () => {
+        if (!userId) return;
+        setProfileLoading(true);
+        setProfileError(null);
+        setProfileSuccess(null);
+        try {
+            await api.patch(`/user/${userId}`, {
+                email,
+                nickname,
+                profileImage,
+                ...(newPassword ? { password: newPassword } : {}),
+            });
+            setNewPassword('');
+            setProfileSuccess('변경사항이 저장되었습니다.');
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { message?: string | string[] } } })
+                    ?.response?.data?.message;
+            setProfileError(
+                (Array.isArray(message) ? message.join(' ') : message) ??
+                    '저장에 실패했습니다.',
+            );
+        } finally {
+            setProfileLoading(false);
+        }
+    };
+
+    const handleDeleteRequest = () => {
+        if (!password.trim()) {
+            setError('비밀번호를 입력해주세요.');
+            return;
+        }
+        setError(null);
+        setShowConfirm(true);
+    };
+
+    const handleConfirm = async () => {
+        if (!userId) return;
+        setLoading(true);
+        setError(null);
+        try {
+            await api.delete(`/user/${userId}`, { data: { password } });
+            // 소켓 해제 → 토큰 정리 → 로그인 화면
+            socket.disconnect();
+            clearTokens();
+            clearSessionUser();
+            navigate('/');
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { message?: string } } })
+                    ?.response?.data?.message ?? '탈퇴에 실패했습니다. 비밀번호를 확인해주세요.';
+            setError(message);
+            setShowConfirm(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50 py-10 px-4">
+            <div className="flex flex-col gap-6 w-full max-w-md">
+                <div className="flex justify-between items-center">
+                    <span className="font-bold text-xl">계정 설정</span>
+                    <button
+                        onClick={() => navigate('/chat')}
+                        className="text-sm text-gray-500 hover:text-gray-700"
+                    >
+                        ← 채팅으로 돌아가기
+                    </button>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                    <h2 className="font-semibold mb-4">프로필</h2>
+
+                    <div className="flex items-center gap-4 mb-4">
+                        {profileImage ? (
+                            <img
+                                src={profileImage}
+                                alt="프로필 이미지"
+                                className="w-16 h-16 rounded-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-white font-semibold">
+                                {(nickname || email).slice(0, 2)}
+                            </div>
+                        )}
+                        <label className="text-sm text-blue-500 hover:text-blue-600 cursor-pointer">
+                            이미지 변경
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleProfileImageSelect}
+                                data-testid="account-profile-image-input"
+                                className="hidden"
+                                disabled={profileLoading}
+                            />
+                        </label>
+                    </div>
+
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        이메일
+                    </label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        data-testid="account-email-input"
+                        className="w-full border p-2 rounded-lg mb-3 text-sm"
+                        disabled={profileLoading}
+                    />
+
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        닉네임
+                    </label>
+                    <input
+                        type="text"
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                        data-testid="account-nickname-input"
+                        className="w-full border p-2 rounded-lg mb-3 text-sm"
+                        placeholder="다른 유저에게 표시될 이름"
+                        maxLength={20}
+                        disabled={profileLoading}
+                    />
+
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        새 비밀번호
+                    </label>
+                    <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        data-testid="account-new-password-input"
+                        className="w-full border p-2 rounded-lg mb-3 text-sm"
+                        placeholder="변경하지 않으려면 비워두세요"
+                        disabled={profileLoading}
+                    />
+
+                    {profileError && (
+                        <p className="text-red-500 text-sm mb-3">{profileError}</p>
+                    )}
+                    {profileSuccess && (
+                        <p className="text-green-600 text-sm mb-3">{profileSuccess}</p>
+                    )}
+
+                    <button
+                        onClick={handleProfileUpdate}
+                        disabled={profileLoading || !email.trim()}
+                        data-testid="account-save-button"
+                        className="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50"
+                    >
+                        {profileLoading ? '저장 중...' : '저장'}
+                    </button>
+                </div>
+
+                <div className="bg-white border border-red-200 rounded-xl shadow-sm p-6">
+                    <h2 className="text-red-600 font-semibold mb-1">계정 탈퇴</h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                        탈퇴 시 계정은 즉시 삭제됩니다. 채팅 이력은 상대방이 탈퇴할 때까지 보존됩니다.
+                    </p>
+
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        현재 비밀번호
+                    </label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleDeleteRequest(); }}
+                        data-testid="account-delete-password-input"
+                        className="w-full border p-2 rounded-lg mb-3 text-sm"
+                        placeholder="비밀번호 입력"
+                        disabled={loading}
+                    />
+
+                    {error && (
+                        <p className="text-red-500 text-sm mb-3">{error}</p>
+                    )}
+
+                    <button
+                        onClick={handleDeleteRequest}
+                        disabled={loading}
+                        data-testid="account-delete-request-button"
+                        className="w-full bg-red-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50"
+                    >
+                        계정 탈퇴
+                    </button>
+                </div>
+            </div>
+
+            {showConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
+                        <h3 className="font-bold mb-2">정말 탈퇴하시겠습니까?</h3>
+                        <p className="text-sm text-gray-500 mb-5">
+                            이 작업은 되돌릴 수 없습니다.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowConfirm(false)}
+                                disabled={loading}
+                                data-testid="account-delete-cancel-button"
+                                className="flex-1 border py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleConfirm}
+                                disabled={loading}
+                                data-testid="account-delete-confirm-button"
+                                className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
+                            >
+                                {loading ? '처리 중...' : '탈퇴 확인'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default AccountPage;

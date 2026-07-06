@@ -1,43 +1,81 @@
 import {
-  ConnectedSocket,
-  MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
-  SubscribeMessage,
   WebSocketGateway,
-  WebSocketServer,
 } from '@nestjs/websockets';
+import { OnApplicationShutdown } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { Server, Socket } from 'socket.io';
 import { AuthService } from 'src/auth/auth.service';
-import { UseGuards, UseInterceptors } from '@nestjs/common';
-import { WebSocketTransaction } from './interceptor/ws.transaction.interceptor';
-import { CreateChatDto } from './entities/dto/create-chat.dto';
-import { RateLimitGuard } from './guard/rate-limit.guard';
-import { RBACguard } from 'src/auth/guard/rbac.guard';
-import type { QueryRunner } from 'typeorm';
-import { WebSocketQueryRunner } from './decorator/ws-query-runner.decorator';
+import { ConfigService } from '@nestjs/config';
+import { logger } from 'src/base/logger/logger';
+import { Payload } from 'src/auth/interface/payload.interface';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN,
+    // process.env.CORS_ORIGIN is undefined at decoration time (before ConfigModule loads).
+    // Using a callback defers evaluation to connection time, when the value is available.
+    origin: (
+      origin: string,
+      callback: (err: Error | null, allow: boolean) => void,
+    ) => {
+      const allowed = (process.env.CORS_ORIGIN ?? '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+      callback(null, !origin || allowed.includes(origin));
+    },
     credentials: true,
   },
 })
 export class ChatGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnApplicationShutdown
 {
-  @WebSocketServer()
-  private server: Server;
+  private pubClient?: Redis;
+  private subClient?: Redis;
 
   constructor(
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
+    private readonly configService: ConfigService,
   ) {}
 
   afterInit(server: Server): void {
-    this.chatService.setBroadcastServer(server);
+    const redisUrl = this.configService.getOrThrow<string>('REDIS_URL');
+    const url = new URL(redisUrl);
+    const isTls = url.protocol === 'rediss:';
+    const redisConfig = {
+      host: url.hostname,
+      port: parseInt(url.port || '6379'),
+      password: url.password || undefined,
+      ...(isTls ? { tls: {} } : {}),
+    };
+    this.pubClient = new Redis(redisConfig);
+    this.subClient = this.pubClient.duplicate();
+    server.adapter(createAdapter(this.pubClient, this.subClient));
+    this.chatService.setServer(server);
+  }
+
+  // OnModuleDestroy runs before dispose() closes the Socket.IO server, so quitting
+  // here would race @socket.io/redis-adapter's own unsubscribe commands on server
+  // close (confirmed by reading the installed socket.io/@nestjs/core source).
+  // OnApplicationShutdown runs after dispose(), so the adapter's server-close
+  // cleanup has already fired before these clients are quit.
+  async onApplicationShutdown() {
+    try {
+      await Promise.all([this.pubClient?.quit(), this.subClient?.quit()]);
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`ChatGateway Redis adapter shutdown error: ${errMessage}`);
+      throw err;
+    }
   }
 
   async handleConnection(client: Socket) {
@@ -54,7 +92,8 @@ export class ChatGateway
 
       if (payload) {
         // Put bearer token into data.user to be extracted by
-        client.data.user = payload;
+        // socket.data is typed as any by socket.io; we narrow it to the shape we control
+        (client.data as { user?: Payload }).user = payload;
 
         // Remember the specific client with a certain key
         await this.chatService.registerClient(payload.sub, client);
@@ -65,31 +104,22 @@ export class ChatGateway
         client.disconnect();
       }
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `WebSocket connection rejected (client=${client.id}): ${errMessage}`,
+      );
       client.disconnect();
     }
   }
 
   async handleDisconnect(client: Socket) {
-    const participant = await client.data.user;
+    // socket.data is typed as any by socket.io; we narrow it to the shape we set in handleConnection
+    const participant = (client.data as { user?: Payload }).user;
 
     if (participant) {
-      await this.chatService.removeClient(participant.sub, client);
+      await this.chatService.removeClient(participant.sub, client.id);
     }
 
-    return `User: ${participant} disconnected`;
-  }
-
-  // Connect socket
-  @SubscribeMessage('sendMessage')
-  @UseInterceptors(WebSocketTransaction)
-  @UseGuards(RateLimitGuard)
-  @UseGuards(RBACguard)
-  async handleMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: CreateChatDto,
-    @WebSocketQueryRunner() queryRunner: QueryRunner,
-  ) {
-    const payload = client.data.user;
-    await this.chatService.sendMessage(payload, dto, queryRunner);
+    return `User: ${participant?.sub ?? 'unknown'} disconnected`;
   }
 }

@@ -8,35 +8,61 @@ import {
   ID,
   Int,
 } from '@nestjs/graphql';
+
+interface GqlContext {
+  req: { user: { id: number }; transactionCommitted?: Promise<void> };
+}
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
+import { AdminRoomType } from 'src/graphql/admin-room.type';
+import { UserType } from 'src/graphql/user.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
-import { UseGuards } from '@nestjs/common';
+import { ForbiddenException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { GraphQLAuthGuard } from 'src/auth/guard/graphql.auth.guard';
+import { GraphQLRBACGuard } from 'src/auth/guard/graphql-rbac.guard';
+import { RBAC } from 'src/auth/decorator/rbac.decorator';
+import { UserRole } from 'src/auth/role/role';
 import { RateLimitGuard } from './guard/rate-limit.guard';
 import { PubSubService } from 'src/graphql/pubsub.service';
-import { DataSource } from 'typeorm';
+import type { QueryRunner } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
 import { SessionCacheService } from 'src/redis/redis.service';
-import { AuthService } from 'src/auth/auth.service';
 import { AiService } from 'src/ai/ai.service';
 import { AiRoomService } from 'src/ai/ai-room.service';
 import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
-import { ChatEntity } from './entities/chat.entity';
+import { GqlTransactionInterceptor } from './interceptor/gql-transaction.interceptor';
+import { GqlQueryRunnerDecorator } from './decorator/gql-query-runner.decorator';
 
 @Resolver()
 export class ChatResolver {
   constructor(
     private readonly chatService: ChatService,
     private readonly pubSub: PubSubService,
-    private readonly dataSource: DataSource,
     private readonly sessionCacheService: SessionCacheService,
-    private readonly authService: AuthService,
     private readonly aiService: AiService,
     private readonly aiRoomService: AiRoomService,
   ) {}
+
+  @Query(() => [AdminRoomType])
+  @RBAC(UserRole.admin)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
+  async getAllRooms(): Promise<AdminRoomType[]> {
+    return this.chatService.findAllRooms();
+  }
+
+  @Mutation(() => Boolean)
+  @RBAC(UserRole.admin)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
+  async deleteRoom(
+    @Args('roomId', { type: () => Int }) roomId: number,
+  ): Promise<boolean> {
+    await this.chatService.deleteRoom(roomId);
+    return true;
+  }
 
   @Query(() => String)
   ping(): string {
@@ -51,29 +77,29 @@ export class ChatResolver {
   @Query(() => AiPersonalityInfoType, { nullable: true })
   @UseGuards(GraphQLAuthGuard)
   async getAiPersonalityInfo(
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
   ): Promise<AiPersonalityInfoType> {
+    const userId = ctx.req.user.id;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
     return this.aiRoomService.getPersonalityInfo(roomId);
   }
 
   @Mutation(() => Boolean)
   @UseGuards(GraphQLAuthGuard)
   async setAiPersonality(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('personality', { type: () => AiPersonality })
     personality: AiPersonality,
   ): Promise<boolean> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    await this.aiRoomService.setPersonality(
-      roomId,
-      payload.sub,
-      personality,
-      false,
-    );
+    const userId = ctx.req.user.id;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
+    await this.aiRoomService.setPersonality(roomId, personality);
     return true;
   }
 
@@ -83,128 +109,156 @@ export class ChatResolver {
     return this.sessionCacheService.getOnlineUser();
   }
 
+  @Query(() => [Int])
+  @UseGuards(GraphQLAuthGuard)
+  async getAllUsers(@Context() ctx: GqlContext): Promise<number[]> {
+    const userId = ctx.req.user.id;
+    return this.chatService.getAllUsers(userId);
+  }
+
+  @Query(() => [UserType])
+  @UseGuards(GraphQLAuthGuard)
+  async getUserNicknames(): Promise<UserType[]> {
+    return this.chatService.getUserNicknames();
+  }
+
   @Query(() => [RoomInfoType])
   @UseGuards(GraphQLAuthGuard)
-  async getMyRooms(@Context() ctx: any): Promise<RoomInfoType[]> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    return this.chatService.getMyRooms(payload.sub);
+  async getMyRooms(@Context() ctx: GqlContext): Promise<RoomInfoType[]> {
+    const userId = ctx.req.user.id;
+    return this.chatService.getMyRooms(userId);
   }
 
   @Query(() => Int, { nullable: true })
   @UseGuards(GraphQLAuthGuard)
   async getRoom(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('recipientId', { type: () => Int }) recipientId: number,
   ): Promise<number | null> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
-    );
-    return this.chatService.getRoom(payload.sub, recipientId);
+    const userId = ctx.req.user.id;
+    return this.chatService.getRoom(userId, recipientId);
   }
 
   @Query(() => [MessageType])
   @UseGuards(GraphQLAuthGuard)
   async getMessages(
+    @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
     @Args('cursor', { type: () => Int, nullable: true }) cursor?: number,
   ): Promise<MessageType[]> {
+    const userId = ctx.req.user.id;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
     const msgs = await this.chatService.getMessages(roomId, cursor);
     return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
 
+  // Non-idempotent: a client retry after timeout produces a duplicate ChatEntity; RateLimitGuard reduces but does not prevent this.
   @Mutation(() => MessageType)
   @UseGuards(GraphQLAuthGuard, RateLimitGuard)
+  @UseInterceptors(GqlTransactionInterceptor)
   async sendMessage(
-    @Context() ctx: any,
+    @Context() ctx: GqlContext,
     @Args('input') input: CreateChatInput,
     @Args('recipientId', { type: () => Int }) recipientId: number,
-  ): Promise<MessageType | any | null> {
-    const payload = await this.authService.parseBearerToken(
-      ctx.req?.headers?.authorization,
-      false,
+    @GqlQueryRunnerDecorator() queryRunner: QueryRunner,
+  ): Promise<MessageType> {
+    const userId = ctx.req.user.id;
+    const transactionCommitted = ctx.req.transactionCommitted;
+
+    const savedMessage = await this.chatService.sendMessage(
+      { sub: userId },
+      { message: input.message, recipientId },
+      queryRunner.manager,
     );
-    const userId = payload.sub;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    const roomId = savedMessage.room?.id;
+    await this.pubSub.publish(`receiveMessage :${roomId}`, {
+      receiveMessage: savedMessage,
+    });
 
-    try {
-      const savedMessage = await this.chatService.sendMessage(
-        { sub: userId },
-        { message: input.message, recipientId },
-        queryRunner,
-      );
-
-      await queryRunner.commitTransaction();
-
-      const roomId = savedMessage.room?.id;
-      await this.pubSub.publish(`receiveMessage :${roomId}`, {
-        receiveMessage: savedMessage,
-      });
-      logger.info(`User ${userId}'s message is saved in the chat room`);
-
-      // Trigger AI reply asynchronously after transaction commits
-      if (roomId && recipientId === this.aiService.getAiUserId()) {
-        if (input.aiPersonality && roomId) {
-          await this.aiRoomService.setPersonality(
-            roomId,
-            userId,
-            input.aiPersonality,
-            true,
-          );
-        }
-        setImmediate(() => {
-          this.aiService
-            .handleReply(
-              roomId,
-              input.message ?? '',
-              input.aiPersonality ?? null,
-              {
-                broadcastFn: (msg: ChatEntity) =>
-                  this.chatService.broadcastToRoom(roomId, msg),
-                publishFn: (msg: ChatEntity) =>
-                  this.pubSub.publish(`receiveMessage :${roomId}`, {
-                    receiveMessage: msg,
-                  }),
-              },
-            )
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              logger.error(`AI reply error: ${msg}`, {
-                timestamp: new Date().toISOString(),
-              });
+    // Notify both participants' sockets about the room only after the transaction
+    // commits — emitting earlier let a recipient's immediate subscribe attempt see
+    // an uncommitted room and get rejected by isRoomParticipant's access check.
+    if (roomId) {
+      setImmediate(() => {
+        void (async () => {
+          await transactionCommitted;
+          await this.chatService
+            .notifyRoomParticipants(roomId, [userId, recipientId])
+            .catch((err) => {
+              const errMessage =
+                err instanceof Error ? err.message : String(err);
+              logger.error(
+                `[user=${userId}, room=${roomId}] notifyRoomParticipants failed: ${errMessage}`,
+              );
             });
-        });
-      }
-
-      return {
-        ...savedMessage,
-        roomId,
-        createdAt: savedMessage.created,
-      };
-    } catch (error: any) {
-      logger.error(error.message, {
-        userId: userId,
-        timestamp: new Date().toISOString(),
+        })();
       });
-      await queryRunner.rollbackTransaction();
-      throw new Error(`Failed to send message: ${error.message}`);
-    } finally {
-      await queryRunner.release();
     }
+
+    // Trigger AI reply asynchronously after transaction commits.
+    // GqlTransactionInterceptor commits after this resolver returns, so the trigger
+    // awaits ctx.req.transactionCommitted before touching data that depends on the commit.
+    if (roomId && recipientId === this.aiService.getAiUserId()) {
+      const personalityToSet = input.aiPersonality ?? null;
+      setImmediate(() => {
+        void (async () => {
+          await transactionCommitted;
+          if (personalityToSet) {
+            await this.aiRoomService
+              .setPersonality(roomId, personalityToSet)
+              .catch((err) => {
+                const errMessage =
+                  err instanceof Error ? err.message : String(err);
+                logger.error(
+                  `[user=${userId}, room=${roomId}] setPersonality failed: ${errMessage}`,
+                );
+              });
+          }
+          await this.aiService
+            .handleReply(roomId, personalityToSet, {
+              publishFn: (msg) =>
+                this.pubSub.publish(`receiveMessage :${roomId}`, {
+                  receiveMessage: msg,
+                }),
+            })
+            .catch((err) => {
+              const errMessage =
+                err instanceof Error ? err.message : String(err);
+              const errStack = err instanceof Error ? (err.stack ?? '') : '';
+              logger.error(
+                `[user=${userId}, room=${roomId}] AI reply error: ${errMessage}\n${errStack}`,
+              );
+            });
+        })();
+      });
+    }
+
+    return {
+      ...savedMessage,
+      roomId,
+      createdAt: savedMessage.created,
+    };
   }
 
   @Subscription(() => MessageType, {
-    resolve: (payload) => payload.receiveMessage,
+    resolve: (payload: { receiveMessage: MessageType }) =>
+      payload.receiveMessage,
     filter: () => true,
   })
   @UseGuards(GraphQLAuthGuard)
-  receiveMessage(@Args('roomId', { type: () => ID }) roomId: number) {
-    return this.pubSub.asyncIterableIterator(`receiveMessage :${roomId}`);
+  async receiveMessage(
+    @Args('roomId', { type: () => ID }) roomId: number,
+    @Context() ctx: GqlContext,
+  ) {
+    const userId = ctx.req.user.id;
+    if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
+      throw new ForbiddenException('Access denied to this room');
+    }
+    return this.pubSub.asyncIterableIterator(
+      `receiveMessage :${roomId}`,
+    ) as AsyncIterableIterator<{ receiveMessage: MessageType }>;
   }
 }

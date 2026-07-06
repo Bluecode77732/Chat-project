@@ -3,10 +3,9 @@ import { persist } from 'zustand/middleware';
 
 interface AuthState {
     accessToken: string | null;
-    refreshToken: string | null;
     userId: number | null;
     lastRecipientId: number | null;
-    setTokens: (accessToken: string, refreshToken: string, userId: number) => void;
+    setTokens: (accessToken: string, userId: number) => void;
     setLastRecipientId: (recipientId: number) => void;
     clearTokens: () => void;
 };
@@ -15,24 +14,21 @@ export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
             accessToken: null,
-            refreshToken: null,
             userId: null,
             lastRecipientId: null,
-            setTokens: (accessToken, refreshToken, userId) =>
-                set({ accessToken, refreshToken, userId }),
+            setTokens: (accessToken, userId) =>
+                set({ accessToken, userId }),
             setLastRecipientId: (recipientId) =>
                 set({ lastRecipientId: recipientId }),
             clearTokens: () =>
                 set({
                     accessToken: null,
-                    refreshToken: null,
                     userId: null,
                 }),
         }),
         {
             name: 'auth',
             partialize: (state) => ({
-                refreshToken: state.refreshToken,
                 lastRecipientId: state.lastRecipientId,
             }),
         }

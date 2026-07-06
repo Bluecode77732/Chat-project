@@ -11,10 +11,16 @@ export class ChatEntity extends EntityBase {
   @Column()
   message?: string;
 
-  @ManyToOne(() => UserEntity, (user) => user.chats)
-  participant?: UserEntity;
+  @ManyToOne(() => UserEntity, (user) => user.chats, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  participant?: UserEntity | null;
 
   // Rooms in a chat
-  @ManyToOne(() => RoomEntity, (room) => room.chats)
-  room?: RoomEntity;
+  @ManyToOne(() => RoomEntity, (room) => room.chats, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
+  room?: RoomEntity | null;
 }
