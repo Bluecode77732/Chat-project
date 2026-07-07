@@ -1,6 +1,6 @@
 # ----- Builder stage -----
 # Using alpine, the linux's latest version As development environment
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 # Install Pnpm globally (pinned to match pnpm-lock.yaml lockfileVersion)
 # @nestjs/cli is installed globally so `nest build` is available regardless of
@@ -31,7 +31,7 @@ RUN cd backend && nest build
 
 # ----- Production stage -----
 
-FROM node:22-alpine AS production
+FROM node:24-alpine AS production
 
 RUN npm install -g pnpm@10.33.0
 
