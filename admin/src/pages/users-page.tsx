@@ -80,18 +80,21 @@ function UsersPage() {
                     <div className="flex gap-3">
                         <button
                             onClick={() => navigate('/rooms')}
+                            data-testid="nav-rooms"
                             className="text-sm text-blue-600 hover:underline"
                         >
                             Rooms
                         </button>
                         <button
                             onClick={() => navigate('/logs')}
+                            data-testid="nav-logs"
                             className="text-sm text-blue-600 hover:underline"
                         >
                             Logs
                         </button>
                         <button
                             onClick={signOut}
+                            data-testid="sign-out-button"
                             className="text-sm text-red-600 hover:underline"
                         >
                             Sign out
@@ -100,7 +103,7 @@ function UsersPage() {
                 </div>
 
                 {actionMsg && (
-                    <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded px-3 py-2">{actionMsg}</p>
+                    <p data-testid="action-message" className="mb-4 text-sm text-blue-700 bg-blue-50 rounded px-3 py-2">{actionMsg}</p>
                 )}
 
                 {loading ? (
@@ -119,12 +122,12 @@ function UsersPage() {
                             </thead>
                             <tbody>
                                 {users.map((u) => (
-                                    <tr key={u.id} className="border-t">
+                                    <tr key={u.id} data-testid={`user-row-${u.id}`} className="border-t">
                                         <td className="px-4 py-3">{u.id}</td>
                                         <td className="px-4 py-3">{u.nickname ?? '—'}</td>
                                         <td className="px-4 py-3">{u.email}</td>
                                         <td className="px-4 py-3">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                            <span data-testid={`user-role-${u.id}`} className={`px-2 py-0.5 rounded text-xs font-medium ${
                                                 u.role === 2 ? 'bg-red-100 text-red-700' :
                                                 u.role === 1 ? 'bg-purple-100 text-purple-700' :
                                                 'bg-gray-100 text-gray-600'
@@ -136,6 +139,7 @@ function UsersPage() {
                                             {myRole === 2 && u.role !== 2 && (
                                                 <button
                                                     onClick={() => updateRole(u.id, u.role === 1 ? 0 : 1)}
+                                                    data-testid={`user-promote-${u.id}`}
                                                     className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                                                 >
                                                     {u.role === 1 ? 'Demote' : 'Promote'}
@@ -143,12 +147,14 @@ function UsersPage() {
                                             )}
                                             <button
                                                 onClick={() => forceLogout(u.id)}
+                                                data-testid={`user-force-logout-${u.id}`}
                                                 className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                                             >
                                                 Force logout
                                             </button>
                                             <button
                                                 onClick={() => deleteUser(u.id)}
+                                                data-testid={`user-delete-${u.id}`}
                                                 className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                                             >
                                                 Delete

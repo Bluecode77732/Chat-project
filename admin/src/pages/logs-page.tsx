@@ -76,9 +76,9 @@ function LogsPage() {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Audit Logs</h1>
                     <div className="flex gap-3">
-                        <button onClick={() => navigate('/users')} className="text-sm text-blue-600 hover:underline">Users</button>
-                        <button onClick={() => navigate('/rooms')} className="text-sm text-blue-600 hover:underline">Rooms</button>
-                        <button onClick={signOut} className="text-sm text-red-600 hover:underline">Sign out</button>
+                        <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">Users</button>
+                        <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">Rooms</button>
+                        <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">Sign out</button>
                     </div>
                 </div>
 
@@ -87,6 +87,7 @@ function LogsPage() {
                     <select
                         value={action}
                         onChange={(e) => changeAction(e.target.value)}
+                        data-testid="log-action-filter"
                         className="text-sm border rounded px-2 py-1"
                     >
                         <option value="">All</option>
@@ -100,7 +101,7 @@ function LogsPage() {
                     <p className="text-gray-500">Loading...</p>
                 ) : (
                     <>
-                        <div className="bg-white rounded-xl shadow overflow-hidden">
+                        <div data-testid="logs-table" className="bg-white rounded-xl shadow overflow-hidden">
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-100 text-left">
                                     <tr>
@@ -113,7 +114,7 @@ function LogsPage() {
                                 </thead>
                                 <tbody>
                                     {result.data.map((log) => (
-                                        <tr key={log.id} className="border-t">
+                                        <tr key={log.id} data-testid={`log-row-${log.id}`} className="border-t">
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                                                 {new Date(log.created).toLocaleString()}
                                             </td>

@@ -42,21 +42,24 @@ function LoginPage() {
                 className="bg-white p-8 rounded-xl shadow w-80 flex flex-col gap-4"
             >
                 <h1 className="text-xl font-bold text-center">Admin Login</h1>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                {error && <p data-testid="login-error" className="text-red-500 text-sm text-center">{error}</p>}
                 <input
                     {...register('email', { required: true })}
                     type="email"
                     placeholder="Email"
+                    data-testid="login-email-input"
                     className="border rounded px-3 py-2 text-sm"
                 />
                 <input
                     {...register('password', { required: true })}
                     type="password"
                     placeholder="Password"
+                    data-testid="login-password-input"
                     className="border rounded px-3 py-2 text-sm"
                 />
                 <button
                     type="submit"
+                    data-testid="login-submit-button"
                     className="bg-blue-600 text-white rounded py-2 text-sm font-semibold hover:bg-blue-700"
                 >
                     Sign In

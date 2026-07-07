@@ -54,18 +54,21 @@ function RoomsPage() {
                     <div className="flex gap-3">
                         <button
                             onClick={() => navigate('/users')}
+                            data-testid="nav-users"
                             className="text-sm text-blue-600 hover:underline"
                         >
                             Users
                         </button>
                         <button
                             onClick={() => navigate('/logs')}
+                            data-testid="nav-logs"
                             className="text-sm text-blue-600 hover:underline"
                         >
                             Logs
                         </button>
                         <button
                             onClick={signOut}
+                            data-testid="sign-out-button"
                             className="text-sm text-red-600 hover:underline"
                         >
                             Sign out
@@ -74,7 +77,7 @@ function RoomsPage() {
                 </div>
 
                 {actionMsg && (
-                    <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded px-3 py-2">{actionMsg}</p>
+                    <p data-testid="action-message" className="mb-4 text-sm text-blue-700 bg-blue-50 rounded px-3 py-2">{actionMsg}</p>
                 )}
 
                 {loading ? (
@@ -91,12 +94,13 @@ function RoomsPage() {
                             </thead>
                             <tbody>
                                 {data?.getAllRooms.map((room: Room) => (
-                                    <tr key={room.roomId} className="border-t">
+                                    <tr key={room.roomId} data-testid={`room-row-${room.roomId}`} className="border-t">
                                         <td className="px-4 py-3">{room.roomId}</td>
                                         <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                         <td className="px-4 py-3">
                                             <button
                                                 onClick={() => handleDelete(room.roomId)}
+                                                data-testid={`room-delete-${room.roomId}`}
                                                 className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                                             >
                                                 Delete
