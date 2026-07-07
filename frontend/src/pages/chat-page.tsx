@@ -659,6 +659,7 @@ function ChatPage() {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
+                data-testid="chat-messages-list"
                 className="flex-1 min-w-0 overflow-y-auto flex flex-col gap-2"
             >
                 {messagesLoading && messages.length === 0 && (
