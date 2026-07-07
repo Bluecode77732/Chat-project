@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { logger } from 'src/base/logger/logger';
 import type { Request as ExpressRequest, Response } from 'express';
 import {
   ApiBasicAuth,
@@ -82,8 +83,9 @@ export class AuthController {
     if (rawToken) {
       try {
         await this.authService.signOut(rawToken);
-      } catch {
+      } catch (err) {
         // Token expired or invalid — cookie still gets cleared
+        logger.debug(`signOut token error (expected if expired): ${(err as Error).message}`);
       }
     }
     res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS);
