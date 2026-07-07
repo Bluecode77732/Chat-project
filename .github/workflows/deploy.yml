@@ -119,6 +119,100 @@ jobs:
         env:
           CI: true
 
+  admin-e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: chatdb_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_e2e_pw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ENV: dev
+      DB_TYPE: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres_e2e_pw
+      DB_DATABASE: chatdb_e2e
+      HASH_ROUNDS: 12
+      REFRESH_TOKEN_SECRET: ${{ secrets.E2E_REFRESH_TOKEN_SECRET }}
+      ACCESS_TOKEN_SECRET: ${{ secrets.E2E_ACCESS_TOKEN_SECRET }}
+      REFRESH_TOKEN_SECRET_EXPIRES_IN: 604800
+      ACCESS_TOKEN_SECRET_EXPIRES_IN: 900
+      REDIS_URL: redis://localhost:6379
+      USER_CACHE_TTL_SEC: 300
+      SESSION_TTL_SEC: 86400
+      MESSAGE_CACHE_TTL_SEC: 300
+      # Admin runs on a different origin (:5174) than the main frontend (:5173).
+      CORS_ORIGIN: http://localhost:5174
+      GEMINI_API_KEY: ci-placeholder-not-called-in-e2e
+      VITE_API_URL: http://localhost:3000
+      # No in-app flow can create a superadmin — this DB is fresh and thrown away
+      # after the job, so a fixed CI-only credential (not a real secret) is fine.
+      E2E_SUPERADMIN_EMAIL: e2e-superadmin@ci.local
+      E2E_SUPERADMIN_PASSWORD: ci-superadmin-pw-e2e
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install
+
+      - name: Build backend
+        run: pnpm --filter backend build
+
+      - name: Run migrations
+        run: pnpm --filter backend migration:run
+
+      - name: Start backend
+        run: node backend/dist/main &
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 30); do
+            nc -z localhost 3000 && echo "Backend is ready" && break
+            echo "Waiting for backend ($i/30)..."
+            sleep 2
+          done
+
+      - name: Seed superadmin account
+        run: pnpm --filter admin e2e:seed
+
+      - name: Install Playwright browsers
+        run: pnpm --filter admin exec playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: pnpm --filter admin e2e
+        env:
+          CI: true
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
