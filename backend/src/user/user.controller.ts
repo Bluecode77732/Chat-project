@@ -35,6 +35,12 @@ import { UserRole } from 'src/auth/role/role';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  // Numeric privilege-level check (mirrors RBACguard) — admin and superadmin
+  // must both be able to act on other accounts, not just an exact role match.
+  private canActOnOthers(role?: UserRole): boolean {
+    return (role ?? UserRole.user) >= UserRole.admin;
+  }
+
   @Get()
   @UseGuards(RBACguard)
   @RBAC(UserRole.admin)
@@ -44,7 +50,7 @@ export class UserController {
 
   @Get(':id')
   findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
-    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+    if (req.user?.id !== +id && !this.canActOnOthers(req.user?.role)) {
       throw new ForbiddenException('You can only view your own account');
     }
     return this.userService.findOne(+id);
@@ -56,7 +62,7 @@ export class UserController {
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+    if (req.user?.id !== +id && !this.canActOnOthers(req.user?.role)) {
       throw new ForbiddenException('You can only update your own account');
     }
     return this.userService.update(+id, updateUserDto);
@@ -86,7 +92,7 @@ export class UserController {
     @Param('id') id: string,
     @Body() deleteUserDto: DeleteUserDto,
   ) {
-    if (req.user?.id !== +id && req.user?.role !== UserRole.admin) {
+    if (req.user?.id !== +id && !this.canActOnOthers(req.user?.role)) {
       throw new ForbiddenException('You can only delete your own account');
     }
     // admin이 타인 삭제 시: rawToken 생략(admin 토큰 블랙리스트 방지), 패스워드 검증 스킵
