@@ -29,3 +29,26 @@ test('sending a message to the AI chat gets a reply', async ({ page }) => {
         timeout: 20_000,
     });
 });
+
+test('AI chat personality can be changed more than once', async ({ page }) => {
+    await registerAndSignIn(page, 'personality');
+
+    await page.getByText('AI Chat', { exact: true }).click();
+    await page.getByTestId('personality-option-friendly').click();
+
+    // The room (and the personality-change button) only exists after the first message.
+    await page.getByTestId('chat-message-input').fill(`hi ${Date.now()}`);
+    await page.getByTestId('chat-send-button').click();
+    await expect(page.getByText('성격 변경')).toBeVisible();
+
+    // ai-room.service.ts's getPersonalityInfo always returns canChange: true — there is
+    // no one-time limit — so changing twice in a row must both succeed without any
+    // "can't change" notice appearing.
+    await page.getByText('성격 변경').click();
+    await page.getByTestId('personality-option-coding').click();
+    await expect(page.getByText('지금은 성격을 변경할 수 없어요.')).not.toBeVisible();
+
+    await page.getByText('성격 변경').click();
+    await page.getByTestId('personality-option-english').click();
+    await expect(page.getByText('지금은 성격을 변경할 수 없어요.')).not.toBeVisible();
+});

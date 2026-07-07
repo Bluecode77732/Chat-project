@@ -34,12 +34,12 @@ export default function AiPersonalitySelector({
                 </h2>
                 {!isInitial && !canChange && (
                     <p className="text-xs text-red-500 mb-3">
-                        성격은 1회만 변경할 수 있어요.
+                        지금은 성격을 변경할 수 없어요.
                     </p>
                 )}
                 {!isInitial && canChange && (
                     <p className="text-xs text-gray-400 mb-3">
-                        변경은 1회만 가능합니다.
+                        언제든 다시 변경할 수 있어요.
                     </p>
                 )}
                 <div className="flex flex-col gap-2 mt-2">
