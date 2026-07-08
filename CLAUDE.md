@@ -900,8 +900,8 @@ Advisory. Apply to new components; do not retroactively audit existing ones.
 #### E2E Testing (Playwright)
 - Selector priority: `getByRole` / `getByLabel` first — use `getByTestId` only when no
   semantic equivalent exists. `getByRole` catches a11y regressions as a side effect.
-- **Never** use `getByText` for interactions (click, fill, etc.) — text changes break the
-  test silently. `getByText` is for assertions only (verifying content is visible).
+- `getByText` is for assertions only — using it for interactions (click, fill, etc.)
+  causes silent test breakage when visible text changes.
 
 #### Internationalization (i18n)
 Advisory. No i18n library is currently in place; this convention activates when one is adopted.
