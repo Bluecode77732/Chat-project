@@ -897,6 +897,12 @@ Advisory. Apply to new components; do not retroactively audit existing ones.
   announce new content without requiring focus movement.
 - Focus should return to a logical anchor element after a modal or drawer closes.
 
+#### E2E Testing (Playwright)
+- Selector priority: `getByRole` / `getByLabel` first — use `getByTestId` only when no
+  semantic equivalent exists. `getByRole` catches a11y regressions as a side effect.
+- **Never** use `getByText` for interactions (click, fill, etc.) — text changes break the
+  test silently. `getByText` is for assertions only (verifying content is visible).
+
 #### Internationalization (i18n)
 Advisory. No i18n library is currently in place; this convention activates when one is adopted.
 - UI-visible strings in new components should be externalized to a named constant or
