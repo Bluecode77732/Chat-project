@@ -59,13 +59,25 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Chat')
+    .setTitle('Chat API')
     .setDescription(
-      'Go to Auth section and register a user to issue an access token to test out.',
+      [
+        'REST API for the Chat application (auth, user and audit-log management).',
+        'Real-time chat itself runs over GraphQL subscriptions and Socket.IO and is not documented here.',
+        '',
+        'Getting started: use the Authentication API — register, then sign in with Basic auth to obtain an access token, and authorize with it (Bearer) to call the protected endpoints.',
+      ].join('\n'),
     )
     .setVersion('1.0')
+    // Basic auth: register/signin carry email:password in the Authorization header.
     .addBasicAuth()
-    .addBearerAuth()
+    // Bearer auth: protected endpoints expect the JWT access token.
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+    // Cookie auth: token/refreshaccess reads the httpOnly refreshToken cookie.
+    .addCookieAuth('refreshToken')
+    .addTag('Authentication API', 'Register, sign in/out and token refresh')
+    .addTag('User API', 'User CRUD, role management and force-logout')
+    .addTag('Audit Log API', 'Audit trail of privileged actions (admin only)')
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);

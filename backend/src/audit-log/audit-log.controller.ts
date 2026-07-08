@@ -6,7 +6,12 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { RBACguard } from 'src/auth/guard/rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
@@ -24,6 +29,34 @@ export class AuditLogController {
 
   @Get()
   @RBAC(UserRole.admin)
+  @ApiOperation({
+    summary: 'List privileged-action audit logs (admin)',
+    description:
+      'Paginated audit trail of ROLE_CHANGE, FORCE_LOGOUT and USER_DELETE actions, optionally filtered by action and sorted by time. Requires admin role.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated audit log entries.',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            actorId: 2,
+            targetId: 3,
+            action: 'ROLE_CHANGE',
+            detail: 'user→admin',
+            created: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        total: 1,
+        page: 1,
+        take: 20,
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
   findAll(@Query() query: AuditLogQueryDto) {
     return this.auditLogService.findAll(query);
   }
