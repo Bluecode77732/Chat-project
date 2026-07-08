@@ -113,7 +113,7 @@ function LogsPage() {
                                 <thead className="bg-gray-100 text-left">
                                     <tr>
                                         <th className="px-4 py-3">
-                                            <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                            <button onClick={toggleSort} className="hover:underline cursor-pointer font-bold">
                                                 Time
                                             </button>
                                         </th>

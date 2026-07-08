@@ -56,9 +56,12 @@ export class ChatResolver {
     take: number,
     @Args('sort', { type: () => String, nullable: true, defaultValue: 'DESC' })
     sort: string,
+    @Args('sortBy', { type: () => String, nullable: true, defaultValue: 'id' })
+    sortBy: string,
   ): Promise<PaginatedAdminRooms> {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
-    return this.chatService.findAllRooms(page, take, sortOrder);
+    const sortField = sortBy === 'created' ? 'created' : 'id';
+    return this.chatService.findAllRooms(page, take, sortOrder, sortField);
   }
 
   @Mutation(() => Boolean)

@@ -50,14 +50,17 @@ export class UserController {
     @Query('take') take?: string,
     @Query('sort') sort?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('search') search?: string,
   ) {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
-    const sortField = sortBy === 'role' ? 'role' : 'id';
+    const sortField =
+      sortBy === 'role' ? 'role' : sortBy === 'created' ? 'created' : 'id';
     return this.userService.findAll(
       page ? parseInt(page, 10) : 1,
       take ? parseInt(take, 10) : 20,
       sortOrder,
       sortField,
+      search || undefined,
     );
   }
 

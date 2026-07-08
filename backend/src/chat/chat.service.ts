@@ -310,27 +310,29 @@ export class ChatService {
     page = 1,
     take = 20,
     sort: 'ASC' | 'DESC' = 'DESC',
+    sortBy: 'id' | 'created' = 'id',
   ): Promise<{
-    data: { roomId: number; participantIds: number[] }[];
+    data: { roomId: number; participantIds: number[]; created: Date }[];
     total: number;
     page: number;
     take: number;
   }> {
     const [rooms, total] = await this.roomRepository.findAndCount({
       relations: ['participants'],
-      order: { id: sort },
+      order: { [sortBy]: sort },
       skip: (page - 1) * take,
       take,
     });
     const data = rooms.flatMap((room) => {
       const roomId = room.id;
-      if (roomId === undefined) return [];
+      if (roomId === undefined || !room.created) return [];
       return [
         {
           roomId,
           participantIds: (room.participants ?? [])
             .map((p) => p.id)
             .filter((id): id is number => id !== undefined),
+          created: room.created,
         },
       ];
     });

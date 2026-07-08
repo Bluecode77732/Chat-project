@@ -55,6 +55,34 @@ test('superadmin can promote and demote a user, and it appears in the audit log'
     await expect(page.getByTestId('logs-table').getByText(target.nickname).first()).toBeVisible();
 });
 
+test('Users table shows Created column and sort indicator switches between ID, Role, Created', async ({ page, request }) => {
+    const target = await registerTargetUser(request, 'sort');
+    await loginAsSuperadmin(page);
+
+    const idBtn = page.getByRole('columnheader').filter({ hasText: 'ID' }).getByRole('button');
+    const roleBtn = page.getByRole('columnheader').filter({ hasText: 'Role' }).getByRole('button');
+    const createdBtn = page.getByRole('columnheader').filter({ hasText: 'Created' }).getByRole('button');
+
+    // Default: ID is bold
+    await expect(idBtn).toHaveClass(/font-bold/);
+    await expect(roleBtn).not.toHaveClass(/font-bold/);
+    await expect(createdBtn).not.toHaveClass(/font-bold/);
+
+    // Switch to Role sort
+    await roleBtn.click();
+    await expect(roleBtn).toHaveClass(/font-bold/);
+    await expect(idBtn).not.toHaveClass(/font-bold/);
+
+    // Switch to Created sort
+    await createdBtn.click();
+    await expect(createdBtn).toHaveClass(/font-bold/);
+    await expect(roleBtn).not.toHaveClass(/font-bold/);
+
+    // Target user row Created cell contains a date value
+    const cells = page.getByTestId(`user-row-${target.id}`).locator('td');
+    await expect(cells.nth(4)).toHaveText(/\d/);
+});
+
 test('superadmin can delete a user', async ({ page, request }) => {
     const target = await registerTargetUser(request, 'delete');
     await loginAsSuperadmin(page);

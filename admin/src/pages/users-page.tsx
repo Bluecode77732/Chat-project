@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
@@ -8,6 +8,7 @@ interface User {
     email: string;
     nickname: string | null;
     role: number;
+    created: string;
 }
 
 interface UserPage {
@@ -22,7 +23,10 @@ function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
-    const [sortBy, setSortBy] = useState<'id' | 'role'>('id');
+    const [sortBy, setSortBy] = useState<'id' | 'role' | 'created'>('id');
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
     const navigate = useNavigate();
@@ -31,15 +35,24 @@ function UsersPage() {
 
     useEffect(() => {
         setLoading(true);
-        api.get('/user', { params: { page, take: 20, sort, sortBy } })
+        api.get('/user', { params: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined } })
             .then((res) => setResult(res.data as UserPage))
             .catch(() => setActionMsg('Failed to load users.'))
             .finally(() => setLoading(false));
-    }, [page, sort, sortBy, refreshKey]);
+    }, [page, sort, sortBy, debouncedSearch, refreshKey]);
 
     const refresh = () => setRefreshKey((k) => k + 1);
 
-    const toggleSort = (field: 'id' | 'role') => {
+    const handleSearch = (value: string) => {
+        setSearch(value);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            setDebouncedSearch(value);
+            setPage(1);
+        }, 300);
+    };
+
+    const toggleSort = (field: 'id' | 'role' | 'created') => {
         if (sortBy === field) {
             setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
         } else {
@@ -128,6 +141,17 @@ function UsersPage() {
                     </div>
                 </div>
 
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        placeholder="Search by email or nickname..."
+                        data-testid="user-search-input"
+                        className="w-full text-sm border rounded px-3 py-2"
+                    />
+                </div>
+
                 {actionMsg && (
                     <p data-testid="action-message" className="mb-4 text-sm text-blue-700 bg-blue-50 rounded px-3 py-2">{actionMsg}</p>
                 )}
@@ -140,15 +164,20 @@ function UsersPage() {
                             <thead className="bg-gray-100 text-left">
                                 <tr>
                                     <th className="px-4 py-3">
-                                        <button onClick={() => toggleSort('id')} className="hover:underline cursor-pointer">
+                                        <button onClick={() => toggleSort('id')} className={`hover:underline cursor-pointer${sortBy === 'id' ? ' font-bold' : ''}`}>
                                             ID
                                         </button>
                                     </th>
                                     <th className="px-4 py-3">Nickname</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">
-                                        <button onClick={() => toggleSort('role')} className="hover:underline cursor-pointer">
+                                        <button onClick={() => toggleSort('role')} className={`hover:underline cursor-pointer${sortBy === 'role' ? ' font-bold' : ''}`}>
                                             Role
+                                        </button>
+                                    </th>
+                                    <th className="px-4 py-3">
+                                        <button onClick={() => toggleSort('created')} className={`hover:underline cursor-pointer${sortBy === 'created' ? ' font-bold' : ''}`}>
+                                            Created
                                         </button>
                                     </th>
                                     <th className="px-4 py-3">Actions</th>
@@ -168,6 +197,9 @@ function UsersPage() {
                                             }`}>
                                                 {u.role === 2 ? 'superadmin' : u.role === 1 ? 'admin' : 'user'}
                                             </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                            {new Date(u.created).toLocaleString()}
                                         </td>
                                         <td className="px-4 py-3 flex gap-2 flex-wrap">
                                             {myRole === 2 && u.role !== 2 && (

@@ -7,6 +7,9 @@ export class AdminRoomType {
 
   @Field(() => [Int])
   participantIds: number[];
+
+  @Field()
+  created: Date;
 }
 
 @ObjectType()

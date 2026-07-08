@@ -8,7 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
@@ -93,17 +93,45 @@ export class UserService {
     page = 1,
     take = 20,
     sort: 'ASC' | 'DESC' = 'DESC',
-    sortBy: 'id' | 'role' = 'id',
+    sortBy: 'id' | 'role' | 'created' = 'id',
+    search?: string,
   ): Promise<{
-    data: UserEntity[];
+    data: {
+      id: number;
+      email: string;
+      nickname: string | null;
+      role: number;
+      created: Date;
+    }[];
     total: number;
     page: number;
     take: number;
   }> {
-    const [data, total] = await this.userRepository.findAndCount({
+    const where = search
+      ? [{ email: ILike(`%${search}%`) }, { nickname: ILike(`%${search}%`) }]
+      : undefined;
+    const [rows, total] = await this.userRepository.findAndCount({
+      where,
       order: { [sortBy]: sort },
       skip: (page - 1) * take,
       take,
+    });
+    const data = rows.map((u) => {
+      if (
+        u.id === undefined ||
+        u.email === undefined ||
+        u.role === undefined ||
+        !u.created
+      ) {
+        throw new Error(`user entity missing required field: id=${u.id}`);
+      }
+      return {
+        id: u.id,
+        email: u.email,
+        nickname: u.nickname ?? null,
+        role: u.role,
+        created: u.created,
+      };
     });
     return { data, total, page, take };
   }

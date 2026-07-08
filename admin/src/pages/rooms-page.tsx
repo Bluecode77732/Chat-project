@@ -8,6 +8,7 @@ import api from '../api/axios';
 interface Room {
     roomId: number;
     participantIds: number[];
+    created: string;
 }
 
 interface PaginatedRooms {
@@ -20,8 +21,9 @@ interface PaginatedRooms {
 function RoomsPage() {
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
+    const [sortBy, setSortBy] = useState<'id' | 'created'>('id');
     const { data, loading, refetch } = useQuery<{ getAllRooms: PaginatedRooms }>(GET_ALL_ROOMS, {
-        variables: { page, take: 20, sort },
+        variables: { page, take: 20, sort, sortBy },
     });
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
         pollInterval: 60000,
@@ -39,8 +41,13 @@ function RoomsPage() {
     const rooms = result?.data ?? [];
     const totalPages = Math.max(1, Math.ceil((result?.total ?? 0) / (result?.take ?? 20)));
 
-    const toggleSort = () => {
-        setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+    const toggleSort = (field: 'id' | 'created') => {
+        if (sortBy === field) {
+            setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+        } else {
+            setSortBy(field);
+            setSort('DESC');
+        }
         setPage(1);
     };
 
@@ -51,7 +58,7 @@ function RoomsPage() {
         try {
             await deleteRoom({ variables: { roomId } });
             setActionMsg(`Room ${roomId} deleted.`);
-            await refetch({ page, take: 20, sort });
+            await refetch({ page, take: 20, sort, sortBy });
         } catch {
             setActionMsg(`Failed to delete room ${roomId}.`);
         }
@@ -111,11 +118,16 @@ function RoomsPage() {
                                 <thead className="bg-gray-100 text-left">
                                     <tr>
                                         <th className="px-4 py-3">
-                                            <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                            <button onClick={() => toggleSort('id')} className={`hover:underline cursor-pointer${sortBy === 'id' ? ' font-bold' : ''}`}>
                                                 Room ID
                                             </button>
                                         </th>
                                         <th className="px-4 py-3">Participants</th>
+                                        <th className="px-4 py-3">
+                                            <button onClick={() => toggleSort('created')} className={`hover:underline cursor-pointer${sortBy === 'created' ? ' font-bold' : ''}`}>
+                                                Created
+                                            </button>
+                                        </th>
                                         <th className="px-4 py-3">Actions</th>
                                     </tr>
                                 </thead>
@@ -124,6 +136,9 @@ function RoomsPage() {
                                         <tr key={room.roomId} data-testid={`room-row-${room.roomId}`} className="border-t">
                                             <td className="px-4 py-3">{room.roomId}</td>
                                             <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
+                                            <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                                {new Date(room.created).toLocaleString()}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 <button
                                                     onClick={() => handleDelete(room.roomId)}
