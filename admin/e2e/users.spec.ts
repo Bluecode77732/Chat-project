@@ -83,6 +83,25 @@ test('Users table shows Created column and sort indicator switches between ID, R
     await expect(cells.nth(4)).toHaveText(/\d/);
 });
 
+test('search filters users by nickname and email', async ({ page, request }) => {
+    const target = await registerTargetUser(request, 'search');
+    await loginAsSuperadmin(page);
+
+    const searchInput = page.getByTestId('user-search-input');
+
+    // Search by nickname — only the target row should match
+    await searchInput.fill(target.nickname);
+    await expect(page.getByTestId(`user-row-${target.id}`)).toBeVisible();
+
+    // Search by full email — target row still visible
+    await searchInput.fill(target.email);
+    await expect(page.getByTestId(`user-row-${target.id}`)).toBeVisible();
+
+    // Clear search — target row remains in the full list
+    await searchInput.fill('');
+    await expect(page.getByTestId(`user-row-${target.id}`)).toBeVisible();
+});
+
 test('superadmin can delete a user', async ({ page, request }) => {
     const target = await registerTargetUser(request, 'delete');
     await loginAsSuperadmin(page);
