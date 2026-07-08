@@ -49,12 +49,15 @@ export class UserController {
     @Query('page') page?: string,
     @Query('take') take?: string,
     @Query('sort') sort?: string,
+    @Query('sortBy') sortBy?: string,
   ) {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
+    const sortField = sortBy === 'role' ? 'role' : 'id';
     return this.userService.findAll(
       page ? parseInt(page, 10) : 1,
       take ? parseInt(take, 10) : 20,
       sortOrder,
+      sortField,
     );
   }
 

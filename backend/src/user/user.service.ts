@@ -93,6 +93,7 @@ export class UserService {
     page = 1,
     take = 20,
     sort: 'ASC' | 'DESC' = 'DESC',
+    sortBy: 'id' | 'role' = 'id',
   ): Promise<{
     data: UserEntity[];
     total: number;
@@ -100,7 +101,7 @@ export class UserService {
     take: number;
   }> {
     const [data, total] = await this.userRepository.findAndCount({
-      order: { id: sort },
+      order: { [sortBy]: sort },
       skip: (page - 1) * take,
       take,
     });

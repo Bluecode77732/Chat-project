@@ -22,6 +22,7 @@ function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
+    const [sortBy, setSortBy] = useState<'id' | 'role'>('id');
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
     const navigate = useNavigate();
@@ -30,16 +31,21 @@ function UsersPage() {
 
     useEffect(() => {
         setLoading(true);
-        api.get('/user', { params: { page, take: 20, sort } })
+        api.get('/user', { params: { page, take: 20, sort, sortBy } })
             .then((res) => setResult(res.data as UserPage))
             .catch(() => setActionMsg('Failed to load users.'))
             .finally(() => setLoading(false));
-    }, [page, sort, refreshKey]);
+    }, [page, sort, sortBy, refreshKey]);
 
     const refresh = () => setRefreshKey((k) => k + 1);
 
-    const toggleSort = () => {
-        setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+    const toggleSort = (field: 'id' | 'role') => {
+        if (sortBy === field) {
+            setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+        } else {
+            setSortBy(field);
+            setSort('DESC');
+        }
         setPage(1);
     };
 
@@ -134,13 +140,17 @@ function UsersPage() {
                             <thead className="bg-gray-100 text-left">
                                 <tr>
                                     <th className="px-4 py-3">
-                                        <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                        <button onClick={() => toggleSort('id')} className="hover:underline cursor-pointer">
                                             ID
                                         </button>
                                     </th>
                                     <th className="px-4 py-3">Nickname</th>
                                     <th className="px-4 py-3">Email</th>
-                                    <th className="px-4 py-3">Role</th>
+                                    <th className="px-4 py-3">
+                                        <button onClick={() => toggleSort('role')} className="hover:underline cursor-pointer">
+                                            Role
+                                        </button>
+                                    </th>
                                     <th className="px-4 py-3">Actions</th>
                                 </tr>
                             </thead>
