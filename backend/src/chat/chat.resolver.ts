@@ -15,7 +15,7 @@ interface GqlContext {
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
-import { AdminRoomType } from 'src/graphql/admin-room.type';
+import { PaginatedAdminRooms } from 'src/graphql/admin-room.type';
 import { UserType } from 'src/graphql/user.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
@@ -45,12 +45,20 @@ export class ChatResolver {
     private readonly aiRoomService: AiRoomService,
   ) {}
 
-  @Query(() => [AdminRoomType])
+  @Query(() => PaginatedAdminRooms)
   @RBAC(UserRole.admin)
   // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
-  async getAllRooms(): Promise<AdminRoomType[]> {
-    return this.chatService.findAllRooms();
+  async getAllRooms(
+    @Args('page', { type: () => Int, nullable: true, defaultValue: 1 })
+    page: number,
+    @Args('take', { type: () => Int, nullable: true, defaultValue: 20 })
+    take: number,
+    @Args('sort', { type: () => String, nullable: true, defaultValue: 'DESC' })
+    sort: string,
+  ): Promise<PaginatedAdminRooms> {
+    const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
+    return this.chatService.findAllRooms(page, take, sortOrder);
   }
 
   @Mutation(() => Boolean)

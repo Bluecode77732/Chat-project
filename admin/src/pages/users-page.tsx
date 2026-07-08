@@ -10,9 +10,18 @@ interface User {
     role: number;
 }
 
+interface UserPage {
+    data: User[];
+    total: number;
+    page: number;
+    take: number;
+}
+
 function UsersPage() {
-    const [users, setUsers] = useState<User[]>([]);
+    const [result, setResult] = useState<UserPage>({ data: [], total: 0, page: 1, take: 20 });
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
     const navigate = useNavigate();
@@ -20,16 +29,27 @@ function UsersPage() {
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
     useEffect(() => {
-        api.get('/user')
-            .then((res) => setUsers(res.data as User[]))
+        setLoading(true);
+        api.get('/user', { params: { page, take: 20, sort } })
+            .then((res) => setResult(res.data as UserPage))
             .catch(() => setActionMsg('Failed to load users.'))
             .finally(() => setLoading(false));
-    }, [refreshKey]);
+    }, [page, sort, refreshKey]);
 
-    const refresh = () => {
-        setLoading(true);
-        setRefreshKey((k) => k + 1);
+    const refresh = () => setRefreshKey((k) => k + 1);
+
+    const toggleSort = () => {
+        setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+        setPage(1);
     };
+
+    const changePage = (next: number) => {
+        setLoading(true);
+        setPage(next);
+    };
+
+    const totalPages = Math.max(1, Math.ceil(result.total / result.take));
+    const users = result.data;
 
     const updateRole = async (id: number, role: number) => {
         try {
@@ -113,7 +133,11 @@ function UsersPage() {
                         <table className="w-full text-sm">
                             <thead className="bg-gray-100 text-left">
                                 <tr>
-                                    <th className="px-4 py-3">ID</th>
+                                    <th className="px-4 py-3">
+                                        <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                            ID
+                                        </button>
+                                    </th>
                                     <th className="px-4 py-3">Nickname</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Role</th>
@@ -145,25 +169,51 @@ function UsersPage() {
                                                     {u.role === 1 ? 'Demote' : 'Promote'}
                                                 </button>
                                             )}
-                                            <button
-                                                onClick={() => forceLogout(u.id)}
-                                                data-testid={`user-force-logout-${u.id}`}
-                                                className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                                            >
-                                                Force logout
-                                            </button>
-                                            <button
-                                                onClick={() => deleteUser(u.id)}
-                                                data-testid={`user-delete-${u.id}`}
-                                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                            >
-                                                Delete
-                                            </button>
+                                            {myRole > u.role && (
+                                                <button
+                                                    onClick={() => forceLogout(u.id)}
+                                                    data-testid={`user-force-logout-${u.id}`}
+                                                    className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                                                >
+                                                    Force logout
+                                                </button>
+                                            )}
+                                            {myRole > u.role && (
+                                                <button
+                                                    onClick={() => deleteUser(u.id)}
+                                                    data-testid={`user-delete-${u.id}`}
+                                                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                                >
+                                                    Delete
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {!loading && (
+                    <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
+                        <span>Page {result.page} of {totalPages} ({result.total} total)</span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => changePage(Math.max(1, page - 1))}
+                                disabled={page <= 1}
+                                className="px-3 py-1 rounded border disabled:opacity-40"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                onClick={() => changePage(Math.min(totalPages, page + 1))}
+                                disabled={page >= totalPages}
+                                className="px-3 py-1 rounded border disabled:opacity-40"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

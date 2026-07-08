@@ -10,8 +10,19 @@ interface Room {
     participantIds: number[];
 }
 
+interface PaginatedRooms {
+    data: Room[];
+    total: number;
+    page: number;
+    take: number;
+}
+
 function RoomsPage() {
-    const { data, loading, refetch } = useQuery<{ getAllRooms: Room[] }>(GET_ALL_ROOMS);
+    const [page, setPage] = useState(1);
+    const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
+    const { data, loading, refetch } = useQuery<{ getAllRooms: PaginatedRooms }>(GET_ALL_ROOMS, {
+        variables: { page, take: 20, sort },
+    });
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
         pollInterval: 60000,
     });
@@ -24,12 +35,23 @@ function RoomsPage() {
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
+    const result = data?.getAllRooms;
+    const rooms = result?.data ?? [];
+    const totalPages = Math.max(1, Math.ceil((result?.total ?? 0) / (result?.take ?? 20)));
+
+    const toggleSort = () => {
+        setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
+        setPage(1);
+    };
+
+    const changePage = (next: number) => setPage(next);
+
     const handleDelete = async (roomId: number) => {
         if (!confirm(`Delete room ${roomId}? All messages will be lost.`)) return;
         try {
             await deleteRoom({ variables: { roomId } });
             setActionMsg(`Room ${roomId} deleted.`);
-            await refetch();
+            await refetch({ page, take: 20, sort });
         } catch {
             setActionMsg(`Failed to delete room ${roomId}.`);
         }
@@ -83,34 +105,60 @@ function RoomsPage() {
                 {loading ? (
                     <p className="text-gray-500">Loading...</p>
                 ) : (
-                    <div className="bg-white rounded-xl shadow overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-100 text-left">
-                                <tr>
-                                    <th className="px-4 py-3">Room ID</th>
-                                    <th className="px-4 py-3">Participants</th>
-                                    <th className="px-4 py-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data?.getAllRooms.map((room: Room) => (
-                                    <tr key={room.roomId} data-testid={`room-row-${room.roomId}`} className="border-t">
-                                        <td className="px-4 py-3">{room.roomId}</td>
-                                        <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
-                                        <td className="px-4 py-3">
-                                            <button
-                                                onClick={() => handleDelete(room.roomId)}
-                                                data-testid={`room-delete-${room.roomId}`}
-                                                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                            >
-                                                Delete
+                    <>
+                        <div className="bg-white rounded-xl shadow overflow-hidden">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100 text-left">
+                                    <tr>
+                                        <th className="px-4 py-3">
+                                            <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                                Room ID
                                             </button>
-                                        </td>
+                                        </th>
+                                        <th className="px-4 py-3">Participants</th>
+                                        <th className="px-4 py-3">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {rooms.map((room: Room) => (
+                                        <tr key={room.roomId} data-testid={`room-row-${room.roomId}`} className="border-t">
+                                            <td className="px-4 py-3">{room.roomId}</td>
+                                            <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => handleDelete(room.roomId)}
+                                                    data-testid={`room-delete-${room.roomId}`}
+                                                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
+                            <span>Page {result?.page ?? 1} of {totalPages} ({result?.total ?? 0} total)</span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => changePage(Math.max(1, page - 1))}
+                                    disabled={page <= 1}
+                                    className="px-3 py-1 rounded border disabled:opacity-40"
+                                >
+                                    Prev
+                                </button>
+                                <button
+                                    onClick={() => changePage(Math.min(totalPages, page + 1))}
+                                    disabled={page >= totalPages}
+                                    className="px-3 py-1 rounded border disabled:opacity-40"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

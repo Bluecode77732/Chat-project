@@ -89,8 +89,22 @@ export class UserService {
     });
   }
 
-  async findAll() {
-    return await this.userRepository.find();
+  async findAll(
+    page = 1,
+    take = 20,
+    sort: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<{
+    data: UserEntity[];
+    total: number;
+    page: number;
+    take: number;
+  }> {
+    const [data, total] = await this.userRepository.findAndCount({
+      order: { id: sort },
+      skip: (page - 1) * take,
+      take,
+    });
+    return { data, total, page, take };
   }
 
   async findOne(id: number) {

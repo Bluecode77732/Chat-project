@@ -33,6 +33,13 @@ type AdminRoomType {
   participantIds: [Int!]!
 }
 
+type PaginatedAdminRooms {
+  data: [AdminRoomType!]!
+  total: Int!
+  page: Int!
+  take: Int!
+}
+
 type AiPersonalityInfoType {
   personality: AiPersonality
   canChange: Boolean!
@@ -46,7 +53,7 @@ enum AiPersonality {
 }
 
 type Query {
-  getAllRooms: [AdminRoomType!]!
+  getAllRooms(page: Int = 1, take: Int = 20, sort: String = "DESC"): PaginatedAdminRooms!
   ping: String!
   getAiUserId: Int!
   getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType

@@ -7,6 +7,7 @@ import {
   Post,
   Param,
   Delete,
+  Query,
   UseGuards,
   UseInterceptors,
   ClassSerializerInterceptor,
@@ -44,8 +45,17 @@ export class UserController {
   @Get()
   @UseGuards(RBACguard)
   @RBAC(UserRole.admin)
-  findAll() {
-    return this.userService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('take') take?: string,
+    @Query('sort') sort?: string,
+  ) {
+    const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
+    return this.userService.findAll(
+      page ? parseInt(page, 10) : 1,
+      take ? parseInt(take, 10) : 20,
+      sortOrder,
+    );
   }
 
   @Get(':id')
@@ -82,12 +92,22 @@ export class UserController {
   @Post(':id/force-logout')
   @UseGuards(RBACguard)
   @RBAC(UserRole.admin)
-  forceLogout(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+  async forceLogout(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    const target = await this.userService.findOne(+id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+    if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
+      throw new ForbiddenException(
+        'Cannot act on a user with equal or higher role',
+      );
+    }
     return this.userService.forceLogout(req.user.id, +id);
   }
 
   @Delete(':id')
-  remove(
+  async remove(
     @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() deleteUserDto: DeleteUserDto,
@@ -95,8 +115,17 @@ export class UserController {
     if (req.user?.id !== +id && !this.canActOnOthers(req.user?.role)) {
       throw new ForbiddenException('You can only delete your own account');
     }
-    // admin이 타인 삭제 시: rawToken 생략(admin 토큰 블랙리스트 방지), 패스워드 검증 스킵
     const isSelf = req.user?.id === +id;
+    if (!isSelf) {
+      const target = await this.userService.findOne(+id);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
+        throw new ForbiddenException(
+          'Cannot act on a user with equal or higher role',
+        );
+      }
+    }
+    // admin이 타인 삭제 시: rawToken 생략(admin 토큰 블랙리스트 방지), 패스워드 검증 스킵
     const rawToken = isSelf ? req.headers['authorization'] : undefined;
     const skipPasswordCheck = !isSelf;
     return this.userService.remove(

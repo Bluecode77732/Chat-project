@@ -85,7 +85,9 @@ export class AuthController {
         await this.authService.signOut(rawToken);
       } catch (err) {
         // Token expired or invalid — cookie still gets cleared
-        logger.debug(`signOut token error (expected if expired): ${(err as Error).message}`);
+        logger.debug(
+          `signOut token error (expected if expired): ${(err as Error).message}`,
+        );
       }
     }
     res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS);

@@ -306,13 +306,23 @@ export class ChatService {
     this.server?.sockets.sockets.get(socketId)?.disconnect(true);
   }
 
-  async findAllRooms(): Promise<
-    { roomId: number; participantIds: number[] }[]
-  > {
-    const rooms = await this.roomRepository.find({
+  async findAllRooms(
+    page = 1,
+    take = 20,
+    sort: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<{
+    data: { roomId: number; participantIds: number[] }[];
+    total: number;
+    page: number;
+    take: number;
+  }> {
+    const [rooms, total] = await this.roomRepository.findAndCount({
       relations: ['participants'],
+      order: { id: sort },
+      skip: (page - 1) * take,
+      take,
     });
-    return rooms.flatMap((room) => {
+    const data = rooms.flatMap((room) => {
       const roomId = room.id;
       if (roomId === undefined) return [];
       return [
@@ -324,6 +334,7 @@ export class ChatService {
         },
       ];
     });
+    return { data, total, page, take };
   }
 
   async deleteRoom(roomId: number): Promise<void> {

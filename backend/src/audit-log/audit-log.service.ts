@@ -42,7 +42,7 @@ export class AuditLogService {
 
     const [data, total] = await this.auditLogRepository.findAndCount({
       where: query.action ? { action: query.action } : {},
-      order: { created: 'DESC' },
+      order: { created: query.sort ?? 'DESC' },
       skip: (page - 1) * take,
       take,
     });

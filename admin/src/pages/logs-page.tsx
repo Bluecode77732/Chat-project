@@ -28,6 +28,7 @@ function LogsPage() {
     const [loading, setLoading] = useState(true);
     const [action, setAction] = useState('');
     const [page, setPage] = useState(1);
+    const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
@@ -39,14 +40,20 @@ function LogsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
 
     useEffect(() => {
-        api.get('/audit-log', { params: { action: action || undefined, page } })
+        api.get('/audit-log', { params: { action: action || undefined, page, sort } })
             .then((res) => setResult(res.data as AuditLogPage))
             .finally(() => setLoading(false));
-    }, [action, page]);
+    }, [action, page, sort]);
 
     const changeAction = (value: string) => {
         setLoading(true);
         setAction(value);
+        setPage(1);
+    };
+
+    const toggleSort = () => {
+        setLoading(true);
+        setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
         setPage(1);
     };
 
@@ -105,7 +112,11 @@ function LogsPage() {
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-100 text-left">
                                     <tr>
-                                        <th className="px-4 py-3">Time</th>
+                                        <th className="px-4 py-3">
+                                            <button onClick={toggleSort} className="hover:underline cursor-pointer">
+                                                Time
+                                            </button>
+                                        </th>
                                         <th className="px-4 py-3">Action</th>
                                         <th className="px-4 py-3">Actor</th>
                                         <th className="px-4 py-3">Target</th>

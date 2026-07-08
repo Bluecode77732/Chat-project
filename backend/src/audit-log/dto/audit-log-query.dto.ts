@@ -25,4 +25,9 @@ export class AuditLogQueryDto {
   @Min(1)
   @Max(100)
   take?: number = 20;
+
+  @ApiPropertyOptional({ enum: ['ASC', 'DESC'], default: 'DESC' })
+  @IsOptional()
+  @IsIn(['ASC', 'DESC'])
+  sort?: 'ASC' | 'DESC';
 }
