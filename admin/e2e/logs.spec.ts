@@ -10,10 +10,15 @@ test('Audit log Time header is always bold and toggling sort re-renders the tabl
     const target = await registerTargetUser(request, 'logSort');
     await loginAsSuperadmin(page);
 
-    // Promote target to admin to produce a ROLE_CHANGE log entry
+    // Promote then demote target to produce ROLE_CHANGE log entries. Demoting back is
+    // required so this spec leaves no admin behind — a leaked admin would consume a
+    // MAX_ADMIN_COUNT slot and make the promote/demote spec in users.spec.ts fail.
     const row = page.getByTestId(`user-row-${target.id}`);
     await expect(row).toBeVisible();
     await row.getByTestId(`user-promote-${target.id}`).click();
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('admin');
+    await row.getByTestId(`user-promote-${target.id}`).click();
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('user');
 
     await page.getByTestId('nav-logs').click();
     await expect(page).toHaveURL('/logs');

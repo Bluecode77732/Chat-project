@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from '@apollo/client/react';
 import { GET_ALL_ROOMS, DELETE_ROOM, GET_USER_NICKNAMES } from '../api/graphql-operations';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/axios';
 
@@ -22,8 +22,11 @@ function RoomsPage() {
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
     const [sortBy, setSortBy] = useState<'id' | 'created'>('id');
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { data, loading, refetch } = useQuery<{ getAllRooms: PaginatedRooms }>(GET_ALL_ROOMS, {
-        variables: { page, take: 20, sort, sortBy },
+        variables: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined },
     });
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
         pollInterval: 60000,
@@ -53,12 +56,21 @@ function RoomsPage() {
 
     const changePage = (next: number) => setPage(next);
 
+    const handleSearch = (value: string) => {
+        setSearch(value);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            setDebouncedSearch(value);
+            setPage(1);
+        }, 300);
+    };
+
     const handleDelete = async (roomId: number) => {
         if (!confirm(`Delete room ${roomId}? All messages will be lost.`)) return;
         try {
             await deleteRoom({ variables: { roomId } });
             setActionMsg(`Room ${roomId} deleted.`);
-            await refetch({ page, take: 20, sort, sortBy });
+            await refetch({ page, take: 20, sort, sortBy, search: debouncedSearch || undefined });
         } catch {
             setActionMsg(`Failed to delete room ${roomId}.`);
         }
@@ -103,6 +115,17 @@ function RoomsPage() {
                             Sign out
                         </button>
                     </div>
+                </div>
+
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        placeholder="Search by participant email or nickname..."
+                        data-testid="room-search-input"
+                        className="w-full text-sm border rounded px-3 py-2"
+                    />
                 </div>
 
                 {actionMsg && (

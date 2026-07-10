@@ -311,18 +311,30 @@ export class ChatService {
     take = 20,
     sort: 'ASC' | 'DESC' = 'DESC',
     sortBy: 'id' | 'created' = 'id',
+    search?: string,
   ): Promise<{
     data: { roomId: number; participantIds: number[]; created: Date }[];
     total: number;
     page: number;
     take: number;
   }> {
-    const [rooms, total] = await this.roomRepository.findAndCount({
-      relations: ['participants'],
-      order: { [sortBy]: sort },
-      skip: (page - 1) * take,
-      take,
-    });
+    const orderColumn = sortBy === 'created' ? 'room.created' : 'room.id';
+    const qb = this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.participants', 'user');
+
+    if (search) {
+      qb.where('user.email ILIKE :search OR user.nickname ILIKE :search', {
+        search: `%${search}%`,
+      });
+    }
+
+    const [rooms, total] = await qb
+      .orderBy(orderColumn, sort)
+      .skip((page - 1) * take)
+      .take(take)
+      .getManyAndCount();
+
     const data = rooms.flatMap((room) => {
       const roomId = room.id;
       if (roomId === undefined || !room.created) return [];
