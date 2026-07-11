@@ -160,6 +160,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `PATCH /user/:id` - Update a user (own account or admin)
 - `PATCH /user/:id/role` - Change user role **(superadmin only)**
 - `POST /user/:id/force-logout` - Force logout a user **(admin only)**
+- `POST /user/:id/unban` - Clear a user's ban / mute / strikes **(admin only)**
 - `DELETE /user/:id` - Delete a user (own account or admin)
 
 **Audit Log**
@@ -307,6 +308,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 ## Features
 - Real-time bidirectional messaging
 - Rate limiting - 10 messages per 15s/user
+- Behavioral moderation - duplicate/flood & velocity strikes escalate warn → mute → timed ban → permanent ban, with admin unban
 - Persistent user sessions across server restarts
 - Private chat rooms between users
 - Transaction-safe message storage & delivery
@@ -343,6 +345,9 @@ Chat Project/                   <= monorepo root
 │       ├── graphql/            <= PubSubService, GraphQL input/return types
 │       ├── migrations/         <= TypeORM migration files
 │       ├── mocks/              <= bcrypt mock for tests
+│       ├── moderation/         <= ModerationService, ModerationGuard (strike ladder, ban/mute enforcement)
+│       │   ├── constants/      <= thresholds, system-account email, notice texts, redis keys
+│       │   └── enums/          <= moderation-status.enum.ts (active | banned)
 │       ├── redis/              <= RedisModule, SessionCacheService
 │       │   └── interface/      <= CachableMessage (shared with graphql/pubsub.service.ts)
 │       └── user/               <= UserController, UserService, UserEntity
@@ -645,6 +650,23 @@ Implementation of two ways of sign-in endpoints.
 - `superadmin` role additionally controls role assignment. Only superadmin can promote or demote other users.
 - First superadmin must be created via direct DB INSERT. Subsequent admins can be promoted via the admin panel.
 - `MAX_ADMIN_COUNT` env var (default: 5) limits the number of `admin`-role accounts. Superadmin accounts are not counted toward this limit.
+
+
+### Moderation
+Behavioral abuse detection that escalates automatically and is reversible by an admin. It runs on the `sendMessage` path plus the auth/socket layer — there is no separate reporting UI. Detection, accrual, and enforcement live in `ModerationService`; a thin `ModerationGuard` gates muted/banned users out of `sendMessage`.
+
+- **Strike sources**
+  - *Duplicate / flood* — the same message (normalized) sent 3× within 60s adds a strike.
+  - *Velocity* — tripping the `RateLimitGuard` (10 msgs / 15s) adds a strike (weighted the same).
+- **Escalation ladder** — strikes accrue in a rolling 24h window (all thresholds env-tunable):
+  - **3 strikes → warning** — a System-account message is posted into the room (rendered as a centered notice).
+  - **5 strikes → temporary mute** — 10 min, Redis-backed; the user stays connected but cannot send.
+  - **7 strikes → timed ban** — 7 days; a repeat ban (a second `USER_BANNED`) becomes **permanent**.
+- **Enforcement** — a banned user is rejected at `jwt.strategy` (HTTP/GraphQL), at `handleConnection` (socket), and at token refresh, so a still-valid session cannot bypass the ban. A mute only blocks sending.
+- **Recovery & audit** — `POST /user/:id/unban` (admin) clears ban/mute/strikes and invalidates the auth cache. Every action writes an audit entry (`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`).
+- **Storage** — `user_entity.status` (`active` | `banned`) and `bannedUntil` back persistent bans; strikes and mutes are Redis-only (`moderation:*` keys, all with TTL). Run the `AddModerationColumns` migration before starting.
+
+Tunable env vars (optional; sensible defaults apply): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
 
 
 ### Admin Account Setup
