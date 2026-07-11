@@ -18,6 +18,9 @@ Before making any change:
 5. Run `pnpm lint` and `pnpm test` (or the relevant subset) before claiming success.
 6. Show the exact diff of changes made, not a paraphrase.
 7. Explicitly state all uncertainties instead of guessing — say "I'm not sure" and propose a verification step.
+8. After writing any code, scan the diff against Never Do Groups 1–3 and the Architecture
+   Decisions before claiming success. If a violation is found, fix it or invoke the
+   Principle Conflict Protocol — do not ship the diff as-is.
 
 ## Scope Discipline (범위 준수)
 
@@ -108,6 +111,8 @@ After completing any implementation, apply the review perspective that matches w
 - Are there any regressions in existing functionality?
 - What side effects or hidden risks does this change introduce?
 - Is the change isolated enough, or does it bleed into unrelated areas?
+- Compliance scan: does the diff introduce any Never Do Group 1–3 pattern or violate an
+  Architecture Decision? List what was checked.
 
 ## Change Summary
 
