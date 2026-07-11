@@ -92,6 +92,12 @@ export const GET_AI_USER_ID = gql`
     }
 `
 
+export const GET_SYSTEM_USER_ID = gql`
+    query GetSystemUserId {
+        getSystemUserId
+    }
+`
+
 export const SET_AI_PERSONALITY = gql`
     mutation SetAiPersonality($roomId: Int!, $personality: AiPersonality!) {
         setAiPersonality(roomId: $roomId, personality: $personality)
