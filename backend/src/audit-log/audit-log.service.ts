@@ -36,6 +36,12 @@ export class AuditLogService {
     );
   }
 
+  // How many times this action was already recorded against a target — used by
+  // ModerationService to decide a repeat ban should be permanent rather than timed.
+  async countByTarget(targetId: number, action: string): Promise<number> {
+    return this.auditLogRepository.count({ where: { targetId, action } });
+  }
+
   async findAll(query: AuditLogQueryDto): Promise<PaginatedAuditLog> {
     const page = query.page ?? 1;
     const take = query.take ?? 20;
