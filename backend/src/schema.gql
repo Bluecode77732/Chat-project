@@ -54,7 +54,7 @@ enum AiPersonality {
 }
 
 type Query {
-  getAllRooms(page: Int = 1, take: Int = 20, sort: String = "DESC", sortBy: String = "id"): PaginatedAdminRooms!
+  getAllRooms(page: Int = 1, take: Int = 20, sort: String = "DESC", sortBy: String = "id", search: String): PaginatedAdminRooms!
   ping: String!
   getAiUserId: Int!
   getSystemUserId: Int!
