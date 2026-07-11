@@ -119,6 +119,7 @@ After completing any task, always append a brief summary in this format:
 - Why: <the stated reason>
 - Side effects: <impact on: schema.gql / Redis key set / guard chain / frontend graphql-operations.ts>
 - Guard chain impact: <any change to guard order or new guard added — list affected endpoints; omit if no guard was touched>
+- README impact: <update README.md if a user-visible feature was added, modified, or removed; omit if no feature surface changed>
 - Pending: <anything deferred, left incomplete, or requiring follow-up>
 ```
 
@@ -655,6 +656,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
 - Isolation level: `SERIALIZABLE` is used specifically for `updateRole` to prevent phantom reads in concurrent role-mutation checks (required by Role Population Invariants); do not apply `SERIALIZABLE` to other operations without explicit justification — it adds serialization overhead and retry costs under contention
 - Migration rollback: implement `down()` wherever reversal is meaningful; if a migration is intentionally irreversible (e.g. destructive column drop after data copy), document it with a comment in the migration file — never leave `down()` silently empty or throwing without explanation
+- Local Docker: after any migration that alters entity columns, rebuild the local stack — `docker compose up -d --build` — so the running container reflects the new schema
 - **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)
 
 ### API Layer
