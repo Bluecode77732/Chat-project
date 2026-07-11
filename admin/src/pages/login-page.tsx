@@ -29,7 +29,7 @@ function LoginPage() {
                 return;
             }
             setTokens(res.data.accessToken, sub, role);
-            navigate('/users');
+            navigate('/dashboard');
         } catch {
             setError('Invalid credentials.');
         }

@@ -118,6 +118,13 @@ function UsersPage() {
                     <h1 className="text-2xl font-bold">Users</h1>
                     <div className="flex gap-3">
                         <button
+                            onClick={() => navigate('/dashboard')}
+                            data-testid="nav-dashboard"
+                            className="text-sm text-blue-600 hover:underline"
+                        >
+                            Dashboard
+                        </button>
+                        <button
                             onClick={() => navigate('/rooms')}
                             data-testid="nav-rooms"
                             className="text-sm text-blue-600 hover:underline"

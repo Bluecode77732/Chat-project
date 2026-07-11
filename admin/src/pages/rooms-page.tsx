@@ -94,6 +94,13 @@ function RoomsPage() {
                     <h1 className="text-2xl font-bold">Rooms</h1>
                     <div className="flex gap-3">
                         <button
+                            onClick={() => navigate('/dashboard')}
+                            data-testid="nav-dashboard"
+                            className="text-sm text-blue-600 hover:underline"
+                        >
+                            Dashboard
+                        </button>
+                        <button
                             onClick={() => navigate('/users')}
                             data-testid="nav-users"
                             className="text-sm text-blue-600 hover:underline"

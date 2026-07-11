@@ -83,6 +83,7 @@ function LogsPage() {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Audit Logs</h1>
                     <div className="flex gap-3">
+                        <button onClick={() => navigate('/dashboard')} data-testid="nav-dashboard" className="text-sm text-blue-600 hover:underline">Dashboard</button>
                         <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">Users</button>
                         <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">Rooms</button>
                         <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">Sign out</button>
