@@ -272,4 +272,135 @@ describe('ModerationService', () => {
       expect(mockAuditLogService.log).toHaveBeenCalledWith(7, 42, 'USER_UNBAN');
     });
   });
+
+  describe('getSystemUserId', () => {
+    it('throws when the system user is not initialized', () => {
+      (
+        service as unknown as { systemUser: UserEntity | undefined }
+      ).systemUser = undefined;
+      expect(() => service.getSystemUserId()).toThrow(
+        'System user not initialized.',
+      );
+    });
+  });
+
+  describe('isUserBanned (DB-backed)', () => {
+    it('true when the looked-up user is banned', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        status: ModerationStatus.banned,
+        bannedUntil: null,
+      });
+      await expect(service.isUserBanned(42)).resolves.toBe(true);
+    });
+    it('false when the user is active', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        status: ModerationStatus.active,
+        bannedUntil: null,
+      });
+      await expect(service.isUserBanned(42)).resolves.toBe(false);
+    });
+    it('false when the user is not found', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce(null);
+      await expect(service.isUserBanned(42)).resolves.toBe(false);
+    });
+  });
+
+  describe('velocity-path escalation (no callbacks)', () => {
+    it('applies a mute at the mute threshold with no room notice', async () => {
+      mockRedis.set.mockResolvedValueOnce('OK'); // velMark acquired
+      mockRedis.eval.mockResolvedValueOnce(5); // strike == mute threshold
+      await service.recordVelocityViolation(42);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'moderation:mute:42',
+        '1',
+        'EX',
+        600,
+      );
+      expect(mockChatRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('applies a ban at the ban threshold with no notice or disconnect', async () => {
+      mockRedis.set.mockResolvedValueOnce('OK');
+      mockRedis.eval.mockResolvedValueOnce(7);
+      mockAuditLogService.countByTarget.mockResolvedValueOnce(0);
+      await service.recordVelocityViolation(42);
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: 42 },
+        expect.objectContaining({ status: ModerationStatus.banned }),
+      );
+      expect(mockChatRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not warn on the velocity path even at the warn threshold', async () => {
+      mockRedis.set.mockResolvedValueOnce('OK');
+      mockRedis.eval.mockResolvedValueOnce(3); // strike == warn threshold, no ctx
+      await service.recordVelocityViolation(42);
+      expect(mockChatRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('skips the ban when the target user no longer exists', async () => {
+      mockRedis.set.mockResolvedValueOnce('OK');
+      mockRedis.eval.mockResolvedValueOnce(7);
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // applyBan lookup misses
+      await service.recordVelocityViolation(42);
+      expect(mockUserRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('error paths are swallowed (never throw to the caller)', () => {
+    it('evaluateMessage tolerates a redis failure', async () => {
+      mockRedis.eval.mockRejectedValueOnce(new Error('redis down'));
+      await expect(
+        service.evaluateMessage(42, 'x', callbacks()),
+      ).resolves.toBeUndefined();
+    });
+
+    it('recordVelocityViolation tolerates a redis failure', async () => {
+      mockRedis.set.mockRejectedValueOnce(new Error('redis down'));
+      await expect(
+        service.recordVelocityViolation(42),
+      ).resolves.toBeUndefined();
+    });
+
+    it('a failing disconnect callback during a ban is swallowed', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(7);
+      mockAuditLogService.countByTarget.mockResolvedValueOnce(0);
+      const ctx = {
+        ...callbacks(),
+        disconnectFn: jest.fn().mockRejectedValue(new Error('socket gone')),
+      };
+      await expect(
+        service.evaluateMessage(42, 'spam', ctx),
+      ).resolves.toBeUndefined();
+      expect(mockUserRepository.update).toHaveBeenCalled(); // ban still applied
+    });
+
+    it('a failing publish during a warning is swallowed', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // warn
+      const ctx = {
+        ...callbacks(),
+        publishFn: jest.fn().mockRejectedValue(new Error('pubsub down')),
+      };
+      await expect(
+        service.evaluateMessage(42, 'spam', ctx),
+      ).resolves.toBeUndefined();
+    });
+
+    it('a warning is skipped when the room no longer exists', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // warn
+      mockRoomRepository.findOne.mockResolvedValueOnce(null);
+      await service.evaluateMessage(42, 'spam', callbacks());
+      expect(mockChatRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('seedSystemUser create path', () => {
+    it('creates the system account when it does not exist yet', async () => {
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // seed lookup misses
+      await service.onModuleInit();
+      expect(mockUserRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ email: SYSTEM_USER_EMAIL }),
+      );
+    });
+  });
 });
