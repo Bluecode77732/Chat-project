@@ -13,6 +13,7 @@ import { logger } from 'src/base/logger/logger';
 import { Payload } from 'src/auth/interface/payload.interface';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
+import { ModerationService } from 'src/moderation/moderation.service';
 
 @WebSocketGateway({
   cors: {
@@ -45,6 +46,7 @@ export class ChatGateway
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   afterInit(server: Server): void {
@@ -91,6 +93,17 @@ export class ChatGateway
       );
 
       if (payload) {
+        // Ban gate (socket level): the handshake uses a still-valid JWT, so reject a banned
+        // user here just as jwt.strategy does for HTTP/GraphQL. No client.data.user is set and
+        // registerClient is never called, so handleDisconnect stays symmetric (nothing to clean up).
+        if (await this.moderationService.isUserBanned(payload.sub)) {
+          logger.warn(
+            `WebSocket connection rejected (banned user=${payload.sub})`,
+          );
+          client.disconnect();
+          return;
+        }
+
         // Put bearer token into data.user to be extracted by
         // socket.data is typed as any by socket.io; we narrow it to the shape we control
         (client.data as { user?: Payload }).user = payload;

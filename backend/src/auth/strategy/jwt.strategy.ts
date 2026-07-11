@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { Payload } from '../interface/payload.interface';
 import { UserEntity } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
+import { isEffectivelyBanned } from 'src/moderation/moderation.util';
 import { Request } from 'express';
 import Redis from 'ioredis';
 
@@ -39,29 +40,40 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
       );
     }
 
+    let resolved: Omit<UserEntity, 'password'> | null = null;
+
     const cached = await this.redis.get(`user_cache:${payload.sub}`);
     if (cached) {
       try {
-        return JSON.parse(cached) as Omit<UserEntity, 'password'>;
+        resolved = JSON.parse(cached) as Omit<UserEntity, 'password'>;
       } catch {
         // corrupt cache entry — fall through to DB lookup
       }
     }
 
-    const user = await this.userService.findOne(payload.sub);
+    if (!resolved) {
+      const user = await this.userService.findOne(payload.sub);
 
-    if (!user) {
-      throw new UnauthorizedException('User Not Found.');
+      if (!user) {
+        throw new UnauthorizedException('User Not Found.');
+      }
+
+      const { password: _password, ...rest } = user;
+      await this.redis.set(
+        `user_cache:${payload.sub}`,
+        JSON.stringify(rest),
+        'EX',
+        this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
+      );
+      resolved = rest;
     }
 
-    const { password: _password, ...rest } = user;
-    await this.redis.set(
-      `user_cache:${payload.sub}`,
-      JSON.stringify(rest),
-      'EX',
-      this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
-    );
+    // Ban gate (auth level): a banned user cannot authenticate, so a still-valid token/session
+    // can't be used to bypass the ban. The cache is invalidated on ban, so this reads fresh state.
+    if (isEffectivelyBanned(resolved)) {
+      throw new UnauthorizedException('Your account has been suspended.');
+    }
 
-    return rest;
+    return resolved;
   }
 }

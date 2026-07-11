@@ -57,6 +57,7 @@ type Query {
   getAllRooms(page: Int = 1, take: Int = 20, sort: String = "DESC", sortBy: String = "id"): PaginatedAdminRooms!
   ping: String!
   getAiUserId: Int!
+  getSystemUserId: Int!
   getAiPersonalityInfo(roomId: Int!): AiPersonalityInfoType
   getOnlineUser: [Int!]!
   getAllUsers: [Int!]!

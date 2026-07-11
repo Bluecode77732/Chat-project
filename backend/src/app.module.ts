@@ -13,6 +13,7 @@ import { EntityBase } from './base/entity/base.entity';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
@@ -40,6 +41,15 @@ import { join } from 'node:path';
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
+        // Moderation thresholds/durations — all optional; ModerationService falls back to MODERATION_DEFAULTS.
+        MODERATION_STRIKE_WINDOW_SEC: Joi.number().optional(),
+        MODERATION_WARN_THRESHOLD: Joi.number().optional(),
+        MODERATION_MUTE_THRESHOLD: Joi.number().optional(),
+        MODERATION_MUTE_DURATION_SEC: Joi.number().optional(),
+        MODERATION_BAN_THRESHOLD: Joi.number().optional(),
+        MODERATION_BAN_DURATION_SEC: Joi.number().optional(),
+        MODERATION_DUP_WINDOW_SEC: Joi.number().optional(),
+        MODERATION_DUP_THRESHOLD: Joi.number().optional(),
         // Mail (SMTP) is optional — role-change emails are skipped if unset
         SMTP_HOST: Joi.string().optional(),
         SMTP_PORT: Joi.number().optional(),
@@ -115,6 +125,7 @@ import { join } from 'node:path';
     ChatModule,
     AuthModule,
     AiModule,
+    ModerationModule,
   ],
   providers: [Logger],
 })

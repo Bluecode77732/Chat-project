@@ -35,6 +35,7 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { RBACguard } from 'src/auth/guard/rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
+import { ModerationService } from 'src/moderation/moderation.service';
 
 @ApiTags('User API')
 @ApiBearerAuth()
@@ -42,7 +43,10 @@ import { UserRole } from 'src/auth/role/role';
 @UseInterceptors(ClassSerializerInterceptor)
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly moderationService: ModerationService,
+  ) {}
 
   // Numeric privilege-level check (mirrors RBACguard) — admin and superadmin
   // must both be able to act on other accounts, not just an exact role match.
@@ -224,6 +228,35 @@ export class UserController {
       );
     }
     return this.userService.forceLogout(req.user.id, +id);
+  }
+
+  @Post(':id/unban')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
+  @ApiOperation({
+    summary: 'Clear a user moderation state (admin)',
+    description:
+      'Lifts any ban/mute and resets accrued strikes for a false-positive. Requires admin; cannot act on a user with an equal or higher role. Writes a USER_UNBAN audit entry.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Target user id.' })
+  @ApiResponse({ status: 201, description: 'Moderation state cleared.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Forbidden. Admin role required, or target has an equal/higher role.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async unban(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    const target = await this.userService.findOne(+id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+    if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
+      throw new ForbiddenException(
+        'Cannot act on a user with equal or higher role',
+      );
+    }
+    await this.moderationService.unban(req.user.id, +id);
+    return `The user ${id} moderation state was cleared`;
   }
 
   @Delete(':id')
