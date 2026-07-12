@@ -721,7 +721,7 @@ pnpm lint             # ESLint
 ### Targeting a single test file
 ```bash
 cd backend
-pnpm test -- --testPathPattern=auth.service
+pnpm test --testPathPatterns auth.service
 ```
 
 ### Docker (local full stack)
