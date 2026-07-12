@@ -280,6 +280,9 @@ export class UserService {
       }
     }
 
+    logger.info(
+      `[actor=${actorId}, user=${targetId}] Role changed: ${roleLabel(previousRole)} → ${roleLabel(role)}`,
+    );
     return { id: targetId, role };
   }
 

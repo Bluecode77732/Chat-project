@@ -54,6 +54,7 @@ export class RateLimitGuard implements CanActivate {
       const count = (await this.redis.eval(luaScript, 1, key)) as number;
 
       if (count > 10) {
+        logger.warn(`[user=${userId}] Rate limit exceeded (count=${count})`);
         // Feed the velocity violation into the moderation strike ladder. Self-guarded and
         // idempotent per 15s window (NX marker), so it never blocks the rate-limit decision.
         await this.moderationService.recordVelocityViolation(userId);
