@@ -8,6 +8,7 @@ import { UserService } from 'src/user/user.service';
 import { isEffectivelyBanned } from 'src/moderation/moderation.util';
 import { Request } from 'express';
 import Redis from 'ioredis';
+import { logger } from 'src/base/logger/logger';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
@@ -35,6 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     const isBlackListed = await this.redis.get(`blacklist:${token}`);
 
     if (isBlackListed) {
+      logger.warn(`[user=${payload.sub}] Blacklisted token used`);
       throw new UnauthorizedException(
         `Token has revoked. Sign in again to continue the chatting.`,
       );
@@ -47,7 +49,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
       try {
         resolved = JSON.parse(cached) as Omit<UserEntity, 'password'>;
       } catch {
-        // corrupt cache entry — fall through to DB lookup
+        logger.warn(
+          `[user=${payload.sub}] Corrupt cache entry, falling through to DB lookup`,
+        );
       }
     }
 
@@ -71,6 +75,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     // Ban gate (auth level): a banned user cannot authenticate, so a still-valid token/session
     // can't be used to bypass the ban. The cache is invalidated on ban, so this reads fresh state.
     if (isEffectivelyBanned(resolved)) {
+      logger.warn(`[user=${payload.sub}] Banned user auth attempt blocked`);
       throw new UnauthorizedException('Your account has been suspended.');
     }
 

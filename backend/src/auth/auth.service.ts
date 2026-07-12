@@ -293,6 +293,7 @@ export class AuthService {
     // Auth-level ban gate: a banned user must not be able to mint a fresh access token,
     // otherwise the client's silent-refresh retry would loop against jwt.strategy's ban check.
     if (isEffectivelyBanned(user)) {
+      logger.warn(`[user=${user.id}] Banned user attempted token refresh`);
       throw new UnauthorizedException('Account Suspended');
     }
     return {
