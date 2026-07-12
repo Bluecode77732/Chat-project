@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { UserEntity } from 'src/user/entities/user.entity';
+import { logger } from 'src/base/logger/logger';
 import { ModerationService } from './moderation.service';
 
 @Injectable()
@@ -28,9 +29,11 @@ export class ModerationGuard implements CanActivate {
 
     // Ban is defense-in-depth here — jwt.strategy already rejects a banned user at auth.
     if (this.moderationService.isBanned(user)) {
+      logger.warn(`[user=${user.id}] Blocked by ModerationGuard: banned`);
       throw new ForbiddenException('Your account is banned.');
     }
     if (await this.moderationService.isMuted(user.id)) {
+      logger.warn(`[user=${user.id}] Blocked by ModerationGuard: muted`);
       throw new ForbiddenException('You are temporarily muted.');
     }
     return true;

@@ -106,6 +106,7 @@ export class ModerationService implements OnModuleInit {
   ): Promise<void> {
     try {
       if (await this.isFlood(userId, message)) {
+        logger.debug(`[user=${userId}] Flood detected, accruing strike`);
         await this.accrueStrike(userId, ctx);
       }
     } catch (err) {
@@ -126,6 +127,9 @@ export class ModerationService implements OnModuleInit {
         'NX',
       );
       if (!marked) return; // this burst window already counted
+      logger.debug(
+        `[user=${userId}] Velocity violation marked, accruing strike`,
+      );
       await this.accrueStrike(userId);
     } catch (err) {
       this.logError(`recordVelocityViolation failed (user=${userId})`, err);
@@ -147,6 +151,7 @@ export class ModerationService implements OnModuleInit {
       this.redis.del(`user_cache:${userId}`),
     ]);
     await this.auditLogService.log(actorId, userId, 'USER_UNBAN');
+    logger.info(`[actor=${actorId}, user=${userId}] Unban applied`);
   }
 
   // ---- Internal: detection ----
@@ -172,6 +177,7 @@ export class ModerationService implements OnModuleInit {
       moderationKeys.strike(userId),
       cfg.strikeWindowSec,
     );
+    logger.debug(`[user=${userId}] Strike accrued: count=${count}`);
     await this.escalate(userId, count, ctx);
   }
 
@@ -191,6 +197,9 @@ export class ModerationService implements OnModuleInit {
       return;
     }
     if (count === cfg.warnThreshold && ctx) {
+      logger.warn(
+        `[user=${userId}] Moderation warning issued (strike ${count}/${cfg.warnThreshold})`,
+      );
       await this.notify(ctx, MODERATION_NOTICE.warn);
     }
   }
@@ -211,6 +220,7 @@ export class ModerationService implements OnModuleInit {
       'USER_MUTED',
       `${cfg.muteDurationSec}s`,
     );
+    logger.warn(`[user=${userId}] Muted for ${cfg.muteDurationSec}s`);
   }
 
   private async applyBan(
@@ -243,6 +253,9 @@ export class ModerationService implements OnModuleInit {
       userId,
       'USER_BANNED',
       permanent ? 'permanent' : `until ${bannedUntil?.toISOString() ?? ''}`,
+    );
+    logger.warn(
+      `[user=${userId}] ${permanent ? 'Permanently banned' : `Banned until ${bannedUntil?.toISOString() ?? ''}`}`,
     );
 
     if (ctx) {

@@ -44,16 +44,14 @@ export class PubSubService extends RedisPubSub implements OnModuleDestroy {
     const publisher = new Redis(redisConfig);
     const subscriber = new Redis(redisConfig);
 
-    publisher.on('connect', () => console.log('✅ Redis publisher connected'));
-    publisher.on('error', (err) =>
-      console.error('❌ Redis publisher error:', err),
+    publisher.on('connect', () => logger.info('Redis publisher connected'));
+    publisher.on('error', (err: Error) =>
+      logger.error(`Redis publisher error: ${err.message}`),
     );
 
-    subscriber.on('connect', () =>
-      console.log('✅ Redis subscriber connected'),
-    );
-    subscriber.on('error', (err) =>
-      console.error('❌ Redis subscriber error:', err),
+    subscriber.on('connect', () => logger.info('Redis subscriber connected'));
+    subscriber.on('error', (err: Error) =>
+      logger.error(`Redis subscriber error: ${err.message}`),
     );
 
     super({ publisher, subscriber });
