@@ -7,7 +7,7 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuthStore } from '../store/auth.store';
-import { GET_ALL_ROOMS } from '../api/graphql-operations';
+import { GET_ALL_ROOMS, GET_USER_NICKNAMES, GET_ONLINE_USER } from '../api/graphql-operations';
 
 interface AuditLog {
     id: number;
@@ -30,6 +30,23 @@ function DashboardPage() {
         { variables: { page: 1, take: 1 } },
     );
     const roomTotal = roomData?.getAllRooms.total ?? null;
+
+    // onlineUsers: IDs of currently connected users; count shown as stat card.
+    const { data: onlineData } = useQuery<{ getOnlineUser: number[] }>(GET_ONLINE_USER, {
+        pollInterval: 15000,
+    });
+    const onlineCount = onlineData?.getOnlineUser.length ?? null;
+
+    // nicknameById: used to resolve actorId in the recent logs table.
+    // Falls back to "User {id}" when the user has no nickname set.
+    const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(
+        GET_USER_NICKNAMES,
+        { pollInterval: 60000 },
+    );
+    const nicknameById = new Map(
+        nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
+    );
+    const displayName = (id: number) => nicknameById.get(id) ?? `User ${id}`;
 
     useEffect(() => {
         Promise.all([
@@ -78,9 +95,9 @@ function DashboardPage() {
                         <p className="text-sm text-gray-500 mb-1">Total Rooms</p>
                         <p className="text-3xl font-bold">{roomTotal === null ? '—' : roomTotal}</p>
                     </div>
-                    <div data-testid="stat-logs" className="bg-white rounded-xl shadow p-5">
-                        <p className="text-sm text-gray-500 mb-1">Recent Actions</p>
-                        <p className="text-3xl font-bold">{statsLoading ? '—' : recentLogs.length}</p>
+                    <div data-testid="stat-online" className="bg-white rounded-xl shadow p-5">
+                        <p className="text-sm text-gray-500 mb-1">Online Now</p>
+                        <p className="text-3xl font-bold">{onlineCount === null ? '—' : onlineCount}</p>
                     </div>
                 </div>
 
@@ -106,7 +123,7 @@ function DashboardPage() {
                                     <td className="px-4 py-3">
                                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>{log.action}</span>
                                     </td>
-                                    <td className="px-4 py-3">User {log.actorId}</td>
+                                    <td className="px-4 py-3">{displayName(log.actorId)}</td>
                                     <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>
                                 </tr>
                             ))}

@@ -65,6 +65,9 @@ function UsersPage() {
     const [panelDetail, setPanelDetail] = useState<UserDetail | null>(null);
     // panelLogs: recent 5 audit log entries involving the selected user.
     const [panelLogs, setPanelLogs] = useState<AuditLogEntry[]>([]);
+    // panelRefreshKey: incrementing this re-triggers the panel fetch without changing selectedUser.
+    // Used by unban() to reload moderation state after clearing a ban.
+    const [panelRefreshKey, setPanelRefreshKey] = useState(0);
     // Derived — avoids synchronous setState inside the effect body.
     const panelLoading = selectedUser !== null && panelDetail === null;
 
@@ -83,8 +86,8 @@ function UsersPage() {
         return () => { cancelled = true; };
     }, [page, sort, sortBy, debouncedSearch, refreshKey]);
 
-    // Fetch panel data when a user row is selected: GET /user/:id for moderation state,
-    // GET /audit-log?userId for recent logs (leverages the actor-OR-target filter built earlier).
+    // Fetch panel data when a user row is selected or panelRefreshKey changes (e.g. after unban).
+    // GET /user/:id for moderation state; GET /audit-log?userId for recent logs.
     // All setState calls are inside async callbacks — avoids react-hooks/set-state-in-effect.
     useEffect(() => {
         if (!selectedUser) return;
@@ -103,7 +106,9 @@ function UsersPage() {
                 if (!cancelled) setPanelDetail({});
             });
         return () => { cancelled = true; };
-    }, [selectedUser]);
+    // panelRefreshKey is intentional: unban() increments it to reload moderation state
+    // without changing selectedUser, so the panel re-fetches in place.
+    }, [selectedUser, panelRefreshKey]);
 
     const refresh = () => { setLoading(true); setRefreshKey((k) => k + 1); };
 
@@ -151,6 +156,21 @@ function UsersPage() {
             refresh();
         } catch {
             setActionMsg(`Failed to update role for user ${id}.`);
+        }
+    };
+
+    // unban: clears ban/mute/strikes via POST /user/:id/unban.
+    // Resets panel data in the handler (not in an effect) and increments panelRefreshKey
+    // to re-trigger the panel fetch — shows updated status without closing the panel.
+    const unban = async (userId: number) => {
+        try {
+            await api.post(`/user/${userId}/unban`);
+            setActionMsg(`User ${userId} unbanned.`);
+            setPanelDetail(null);
+            setPanelLogs([]);
+            setPanelRefreshKey((k) => k + 1);
+        } catch {
+            setActionMsg(`Failed to unban user ${userId}.`);
         }
     };
 
@@ -411,6 +431,18 @@ function UsersPage() {
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Banned until</span>
                                             <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                    {/* Unban: shown only when the user is currently banned and the actor outranks them. */}
+                                    {panelDetail?.status === 'banned' && myRole > selectedUser.role && (
+                                        <div className="pt-1">
+                                            <button
+                                                onClick={() => unban(selectedUser.id)}
+                                                data-testid={`panel-unban-${selectedUser.id}`}
+                                                className="w-full text-xs px-3 py-1.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+                                            >
+                                                Unban
+                                            </button>
                                         </div>
                                     )}
                                 </>

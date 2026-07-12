@@ -36,3 +36,9 @@ export const GET_USER_NICKNAMES = gql`
     }
   }
 `;
+
+export const GET_ONLINE_USER = gql`
+  query GetOnlineUser {
+    getOnlineUser
+  }
+`;
