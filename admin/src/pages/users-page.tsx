@@ -18,6 +18,34 @@ interface UserPage {
     take: number;
 }
 
+// Fields returned by GET /user/:id that are not in the list response.
+// status/bannedUntil come from the moderation layer; password is @Excluded by the interceptor.
+interface UserDetail {
+    status?: string;
+    bannedUntil?: string | null;
+}
+
+interface AuditLogEntry {
+    id: number;
+    action: string;
+    actorId: number;
+    targetId: number | null;
+    detail: string | null;
+    created: string;
+}
+
+const ROLE_LABEL: Record<number, string> = { 0: 'user', 1: 'admin', 2: 'superadmin' };
+const ROLE_COLOR: Record<number, string> = {
+    0: 'bg-gray-100 text-gray-600',
+    1: 'bg-purple-100 text-purple-700',
+    2: 'bg-red-100 text-red-700',
+};
+const ACTION_COLOR: Record<string, string> = {
+    ROLE_CHANGE: 'bg-indigo-100 text-indigo-700',
+    FORCE_LOGOUT: 'bg-yellow-100 text-yellow-700',
+    USER_DELETE: 'bg-red-100 text-red-700',
+};
+
 function UsersPage() {
     const [result, setResult] = useState<UserPage>({ data: [], total: 0, page: 1, take: 20 });
     const [loading, setLoading] = useState(true);
@@ -29,30 +57,76 @@ function UsersPage() {
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
+
+    // selectedUser: the row that was clicked to open the detail panel.
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    // panelDetail: extra fields fetched from GET /user/:id (status, bannedUntil).
+    // null while the fetch is in-flight; {} (empty) when done (success or error).
+    const [panelDetail, setPanelDetail] = useState<UserDetail | null>(null);
+    // panelLogs: recent 5 audit log entries involving the selected user.
+    const [panelLogs, setPanelLogs] = useState<AuditLogEntry[]>([]);
+    // Derived — avoids synchronous setState inside the effect body.
+    const panelLoading = selectedUser !== null && panelDetail === null;
+
     const navigate = useNavigate();
     const myRole = useAuthStore((s) => s.role);
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
+    // setLoading(true) is intentionally NOT in this effect body to satisfy react-hooks/set-state-in-effect.
+    // Each trigger (changePage, toggleSort, handleSearch debounce, refresh) sets loading=true
+    // in its own event handler or timer callback before updating the dependency.
     useEffect(() => {
-        setLoading(true);
+        let cancelled = false;
         api.get('/user', { params: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined } })
-            .then((res) => setResult(res.data as UserPage))
-            .catch(() => setActionMsg('Failed to load users.'))
-            .finally(() => setLoading(false));
+            .then((res) => { if (!cancelled) { setResult(res.data as UserPage); setLoading(false); } })
+            .catch(() => { if (!cancelled) { setActionMsg('Failed to load users.'); setLoading(false); } });
+        return () => { cancelled = true; };
     }, [page, sort, sortBy, debouncedSearch, refreshKey]);
 
-    const refresh = () => setRefreshKey((k) => k + 1);
+    // Fetch panel data when a user row is selected: GET /user/:id for moderation state,
+    // GET /audit-log?userId for recent logs (leverages the actor-OR-target filter built earlier).
+    // All setState calls are inside async callbacks — avoids react-hooks/set-state-in-effect.
+    useEffect(() => {
+        if (!selectedUser) return;
+        let cancelled = false;
+        Promise.all([
+            api.get(`/user/${selectedUser.id}`),
+            api.get('/audit-log', { params: { userId: selectedUser.id, take: 5, sort: 'DESC' } }),
+        ])
+            .then(([detailRes, logsRes]) => {
+                if (cancelled) return;
+                setPanelDetail(detailRes.data as UserDetail);
+                setPanelLogs((logsRes.data as { data: AuditLogEntry[] }).data);
+            })
+            .catch(() => {
+                // Panel is supplemental — mark done (non-null) so panelLoading clears.
+                if (!cancelled) setPanelDetail({});
+            });
+        return () => { cancelled = true; };
+    }, [selectedUser]);
+
+    const refresh = () => { setLoading(true); setRefreshKey((k) => k + 1); };
+
+    // openPanel: resets panel data in the event handler (not in an effect) so the
+    // useEffect body only calls setState in async callbacks — satisfies react-hooks/set-state-in-effect.
+    const openPanel = (u: User) => {
+        setSelectedUser(u);
+        setPanelDetail(null);
+        setPanelLogs([]);
+    };
 
     const handleSearch = (value: string) => {
         setSearch(value);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
+            setLoading(true);  // timer callback — not inside a useEffect body
             setDebouncedSearch(value);
             setPage(1);
         }, 300);
     };
 
     const toggleSort = (field: 'id' | 'role' | 'created') => {
+        setLoading(true);  // event handler — not inside a useEffect body
         if (sortBy === field) {
             setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
         } else {
@@ -63,7 +137,7 @@ function UsersPage() {
     };
 
     const changePage = (next: number) => {
-        setLoading(true);
+        setLoading(true);  // event handler — not inside a useEffect body
         setPage(next);
     };
 
@@ -95,6 +169,7 @@ function UsersPage() {
             await api.delete(`/user/${id}`);
             setActionMsg(`User ${id} deleted.`);
             refresh();
+            setSelectedUser(null);
         } catch {
             setActionMsg(`Failed to delete user ${id}.`);
         }
@@ -192,23 +267,25 @@ function UsersPage() {
                             </thead>
                             <tbody>
                                 {users.map((u) => (
-                                    <tr key={u.id} data-testid={`user-row-${u.id}`} className="border-t">
+                                    // Clicking the row opens the detail panel; action buttons stop propagation.
+                                    <tr
+                                        key={u.id}
+                                        data-testid={`user-row-${u.id}`}
+                                        onClick={() => openPanel(u)}
+                                        className={`border-t cursor-pointer hover:bg-gray-50${selectedUser?.id === u.id ? ' bg-blue-50' : ''}`}
+                                    >
                                         <td className="px-4 py-3">{u.id}</td>
                                         <td className="px-4 py-3">{u.nickname ?? '—'}</td>
                                         <td className="px-4 py-3">{u.email}</td>
                                         <td className="px-4 py-3">
-                                            <span data-testid={`user-role-${u.id}`} className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                u.role === 2 ? 'bg-red-100 text-red-700' :
-                                                u.role === 1 ? 'bg-purple-100 text-purple-700' :
-                                                'bg-gray-100 text-gray-600'
-                                            }`}>
-                                                {u.role === 2 ? 'superadmin' : u.role === 1 ? 'admin' : 'user'}
+                                            <span data-testid={`user-role-${u.id}`} className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLOR[u.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                                                {ROLE_LABEL[u.role] ?? 'unknown'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                                             {new Date(u.created).toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 flex gap-2 flex-wrap">
+                                        <td className="px-4 py-3 flex gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                             {myRole === 2 && u.role !== 2 && (
                                                 <button
                                                     onClick={() => updateRole(u.id, u.role === 1 ? 0 : 1)}
@@ -266,6 +343,105 @@ function UsersPage() {
                     </div>
                 )}
             </div>
+
+            {/* User detail panel — slides in from the right when a row is clicked.
+                Uses data already in the row plus GET /user/:id for moderation state
+                and GET /audit-log?userId for the 5 most recent privileged-action entries. */}
+            {selectedUser && (
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setSelectedUser(null)}
+                    data-testid="panel-backdrop"
+                >
+                    <div
+                        className="absolute right-0 top-0 h-full w-96 bg-white shadow-2xl overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid="user-detail-panel"
+                    >
+                        <div className="flex justify-between items-center px-5 py-4 border-b">
+                            <h2 className="font-semibold text-gray-800">User Detail</h2>
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                data-testid="panel-close"
+                                className="text-gray-400 hover:text-gray-700 text-lg leading-none"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-4 space-y-3 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">ID</span>
+                                <span className="font-mono">{selectedUser.id}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Email</span>
+                                <span className="truncate max-w-48">{selectedUser.email}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Nickname</span>
+                                <span>{selectedUser.nickname ?? '—'}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-500">Role</span>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLOR[selectedUser.role] ?? ''}`}>
+                                    {ROLE_LABEL[selectedUser.role] ?? 'unknown'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Joined</span>
+                                <span className="text-gray-600">{new Date(selectedUser.created).toLocaleString()}</span>
+                            </div>
+
+                            {panelLoading ? (
+                                <p className="text-gray-400 text-xs pt-2">Loading details…</p>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Status</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                            panelDetail?.status === 'banned' ? 'bg-red-100 text-red-700' :
+                                            panelDetail?.status === 'muted' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-green-100 text-green-700'
+                                        }`}>
+                                            {panelDetail?.status ?? 'active'}
+                                        </span>
+                                    </div>
+                                    {panelDetail?.bannedUntil && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Banned until</span>
+                                            <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {!panelLoading && panelLogs.length > 0 && (
+                            <div className="px-5 pb-5">
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent Audit Logs</h3>
+                                <ul className="space-y-2" data-testid="panel-audit-logs">
+                                    {panelLogs.map((log) => (
+                                        <li key={log.id} className="text-xs border rounded px-3 py-2 bg-gray-50">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className={`px-1.5 py-0.5 rounded font-medium ${ACTION_COLOR[log.action] ?? 'bg-gray-100 text-gray-600'}`}>
+                                                    {log.action}
+                                                </span>
+                                                <span className="text-gray-400">{new Date(log.created).toLocaleString()}</span>
+                                            </div>
+                                            {log.detail && <p className="text-gray-500">{log.detail}</p>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {!panelLoading && panelLogs.length === 0 && (
+                            <p className="px-5 text-xs text-gray-400">No audit log entries for this user.</p>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

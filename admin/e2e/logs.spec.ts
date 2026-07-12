@@ -36,7 +36,7 @@ test('Audit log Time header is always bold and toggling sort re-renders the tabl
     await expect(page.getByTestId('logs-table')).toBeVisible();
 });
 
-test('Audit log action filter narrows results', async ({ page, request }) => {
+test('Audit log action filter narrows results', async ({ page }) => {
     await loginAsSuperadmin(page);
     await page.getByTestId('nav-logs').click();
     await expect(page).toHaveURL('/logs');
