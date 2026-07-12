@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+// FindOptionsWhere: needed to type the OR-array where clause used by the userId filter.
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { AuditLogEntity } from './audit-log.entity';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 import { logger } from 'src/base/logger/logger';
@@ -45,9 +46,25 @@ export class AuditLogService {
   async findAll(query: AuditLogQueryDto): Promise<PaginatedAuditLog> {
     const page = query.page ?? 1;
     const take = query.take ?? 20;
+    const actionFilter = query.action ? { action: query.action } : {};
+
+    // userId filter: returns logs where the user was either the actor (performed the action)
+    // or the target (was acted upon). TypeORM WHERE array = OR; each element also carries
+    // the action filter so both branches respect the action dropdown simultaneously.
+    let where:
+      | FindOptionsWhere<AuditLogEntity>
+      | FindOptionsWhere<AuditLogEntity>[];
+    if (query.userId !== undefined) {
+      where = [
+        { actorId: query.userId, ...actionFilter },
+        { targetId: query.userId, ...actionFilter },
+      ];
+    } else {
+      where = actionFilter;
+    }
 
     const [data, total] = await this.auditLogRepository.findAndCount({
-      where: query.action ? { action: query.action } : {},
+      where,
       order: { created: query.sort ?? 'DESC' },
       skip: (page - 1) * take,
       take,

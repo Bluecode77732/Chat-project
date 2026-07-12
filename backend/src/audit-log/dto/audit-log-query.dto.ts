@@ -13,6 +13,15 @@ export class AuditLogQueryDto {
   @IsIn(AUDIT_ACTIONS)
   action?: string;
 
+  // Filters logs where the user was actor OR target — covers "what did this user do"
+  // and "what was done to this user" in a single query param.
+  @ApiPropertyOptional({
+    description: 'Filter logs where actorId OR targetId equals this user ID',
+  })
+  @IsOptional()
+  @IsInt()
+  userId?: number;
+
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @IsInt()

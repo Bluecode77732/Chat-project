@@ -89,5 +89,36 @@ describe('AuditLogService', () => {
       });
       expect(result).toEqual({ data: [], total: 5, page: 3, take: 10 });
     });
+
+    // userId filter passes an OR-array so logs where the user was actor OR target are returned.
+    it('passes an OR-array where clause when userId is provided.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 3]);
+
+      await auditLogService.findAll({ userId: 7 });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: [{ actorId: 7 }, { targetId: 7 }],
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    // When both userId and action are supplied both branches of the OR carry the action filter.
+    it('combines userId OR-array with action filter when both are supplied.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 1]);
+
+      await auditLogService.findAll({ userId: 7, action: 'ROLE_CHANGE' });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: [
+          { actorId: 7, action: 'ROLE_CHANGE' },
+          { targetId: 7, action: 'ROLE_CHANGE' },
+        ],
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
   });
 });

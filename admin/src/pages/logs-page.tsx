@@ -29,6 +29,9 @@ function LogsPage() {
     const [action, setAction] = useState('');
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
+    // userId filter: selects logs where the chosen user was actor OR target.
+    // Resolved from the nicknameById map so the dropdown shows names, not raw IDs.
+    const [userId, setUserId] = useState<number | undefined>(undefined);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
@@ -40,14 +43,21 @@ function LogsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
 
     useEffect(() => {
-        api.get('/audit-log', { params: { action: action || undefined, page, sort } })
+        api.get('/audit-log', { params: { action: action || undefined, page, sort, userId } })
             .then((res) => setResult(res.data as AuditLogPage))
             .finally(() => setLoading(false));
-    }, [action, page, sort]);
+    }, [action, page, sort, userId]);
 
     const changeAction = (value: string) => {
         setLoading(true);
         setAction(value);
+        setPage(1);
+    };
+
+    // changeUser: resets to page 1 so the new filter starts from the beginning.
+    const changeUser = (value: string) => {
+        setLoading(true);
+        setUserId(value ? Number(value) : undefined);
         setPage(1);
     };
 
@@ -90,7 +100,7 @@ function LogsPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
                     <label className="text-sm text-gray-600">Action</label>
                     <select
                         value={action}
@@ -101,6 +111,21 @@ function LogsPage() {
                         <option value="">All</option>
                         {ACTIONS.map((a) => (
                             <option key={a} value={a}>{a}</option>
+                        ))}
+                    </select>
+
+                    <label className="text-sm text-gray-600">User</label>
+                    {/* User dropdown: shows all known users by nickname.
+                        Sends userId to backend which returns logs where actorId OR targetId matches. */}
+                    <select
+                        value={userId ?? ''}
+                        onChange={(e) => changeUser(e.target.value)}
+                        data-testid="log-user-filter"
+                        className="text-sm border rounded px-2 py-1"
+                    >
+                        <option value="">All</option>
+                        {Array.from(nicknameById.entries()).map(([id, nickname]) => (
+                            <option key={id} value={id}>{nickname ?? `User ${id}`}</option>
                         ))}
                     </select>
                 </div>
