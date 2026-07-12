@@ -66,13 +66,40 @@ export class ChatResolver {
   ): Promise<PaginatedAdminRooms> {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
     const sortField = sortBy === 'created' ? 'created' : 'id';
-    return this.chatService.findAllRooms(
+    const rooms = await this.chatService.findAllRooms(
       page,
       take,
       sortOrder,
       sortField,
       search || undefined,
     );
+    // Enrich each room with its AI personality in one batch query (no N+1).
+    // Rooms with no AiRoomEntity record get aiPersonality = null.
+    const roomIds = rooms.data.map((r) => r.roomId);
+    const personalityMap =
+      await this.aiRoomService.getPersonalitiesByRoomIds(roomIds);
+    return {
+      ...rooms,
+      data: rooms.data.map((r) => ({
+        ...r,
+        aiPersonality: personalityMap.get(r.roomId) ?? null,
+      })),
+    };
+  }
+
+  // Admin-only personality override: bypasses the participant check that setAiPersonality enforces.
+  // Any privileged user may reconfigure any room's AI without being a participant.
+  @Mutation(() => Boolean)
+  @RBAC(UserRole.admin)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
+  async setAdminAiPersonality(
+    @Args('roomId', { type: () => Int }) roomId: number,
+    @Args('personality', { type: () => AiPersonality })
+    personality: AiPersonality,
+  ): Promise<boolean> {
+    await this.aiRoomService.setPersonality(roomId, personality);
+    return true;
   }
 
   @Mutation(() => Boolean)

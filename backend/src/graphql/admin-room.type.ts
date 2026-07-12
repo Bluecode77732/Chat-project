@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
 
 @ObjectType()
 export class AdminRoomType {
@@ -10,6 +11,11 @@ export class AdminRoomType {
 
   @Field()
   created: Date;
+
+  // null = no AI configured for this room; non-null = current personality setting.
+  // Populated by resolver via batch query — not stored on RoomEntity itself.
+  @Field(() => AiPersonality, { nullable: true })
+  aiPersonality?: AiPersonality | null;
 }
 
 @ObjectType()
