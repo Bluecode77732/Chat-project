@@ -4,13 +4,13 @@ import { AiPersonality } from 'src/ai/enums/ai-personality.enum';
 @ObjectType()
 export class AdminRoomType {
   @Field(() => Int)
-  roomId: number;
+  roomId!: number;
 
   @Field(() => [Int])
-  participantIds: number[];
+  participantIds!: number[];
 
   @Field()
-  created: Date;
+  created!: Date;
 
   // null = no AI configured for this room; non-null = current personality setting.
   // Populated by resolver via batch query — not stored on RoomEntity itself.
@@ -21,14 +21,14 @@ export class AdminRoomType {
 @ObjectType()
 export class PaginatedAdminRooms {
   @Field(() => [AdminRoomType])
-  data: AdminRoomType[];
+  data!: AdminRoomType[];
 
   @Field(() => Int)
-  total: number;
+  total!: number;
 
   @Field(() => Int)
-  page: number;
+  page!: number;
 
   @Field(() => Int)
-  take: number;
+  take!: number;
 }
