@@ -34,6 +34,7 @@ function LogsPage() {
     const [userId, setUserId] = useState<number | undefined>(undefined);
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
+    const [exportError, setExportError] = useState('');
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
@@ -84,6 +85,28 @@ function LogsPage() {
     const changePage = (newPage: number) => {
         setLoading(true);
         setPage(newPage);
+    };
+
+    // exportCsv: downloads the currently-applied filters as a CSV file (no pagination —
+    // capped server-side). Mirrors the on-screen filter state exactly.
+    const exportCsv = async () => {
+        setExportError('');
+        try {
+            const res = await api.get<Blob>('/audit-log/export', {
+                params: { action: action || undefined, sort, userId, from: from || undefined, to: to || undefined },
+                responseType: 'blob',
+            });
+            const url = URL.createObjectURL(res.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `audit-log-export-${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch {
+            setExportError('Failed to export logs.');
+        }
     };
 
     const signOut = async () => {
@@ -162,7 +185,19 @@ function LogsPage() {
                         data-testid="log-to-filter"
                         className="text-sm border rounded px-2 py-1"
                     />
+
+                    <button
+                        onClick={exportCsv}
+                        data-testid="log-export-csv"
+                        className="ml-auto text-sm px-3 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    >
+                        Export CSV
+                    </button>
                 </div>
+
+                {exportError && (
+                    <p data-testid="export-error-message" className="mb-4 text-sm text-red-700 bg-red-50 rounded px-3 py-2">{exportError}</p>
+                )}
 
                 {loading ? (
                     <p className="text-gray-500">Loading...</p>

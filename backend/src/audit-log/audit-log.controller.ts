@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   Query,
   UseGuards,
   UseInterceptors,
@@ -18,6 +19,7 @@ import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { AuditLogService } from './audit-log.service';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { AuditLogExportQueryDto } from './dto/audit-log-export-query.dto';
 
 @ApiTags('Audit Log API')
 @ApiBearerAuth()
@@ -59,5 +61,21 @@ export class AuditLogController {
   @ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
   findAll(@Query() query: AuditLogQueryDto) {
     return this.auditLogService.findAll(query);
+  }
+
+  @Get('export')
+  @RBAC(UserRole.admin)
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="audit-log-export.csv"')
+  @ApiOperation({
+    summary: 'Export filtered audit logs as CSV (admin)',
+    description:
+      'Same action/user/date-range filters as the list endpoint, without pagination. Capped at 10,000 rows, most recent first by default. Requires admin role.',
+  })
+  @ApiResponse({ status: 200, description: 'CSV file of matching audit logs.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
+  export(@Query() query: AuditLogExportQueryDto) {
+    return this.auditLogService.exportCsv(query);
   }
 }
