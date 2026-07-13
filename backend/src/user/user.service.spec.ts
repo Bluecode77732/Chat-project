@@ -15,7 +15,8 @@ import { MailService } from 'src/mail/mail.service';
 import { UserRole } from 'src/auth/role/role';
 import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
 import * as bcrypt from 'bcrypt';
-import { ILike } from 'typeorm';
+import { And, ILike, Not } from 'typeorm';
+import { SYSTEM_USER_EMAIL } from 'src/moderation/constants/moderation.constants';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -220,6 +221,75 @@ describe('UserService', () => {
           { email: ILike('%alice%'), status: ModerationStatus.banned },
           { nickname: ILike('%alice%'), status: ModerationStatus.banned },
         ],
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('applies humanOnly filter alone as a plain object.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(
+        1,
+        20,
+        'DESC',
+        'id',
+        undefined,
+        undefined,
+        true,
+      );
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: { isAI: false, email: Not(SYSTEM_USER_EMAIL) },
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('merges humanOnly into both branches of the search OR-array, combining email conditions with And().', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(1, 20, 'DESC', 'id', 'alice', undefined, true);
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: [
+          {
+            email: And(ILike('%alice%'), Not(SYSTEM_USER_EMAIL)),
+            isAI: false,
+          },
+          {
+            nickname: ILike('%alice%'),
+            isAI: false,
+            email: Not(SYSTEM_USER_EMAIL),
+          },
+        ],
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('combines humanOnly and status filters together.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(
+        1,
+        20,
+        'DESC',
+        'id',
+        undefined,
+        ModerationStatus.active,
+        true,
+      );
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: {
+          status: ModerationStatus.active,
+          isAI: false,
+          email: Not(SYSTEM_USER_EMAIL),
+        },
         order: { id: 'DESC' },
         skip: 0,
         take: 20,

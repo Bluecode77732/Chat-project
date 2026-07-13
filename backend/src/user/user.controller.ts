@@ -90,6 +90,13 @@ export class UserController {
     enum: ['active', 'banned'],
     description: 'Filter by moderation status.',
   })
+  @ApiQuery({
+    name: 'humanOnly',
+    required: false,
+    type: Boolean,
+    description:
+      'Exclude the seeded AI companion and moderation system accounts.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated user list.',
@@ -119,6 +126,7 @@ export class UserController {
     @Query('sortBy') sortBy?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('humanOnly') humanOnly?: string,
   ) {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
     const sortField =
@@ -136,6 +144,7 @@ export class UserController {
       sortField,
       search || undefined,
       statusFilter,
+      humanOnly === 'true',
     );
   }
 

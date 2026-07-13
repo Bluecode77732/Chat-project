@@ -50,7 +50,7 @@ function DashboardPage() {
 
     useEffect(() => {
         Promise.all([
-            api.get('/user', { params: { page: 1, take: 1 } }),
+            api.get('/user', { params: { page: 1, take: 1, humanOnly: true } }),
             api.get('/audit-log', { params: { page: 1, take: 5, sort: 'DESC' } }),
         ])
             .then(([usersRes, logsRes]) => {

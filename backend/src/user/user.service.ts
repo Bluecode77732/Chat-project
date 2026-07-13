@@ -8,8 +8,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { DataSource, ILike, Repository } from 'typeorm';
+import { And, DataSource, ILike, Not, Repository } from 'typeorm';
 import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
+import { SYSTEM_USER_EMAIL } from 'src/moderation/constants/moderation.constants';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
@@ -97,6 +98,7 @@ export class UserService {
     sortBy: 'id' | 'role' | 'created' = 'id',
     search?: string,
     status?: ModerationStatus,
+    humanOnly?: boolean,
   ): Promise<{
     data: {
       id: number;
@@ -110,13 +112,32 @@ export class UserService {
     take: number;
   }> {
     const statusFilter = status ? { status } : {};
+    // humanOnly excludes the two seeded non-human accounts: the AI companion (isAI:true)
+    // and the moderation system account (isAI:false, so caught by email exclusion instead).
+    const humanFilter = humanOnly ? { isAI: false } : {};
+    const systemEmailExclusion = humanOnly
+      ? { email: Not(SYSTEM_USER_EMAIL) }
+      : {};
+    const nonEmailFilter = { ...statusFilter, ...humanFilter };
     const where = search
       ? [
-          { email: ILike(`%${search}%`), ...statusFilter },
-          { nickname: ILike(`%${search}%`), ...statusFilter },
+          {
+            // And() is needed only here: this branch already sets `email` for the search
+            // match, and a plain spread would let systemEmailExclusion's `email` key
+            // silently overwrite it (same collision the audit-log date range hit).
+            email: humanOnly
+              ? And(ILike(`%${search}%`), Not(SYSTEM_USER_EMAIL))
+              : ILike(`%${search}%`),
+            ...nonEmailFilter,
+          },
+          {
+            nickname: ILike(`%${search}%`),
+            ...nonEmailFilter,
+            ...systemEmailExclusion,
+          },
         ]
-      : status
-        ? statusFilter
+      : status || humanOnly
+        ? { ...nonEmailFilter, ...systemEmailExclusion }
         : undefined;
     const [rows, total] = await this.userRepository.findAndCount({
       where,
