@@ -21,7 +21,7 @@ interface AuditLogPage {
     take: number;
 }
 
-const ACTIONS = ['ROLE_CHANGE', 'FORCE_LOGOUT', 'USER_DELETE'];
+const ACTIONS = ['ROLE_CHANGE', 'FORCE_LOGOUT', 'USER_DELETE', 'USER_UNBAN', 'USER_MUTED', 'USER_BANNED'];
 
 function LogsPage() {
     const [result, setResult] = useState<AuditLogPage>({ data: [], total: 0, page: 1, take: 20 });
@@ -96,6 +96,9 @@ function LogsPage() {
         if (action === 'ROLE_CHANGE') return 'bg-indigo-100 text-indigo-700';
         if (action === 'FORCE_LOGOUT') return 'bg-yellow-100 text-yellow-700';
         if (action === 'USER_DELETE') return 'bg-red-100 text-red-700';
+        if (action === 'USER_UNBAN') return 'bg-green-100 text-green-700';
+        if (action === 'USER_MUTED') return 'bg-orange-100 text-orange-700';
+        if (action === 'USER_BANNED') return 'bg-rose-100 text-rose-700';
         return 'bg-gray-100 text-gray-600';
     };
 

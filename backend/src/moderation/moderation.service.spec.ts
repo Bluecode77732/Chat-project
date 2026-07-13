@@ -259,6 +259,51 @@ describe('ModerationService', () => {
     });
   });
 
+  describe('ban', () => {
+    it('permanent ban when no duration is given', async () => {
+      await service.ban(7, 42, 'spam reports');
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: 42 },
+        { status: ModerationStatus.banned, bannedUntil: null },
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith('user_cache:42');
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        7,
+        42,
+        'USER_BANNED',
+        'spam reports | permanent',
+      );
+    });
+
+    it('timed ban sets a future bannedUntil and includes the duration in the audit detail', async () => {
+      await service.ban(7, 42, undefined, 3600);
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: 42 },
+        expect.objectContaining({
+          status: ModerationStatus.banned,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          bannedUntil: expect.any(Date),
+        }),
+      );
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        7,
+        42,
+        'USER_BANNED',
+        '3600s',
+      );
+    });
+
+    it('omits the reason segment from the audit detail when none is given', async () => {
+      await service.ban(7, 42);
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        7,
+        42,
+        'USER_BANNED',
+        'permanent',
+      );
+    });
+  });
+
   describe('unban', () => {
     it('clears ban state, redis keys, cache, and audits USER_UNBAN', async () => {
       await service.unban(7, 42);

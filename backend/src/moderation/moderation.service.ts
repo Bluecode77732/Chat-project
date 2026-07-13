@@ -138,6 +138,32 @@ export class ModerationService implements OnModuleInit {
 
   // ---- Admin recovery ----
 
+  // Manual ban, independent of the automatic strike system (e.g. a report from another channel).
+  // Unlike applyBan, this always audits — an admin action needs a trail even if the target was
+  // already banned, since the reason/duration may differ from the prior entry.
+  async ban(
+    actorId: number,
+    userId: number,
+    reason?: string,
+    durationSec?: number,
+  ): Promise<void> {
+    const bannedUntil = durationSec
+      ? new Date(Date.now() + durationSec * 1000)
+      : null;
+    await this.userRepository.update(
+      { id: userId },
+      { status: ModerationStatus.banned, bannedUntil },
+    );
+    await this.redis.del(`user_cache:${userId}`);
+    const detail = [reason, durationSec ? `${durationSec}s` : 'permanent']
+      .filter(Boolean)
+      .join(' | ');
+    await this.auditLogService.log(actorId, userId, 'USER_BANNED', detail);
+    logger.warn(
+      `[actor=${actorId}, user=${userId}] Manually banned${durationSec ? ` for ${durationSec}s` : ' permanently'}`,
+    );
+  }
+
   // Reverse all moderation state for a false-positive: clears ban, strikes, mute, and the auth cache.
   async unban(actorId: number, userId: number): Promise<void> {
     await this.userRepository.update(

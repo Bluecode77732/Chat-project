@@ -5,6 +5,9 @@ export const AUDIT_ACTIONS = [
   'ROLE_CHANGE',
   'FORCE_LOGOUT',
   'USER_DELETE',
+  'USER_UNBAN',
+  'USER_MUTED',
+  'USER_BANNED',
 ] as const;
 
 export class AuditLogQueryDto {

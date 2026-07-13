@@ -22,6 +22,7 @@ type AuthenticatedRequest = ExpressRequest & {
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
+import { BanUserDto } from './dto/ban-user.dto';
 import { UserEntity } from './entities/user.entity';
 import {
   ApiBearerAuth,
@@ -243,6 +244,45 @@ export class UserController {
       );
     }
     return this.userService.forceLogout(req.user.id, +id);
+  }
+
+  @Post(':id/ban')
+  @UseGuards(RBACguard)
+  @RBAC(UserRole.admin)
+  @ApiOperation({
+    summary: 'Manually ban a user (admin)',
+    description:
+      'Sets moderation status to banned immediately, independent of the automatic strike system. Requires admin; cannot act on a user with an equal or higher role. Also force-logs-out any active session. Writes a USER_BANNED audit entry.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Target user id.' })
+  @ApiResponse({ status: 201, description: 'User banned.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({
+    status: 403,
+    description:
+      'Forbidden. Admin role required, or target has an equal/higher role.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async ban(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() banUserDto: BanUserDto,
+  ) {
+    const target = await this.userService.findOne(+id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+    if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
+      throw new ForbiddenException(
+        'Cannot act on a user with equal or higher role',
+      );
+    }
+    await this.moderationService.ban(
+      req.user.id,
+      +id,
+      banUserDto.reason,
+      banUserDto.durationSec,
+    );
+    await this.userService.forceLogout(req.user.id, +id);
+    return `The user ${id} was banned`;
   }
 
   @Post(':id/unban')

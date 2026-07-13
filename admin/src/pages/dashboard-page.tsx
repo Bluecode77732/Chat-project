@@ -70,6 +70,9 @@ function DashboardPage() {
         if (action === 'ROLE_CHANGE') return 'bg-indigo-100 text-indigo-700';
         if (action === 'FORCE_LOGOUT') return 'bg-yellow-100 text-yellow-700';
         if (action === 'USER_DELETE') return 'bg-red-100 text-red-700';
+        if (action === 'USER_UNBAN') return 'bg-green-100 text-green-700';
+        if (action === 'USER_MUTED') return 'bg-orange-100 text-orange-700';
+        if (action === 'USER_BANNED') return 'bg-rose-100 text-rose-700';
         return 'bg-gray-100 text-gray-600';
     };
 
