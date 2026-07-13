@@ -32,6 +32,14 @@ type AdminRoomType {
   roomId: Int!
   participantIds: [Int!]!
   created: DateTime!
+  aiPersonality: AiPersonality
+}
+
+enum AiPersonality {
+  FRIENDLY
+  CODING
+  ENGLISH
+  CREATIVE
 }
 
 type PaginatedAdminRooms {
@@ -44,13 +52,6 @@ type PaginatedAdminRooms {
 type AiPersonalityInfoType {
   personality: AiPersonality
   canChange: Boolean!
-}
-
-enum AiPersonality {
-  FRIENDLY
-  CODING
-  ENGLISH
-  CREATIVE
 }
 
 type Query {
@@ -68,6 +69,7 @@ type Query {
 }
 
 type Mutation {
+  setAdminAiPersonality(roomId: Int!, personality: AiPersonality!): Boolean!
   deleteRoom(roomId: Int!): Boolean!
   setAiPersonality(roomId: Int!, personality: AiPersonality!): Boolean!
   sendMessage(input: CreateChatInput!, recipientId: Int!): MessageType!
