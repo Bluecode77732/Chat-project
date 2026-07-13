@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuditLogService } from './audit-log.service';
 import { AuditLogEntity } from './audit-log.entity';
+import { And, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 
 describe('AuditLogService', () => {
   let auditLogService: AuditLogService;
@@ -114,6 +115,66 @@ describe('AuditLogService', () => {
         where: [
           { actorId: 7, action: 'ROLE_CHANGE' },
           { targetId: 7, action: 'ROLE_CHANGE' },
+        ],
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('applies MoreThanOrEqual when only from is supplied.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await auditLogService.findAll({ from: '2025-07-01' });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: { created: MoreThanOrEqual(new Date('2025-07-01')) },
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('applies LessThanOrEqual when only to is supplied.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await auditLogService.findAll({ to: '2025-07-13' });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: { created: LessThanOrEqual(new Date('2025-07-13')) },
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('applies And(MoreThanOrEqual, LessThanOrEqual) when both from and to are supplied.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await auditLogService.findAll({ from: '2025-07-01', to: '2025-07-13' });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: {
+          created: And(
+            MoreThanOrEqual(new Date('2025-07-01')),
+            LessThanOrEqual(new Date('2025-07-13')),
+          ),
+        },
+        order: { created: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('merges date filter into both branches of the userId OR-array.', async () => {
+      mockAuditLogRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await auditLogService.findAll({ userId: 5, from: '2025-07-01' });
+
+      expect(mockAuditLogRepository.findAndCount).toHaveBeenCalledWith({
+        where: [
+          { actorId: 5, created: MoreThanOrEqual(new Date('2025-07-01')) },
+          { targetId: 5, created: MoreThanOrEqual(new Date('2025-07-01')) },
         ],
         order: { created: 'DESC' },
         skip: 0,

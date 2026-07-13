@@ -32,6 +32,8 @@ function LogsPage() {
     // userId filter: selects logs where the chosen user was actor OR target.
     // Resolved from the nicknameById map so the dropdown shows names, not raw IDs.
     const [userId, setUserId] = useState<number | undefined>(undefined);
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
@@ -43,10 +45,10 @@ function LogsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
 
     useEffect(() => {
-        api.get('/audit-log', { params: { action: action || undefined, page, sort, userId } })
+        api.get('/audit-log', { params: { action: action || undefined, page, sort, userId, from: from || undefined, to: to || undefined } })
             .then((res) => setResult(res.data as AuditLogPage))
             .finally(() => setLoading(false));
-    }, [action, page, sort, userId]);
+    }, [action, page, sort, userId, from, to]);
 
     const changeAction = (value: string) => {
         setLoading(true);
@@ -58,6 +60,18 @@ function LogsPage() {
     const changeUser = (value: string) => {
         setLoading(true);
         setUserId(value ? Number(value) : undefined);
+        setPage(1);
+    };
+
+    const changeFrom = (value: string) => {
+        setLoading(true);
+        setFrom(value);
+        setPage(1);
+    };
+
+    const changeTo = (value: string) => {
+        setLoading(true);
+        setTo(value);
         setPage(1);
     };
 
@@ -128,6 +142,23 @@ function LogsPage() {
                             <option key={id} value={id}>{nickname ?? `User ${id}`}</option>
                         ))}
                     </select>
+
+                    <label className="text-sm text-gray-600">From</label>
+                    <input
+                        type="date"
+                        value={from}
+                        onChange={(e) => changeFrom(e.target.value)}
+                        data-testid="log-from-filter"
+                        className="text-sm border rounded px-2 py-1"
+                    />
+                    <label className="text-sm text-gray-600">To</label>
+                    <input
+                        type="date"
+                        value={to}
+                        onChange={(e) => changeTo(e.target.value)}
+                        data-testid="log-to-filter"
+                        className="text-sm border rounded px-2 py-1"
+                    />
                 </div>
 
                 {loading ? (

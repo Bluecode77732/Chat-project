@@ -36,6 +36,7 @@ import { RBACguard } from 'src/auth/guard/rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { ModerationService } from 'src/moderation/moderation.service';
+import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
 
 @ApiTags('User API')
 @ApiBearerAuth()
@@ -82,6 +83,12 @@ export class UserController {
     type: String,
     description: 'Case-insensitive match on email or nickname.',
   })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'banned'],
+    description: 'Filter by moderation status.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated user list.',
@@ -110,16 +117,24 @@ export class UserController {
     @Query('sort') sort?: string,
     @Query('sortBy') sortBy?: string,
     @Query('search') search?: string,
+    @Query('status') status?: string,
   ) {
     const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
     const sortField =
       sortBy === 'role' ? 'role' : sortBy === 'created' ? 'created' : 'id';
+    const statusFilter =
+      status === ModerationStatus.banned
+        ? ModerationStatus.banned
+        : status === ModerationStatus.active
+          ? ModerationStatus.active
+          : undefined;
     return this.userService.findAll(
       page ? parseInt(page, 10) : 1,
       take ? parseInt(take, 10) : 20,
       sortOrder,
       sortField,
       search || undefined,
+      statusFilter,
     );
   }
 

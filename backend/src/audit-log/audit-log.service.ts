@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 // FindOptionsWhere: needed to type the OR-array where clause used by the userId filter.
-import { FindOptionsWhere, Repository } from 'typeorm';
+import {
+  And,
+  FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { AuditLogEntity } from './audit-log.entity';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 import { logger } from 'src/base/logger/logger';
@@ -48,6 +54,20 @@ export class AuditLogService {
     const take = query.take ?? 20;
     const actionFilter = query.action ? { action: query.action } : {};
 
+    // Date range: build a created filter using And/MoreThanOrEqual/LessThanOrEqual
+    // so both from and to can be applied to the same field simultaneously.
+    const dateFilter: FindOptionsWhere<AuditLogEntity> = {};
+    if (query.from && query.to) {
+      dateFilter.created = And(
+        MoreThanOrEqual(new Date(query.from)),
+        LessThanOrEqual(new Date(query.to)),
+      );
+    } else if (query.from) {
+      dateFilter.created = MoreThanOrEqual(new Date(query.from));
+    } else if (query.to) {
+      dateFilter.created = LessThanOrEqual(new Date(query.to));
+    }
+
     // userId filter: returns logs where the user was either the actor (performed the action)
     // or the target (was acted upon). TypeORM WHERE array = OR; each element also carries
     // the action filter so both branches respect the action dropdown simultaneously.
@@ -56,11 +76,11 @@ export class AuditLogService {
       | FindOptionsWhere<AuditLogEntity>[];
     if (query.userId !== undefined) {
       where = [
-        { actorId: query.userId, ...actionFilter },
-        { targetId: query.userId, ...actionFilter },
+        { actorId: query.userId, ...actionFilter, ...dateFilter },
+        { targetId: query.userId, ...actionFilter, ...dateFilter },
       ];
     } else {
-      where = actionFilter;
+      where = { ...actionFilter, ...dateFilter };
     }
 
     const [data, total] = await this.auditLogRepository.findAndCount({

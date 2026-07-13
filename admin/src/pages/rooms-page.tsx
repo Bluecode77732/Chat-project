@@ -58,6 +58,8 @@ function RoomsPage() {
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
     const [setPersonality] = useMutation<boolean, { roomId: number; personality: string }>(SET_ADMIN_AI_PERSONALITY);
     const [actionMsg, setActionMsg] = useState('');
+    // selectedRoom: the row that was clicked to open the detail panel.
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
@@ -122,6 +124,7 @@ function RoomsPage() {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
@@ -198,13 +201,18 @@ function RoomsPage() {
                                 </thead>
                                 <tbody>
                                     {rooms.map((room: Room) => (
-                                        <tr key={room.roomId} data-testid={`room-row-${room.roomId}`} className="border-t">
+                                        <tr
+                                            key={room.roomId}
+                                            data-testid={`room-row-${room.roomId}`}
+                                            onClick={() => setSelectedRoom(room)}
+                                            className={`border-t cursor-pointer hover:bg-gray-50${selectedRoom?.roomId === room.roomId ? ' bg-blue-50' : ''}`}
+                                        >
                                             <td className="px-4 py-3">{room.roomId}</td>
                                             <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                                                 {new Date(room.created).toLocaleString()}
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex items-center gap-2">
                                                     {room.aiPersonality ? (
                                                         <span
@@ -231,7 +239,7 @@ function RoomsPage() {
                                                     </select>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <button
                                                     onClick={() => handleDelete(room.roomId)}
                                                     data-testid={`room-delete-${room.roomId}`}
@@ -269,6 +277,83 @@ function RoomsPage() {
                 )}
             </div>
         </div>
+
+            {/* Room detail panel — slides in from the right when a row is clicked.
+                Uses data from the getAllRooms response + nicknameById — no extra API call needed. */}
+            {selectedRoom && (
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setSelectedRoom(null)}
+                    data-testid="room-panel-backdrop"
+                >
+                    <div
+                        className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid="room-detail-panel"
+                    >
+                        <div className="flex justify-between items-center px-5 py-4 border-b">
+                            <h2 className="font-semibold text-gray-800">Room Detail</h2>
+                            <button
+                                onClick={() => setSelectedRoom(null)}
+                                data-testid="room-panel-close"
+                                className="text-gray-400 hover:text-gray-700 text-lg leading-none"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-4 space-y-3 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Room ID</span>
+                                <span className="font-mono">{selectedRoom.roomId}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-500">Created</span>
+                                <span className="text-gray-600 text-xs">{new Date(selectedRoom.created).toLocaleString()}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block mb-1">Participants</span>
+                                <ul className="space-y-1">
+                                    {selectedRoom.participantIds.map((id) => (
+                                        <li key={id} className="text-xs bg-gray-50 rounded px-2 py-1">
+                                            {displayName(id)} <span className="text-gray-400 ml-1">#{id}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 block mb-1">AI Personality</span>
+                                <div className="flex items-center gap-2">
+                                    {selectedRoom.aiPersonality ? (
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${PERSONALITY_COLOR[selectedRoom.aiPersonality]}`}>
+                                            {PERSONALITY_LABEL[selectedRoom.aiPersonality]}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                    <select
+                                        value={selectedRoom.aiPersonality ?? ''}
+                                        onChange={(e) => {
+                                            void handlePersonalityChange(selectedRoom.roomId, e.target.value).then(() => {
+                                                setSelectedRoom((prev) => prev ? { ...prev, aiPersonality: (e.target.value as AiPersonality) || null } : null);
+                                            });
+                                        }}
+                                        data-testid={`panel-ai-select-${selectedRoom.roomId}`}
+                                        className="text-xs border rounded px-1 py-0.5 text-gray-600"
+                                        aria-label={`AI personality for room ${selectedRoom.roomId}`}
+                                    >
+                                        <option value="">— set —</option>
+                                        {AI_PERSONALITIES.map((p) => (
+                                            <option key={p} value={p}>{p}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 

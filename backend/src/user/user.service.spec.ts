@@ -13,7 +13,9 @@ import { ChatService } from 'src/chat/chat.service';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
 import { MailService } from 'src/mail/mail.service';
 import { UserRole } from 'src/auth/role/role';
+import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
 import * as bcrypt from 'bcrypt';
+import { ILike } from 'typeorm';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -45,6 +47,7 @@ describe('UserService', () => {
   const mockUserRepository = {
     findOne: jest.fn(),
     find: jest.fn(),
+    findAndCount: jest.fn(),
     save: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -141,6 +144,87 @@ describe('UserService', () => {
   // Clears the mock.calls and mock.instances properties of all mocks.
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('findAll', () => {
+    const row = {
+      id: 1,
+      email: 'a@b.com',
+      nickname: 'Alice',
+      role: UserRole.user,
+      created: new Date('2025-01-01'),
+    };
+
+    it('paginates with no filters.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[row], 1]);
+
+      const result = await userService.findAll();
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: undefined,
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+      expect(result.total).toBe(1);
+      expect(result.data[0].email).toBe('a@b.com');
+    });
+
+    it('applies search as an OR-array on email and nickname.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(1, 20, 'DESC', 'id', 'alice');
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: [{ email: ILike('%alice%') }, { nickname: ILike('%alice%') }],
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('applies status filter alone as a plain object.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(
+        1,
+        20,
+        'DESC',
+        'id',
+        undefined,
+        ModerationStatus.banned,
+      );
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: { status: ModerationStatus.banned },
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('merges status into both branches of the search OR-array.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await userService.findAll(
+        1,
+        20,
+        'DESC',
+        'id',
+        'alice',
+        ModerationStatus.banned,
+      );
+
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith({
+        where: [
+          { email: ILike('%alice%'), status: ModerationStatus.banned },
+          { nickname: ILike('%alice%'), status: ModerationStatus.banned },
+        ],
+        order: { id: 'DESC' },
+        skip: 0,
+        take: 20,
+      });
+    });
   });
 
   describe('create', () => {

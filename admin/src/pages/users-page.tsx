@@ -55,6 +55,7 @@ function UsersPage() {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'banned'>('');
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
 
@@ -80,11 +81,11 @@ function UsersPage() {
     // in its own event handler or timer callback before updating the dependency.
     useEffect(() => {
         let cancelled = false;
-        api.get('/user', { params: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined } })
+        api.get('/user', { params: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined, status: statusFilter || undefined } })
             .then((res) => { if (!cancelled) { setResult(res.data as UserPage); setLoading(false); } })
             .catch(() => { if (!cancelled) { setActionMsg('Failed to load users.'); setLoading(false); } });
         return () => { cancelled = true; };
-    }, [page, sort, sortBy, debouncedSearch, refreshKey]);
+    }, [page, sort, sortBy, debouncedSearch, statusFilter, refreshKey]);
 
     // Fetch panel data when a user row is selected or panelRefreshKey changes (e.g. after unban).
     // GET /user/:id for moderation state; GET /audit-log?userId for recent logs.
@@ -111,6 +112,12 @@ function UsersPage() {
     }, [selectedUser, panelRefreshKey]);
 
     const refresh = () => { setLoading(true); setRefreshKey((k) => k + 1); };
+
+    const changeStatusFilter = (value: '' | 'active' | 'banned') => {
+        setLoading(true);
+        setStatusFilter(value);
+        setPage(1);
+    };
 
     // openPanel: resets panel data in the event handler (not in an effect) so the
     // useEffect body only calls setState in async callbacks — satisfies react-hooks/set-state-in-effect.
@@ -243,15 +250,26 @@ function UsersPage() {
                     </div>
                 </div>
 
-                <div className="mb-4">
+                <div className="flex items-center gap-3 mb-4">
                     <input
                         type="text"
                         value={search}
                         onChange={(e) => handleSearch(e.target.value)}
                         placeholder="Search by email or nickname..."
                         data-testid="user-search-input"
-                        className="w-full text-sm border rounded px-3 py-2"
+                        className="flex-1 text-sm border rounded px-3 py-2"
                     />
+                    <label className="text-sm text-gray-600 whitespace-nowrap">Status</label>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => changeStatusFilter(e.target.value as '' | 'active' | 'banned')}
+                        data-testid="user-status-filter"
+                        className="text-sm border rounded px-2 py-2"
+                    >
+                        <option value="">All</option>
+                        <option value="active">Active</option>
+                        <option value="banned">Banned</option>
+                    </select>
                 </div>
 
                 {actionMsg && (

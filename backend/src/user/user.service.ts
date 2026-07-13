@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { DataSource, ILike, Repository } from 'typeorm';
+import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
@@ -95,6 +96,7 @@ export class UserService {
     sort: 'ASC' | 'DESC' = 'DESC',
     sortBy: 'id' | 'role' | 'created' = 'id',
     search?: string,
+    status?: ModerationStatus,
   ): Promise<{
     data: {
       id: number;
@@ -107,9 +109,15 @@ export class UserService {
     page: number;
     take: number;
   }> {
+    const statusFilter = status ? { status } : {};
     const where = search
-      ? [{ email: ILike(`%${search}%`) }, { nickname: ILike(`%${search}%`) }]
-      : undefined;
+      ? [
+          { email: ILike(`%${search}%`), ...statusFilter },
+          { nickname: ILike(`%${search}%`), ...statusFilter },
+        ]
+      : status
+        ? statusFilter
+        : undefined;
     const [rows, total] = await this.userRepository.findAndCount({
       where,
       order: { [sortBy]: sort },
