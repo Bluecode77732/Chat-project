@@ -669,6 +669,33 @@ Behavioral abuse detection that escalates automatically and is reversible by an 
 Tunable env vars (optional; sensible defaults apply): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
 
 
+#### Manual E2E Verification (developer handoff)
+
+Not covered by automated E2E (only unit tests). Verify with three accounts — **A** (offender),
+**B** (recipient), and an **admin**. To reach the higher tiers quickly, temporarily lower the
+thresholds in `.env` — keep them distinct (`warn < mute < ban`) or `escalate()`'s exact-match
+checks collide, e.g. `MODERATION_WARN_THRESHOLD=2`, `MODERATION_MUTE_THRESHOLD=3`,
+`MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30` — then restart the backend and
+reset afterward.
+
+1. **Warning** — from A, send B the *same* message repeatedly (within `DUP_WINDOW`, under the
+   rate limit). At the warn threshold a centered System-account notice appears in the room;
+   refresh the page → it persists (it is a stored `ChatEntity`).
+2. **Mute** — keep sending. At the mute threshold A's next send is rejected (`ModerationGuard`
+   → FORBIDDEN, frontend shows the mute notice); A stays connected and still *receives* B's
+   messages. Note: while muted, `sendMessage` is blocked at the guard, so **no further strikes
+   accrue** until the mute expires.
+3. **Timed ban (auto)** — after the mute expires, resume flooding to cross the ban threshold.
+   Expect: A is disconnected immediately; a reconnect is refused at `handleConnection`; a token
+   refresh is refused — a still-valid access token cannot bypass it. After `bannedUntil`
+   elapses, A can use the app again.
+4. **Manual ban (admin)** — `POST /user/:id/ban` on A → immediate session eviction (reuses
+   `forceLogout`) and the same auth-layer rejection as the automatic ban.
+5. **Unban (admin)** — `POST /user/:id/unban` on A → `status` back to `active`, strikes/mute
+   cleared, auth cache invalidated; A can send again immediately.
+6. **Audit** — each step above writes an admin-visible audit entry (`USER_MUTED` /
+   `USER_BANNED` / `USER_UNBAN`).
+
 ### Admin Account Setup
 The first superadmin must be created directly in the database. No API endpoint assigns roles above `user`, keeping the attack surface minimal.
 
