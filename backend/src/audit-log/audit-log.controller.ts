@@ -32,7 +32,7 @@ export class AuditLogController {
   @ApiOperation({
     summary: 'List privileged-action audit logs (admin)',
     description:
-      'Paginated audit trail of ROLE_CHANGE, FORCE_LOGOUT and USER_DELETE actions, optionally filtered by action and sorted by time. Requires admin role.',
+      'Paginated audit trail of ROLE_CHANGE, FORCE_LOGOUT, USER_DELETE, USER_UNBAN, USER_MUTED and USER_BANNED actions, optionally filtered by action, date range and sorted by time. Requires admin role.',
   })
   @ApiResponse({
     status: 200,
