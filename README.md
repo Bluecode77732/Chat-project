@@ -881,6 +881,34 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 ```
 
 
+#### Migration Cascade Guard
+
+`migration-cascade-guard.spec.ts` is a static guard (a text scan of migration source, not a
+runtime unit test) that fails the build if any migration created **at or after** the CASCADE
+was established re-adds a cascade-critical FK with the wrong `ON DELETE` action.
+
+**What it protects.** `migration:generate` silently re-emits the ManyToMany join-table FK
+`FK_501a0aef55632e3cf2894bda97f` (`room_entity_participants_user_entity`) as
+`ON DELETE NO ACTION`, reverting the `ON DELETE CASCADE` that `UserService.remove` relies on
+to clear a deleted user's room membership. The guard scans only each migration's `up()` — a
+`down()` legitimately restores the prior action — and requires the CASCADE to survive. Earlier
+migrations (which set the original `NO ACTION`) are exempt via a `since` timestamp, so the
+original `InitialSchema` is not flagged.
+
+**Why it rides `pnpm test`.** The ESLint CI step is non-blocking (`pnpm --filter backend lint
+|| true`), so a lint rule could not gate a merge. The guard instead rides the already-blocking
+test suite, which fires at two points:
+
+| Fire point | Effect |
+|---|---|
+| Local `pnpm test` (dev branch) | Earliest catch — the moment a bad migration is generated and the dev runs tests |
+| CI `test` job (main push/PR) | Blocking; `deploy` has `needs: test`, so a violation blocks the Railway prod deploy |
+
+It is intentionally **not** run in prod: by prod boot `migration:run` has already executed the
+migration against the live DB, so a source scan there is too late — it would only convert data
+corruption into a boot outage. The correct catch layers are local + CI. To extend it, add an
+entry to the `GUARDED_FKS` array in the spec.
+
 ### Deployment
 #### Frontend - Vercel
 **Live Demo**
