@@ -352,7 +352,7 @@ function UsersPage() {
                                                     {u.role === 1 ? 'Demote' : 'Promote'}
                                                 </button>
                                             )}
-                                            {myRole > u.role && (
+                                            {myRole !== null && myRole > u.role && (
                                                 <button
                                                     onClick={() => forceLogout(u.id)}
                                                     data-testid={`user-force-logout-${u.id}`}
@@ -361,7 +361,7 @@ function UsersPage() {
                                                     Force logout
                                                 </button>
                                             )}
-                                            {myRole > u.role && (
+                                            {myRole !== null && myRole > u.role && (
                                                 <button
                                                     onClick={() => deleteUser(u.id)}
                                                     data-testid={`user-delete-${u.id}`}
@@ -470,7 +470,7 @@ function UsersPage() {
                                         </div>
                                     )}
                                     {/* Unban: shown only when the user is currently banned and the actor outranks them. */}
-                                    {panelDetail?.status === 'banned' && myRole > selectedUser.role && (
+                                    {panelDetail?.status === 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button
                                                 onClick={() => unban(selectedUser.id)}
@@ -482,7 +482,7 @@ function UsersPage() {
                                         </div>
                                     )}
                                     {/* Ban: shown only when the user is not already banned and the actor outranks them. */}
-                                    {panelDetail?.status !== 'banned' && myRole > selectedUser.role && (
+                                    {panelDetail?.status !== 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button
                                                 onClick={() => ban(selectedUser.id)}
