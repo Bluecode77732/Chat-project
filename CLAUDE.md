@@ -21,6 +21,12 @@ Before making any change:
 8. After writing any code, scan the diff against Never Do Groups 1–3 and the Architecture
    Decisions before claiming success. If a violation is found, fix it or invoke the
    Principle Conflict Protocol — do not ship the diff as-is.
+9. This applies to *recommendations*, not just edits: before proposing a new script, guard,
+   tool, component, or dependency, first inspect the existing infrastructure (ESLint config
+   `backend/eslint.config.mjs`, CI workflow `.github/workflows/deploy.yml`, git hooks,
+   existing utilities) and prefer extending it. An unverified "let's build X" is the same
+   unfounded inference as inventing an API — advisory answers get the same inspect-first
+   rigor as file edits.
 
 ## Scope Discipline (범위 준수)
 
