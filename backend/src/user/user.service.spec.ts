@@ -533,6 +533,32 @@ describe('UserService', () => {
       expect(mockManager.delete).not.toHaveBeenCalled();
     });
 
+    it('should throw a BadRequestException when the target is the AI service account.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue({
+        id: userId,
+        isAI: true,
+        email: 'ai@system.local',
+      });
+
+      await expect(
+        userService.remove(2, userId, undefined, undefined, true),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockManager.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw a BadRequestException when the target is the moderation system account.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue({
+        id: userId,
+        isAI: false,
+        email: SYSTEM_USER_EMAIL,
+      });
+
+      await expect(
+        userService.remove(2, userId, undefined, undefined, true),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockManager.delete).not.toHaveBeenCalled();
+    });
+
     it('should throw a BadRequestException when self-deletion is missing a password.', async () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
 

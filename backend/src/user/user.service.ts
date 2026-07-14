@@ -340,6 +340,12 @@ export class UserService {
       throw new NotFoundException('User Not Found.');
     }
 
+    // ①-2 시스템 계정(AI 답장/moderation 경고·밴 메시지 발신용) 삭제 방지 —
+    // 삭제되면 해당 기능이 통째로 깨짐. 둘 다 실제 로그인 경로가 없어 본인 요청으로는 도달 불가.
+    if (user.isAI || user.email === SYSTEM_USER_EMAIL) {
+      throw new BadRequestException('Cannot delete a system-managed account.');
+    }
+
     // ② 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
     if (!skipPasswordCheck) {
       if (!password) throw new BadRequestException('Password is required.');
