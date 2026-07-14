@@ -35,6 +35,7 @@ function LogsPage() {
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [exportError, setExportError] = useState('');
+    const [loadError, setLoadError] = useState('');
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(GET_USER_NICKNAMES, {
@@ -46,9 +47,11 @@ function LogsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
 
     useEffect(() => {
+        let cancelled = false;
         api.get('/audit-log', { params: { action: action || undefined, page, sort, userId, from: from || undefined, to: to || undefined } })
-            .then((res) => setResult(res.data as AuditLogPage))
-            .finally(() => setLoading(false));
+            .then((res) => { if (!cancelled) { setResult(res.data as AuditLogPage); setLoadError(''); setLoading(false); } })
+            .catch(() => { if (!cancelled) { setLoadError('Failed to load logs.'); setLoading(false); } });
+        return () => { cancelled = true; };
     }, [action, page, sort, userId, from, to]);
 
     const changeAction = (value: string) => {
@@ -199,6 +202,10 @@ function LogsPage() {
                     <p data-testid="export-error-message" className="mb-4 text-sm text-red-700 bg-red-50 rounded px-3 py-2">{exportError}</p>
                 )}
 
+                {loadError && (
+                    <p data-testid="load-error-message" className="mb-4 text-sm text-red-700 bg-red-50 rounded px-3 py-2">{loadError}</p>
+                )}
+
                 {loading ? (
                     <p className="text-gray-500">Loading...</p>
                 ) : (
@@ -247,15 +254,15 @@ function LogsPage() {
                             <span>Page {result.page} of {totalPages} ({result.total} total)</span>
                             <div className="flex gap-2">
                                 <button
-                                    onClick={() => changePage(Math.max(1, result.page - 1))}
-                                    disabled={result.page <= 1}
+                                    onClick={() => changePage(Math.max(1, page - 1))}
+                                    disabled={page <= 1}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
                                     Prev
                                 </button>
                                 <button
-                                    onClick={() => changePage(Math.min(totalPages, result.page + 1))}
-                                    disabled={result.page >= totalPages}
+                                    onClick={() => changePage(Math.min(totalPages, page + 1))}
+                                    disabled={page >= totalPages}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
                                     Next
