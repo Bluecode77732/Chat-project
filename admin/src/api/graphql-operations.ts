@@ -7,18 +7,11 @@ export const GET_ALL_ROOMS = gql`
         roomId
         participantIds
         created
-        aiPersonality
       }
       total
       page
       take
     }
-  }
-`;
-
-export const SET_ADMIN_AI_PERSONALITY = gql`
-  mutation SetAdminAiPersonality($roomId: Int!, $personality: AiPersonality!) {
-    setAdminAiPersonality(roomId: $roomId, personality: $personality)
   }
 `;
 

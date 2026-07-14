@@ -1,34 +1,14 @@
 import { useQuery, useMutation } from '@apollo/client/react';
-import { GET_ALL_ROOMS, DELETE_ROOM, GET_USER_NICKNAMES, SET_ADMIN_AI_PERSONALITY } from '../api/graphql-operations';
+import { GET_ALL_ROOMS, DELETE_ROOM, GET_USER_NICKNAMES } from '../api/graphql-operations';
 import { useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import api from '../api/axios';
 
-// AI_PERSONALITIES: ordered list of valid enum values for the personality dropdown.
-// Must match AiPersonality enum in backend/src/ai/enums/ai-personality.enum.ts.
-const AI_PERSONALITIES = ['FRIENDLY', 'CODING', 'ENGLISH', 'CREATIVE'] as const;
-type AiPersonality = typeof AI_PERSONALITIES[number];
-
-const PERSONALITY_LABEL: Record<AiPersonality, string> = {
-    FRIENDLY: '친절한 어시스턴트',
-    CODING: '코드 도우미',
-    ENGLISH: '영어 선생님',
-    CREATIVE: '창의적인 작가',
-};
-
-const PERSONALITY_COLOR: Record<AiPersonality, string> = {
-    FRIENDLY: 'bg-green-100 text-green-700',
-    CODING: 'bg-indigo-100 text-indigo-700',
-    ENGLISH: 'bg-yellow-100 text-yellow-700',
-    CREATIVE: 'bg-purple-100 text-purple-700',
-};
-
 interface Room {
     roomId: number;
     participantIds: number[];
     created: string;
-    aiPersonality?: AiPersonality | null;
 }
 
 interface PaginatedRooms {
@@ -56,7 +36,6 @@ function RoomsPage() {
     );
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
-    const [setPersonality] = useMutation<boolean, { roomId: number; personality: string }>(SET_ADMIN_AI_PERSONALITY);
     const [actionMsg, setActionMsg] = useState('');
     // selectedRoom: the row that was clicked to open the detail panel.
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -96,19 +75,6 @@ function RoomsPage() {
             await refetch({ page, take: 20, sort, sortBy, search: debouncedSearch || undefined });
         } catch {
             setActionMsg(`Failed to delete room ${roomId}.`);
-        }
-    };
-
-    // handlePersonalityChange: admin sets AI personality for any room without being a participant.
-    // Uses setAdminAiPersonality mutation which bypasses the participant check.
-    const handlePersonalityChange = async (roomId: number, personality: string) => {
-        if (!personality) return;
-        try {
-            await setPersonality({ variables: { roomId, personality } });
-            setActionMsg(`Room ${roomId} AI set to ${personality}.`);
-            await refetch({ page, take: 20, sort, sortBy, search: debouncedSearch || undefined });
-        } catch {
-            setActionMsg(`Failed to set AI personality for room ${roomId}.`);
         }
     };
 
@@ -195,7 +161,6 @@ function RoomsPage() {
                                                 Created
                                             </button>
                                         </th>
-                                        <th className="px-4 py-3">AI Personality</th>
                                         <th className="px-4 py-3">Actions</th>
                                     </tr>
                                 </thead>
@@ -211,33 +176,6 @@ function RoomsPage() {
                                             <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                                                 {new Date(room.created).toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex items-center gap-2">
-                                                    {room.aiPersonality ? (
-                                                        <span
-                                                            data-testid={`room-ai-badge-${room.roomId}`}
-                                                            className={`px-2 py-0.5 rounded text-xs font-medium ${PERSONALITY_COLOR[room.aiPersonality]}`}
-                                                        >
-                                                            {PERSONALITY_LABEL[room.aiPersonality]}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400 text-xs">None</span>
-                                                    )}
-                                                    {/* Dropdown: lets admin set or change AI personality for any room. */}
-                                                    <select
-                                                        value={room.aiPersonality ?? ''}
-                                                        onChange={(e) => handlePersonalityChange(room.roomId, e.target.value)}
-                                                        data-testid={`room-ai-select-${room.roomId}`}
-                                                        className="text-xs border rounded px-1 py-0.5 text-gray-600"
-                                                        aria-label={`AI personality for room ${room.roomId}`}
-                                                    >
-                                                        <option value="">— set —</option>
-                                                        {AI_PERSONALITIES.map((p) => (
-                                                            <option key={p} value={p}>{p}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
                                             </td>
                                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <button
@@ -320,34 +258,6 @@ function RoomsPage() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
-                            <div>
-                                <span className="text-gray-500 block mb-1">AI Personality</span>
-                                <div className="flex items-center gap-2">
-                                    {selectedRoom.aiPersonality ? (
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${PERSONALITY_COLOR[selectedRoom.aiPersonality]}`}>
-                                            {PERSONALITY_LABEL[selectedRoom.aiPersonality]}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400 text-xs">None</span>
-                                    )}
-                                    <select
-                                        value={selectedRoom.aiPersonality ?? ''}
-                                        onChange={(e) => {
-                                            void handlePersonalityChange(selectedRoom.roomId, e.target.value).then(() => {
-                                                setSelectedRoom((prev) => prev ? { ...prev, aiPersonality: (e.target.value as AiPersonality) || null } : null);
-                                            });
-                                        }}
-                                        data-testid={`panel-ai-select-${selectedRoom.roomId}`}
-                                        className="text-xs border rounded px-1 py-0.5 text-gray-600"
-                                        aria-label={`AI personality for room ${selectedRoom.roomId}`}
-                                    >
-                                        <option value="">— set —</option>
-                                        {AI_PERSONALITIES.map((p) => (
-                                            <option key={p} value={p}>{p}</option>
-                                        ))}
-                                    </select>
-                                </div>
                             </div>
                         </div>
                     </div>

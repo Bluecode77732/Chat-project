@@ -14,7 +14,6 @@ describe('AiRoomService', () => {
   const mockAiRoomRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
-    find: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -82,30 +81,6 @@ describe('AiRoomService', () => {
       const result = await aiRoomService.getPersonality(1);
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe('getPersonalitiesByRoomIds', () => {
-    // Returns an empty Map immediately — no DB call needed for an empty input list.
-    it('returns an empty map when roomIds is empty.', async () => {
-      const result = await aiRoomService.getPersonalitiesByRoomIds([]);
-      expect(mockAiRoomRepository.find).not.toHaveBeenCalled();
-      expect(result.size).toBe(0);
-    });
-
-    // One IN query covers all roomIds; only rooms with an AiRoomEntity appear in the map.
-    it('returns a map of roomId → personality for matched rooms.', async () => {
-      mockAiRoomRepository.find.mockResolvedValue([
-        { personality: AiPersonality.FRIENDLY, room: { id: 1 } },
-        { personality: AiPersonality.CODING, room: { id: 3 } },
-      ]);
-
-      const result = await aiRoomService.getPersonalitiesByRoomIds([1, 2, 3]);
-
-      expect(mockAiRoomRepository.find).toHaveBeenCalledTimes(1);
-      expect(result.get(1)).toBe(AiPersonality.FRIENDLY);
-      expect(result.get(3)).toBe(AiPersonality.CODING);
-      expect(result.has(2)).toBe(false);
     });
   });
 
