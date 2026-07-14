@@ -7,7 +7,10 @@ import { RoomEntity } from 'src/chat/entities/room.entity';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
 import { ModerationService, ModerationCallbacks } from './moderation.service';
 import { ModerationStatus } from './enums/moderation-status.enum';
-import { SYSTEM_USER_EMAIL } from './constants/moderation.constants';
+import {
+  SYSTEM_USER_EMAIL,
+  moderationKeys,
+} from './constants/moderation.constants';
 
 jest.mock('src/base/logger/logger', () => ({
   logger: {
@@ -236,6 +239,49 @@ describe('ModerationService', () => {
       });
       await service.evaluateMessage(42, 'spam', callbacks());
       expect(mockUserRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('escalation boundaries (exact-match invariants)', () => {
+    // Lock escalate()'s comparison operators: warn/mute use === (fire once, at the exact
+    // count); ban uses >=. A refactor changing === to >= would re-fire mute/warn on every
+    // later strike — the between-threshold tests below fail if that regression is introduced.
+    it('strike between warn and mute (4) fires nothing', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(4);
+      const ctx = callbacks();
+      await service.evaluateMessage(42, 'spam', ctx);
+      expect(ctx.publishFn).not.toHaveBeenCalled(); // no warn/mute notice
+      expect(mockRedis.set).not.toHaveBeenCalled(); // no mute key set
+      expect(mockUserRepository.update).not.toHaveBeenCalled(); // no ban
+    });
+
+    it('strike between mute and ban (6) does not re-fire mute or ban', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(6);
+      const ctx = callbacks();
+      await service.evaluateMessage(42, 'spam', ctx);
+      // mute would re-fire here if the threshold check were >= instead of ===
+      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(mockUserRepository.update).not.toHaveBeenCalled();
+      expect(ctx.publishFn).not.toHaveBeenCalled();
+    });
+
+    it('strike above the ban threshold (8) still bans (ban uses >=)', async () => {
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(8);
+      mockAuditLogService.countByTarget.mockResolvedValueOnce(0);
+      await service.evaluateMessage(42, 'spam', callbacks());
+      expect(mockUserRepository.update).toHaveBeenCalledWith(
+        { id: 42 },
+        expect.objectContaining({ status: ModerationStatus.banned }),
+      );
+    });
+  });
+
+  describe('moderationKeys naming convention', () => {
+    it('builds keys as {service}:{entity}:{id}', () => {
+      expect(moderationKeys.strike(42)).toBe('moderation:strike:42');
+      expect(moderationKeys.mute(42)).toBe('moderation:mute:42');
+      expect(moderationKeys.velMark(42)).toBe('moderation:velmark:42');
+      expect(moderationKeys.dup(42, 'abc')).toBe('moderation:dup:42:abc');
     });
   });
 
