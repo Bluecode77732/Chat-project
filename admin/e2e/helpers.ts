@@ -19,6 +19,10 @@ export async function loginAsSuperadmin(page: Page): Promise<void> {
     await page.getByTestId('login-email-input').fill(email);
     await page.getByTestId('login-password-input').fill(password);
     await page.getByTestId('login-submit-button').click();
+    // Login now lands on the dashboard (added after this helper was first written) —
+    // every existing caller assumes it ends up on /users, so navigate there too.
+    await expect(page).toHaveURL('/dashboard');
+    await page.getByTestId('nav-users').click();
     await expect(page).toHaveURL('/users');
 }
 
