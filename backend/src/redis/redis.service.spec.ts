@@ -28,6 +28,7 @@ describe('SessionCacheService', () => {
       lrange: jest.fn(),
       del: jest.fn(),
       multi: jest.fn(),
+      quit: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +59,26 @@ describe('SessionCacheService', () => {
       await redisService.onModuleInit();
 
       expect(mockRedisClient.del).toHaveBeenCalledWith('online_users');
+    });
+  });
+
+  describe('onModuleDestroy', () => {
+    it('should quit the shared Redis connection', async () => {
+      jest.spyOn(mockRedisClient, 'quit').mockResolvedValue('OK');
+
+      await redisService.onModuleDestroy();
+
+      expect(mockRedisClient.quit).toHaveBeenCalled();
+    });
+
+    it('should log and rethrow when quit fails', async () => {
+      jest
+        .spyOn(mockRedisClient, 'quit')
+        .mockRejectedValue(new Error('connection already closed'));
+
+      await expect(redisService.onModuleDestroy()).rejects.toThrow(
+        'connection already closed',
+      );
     });
   });
 
@@ -212,6 +233,16 @@ describe('SessionCacheService', () => {
     });
   });
 
+  describe('deleteMessageCache', () => {
+    it('should delete the room message cache key', async () => {
+      jest.spyOn(mockRedisClient, 'del').mockResolvedValue(1);
+
+      await redisService.deleteMessageCache(1);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith('room_messages:1');
+    });
+  });
+
   describe('getCachedMessages', () => {
     it('should return null when cache is empty', async () => {
       jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue([]);
@@ -261,6 +292,24 @@ describe('SessionCacheService', () => {
 
       expect(result![0].created).toBeInstanceOf(Date);
       expect(Number.isNaN(result![0].created.getTime())).toBe(true);
+    });
+
+    it('drops an entry that fails to JSON.parse and keeps the rest', async () => {
+      const entries = [
+        '{not valid json',
+        JSON.stringify({
+          id: 1,
+          message: 'hello',
+          created: '2026-05-27T00:00:00.000Z',
+          participant: { id: 1 },
+        }),
+      ];
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue(entries);
+
+      const result = await redisService.getCachedMessages(1);
+
+      expect(result).toHaveLength(1);
+      expect(result![0].id).toBe(1);
     });
   });
 });

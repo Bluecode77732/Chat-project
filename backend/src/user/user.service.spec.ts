@@ -295,6 +295,24 @@ describe('UserService', () => {
         take: 20,
       });
     });
+
+    it('throws when a returned row is missing a required field.', async () => {
+      mockUserRepository.findAndCount.mockResolvedValue([
+        [
+          {
+            id: undefined,
+            email: 'a@b.com',
+            role: UserRole.user,
+            created: new Date(),
+          },
+        ],
+        1,
+      ]);
+
+      await expect(userService.findAll()).rejects.toThrow(
+        /user entity missing required field/,
+      );
+    });
   });
 
   describe('create', () => {
@@ -355,6 +373,44 @@ describe('UserService', () => {
         BadRequestException,
       );
       expect(mockUserRepository.save).not.toHaveBeenCalledWith();
+    });
+
+    it('should throw a BadRequestException when the nickname is already taken.', async () => {
+      const createUserDto: CreateUserDto = {
+        email: 'new@gmail.com',
+        password: 'PrivatePassword',
+        nickname: 'Taken',
+      };
+
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValueOnce(null) // email check
+        .mockResolvedValueOnce({ id: 2, nickname: 'Taken' }); // nickname check
+
+      await expect(userService.create(createUserDto)).rejects.toThrow(
+        new BadRequestException('Nickname already in use.'),
+      );
+      expect(mockUserRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return the user when found.', async () => {
+      const user = { id: 1, email: 'a@b.com' };
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
+
+      const result = await userService.findOne(1);
+
+      expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
+      expect(result).toEqual(user);
+    });
+
+    it('should throw a NotFoundException when the user does not exist.', async () => {
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(userService.findOne(99)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -517,6 +573,94 @@ describe('UserService', () => {
         userService.updateRole(actorId, targetId, UserRole.admin),
       ).rejects.toThrow(NotFoundException);
       expect(mockMailService.sendRoleChangeEmail).not.toHaveBeenCalled();
+    });
+
+    it('blocks demoting the last remaining superadmin.', async () => {
+      mockManager.findOne.mockResolvedValueOnce({
+        ...target,
+        role: UserRole.superadmin,
+      });
+      mockManager.count.mockResolvedValueOnce(1); // only one superadmin left
+
+      await expect(
+        userService.updateRole(actorId, targetId, UserRole.admin),
+      ).rejects.toThrow(
+        new BadRequestException('Cannot demote the last superadmin.'),
+      );
+      expect(mockManager.update).not.toHaveBeenCalled();
+    });
+
+    it('allows demoting a superadmin when another superadmin remains.', async () => {
+      mockManager.findOne.mockResolvedValueOnce({
+        ...target,
+        role: UserRole.superadmin,
+      });
+      mockManager.count.mockResolvedValueOnce(2); // another superadmin remains
+
+      const result = await userService.updateRole(
+        actorId,
+        targetId,
+        UserRole.user,
+      );
+
+      expect(mockManager.update).toHaveBeenCalledWith(
+        UserEntity,
+        { id: targetId },
+        { role: UserRole.user },
+      );
+      expect(result.role).toBe(UserRole.user);
+    });
+
+    it('blocks promoting to admin once the admin count limit is reached.', async () => {
+      mockManager.findOne.mockResolvedValueOnce(target);
+      mockManager.count.mockResolvedValueOnce(5); // admin count check
+      mockConfigService.get.mockReturnValueOnce(5); // MAX_ADMIN_COUNT
+
+      await expect(
+        userService.updateRole(actorId, targetId, UserRole.admin),
+      ).rejects.toThrow(
+        new BadRequestException('Admin count limit (5) reached.'),
+      );
+      expect(mockManager.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('forceLogout', () => {
+    const actorId = 9;
+    const targetId = 1;
+
+    it('disconnects the socket and marks the user offline when a session exists.', async () => {
+      mockSessionCacheService.getUserStatus.mockResolvedValueOnce({
+        socketId: 'socket-1',
+      });
+
+      await userService.forceLogout(actorId, targetId);
+
+      expect(mockChatService.disconnectSocket).toHaveBeenCalledWith('socket-1');
+      expect(mockSessionCacheService.sethUserOffline).toHaveBeenCalledWith(
+        targetId,
+      );
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        actorId,
+        targetId,
+        'FORCE_LOGOUT',
+      );
+    });
+
+    it('marks the user offline without a socket disconnect when no session exists.', async () => {
+      mockSessionCacheService.getUserStatus.mockResolvedValueOnce(null);
+
+      await userService.forceLogout(actorId, targetId);
+
+      expect(mockChatService.disconnectSocket).not.toHaveBeenCalled();
+      expect(mockSessionCacheService.sethUserOffline).toHaveBeenCalledWith(
+        targetId,
+      );
+      expect(mockAuditLogService.log).toHaveBeenCalledWith(
+        actorId,
+        targetId,
+        'FORCE_LOGOUT',
+      );
     });
   });
 
