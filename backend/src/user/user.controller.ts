@@ -246,7 +246,7 @@ export class UserController {
     @Param('id') id: string,
   ) {
     const target = await this.userService.findOne(+id);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+
     if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
       throw new ForbiddenException(
         'Cannot act on a user with equal or higher role',
@@ -278,7 +278,7 @@ export class UserController {
     @Body() banUserDto: BanUserDto,
   ) {
     const target = await this.userService.findOne(+id);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+
     if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
       throw new ForbiddenException(
         'Cannot act on a user with equal or higher role',
@@ -313,7 +313,7 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   async unban(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     const target = await this.userService.findOne(+id);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+
     if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
       throw new ForbiddenException(
         'Cannot act on a user with equal or higher role',
@@ -357,7 +357,7 @@ export class UserController {
     const isSelf = req.user?.id === +id;
     if (!isSelf) {
       const target = await this.userService.findOne(+id);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+
       if ((target.role ?? UserRole.user) >= (req.user?.role ?? UserRole.user)) {
         throw new ForbiddenException(
           'Cannot act on a user with equal or higher role',

@@ -63,7 +63,7 @@ export class UserEntity extends EntityBase {
   })
   @IsNumber()
   @IsNotEmpty()
-  role?: number;
+  role?: UserRole;
 
   // Moderation state — server-managed only (never set from a client DTO), like isAI.
   @Column({ type: 'varchar', length: 16, default: ModerationStatus.active })

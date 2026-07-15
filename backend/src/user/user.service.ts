@@ -255,7 +255,6 @@ export class UserService {
 
         // 마지막 superadmin 강등 방지
         if (
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
           previousRole === UserRole.superadmin &&
           role !== UserRole.superadmin
         ) {
