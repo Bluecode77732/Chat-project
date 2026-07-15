@@ -10,28 +10,34 @@
 ![Vite](https://img.shields.io/badge/Vite-646CFF)
 ![Vercel](https://img.shields.io/badge/Vercel-000000)
 ![Gemini](https://img.shields.io/badge/Gemini-8E75B2)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
-- An classical private One-to-One chatting server-side management application that validated users can chat with the other user.
-- This project is for understanding how socket.io can make two entities communicate each other, caching and rate-limiting with Redis, persistent session, and save their chat logs in server.
+- A private one-to-one real-time chat service, built solo over 570+ commits (2026-01 ~ 2026-07) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
+- Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
 
 ## Overview
-A casual private One-to-One chatting project that enables communication real-time.
-- Authentication: JWT-based auth with Passport strategies
-- Chat Management: Socket and Redis session & cache connection with transaction safety
-- AI Chat: Google Gemini 2.5 Flash with 4 selectable personalities
+A real-time private one-to-one chat service, iterated over 6+ months (570+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
+- Authentication: JWT-based auth with Passport strategies; refresh token in an httpOnly cookie, access token in memory only
+- Chat Management: Socket.IO (connection lifecycle only) + GraphQL (Mutation/Subscription for messages), Redis-backed session/cache with transaction-safe writes
+- Moderation: automatic strike-based abuse detection (duplicate/flood + velocity) escalating warn → mute → timed/permanent ban, with admin recovery tools
+- AI Chat: Google Gemini 2.5 Flash with 4 selectable personalities, cost-capped (token limits, retry ceiling)
+- Admin Panel: separate React app for user/room management, moderation actions, and audit-log export
 - API Documentation: Swagger integration + Altair & GraphQL
-- Testing: Unit tests with approximate +90% coverage on core logic
+- Testing: unit tests across core service layers (see [Test Coverage](#test-coverage) for exact per-service numbers) plus Playwright e2e for both the main app and the admin panel
+
+Two real incidents hit during development — a live infrastructure security exposure and an AI-reply cache-corruption bug — are written up with full root-cause analysis in [AI-Assisted Development Notes](#ai-assisted-development-notes).
 
 
 ## Project Motivation
-- To understand implementation of the chat using `Socket.IO` In-Memory storage, `Redis` Session and Cache.
-- Understanding of user authentication and authorization using basic, bearer and JWT.
-- Following style of 'Keep It Simple Solid', and 'You Are not Gonna Need It' for readable and solid programming.
-- To gain technical knowledge of communication between one-to-one private Chat.
+- Built solo, iterating live over 570+ commits (2026-01-02 ~ 2026-07-15): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
+- Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
+- Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
+- Kept KISS/YAGNI as a default, but didn't stop at a feature demo: added a behavioral moderation pipeline, a separate admin panel, and CI/CD (GitHub Actions + Railway/Vercel) the way a real service would need them
 
 
 ## Live Demo
@@ -48,70 +54,68 @@ A casual private One-to-One chatting project that enables communication real-tim
   - pnpm (recommended) or npm >= v10.xx
   - Docker >= v28.xx
 
-```md
-  # Install dependencies
-  ```powershell
-  pnpm install
-  ```
-  
-  # Setup environment
-  Copy to `backend/.env` and fill in your credentials.
-  ```powershell
-  cp backend/.env.example backend/.env
-  ```
- 
-  # Create database schema via migrations
-  ```powershell
-  cd backend
-  pnpm migration:run
-  ```
+**Install dependencies**
+```powershell
+pnpm install
+```
 
-  # Run Redis in Docker
-  ```powershell
-  docker start redis-chat
-  ```
+**Setup environment** — copy to `backend/.env` and fill in your credentials.
+```powershell
+cp backend/.env.example backend/.env
+```
 
-  # Run backend (cd backend first)
-  ```powershell
-  cd backend && pnpm start:dev
-  ```
+**Create database schema via migrations**
+```powershell
+cd backend
+pnpm migration:run
+```
 
-  # Run frontend (separate terminal)
-  Copy `frontend/.env.local` and set backend URLs.
-  ```powershell
-  cp frontend/.env.local frontend/.env.local
-  ```
-  ```env
-  VITE_API_URL=http://localhost:3000
-  VITE_WS_URL=ws://localhost:3000
-  ```
-  ```powershell
-  cd frontend && pnpm install && pnpm dev
-  ```
+**Run Redis in Docker**
+```powershell
+docker start redis-chat
+```
 
-  # Local Test Socket Chat
-  # Open Postman Socket (Recommended)
-  # Option: A
-  1. Open two Socket.IO taps on 'Postman', enter `ws://localhost:3000` in URL.
-  2. Register and login to get access token.
-  3. Go to Headers and insert 'authorization' as key, 'Bearer token' as value for each taps where you want to communicate to.
-  4. Connect both taps together, and open terminal, or go to `logs.log` file, to find which rooms "recipientId" did join.
-  5. Go to Message and type "message", "recipientId" as JSON format, and fill in the values in Message field on each taps.
-  6. Set 'sendMessage' footer under the Message field, for both taps, then send message.
+**Run backend** (cd backend first)
+```powershell
+cd backend && pnpm start:dev
+```
 
-  # Open Altair and Postman
-  # Option: B
-  See details in the **API Documentation**, **Key Endpoints**, **Chat** section below.
+**Run frontend** (separate terminal) — `frontend/.env.local` is already checked
+into the repo with local dev values; open it and adjust if your backend runs
+elsewhere.
+```env
+VITE_API_URL=http://localhost:3000
+VITE_WS_URL=ws://localhost:3000
+```
+```powershell
+cd frontend && pnpm install && pnpm dev
+```
+→ http://localhost:5173
 
-  # Run all tests
-  pnpm test
+**Run admin panel** (separate terminal) — `admin/.env.local` is already
+checked into the repo with local dev values.
+```powershell
+cd admin && pnpm install && pnpm dev
+```
+→ http://localhost:5174 — see [Admin Panel](#admin-panel) for what it does; requires an admin/superadmin account (see [Admin Account Setup](#admin-account-setup))
 
-  # Run test coverage (cd backend first)
-  cd backend && pnpm test:cov
-  
-  # Access Swagger UI
-  http://localhost:3000/document
-```md
+**Test chat communication** — chat messages go over GraphQL (Mutation to
+send, Subscription to receive). Socket.IO only handles connection lifecycle
+and room-creation notifications; it carries no chat-message traffic. See
+**API Documentation → Key Endpoints → Chat** below for the Altair/Postman
+GraphQL walkthrough.
+
+**Run all tests**
+```powershell
+pnpm test
+```
+
+**Run test coverage** (cd backend first)
+```powershell
+cd backend && pnpm test:cov
+```
+
+**Access Swagger UI** — http://localhost:3000/document
 
 
 ### Troubleshooting
@@ -154,17 +158,19 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `POST /auth/token/refreshaccess` - Refresh access token
 
 **User**
-- `GET /user` - Get all users **(admin only)**
+- `GET /user` - List users **(admin only)** — query params: `page`, `take`, `sort` (`ASC`/`DESC`), `sortBy` (`id`/`role`/`created`), `search` (email/nickname), `status` (`active`/`banned`), `humanOnly` (excludes the seeded AI and moderation-system accounts)
 - `GET /user/:id` - Get a user (own account or admin)
 - `POST /user` - Create a user
 - `PATCH /user/:id` - Update a user (own account or admin)
 - `PATCH /user/:id/role` - Change user role **(superadmin only)**
 - `POST /user/:id/force-logout` - Force logout a user **(admin only)**
+- `POST /user/:id/ban` - Manually ban a user, independent of the automatic strike system **(admin only)** — optional body `{ reason?, durationSec? }` (omit `durationSec` for a permanent ban); also evicts any active session
 - `POST /user/:id/unban` - Clear a user's ban / mute / strikes **(admin only)**
-- `DELETE /user/:id` - Delete a user (own account or admin)
+- `DELETE /user/:id` - Delete a user (own account or admin) — the seeded AI and moderation-system accounts cannot be deleted
 
 **Audit Log**
-- `GET /audit-log` - Get last 100 audit log entries **(admin only)**
+- `GET /audit-log` - Paginated audit log entries **(admin only)** — query params: `action` (`ROLE_CHANGE`/`FORCE_LOGOUT`/`USER_DELETE`/`USER_UNBAN`/`USER_MUTED`/`USER_BANNED`), `userId` (matches as actor OR target), `from`/`to` (ISO 8601 date range), `page`, `take`, `sort`
+- `GET /audit-log/export` - Export the same filtered results as CSV, capped at 10,000 rows (low-volume privileged-action data, so a flat cap is simpler than cursor streaming) **(admin only)**
 
 **Chat**
 - Socket.IO (connection lifecycle and room-creation events only — no chat-message traffic)
@@ -287,22 +293,17 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Deployment: Vercel (auto-deploy on push) ✔
 
 ### Backend
-- Language: Typescript, a type-safe and a solid object oriented language, superset of Javascript. ✔
-- Backend: Node.Js, this javascript runtime built with chrome V8 engine, provides ecosystem where the applications run smoothly. ✔
-- Framework: Nest.Js, a scalable framework for Typescript project, and a powerful framework that is keep rising. ✔
-- Architecture: Monolithic Architecture, a principle for casual-fitting project and easy to couple and decouple unit of components. ✔
-- Socket: Socket.IO, as written Nestjs official documentation, this middleware package provides method how to handle format as multipart/form-data, through HTTP request by Post method, which make the application easy to handle. ✔
-- AI: Google Gemini 2.5 Flash for AI chat responses with selectable personalities ✔
-- Authentication: JWT Authentication; authenticate user validation for using the application ✔
-- Guard: allow validated only types of data ✔
-- Interceptor: a middleware to manipulate user's data ✔
-- Role Based Access: differ levels of user by authorization class ✔
-- Chat: major websocket implementation ✔
-- Cache: Redis for message rate-limit and store user's data efficiently. ✔
-- Filter: exception handlers ✔
-- Logger: records events, error, debug infos while executing the application ✔
-- Unit Test: Testing service methods by each unit ✔
-- Swagger: Documenting by methods to test each of endpoints ✔
+- **Language**: TypeScript 5.7.3 — static typing across backend/frontend/admin catches the class of `undefined`-property bugs this project hit repeatedly during its early raw-debugging phase (see commit history, Jan–Mar)
+- **Runtime**: Node.js 24.x (pinned via `.nvmrc` / `engines`) — non-blocking I/O suits a connection-heavy chat workload
+- **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/moderation/ai/admin) decoupled as it grew from a single resolver to a dozen+ modules
+- **Architecture**: Monolith, single deployable — module boundaries (see [Project Structure](#project-structure)) provide separation without paying for service-mesh complexity this scale doesn't need
+- **Realtime split**: Socket.IO 4.8.3 for connection lifecycle only (auth on connect, room-creation notifications) + GraphQL 16.12.0 Mutation/Subscription for chat messages (see [Flow](#flow)) — not the original design; messages were migrated off raw Socket.IO mid-project to get transactional guarantees around persistence (`GqlTransactionInterceptor`)
+- **Database**: PostgreSQL + TypeORM 0.3.28 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
+- **Cache / Pub-Sub**: Redis via ioredis 5.9.3 — session/online-status, a per-room recent-message cache, and `@socket.io/redis-adapter` for horizontal scaling (without it, room broadcasts don't cross server instances)
+- **AI**: Google Gemini 2.5 Flash via `@google/genai`, 4 selectable personalities — cost-capped by design (output token limit, conversation-history truncation, retry ceiling), not bolted on after the fact
+- **Auth**: JWT (access token in memory, refresh token in an httpOnly cookie) + Passport strategies; RBAC guards are composed at both the REST and GraphQL layer, not subclassed
+- **Testing**: Jest unit tests on the service layer (see [Test Coverage](#test-coverage)), Playwright e2e for both `frontend/` and `admin/`
+- **API Docs**: Swagger for REST + GraphQL introspection via Altair — REST and GraphQL each need their own tool since neither Altair nor Postman alone can exercise both message-sending paths
 
 
 ## Features
@@ -315,6 +316,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Horizontal scaling ready - Redis-backed session
 - AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
 - Cursor-based message history with infinite scroll
+- Admin dashboard - separate app for user/room management, moderation actions, and audit-log CSV export (see [Admin Panel](#admin-panel))
 
 
 ## Architecture
@@ -326,6 +328,8 @@ Chat Project/                   <= monorepo root
 │       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
 │       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
 │       │   └── enums/          <= ai-personality.enum.ts
+│       ├── audit-log/          <= AuditLogController, AuditLogService (privileged-action audit trail, CSV export)
+│       │   └── dto/            <= AuditLogQueryDto, AuditLogExportQueryDto
 │       ├── auth/               <= JWT auth, guards, strategies
 │       │   ├── decorator/
 │       │   ├── dto/
@@ -343,6 +347,7 @@ Chat Project/                   <= monorepo root
 │       │   ├── guard/          <= RateLimitGuard
 │       │   └── interceptor/    <= GqlTransactionInterceptor
 │       ├── graphql/            <= PubSubService, GraphQL input/return types
+│       ├── mail/                <= MailService (SMTP notifications, e.g. role-change emails)
 │       ├── migrations/         <= TypeORM migration files
 │       ├── mocks/              <= bcrypt mock for tests
 │       ├── moderation/         <= ModerationService, ModerationGuard (strike ladder, ban/mute enforcement)
@@ -353,14 +358,21 @@ Chat Project/                   <= monorepo root
 │       └── user/               <= UserController, UserService, UserEntity
 │           ├── dto/
 │           └── entities/
-└── frontend/                   <= React + Vite application
+├── frontend/                   <= React + Vite application (chat UI, port 5173)
+│   └── src/
+│       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+│       ├── components/         <= ProtectedRoute
+│       ├── pages/               <= ChatPage, SigninPage, RegisterPage
+│       ├── socket/              <= socket.ts (Socket.IO singleton)
+│       ├── store/                <= auth.store.ts (Zustand)
+│       └── types/
+└── admin/                       <= React + Vite admin dashboard (port 5174) — see Admin Panel
     └── src/
         ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+        ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
         ├── components/         <= ProtectedRoute
-        ├── pages/              <= ChatPage, SigninPage, RegisterPage
-        ├── socket/             <= socket.ts (Socket.IO singleton)
-        ├── store/              <= auth.store.ts (Zustand)
-        └── types/
+        ├── pages/               <= DashboardPage, UsersPage, RoomsPage, LogsPage
+        └── store/                <= auth.store.ts (Zustand)
 ```
 
 ### Hybrid Storage Pattern
@@ -579,15 +591,16 @@ Create a `backend/.env` file and paste variables below :
 
 
 ### Chat
-Websocket
-  A real-time, bidirectional communication protocol, connects between a web browser(clients) and server.
-  It creates persistent connections for instant data exchange, replacing slow HTTP polling for dynamic, low-latency experiences.
+`ChatGateway` (`backend/src/chat/chat.gateway.ts`) only handles connection lifecycle — no `@SubscribeMessage` for chat messages, and it emits none. Chat messages go through GraphQL Mutation/Subscription instead (see [Flow](#flow)); this split exists because the app originally sent messages directly over Socket.IO and was migrated to GraphQL mid-project so message persistence could get transactional guarantees (`GqlTransactionInterceptor`) that a bare socket handler can't give you.
 
-Lifecycle Hooks
-- OnGatewayConnection
-  Forces to implement the handleConnection() method. Takes library-specific client socket instance as an argument.
-- OnGatewayDisconnect
-  Forces to implement the handleDisconnect() method. Takes library-specific client socket instance as an argument.
+**`handleConnection`** — on every new socket:
+1. Parses the JWT from the handshake `authorization` header (`authService.parseBearerToken`)
+2. Rejects the connection if the token is missing/invalid, **or** if `moderationService.isUserBanned()` is true — this is the same ban gate `jwt.strategy` applies to HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead
+3. On success, stores the decoded payload on `client.data.user`, registers the socket (`chatService.registerClient`), and joins the user's existing rooms
+
+**`handleDisconnect`** — reads `client.data.user` set in step 3 above and calls `chatService.removeClient()`; if connection was rejected before that point, there's nothing to clean up, so the two handlers stay symmetric.
+
+**Horizontal scaling**: `afterInit` wires the Socket.IO server to `@socket.io/redis-adapter` (a pub/sub pair of Redis clients) — without it, `server.to(room).emit(...)` only reaches clients connected to the *same* process, which silently breaks the moment there's more than one backend instance.
 
 
 ### Docker 
@@ -620,14 +633,7 @@ Running all of services through Docker
 
 
 #### Usage
-Start Redis
-`docker start redis-chat`
-
-Stop Redis
-`docker stop redis-chat`
-
-Remove container (keeps image)
-`docker rm redis-chat`
+See **Deployment → Local - Docker → Redis Container Usage** below for the redis-chat container start/stop/remove commands (kept in one place to avoid drift between two copies).
 
 
 ### Auth
@@ -651,6 +657,11 @@ Implementation of two ways of sign-in endpoints.
 - First superadmin must be created via direct DB INSERT. Subsequent admins can be promoted via the admin panel.
 - `MAX_ADMIN_COUNT` env var (default: 5) limits the number of `admin`-role accounts. Superadmin accounts are not counted toward this limit.
 
+**Server-side invariants** (enforced regardless of caller, not just a UI restriction):
+- The last remaining `superadmin` cannot be demoted — `updateRole` blocks it so the system can never end up with zero superadmins
+- `admin`-role accounts are capped at `MAX_ADMIN_COUNT`
+- The seeded AI reply account and moderation system account can never be deleted — `UserService.remove()` rejects it, since either would silently break AI replies or moderation notices
+
 
 ### Moderation
 Behavioral abuse detection that escalates automatically and is reversible by an admin. It runs on the `sendMessage` path plus the auth/socket layer — there is no separate reporting UI. Detection, accrual, and enforcement live in `ModerationService`; a thin `ModerationGuard` gates muted/banned users out of `sendMessage`.
@@ -667,6 +678,17 @@ Behavioral abuse detection that escalates automatically and is reversible by an 
 - **Storage** — `user_entity.status` (`active` | `banned`) and `bannedUntil` back persistent bans; strikes and mutes are Redis-only (`moderation:*` keys, all with TTL). Run the `AddModerationColumns` migration before starting.
 
 Tunable env vars (optional; sensible defaults apply): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
+
+**Audit log action values** — every privileged action writes one of these to the audit trail (filterable via `GET /audit-log?action=`, see [Key Endpoints](#key-endpoints)):
+
+| Action | Written by |
+|---|---|
+| `ROLE_CHANGE` | `PATCH /user/:id/role` |
+| `FORCE_LOGOUT` | `POST /user/:id/force-logout`, or automatically on a manual/timed ban |
+| `USER_DELETE` | `DELETE /user/:id` |
+| `USER_BANNED` | Automatic ban-threshold escalation, or `POST /user/:id/ban` |
+| `USER_MUTED` | Automatic mute-threshold escalation |
+| `USER_UNBAN` | `POST /user/:id/unban` |
 
 
 #### Manual E2E Verification (developer handoff)
@@ -717,8 +739,17 @@ Role values: `user = 0`, `admin = 1`, `superadmin = 2`
 2. Run the INSERT statement above
 
 
+### Admin Panel
+A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and deployed as its own Vercel project (see [Admin Panel - Vercel](#admin-panel---vercel)).
+
+- **Dashboard** — total users (`humanOnly`, excludes the AI and moderation-system accounts), total rooms, users currently online, and the 5 most recent audit log entries.
+- **Users** — paginated, sortable, searchable list; filter by moderation status (active/banned). Clicking a row opens a detail panel with moderation status and recent audit history. Actions: promote/demote (superadmin only), force logout, manual ban (optional reason, permanent or timed) / unban, delete — restricted to accounts with a strictly lower role, and the AI/moderation-system accounts can never be deleted (see [Role](#role) invariants).
+- **Rooms** — paginated, searchable list; clicking a row opens a detail panel (room ID, created date, participants). Delete a room.
+- **Logs** — audit log filtered by action, user, and date range; **Export CSV** downloads the current filter as a file (same 10,000-row cap as the API).
+
+
 ### Redis
-- Supposedly, A data stored in-memory Socket with without Redis, however with Redis, it can efficiently store user's metadata, and useful when horizontal scale up the server.
+- Without Redis, connection state (`socketId`, online status) would live only in the process's own memory — fine for a single instance, but invisible to every other instance once the app scales horizontally. Redis stores that metadata centrally so any instance can look up where a user is connected, and doubles as the message cache and pub/sub bridge described above.
 
 #### Compare Sample Code 
 Socket In-memory
@@ -991,7 +1022,7 @@ Using Docker to deploy and run Redis server
 `docker exec -it redis-chat redis-cli ping` => PONG
 
 
-#### Usage
+#### Redis Container Usage
 Start Redis
 `docker start redis-chat`
 
@@ -1034,6 +1065,8 @@ Remove container (keeps image)
 - Creating new rooms repeatedly when send message each time
 - Sending wrong recipient ID from frontend
 - Failing find sender ID
+
+For the full root-cause narratives behind issues of this kind (not just the one-line summary), see [AI-Assisted Development Notes](#ai-assisted-development-notes) below.
 
 
 ## Scale Up In Future
@@ -1098,3 +1131,7 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 **Takeaways**
 - Live browser testing surfaced a cross-service bug that unit tests never could — the existing mocks isolated exactly the layer (`PubSubService`'s cache-on-publish side effect) where the corruption occurred
 - Git history tracing (`git show --stat` on the suspected commit) can objectively confirm "leftover from an incomplete refactor" vs. "intentional design," rather than guessing
+
+
+## License
+MIT — see [LICENSE](LICENSE).
