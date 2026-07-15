@@ -258,9 +258,13 @@ Test 'Auth' and 'User' Endpoints URL below.
   - `getAllUsers` => `[Int]` — List all user IDs except the caller
   - `getAiUserId` => `Int` — Return the system AI user's ID
   - `getAiPersonalityInfo(roomId: Int!)` => `AiPersonalityInfoType` — Return the active personality for the room
+  - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` => `PaginatedAdminRooms` — **(admin only)** Paginated/sortable/searchable room list, backs the Admin Panel's Rooms page
 
   **Mutations**
   - `setAiPersonality(roomId: Int!, personality: AiPersonality!)` => `Boolean` — Set or change the AI personality for a room
+  - `deleteRoom(roomId: Int!)` => `Boolean` — **(admin only)** Delete a room
+
+  `getAllRooms`/`deleteRoom` are gated by `@RBAC(UserRole.admin)` + `@UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)` — the GraphQL-side mirror of the REST admin guard chain (see [Role](#role)).
 
   **Example — `getMessages` (cursor-based)**
   ```graphql
@@ -392,6 +396,8 @@ UserEntity
   password    excluded from API responses
   isAI        boolean (true only for the seeded AI system account)
   role        enum: user (0) | admin (1) | superadmin (2)
+  status      enum: active | banned (moderation state, see Moderation)
+  bannedUntil nullable timestamp — null means permanent ban or not banned
   chats    =< ChatEntity   (OneToMany)
   rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
 
@@ -655,6 +661,7 @@ Implementation of two ways of sign-in endpoints.
 - `admin` role grants elevated access: view/update/delete any user account, force logout, view audit logs.
 - `superadmin` role additionally controls role assignment. Only superadmin can promote or demote other users.
 - First superadmin must be created via direct DB INSERT. Subsequent admins can be promoted via the admin panel.
+- Every role change sends the target user an email via `MailService` (non-blocking — a delivery failure is logged but does not fail the role change).
 - `MAX_ADMIN_COUNT` env var (default: 5) limits the number of `admin`-role accounts. Superadmin accounts are not counted toward this limit.
 
 **Server-side invariants** (enforced regardless of caller, not just a UI restriction):
@@ -889,15 +896,18 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 
 #### Test Coverage
 **Test Results**
-- Test Suites: 6 passed, 6 total (auth, chat, user, redis, ai, ai-room)
+- Test Suites: 12 passed, 12 total
 
-**Coverage Results**
-- Auth Service: 89.02%
-- Chat Service: 94.44%
+**Coverage Results** (% Stmts, `pnpm test:cov`)
+- Auth Service: 100%
+- Chat Service: 97.72%
 - Redis Service: 100%
-- User Service: 73.17% (excluded simple 'Get' and 'Delete' methods)
-- AI Service: 100%
+- User Service: 100%
+- AI Service: 96.7%
 - AI Room Service: 100%
+- Moderation Service: 99.18%
+- Audit Log Service: 97.56%
+- Mail Service: 100%
 
 **Example Code**
 ```ts

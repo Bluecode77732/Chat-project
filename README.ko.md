@@ -258,9 +258,13 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   - `getAllUsers` → `[Int]` — 호출자를 제외한 전체 사용자 ID 목록
   - `getAiUserId` → `Int` — 시스템 AI 유저 ID 반환
   - `getAiPersonalityInfo(roomId: Int!)` → `AiPersonalityInfoType` — 해당 방의 현재 AI 성격 반환
+  - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` → `PaginatedAdminRooms` — **(admin 전용)** 페이지네이션/정렬/검색이 가능한 방 목록 — Admin Panel Rooms 페이지가 사용
 
   **뮤테이션**
   - `setAiPersonality(roomId: Int!, personality: AiPersonality!)` → `Boolean` — 방의 AI 성격 설정 또는 변경
+  - `deleteRoom(roomId: Int!)` → `Boolean` — **(admin 전용)** 방 삭제
+
+  `getAllRooms`/`deleteRoom`은 `@RBAC(UserRole.admin)` + `@UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)`로 보호됨 — REST 쪽 admin 가드 체인을 GraphQL 쪽에 그대로 대응시킨 것([역할](#역할) 참고).
 
   **예시 — `getMessages` (커서 기반)**
   ```graphql
@@ -392,6 +396,8 @@ UserEntity
   password    API 응답에서 제외
   isAI        boolean (시드된 AI 시스템 계정에만 true)
   role        enum: user (0) | admin (1) | superadmin (2)
+  status      enum: active | banned (모더레이션 상태, 모더레이션 섹션 참고)
+  bannedUntil nullable timestamp — null이면 영구 밴 또는 밴 상태 아님
   chats    =< ChatEntity   (OneToMany)
   rooms    >< RoomEntity   (ManyToMany, RoomEntity 측 조인 테이블)
 
@@ -656,6 +662,7 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 - `superadmin` 역할은 역할 변경 권한을 추가로 보유합니다. 다른 사용자의 역할 승격·강등은 superadmin만 가능합니다.
 - 최초 superadmin은 DB에 직접 INSERT하여 생성합니다. 이후 admin은 admin 패널에서 승격 가능합니다.
 - `MAX_ADMIN_COUNT` 환경변수(기본값: 5)로 `admin` 역할 계정 수를 제한합니다. superadmin은 이 상한에 포함되지 않습니다.
+- 역할이 변경될 때마다 `MailService`를 통해 대상 유저에게 이메일이 발송됩니다(non-blocking — 발송 실패는 로그만 남기고 역할 변경 자체를 막지 않음).
 
 **서버측 불변식**(호출자와 무관하게 항상 강제되며, UI 제약이 아님):
 - 마지막 남은 `superadmin`은 강등 불가 — `updateRole`이 차단해 시스템이 superadmin 0명 상태가 되는 것을 방지
@@ -889,15 +896,18 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 #### 테스트 커버리지
 **테스트 결과**
-- Test Suites: 6 passed, 6 total (auth, chat, user, redis, ai, ai-room)
+- Test Suites: 12 passed, 12 total
 
-**커버리지 결과**
-- Auth Service: 89.02%
-- Chat Service: 94.44%
+**커버리지 결과** (% Stmts 기준, `pnpm test:cov`)
+- Auth Service: 100%
+- Chat Service: 97.72%
 - Redis Service: 100%
-- User Service: 73.17% (단순 'Get' 및 'Delete' 메서드 제외)
-- AI Service: 100%
+- User Service: 100%
+- AI Service: 96.7%
 - AI Room Service: 100%
+- Moderation Service: 99.18%
+- Audit Log Service: 97.56%
+- Mail Service: 100%
 
 **예시 코드**
 ```ts
