@@ -1080,11 +1080,7 @@ For the full root-cause narratives behind issues of this kind (not just the one-
 
 
 ## Scale Up In Future
-- Backend: Store conversation list per user (last message, unread message count, etc)
-- Backend: Group chat rooms (broadcast via `roomId` to multiple participants)
-- Backend: Let users delete rooms and conversation history
-- Backend: "User is typing" indicator via Socket.IO event
-- Frontend: Chat room list UI with unread message count
+Moved to [ROADMAP.md](ROADMAP.md).
 
 
 ## AI-Assisted Development Notes

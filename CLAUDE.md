@@ -572,7 +572,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: AI-generated replies publish through the exact same channel and shape as
   human messages — `aiService.handleReply()` is given a `publishFn` that calls
   `pubSub.publish('receiveMessage :${roomId}', { receiveMessage: msg })`
-  (`chat.resolver.ts:194-199`), identical to the human-message publish call (`:177`).
+  (`chat.resolver.ts:284-289`), identical to the human-message publish call (`:206`).
 - Rationale: this is what lets the frontend render AI and human messages through one
   code path with no sender-type branching.
 - Delivery guarantee: Redis PubSub provides at-most-once delivery — a subscriber not
@@ -584,7 +584,7 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Redis Adapter for Socket Horizontal Scaling**
 - Breakdown: `ChatGateway.afterInit()` wires Socket.IO to a Redis-backed adapter
-  (`@socket.io/redis-adapter`, `chat.gateway.ts:47-49`) so room membership and emits
+  (`@socket.io/redis-adapter`, `chat.gateway.ts:64`) so room membership and emits
   work correctly when more than one server instance is running.
 - Rationale: without the adapter, `server.to(socketId).emit(...)` and room broadcasts
   only reach clients connected to the same process — silently broken under horizontal
@@ -595,7 +595,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **Distributed Lock for Concurrent Write Prevention**
 - Breakdown: `AiService.handleReply()` acquires an atomic Redis lock
   (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:109-116`) before generating a reply,
-  and releases it in a `finally` block (`:178`); a failed acquisition skips the reply
+  and releases it in a `finally` block (`:196`); a failed acquisition skips the reply
   rather than queuing it.
 - Rationale: without this, two messages arriving in quick succession for the same room
   could trigger two concurrent AI replies.
@@ -656,7 +656,7 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:219`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
+- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
 - **Never suggest**: node-redis (ioredis is unified across codebase)
 
@@ -678,9 +678,10 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
 ### CORS
-- `CORS_ORIGIN` (`backend/src/app.module.ts:35`, `Joi.string().required()`) is a single
-  env var holding a **comma-separated list** of allowed origins, split into an array in
-  `backend/src/main.ts:42` before being passed to `app.enableCors({ origin })`
+- `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
+  pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
+  empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
+  into an array in `backend/src/main.ts:47` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value
@@ -739,8 +740,13 @@ docker compose up -d --build
 ## Architecture
 
 ### Monorepo Layout
-- **`backend/`** — NestJS backend (pnpm workspace package, single deployable)
-- **`frontend/`** — React + Vite (pnpm workspace package)
+- **`backend/`** — NestJS backend (pnpm workspace package, single deployable, Railway)
+- **`frontend/`** — React + Vite chat client (pnpm workspace package, Vercel, port 5173 local)
+- **`admin/`** — React + Vite admin dashboard (pnpm workspace package, its own separate Vercel
+  project, port 5174 local) — user/room management, moderation actions, audit-log CSV export.
+  Query/mutation-only against the GraphQL API: no `graphql-ws`/`socket.io-client` dependency, so it
+  never participates in realtime chat delivery. Has its own Playwright e2e suite (`admin/e2e/`, CI job
+  `admin-e2e`) which seeds a superadmin account before running.
 - **`backend/src/`** — NestJS source
 - **`backend/test/`** — E2E specs
 - **`backend/src/migrations/`** — TypeORM migration files
@@ -751,12 +757,12 @@ docker compose up -d --build
 - `ConfigModule` — Joi-validated env (see `backend/.env.example` for all required vars)
 - `TypeOrmModule` — PostgreSQL with `synchronize: false`; auto-runs migrations in prod
 - `GraphQLModule` — Apollo Driver, auto-generates `backend/src/schema.gql`, subscriptions via `graphql-ws`
-- `UserModule`, `ChatModule`, `AuthModule`, `AiModule`
+- `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`
 
 **AuthModule** (`backend/src/auth/`)
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/signOut`, `POST /auth/token/refreshaccess`
 - JWT access + refresh token pair; access token in memory, refreshToken in httpOnly cookie
-- Guards: `JwtAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
+- Guards: `JwtAuthGuard`, `RbacGuard`, `GraphQLAuthGuard`, `GraphQLRBACGuard`
 - `UserRole` enum: `user` (0) | `admin` (1) | `superadmin` (2) — `RbacGuard` compares numeric privilege level (`rbac.guard.ts`); the last remaining `superadmin` cannot be demoted (`user.service.ts`)
 
 **ChatModule** (`backend/src/chat/`)
@@ -776,6 +782,31 @@ docker compose up -d --build
 - `AiService.handleReply()` acquires `ai:lock:{roomId}` (NX/EX 30 s) before generating — prevents concurrent replies per room
 - Triggered by `ChatResolver` after `ctx.req.transactionCommitted` resolves (post-commit hook, not inline)
 - Registers `GENAI_CLIENT` (`@google/genai` `GoogleGenAI`) via `useFactory`
+
+**ModerationModule** (`backend/src/moderation/`)
+- Provides `ModerationService` (all stateful/side-effecting logic: strike accrual, escalation,
+  enforcement, the system-account seed, system-message dispatch) and `ModerationGuard` (thin
+  ban/mute check only — SRP split, see `moderation.guard.ts`)
+- Guard position on `sendMessage`: `@UseGuards(GraphQLAuthGuard, ModerationGuard, RateLimitGuard)` —
+  order is load-bearing (`chat.resolver.ts:186-188`): `ModerationGuard` must gate a muted/banned user
+  **before** `RateLimitGuard` spends its velocity budget on them
+- Socket.IO `handleConnection` applies the same ban gate as `jwt.strategy` (via
+  `moderationService.isUserBanned()`) so a still-valid token can't bypass a ban by connecting over a
+  socket instead
+- Escalation ladder: warn → mute → timed ban → permanent ban, driven by 8 optional env vars (all fall
+  back to `MODERATION_DEFAULTS` in `moderation.constants.ts` if unset): `MODERATION_STRIKE_WINDOW_SEC`
+  (default 86400), `MODERATION_WARN_THRESHOLD` (3), `MODERATION_MUTE_THRESHOLD` (5),
+  `MODERATION_MUTE_DURATION_SEC` (600), `MODERATION_BAN_THRESHOLD` (7), `MODERATION_BAN_DURATION_SEC`
+  (604800), `MODERATION_DUP_WINDOW_SEC` (60), `MODERATION_DUP_THRESHOLD` (3)
+- Redis keys (`moderation:{strike,dup,mute,velmark}:{userId}`, `{service}:{entity}:{id}` convention)
+  track strike/mute state; `AuditLogService.countByTarget()` (`audit-log.service.ts:56-57`) tells
+  `ModerationService` whether a repeat ban on the same user should escalate to permanent rather than
+  timed
+- One-directional dependency by design: `ModerationModule` never imports `ChatModule`, even though
+  `ChatModule` imports `ModerationModule` — `ModerationService` receives chat-side effects
+  (`publishFn`, `disconnectFn`) as callbacks injected by `ChatResolver` at call time, the same pattern
+  `AiService.handleReply()` uses, so no `ChatModule` ↔ `ModerationModule` cycle exists
+  (`moderation.module.ts:1-4`)
 
 **RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
 
