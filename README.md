@@ -80,21 +80,16 @@ docker start redis-chat
 cd backend && pnpm start:dev
 ```
 
-**Run frontend** (separate terminal) — `frontend/.env.local` is already checked
-into the repo with local dev values; open it and adjust if your backend runs
-elsewhere.
-```env
-VITE_API_URL=http://localhost:3000
-VITE_WS_URL=ws://localhost:3000
-```
+**Run frontend** (separate terminal) — copy the template and adjust if your backend runs elsewhere:
 ```powershell
+cp frontend/.env.example frontend/.env.local
 cd frontend && pnpm install && pnpm dev
 ```
 → http://localhost:5173
 
-**Run admin panel** (separate terminal) — `admin/.env.local` is already
-checked into the repo with local dev values.
+**Run admin panel** (separate terminal) — copy the template (no adjustment usually needed):
 ```powershell
+cp admin/.env.example admin/.env.local
 cd admin && pnpm install && pnpm dev
 ```
 → http://localhost:5174 — see [Admin Panel](#admin-panel) for what it does; requires an admin/superadmin account (see [Admin Account Setup](#admin-account-setup))
@@ -467,7 +462,7 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
 
 ## Build
 ### Total Installation
-Dependencies (35)
+Dependencies (37)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
@@ -481,35 +476,41 @@ Dependencies (35)
 - @nestjs/swagger
 - @nestjs/typeorm
 - @nestjs/websockets
+- @socket.io/redis-adapter
 - @types/bcrypt
 - @types/passport-jwt
-- @types/passport-local
 - bcrypt
 - class-transformer
 - class-validator
+- cookie-parser
+- dotenv
 - graphql
 - graphql-redis-subscriptions
 - graphql-subscriptions
-- graphql-ws
 - ioredis
 - joi
+- jwt-decode
 - nest-winston
+- nodemailer
 - passport
 - passport-jwt
-- passport-local
 - pg
-- redis
 - socket.io
 - socket.io-client
+- tsconfig-paths
 - typeorm
 - winston
 
-DevDependencies (5)
+DevDependencies (9)
+- @types/cookie-parser
+- @types/nodemailer
 - @types/supertest
 - @types/winston
+- cross-env
+- source-map-support
 - supertest
 - ts-jest (custom jest config)
-- source-map-support
+- ts-loader
 
 Excluded NestJS CLI defaults like common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript, etc.
 
@@ -1148,7 +1149,7 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 ## Related Documents
 - [ARCHITECTURE.md](ARCHITECTURE.md) — module dependency graph, guard chains, deployment topology
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
-- [CHANGELOG.md](CHANGELOG.md) — full commit history (573 commits)
+- [CHANGELOG.md](CHANGELOG.md) — full commit history
 - [ADR/](ADR/) — formal architecture decision records
 
 

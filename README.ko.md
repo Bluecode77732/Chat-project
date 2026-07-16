@@ -80,21 +80,16 @@ docker start redis-chat
 cd backend && pnpm start:dev
 ```
 
-**프론트엔드 실행** (별도 터미널) — `frontend/.env.local`은 이미 저장소에
-로컬 개발용 값으로 포함되어 있습니다 — 백엔드가 다른 곳에서 실행 중이면
-열어서 조정하세요.
-```env
-VITE_API_URL=http://localhost:3000
-VITE_WS_URL=ws://localhost:3000
-```
+**프론트엔드 실행** (별도 터미널) — 템플릿을 복사하고, 백엔드가 다른 곳에서 실행 중이면 값을 조정하세요:
 ```powershell
+cp frontend/.env.example frontend/.env.local
 cd frontend && pnpm install && pnpm dev
 ```
 → http://localhost:5173
 
-**Admin 패널 실행** (별도 터미널) — `admin/.env.local`도 이미 저장소에
-로컬 개발용 값으로 포함되어 있습니다.
+**Admin 패널 실행** (별도 터미널) — 템플릿을 복사하세요(보통 조정 불필요):
 ```powershell
+cp admin/.env.example admin/.env.local
 cd admin && pnpm install && pnpm dev
 ```
 → http://localhost:5174 — 어떤 기능이 있는지는 [Admin 패널](#admin-패널) 참고. admin/superadmin 계정이 필요합니다([Admin 계정 생성](#admin-계정-생성) 참고)
@@ -467,7 +462,7 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
 
 ## 빌드
 ### 전체 설치
-의존성 (35개)
+의존성 (37개)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
@@ -481,35 +476,41 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
 - @nestjs/swagger
 - @nestjs/typeorm
 - @nestjs/websockets
+- @socket.io/redis-adapter
 - @types/bcrypt
 - @types/passport-jwt
-- @types/passport-local
 - bcrypt
 - class-transformer
 - class-validator
+- cookie-parser
+- dotenv
 - graphql
 - graphql-redis-subscriptions
 - graphql-subscriptions
-- graphql-ws
 - ioredis
 - joi
+- jwt-decode
 - nest-winston
+- nodemailer
 - passport
 - passport-jwt
-- passport-local
 - pg
-- redis
 - socket.io
 - socket.io-client
+- tsconfig-paths
 - typeorm
 - winston
 
-개발 의존성 (5개)
+개발 의존성 (9개)
+- @types/cookie-parser
+- @types/nodemailer
 - @types/supertest
 - @types/winston
+- cross-env
+- source-map-support
 - supertest
 - ts-jest (커스텀 jest 설정)
-- source-map-support
+- ts-loader
 
 common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript 등의 NestJS CLI 기본 패키지는 제외.
 
@@ -1148,7 +1149,7 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 ## 관련 문서
 - [ARCHITECTURE.md](ARCHITECTURE.md) — 모듈 의존성 그래프, 가드 체인, 배포 토폴로지
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
-- [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력(573개)
+- [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력
 - [ADR/](ADR/) — 아키텍처 결정 기록(영문 전용)
 
 
