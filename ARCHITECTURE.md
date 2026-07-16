@@ -147,14 +147,12 @@ See README's [Entities](README.md#entities-typeorm) section for the full field-l
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `EntityBase`) — it's accurate and current, no need to
 duplicate it here.
 
-## Known Anomaly (flagged, not fixed)
+## Resolved Anomaly
 
-`backend/package.json`'s `dependencies` include `redis` (v5 — a *second* Redis client alongside the
-`ioredis` one actually used everywhere; no import of `redis` was found anywhere in `backend/src`), plus
-`audit`, `lint`, and `pnpm` as literal installed packages. These read as accidental `pnpm add` mistakes
-rather than intentional dependencies, but that's a call for whoever added them to confirm — this
-document flags it rather than assuming and removing it, per this repo's Scope Discipline (dependency
-changes require explicit request; see [CLAUDE.md](CLAUDE.md#scope-discipline-범위-준수)).
+`backend/package.json`'s `dependencies` previously included `redis` (v5 — an unused second Redis
+client; `ioredis` is the only one actually imported anywhere in `backend/src`), plus `audit`, `lint`,
+and `pnpm` as literal installed packages with no import site anywhere in the codebase — all four read
+as accidental `pnpm add` mistakes. Confirmed unused and removed.
 
 ## Related Documents
 

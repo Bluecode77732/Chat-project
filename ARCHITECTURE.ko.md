@@ -145,14 +145,12 @@ flowchart LR
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `EntityBase`) — 이미 정확하고 최신 상태라 여기서 다시
 쓰지 않습니다.
 
-## 알려진 이상 항목 (플래그만, 수정 안 함)
+## 해결된 이상 항목
 
-`backend/package.json`의 `dependencies`에 `redis`(v5 — 실제로 모든 곳에서 쓰이는 `ioredis` 외에
-*두 번째* Redis 클라이언트로, `backend/src` 어디에서도 `redis`를 import하는 코드를 찾지 못했습니다)와
-`audit`, `lint`, `pnpm`이 실제 설치 패키지로 들어가 있습니다. 의도적인 의존성이라기보다는 실수로
-`pnpm add`한 것으로 보이지만, 이는 추가한 사람이 확인해야 할 사안입니다 — 이 문서는 이를 임의로
-제거하지 않고 플래그만 남깁니다. 이 저장소의 Scope Discipline(의존성 변경은 명시적 요청이 필요)을
-따른 것입니다 — [CLAUDE.md](CLAUDE.md#scope-discipline-범위-준수) 참고.
+`backend/package.json`의 `dependencies`에는 한때 `redis`(v5 — 실제로 모든 곳에서 쓰이는 `ioredis`
+외의 미사용 두 번째 Redis 클라이언트)와, 코드베이스 어디에서도 import되지 않는 `audit`, `lint`,
+`pnpm`이 실제 설치 패키지로 들어가 있었습니다 — 넷 다 실수로 `pnpm add`한 것으로 보였습니다. 미사용
+확인 후 제거했습니다.
 
 ## 관련 문서
 
