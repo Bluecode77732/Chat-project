@@ -136,6 +136,10 @@ After completing any task, always append a brief summary in this format:
 
 ## File Creation Convention
 
+Scope: applies to source code files (`.ts`/`.tsx`, etc.) only — the mechanic is a comment
+placed above an `import` statement, which has no equivalent in Markdown docs, `.env.example`
+templates, or other non-code files. Those are exempt from this section.
+
 When creating a new file (not when editing an existing one), add a short header
 comment above the imports stating:
 - Purpose: why this file exists (the gap it fills)
