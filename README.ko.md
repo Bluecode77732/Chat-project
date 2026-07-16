@@ -50,8 +50,8 @@
 - 사전 요구사항
   - Node.js >= v24.xx
   - Nest.js >= v11.xx
-  - PostgreSQL >= v17.xx
-  - pnpm (권장) 또는 npm >= v10.xx
+  - PostgreSQL 18
+  - pnpm >= 10 (정확히 고정된 버전은 [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites) 참고) 또는 npm >= v10.xx
   - Docker >= v28.xx
 
 **의존성 설치**
@@ -237,7 +237,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
     ```graphql
     {
       "input": {
-        "message": "Postman에서 전송",
+        "message": "Sent from Postman",
         "recipientId": 2,
         "room": 19
       },
@@ -290,7 +290,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 ### 프론트엔드
 백엔드와의 엔드투엔드 통합을 보여주는 최소화된 React + TypeScript 클라이언트입니다.
 
-- 스택: React, TypeScript, Vite, Tailwind CSS, Zustand, Apollo Client, Socket.IO Client ✔
+- 스택: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
 - 인증: JWT를 메모리(Zustand)에 저장, 리프레시 토큰은 localStorage에 유지 ✔
 - 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리 ✔
 - 보안: DOMPurify를 통한 XSS 방지, CORS 준수 요청, 보호된 페이지를 위한 Route Guard ✔
@@ -511,7 +511,7 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
 - ts-jest (커스텀 jest 설정)
 - source-map-support
 
-controller, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript 등의 NestJS CLI 기본 패키지는 제외.
+common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript 등의 NestJS CLI 기본 패키지는 제외.
 
 
 ### 설정
@@ -594,6 +594,11 @@ controller, core, platform-express, testing, jest, eslint, prettier, ts-node, ty
   # Google Gemini AI
   GEMINI_API_KEY=your-gemini-key
 ```
+
+이 목록은 로컬에서 서버를 부팅하는 데 필요한 핵심 변수만 다룹니다. 선택적 `MAIL_*` 변수
+그룹(SMTP 알림 설정, [역할](#역할) 섹션의 역할 변경 이메일이 사용)과 `MODERATION_*` 그룹(스트라이크/밴
+임계값, 전부 기본값 있음, [모더레이션](#모더레이션) 참고)을 포함한 전체 목록은
+[backend/.env.example](backend/.env.example)을 참고하세요.
 
 
 ### 채팅
@@ -1007,7 +1012,8 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됩�
 - 라이브 URL: https://chat-project-production-3b22.up.railway.app
 
 **CI/CD 흐름**
-`git push origin main` => GitHub Actions (테스트 => 빌드) => Railway CLI => 자동 배포
+`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e` → `deploy`) => Railway CLI
+=> 자동 배포 — 전체 CI job 구성은 [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고
 
 **설정 (최초 1회)**
 1. GitHub => Settings => Secrets => Actions에 `RAILWAY_TOKEN` 추가
@@ -1137,6 +1143,13 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 **교훈**
 - 라이브 브라우저 테스트가 단위 테스트로는 절대 못 잡는 서비스 간 버그를 드러냈습니다 — 기존 목(mock)들이 정확히 손상이 발생하던 계층(`PubSubService`의 발행-시-캐싱 부수효과)을 격리하고 있었기 때문입니다
 - 의심되는 커밋에 `git show --stat`을 실행하는 것으로 "불완전한 리팩터링의 누락"인지 "의도된 설계"인지 추측 없이 객관적으로 확인할 수 있습니다
+
+
+## 관련 문서
+- [ARCHITECTURE.md](ARCHITECTURE.md) — 모듈 의존성 그래프, 가드 체인, 배포 토폴로지
+- [CONTRIBUTING.md](CONTRIBUTING.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
+- [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력(573개)
+- [ADR/](ADR/) — 아키텍처 결정 기록(영문 전용)
 
 
 ## 라이선스

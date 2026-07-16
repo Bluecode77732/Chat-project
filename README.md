@@ -50,8 +50,8 @@ Two real incidents hit during development — a live infrastructure security exp
 - Prerequisites
   - Node.js >= v24.xx
   - Nest.js >= v11.xx
-  - PostgreSQL >= v17.xx
-  - pnpm (recommended) or npm >= v10.xx
+  - PostgreSQL 18
+  - pnpm >= 10 (exact pinned version tracked in [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites)) or npm >= v10.xx
   - Docker >= v28.xx
 
 **Install dependencies**
@@ -290,7 +290,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 ### Frontend
 A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
 
-- Stack: React, TypeScript, Vite, Tailwind CSS, Zustand, Apollo Client, Socket.IO Client ✔
+- Stack: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
 - Auth: JWT stored in memory (Zustand) with refresh token persistence via localStorage ✔
 - Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
 - Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
@@ -594,6 +594,11 @@ Create a `backend/.env` file and paste variables below :
   # Google Gemini AI
   GEMINI_API_KEY=your-gemini-key
 ```
+
+This is the minimal set needed to boot the server locally. The complete list — including the
+optional `MAIL_*` variable group (SMTP notification config, used by the role-change email in
+[Role](#role)) and `MODERATION_*` group (strike/ban tuning, all have defaults, see
+[Moderation](#moderation)) — lives in [backend/.env.example](backend/.env.example).
 
 
 ### Chat
@@ -1007,7 +1012,8 @@ Deployed as a **separate Vercel project**, same pattern as the frontend. Not par
 - Live URL: https://chat-project-production-3b22.up.railway.app
 
 **CI/CD Flow**
-`git push origin main` => GitHub Actions (test => build) => Railway CLI => Auto-deploy
+`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e` → `deploy`) => Railway CLI =>
+Auto-deploy — full CI job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr)
 
 **Setup (one-time)**
 1. Add `RAILWAY_TOKEN` in GitHub => Settings => Secrets => Actions
@@ -1137,6 +1143,13 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 **Takeaways**
 - Live browser testing surfaced a cross-service bug that unit tests never could — the existing mocks isolated exactly the layer (`PubSubService`'s cache-on-publish side effect) where the corruption occurred
 - Git history tracing (`git show --stat` on the suspected commit) can objectively confirm "leftover from an incomplete refactor" vs. "intentional design," rather than guessing
+
+
+## Related Documents
+- [ARCHITECTURE.md](ARCHITECTURE.md) — module dependency graph, guard chains, deployment topology
+- [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
+- [CHANGELOG.md](CHANGELOG.md) — full commit history (573 commits)
+- [ADR/](ADR/) — formal architecture decision records
 
 
 ## License
