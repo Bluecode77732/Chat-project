@@ -1,5 +1,12 @@
 # Contributing
 
+This is the entry point for contributing changes to this repo — setup, branch model, commit
+convention, and PR checklist. README's Quick Start covers running the app locally; it doesn't cover
+the workflow for submitting a change. CLAUDE.md already documents deep code-level conventions (Never
+Do rules, testing patterns, transaction boundaries) in detail — this file doesn't restate those, it's
+the on-ramp that gets a new contributor to the point of opening a PR, pointing to CLAUDE.md for what
+happens after that.
+
 ## Prerequisites
 
 - Node.js `24.x` (pinned in `.nvmrc` and root `package.json`'s `engines`)
