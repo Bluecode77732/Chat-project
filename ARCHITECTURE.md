@@ -31,9 +31,6 @@ flowchart LR
 
 `admin/` has no realtime client (`graphql-ws`/`socket.io-client` are absent from its
 `package.json`) — it is a query/mutation-only management surface, not a chat participant.
-*Cost:* one fewer dependency, simpler auth surface — no WS handshake/reconnect logic to maintain.
-*Risk:* if a future feature needs live moderation alerts in the admin panel, this boundary needs
-retrofitting a subscription client rather than extending an existing one.
 
 ## Monorepo Layout
 
@@ -41,14 +38,16 @@ pnpm workspace with three packages: `backend/` (NestJS API, the only deployable 
 Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). See README's
 [Project Structure](README.md#project-structure) for the full directory tree.
 
-*Why:* solo-project scale — one developer maintaining three packages that share a GraphQL contract
-makes monorepo overhead lower than coordinating three separate repos (per the developer: "1인 프로젝트
-규모에 적합하고, 관리가 편리하며, 관리 비용이 적음").
-*Cost:* a single root `pnpm-lock.yaml` couples all three packages' dependency resolution, and CI
-(`.github/workflows/deploy.yml`) doesn't filter by changed path — every push runs both `backend` and
-`admin` lint+test regardless of which package actually changed.
-*Risk:* low at this scale (one developer, three packages); would grow if the team or package count
-grew — the standard mitigation (Nx/Turborepo-style affected-package filtering) isn't in place yet.
+- **Why:** solo-project scale — one developer maintaining three packages that share a GraphQL contract
+  makes monorepo overhead lower than coordinating three separate repos (per the developer: "1인
+  프로젝트 규모에 적합하고, 관리가 편리하며, 관리 비용이 적음").
+
+- **Cost:** a single root `pnpm-lock.yaml` couples all three packages' dependency resolution, and CI
+  (`.github/workflows/deploy.yml`) doesn't filter by changed path — every push runs both `backend` and
+  `admin` lint+test regardless of which package actually changed.
+
+- **Risk:** low at this scale (one developer, three packages); would grow if the team or package count
+  grew — the standard mitigation (Nx/Turborepo-style affected-package filtering) isn't in place yet.
 
 ## Module Dependency Graph
 
@@ -64,7 +63,7 @@ grew — the standard mitigation (Nx/Turborepo-style affected-package filtering)
 | `ModerationModule` | `AuditLogModule` | `ModerationService`, `ModerationGuard` | **never** imports `ChatModule` — see below |
 | `AuditLogModule` | TypeORM features only | `AuditLogService` | |
 | `MailModule` | — | `MailService` | |
-| `RedisModule` | — | `REDIS_CLIENT`, `SessionCacheService` | `@Global()` — *cost/risk:* any provider can inject `REDIS_CLIENT` without explicitly importing `RedisModule`, which is convenient but makes the true dependency graph less visible from imports alone |
+| `RedisModule` | — | `REDIS_CLIENT`, `SessionCacheService` | `@Global()` |
 
 ```mermaid
 flowchart TD
@@ -82,22 +81,15 @@ flowchart TD
 (`publishFn`, `disconnectFn`) as injected callbacks from `ChatResolver` at call time — the same pattern
 `AiService.handleReply()` uses. Documented at `backend/src/moderation/moderation.module.ts:1-4`.
 
-*Cost:* `ModerationService`'s methods that need chat effects (e.g. `evaluateMessage`) must accept a
-callback-shaped parameter (`ModerationCallbacks`) instead of a directly injected service — one more
-parameter to thread through call sites, and the coupling is less discoverable than a plain import.
-*Risk:* this codebase already tolerates one circular dependency elsewhere (`AuthModule` ↔ `UserModule`
-via `forwardRef`, see the table above), so the concern here isn't that NestJS can't handle a second
-cycle — `forwardRef` works. It's that a second circular edge would make the module graph meaningfully
-harder to reason about and more fragile to refactor, for no benefit over the callback pattern already
-proven by `AiService`.
+- **Cost:** `ModerationService`'s methods that need chat effects (e.g. `evaluateMessage`) must accept a
+  callback-shaped parameter (`ModerationCallbacks`) instead of a directly injected service — one more
+  parameter to thread through call sites, and the coupling is less discoverable than a plain import.
 
-**`AuthModule` ↔ `UserModule` (existing `forwardRef` cycle)**: unlike the `ModerationModule` case
-above, this cycle *was* accepted. *Cost:* `forwardRef`-wrapped providers depend on NestJS resolving
-both modules' providers before either is fully usable — a subtler initialization-order dependency than
-a plain import. *Risk:* if a provider inside this cycle tried to use the other module's service inside
-its own constructor (rather than only in methods called after bootstrap), it could hit an
-not-yet-initialized value; this hasn't happened here, but it's the class of bug `forwardRef` cycles are
-prone to.
+- **Risk:** this codebase already tolerates one circular dependency elsewhere (`AuthModule` ↔
+  `UserModule` via `forwardRef`, see the table above), so the concern here isn't that NestJS can't
+  handle a second cycle — `forwardRef` works. It's that a second circular edge would make the module
+  graph meaningfully harder to reason about and more fragile to refactor, for no benefit over the
+  callback pattern already proven by `AiService`.
 
 ## Guard Chains
 
@@ -114,13 +106,13 @@ request.
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.
 
-*Cost/Risk of the `sendMessage` order specifically:* `ModerationGuard`'s check is a cheap, mostly
-already-loaded-data check (ban status) plus one Redis `GET` (mute status); `RateLimitGuard`
-(`rate-limit.guard.ts`) executes a Lua script (`INCR` + conditional `EXPIRE`) against Redis. Gating on
-the cheap check first means an already-banned user hammering the endpoint doesn't reach the more
-expensive rate-limit computation. Reversing the order would let a banned user's retry flood spend Redis
-cycles on a request that was always going to be rejected, and could also feed spurious extra strikes
-into `recordVelocityViolation` for an account that's already banned.
+- **Cost/Risk of the `sendMessage` order specifically:** `ModerationGuard`'s check is a cheap, mostly
+  already-loaded-data check (ban status) plus one Redis `GET` (mute status); `RateLimitGuard`
+  (`rate-limit.guard.ts`) executes a Lua script (`INCR` + conditional `EXPIRE`) against Redis. Gating
+  on the cheap check first means an already-banned user hammering the endpoint doesn't reach the more
+  expensive rate-limit computation. Reversing the order would let a banned user's retry flood spend
+  Redis cycles on a request that was always going to be rejected, and could also feed spurious extra
+  strikes into `recordVelocityViolation` for an account that's already banned.
 
 ## Data Flow
 
@@ -132,12 +124,13 @@ checks and persistence, and can itself trigger a system-message publish (warn/mu
 the identical `receiveMessage :${roomId}` channel — see [AI Reply Channel Parity](CLAUDE.md#chat--caching)
 in CLAUDE.md, which this reuses rather than introducing a second delivery path.
 
-*Risk:* `evaluateMessage()` runs in a `setImmediate` block that fires *after* `pubSub.publish()` has
-already delivered the triggering message to subscribers (`chat.resolver.ts:206` publishes before the
-moderation block starts). The offending message itself is never blocked pre-delivery — only messages
-sent *after* a mute/ban takes effect are prevented. This is a deliberate latency tradeoff (moderation
-evaluation adds no round-trip time to `sendMessage`), not an oversight, but it does mean moderation here
-is reactive-after-delivery, not preventive-before-delivery, for the message that triggers a strike.
+- **Risk:** `evaluateMessage()` runs in a `setImmediate` block that fires *after* `pubSub.publish()`
+  has already delivered the triggering message to subscribers (`chat.resolver.ts:206` publishes before
+  the moderation block starts). The offending message itself is never blocked pre-delivery — only
+  messages sent *after* a mute/ban takes effect are prevented. This is a deliberate latency tradeoff
+  (moderation evaluation adds no round-trip time to `sendMessage`), not an oversight, but it does mean
+  moderation here is reactive-after-delivery, not preventive-before-delivery, for the message that
+  triggers a strike.
 
 ## Deployment Topology
 
@@ -163,24 +156,31 @@ flowchart LR
   all ports bound to `127.0.0.1` only (a prior incident exposed these to `0.0.0.0`; see README's
   [AI-Assisted Development Notes](README.md#ai-assisted-development-notes)). `chat` runs
   `pnpm migration:run && node dist/main` on start, same as production.
-  *Risk if this were reverted:* the exact incident already documented — an exposed dev port on a
-  machine with a public IP led to a ransomware bot wiping the dev database. *Cost of keeping it:*
-  reaching the dev server from another device on the LAN (e.g. testing from a phone) needs an SSH
-  tunnel or explicit port-forward instead of a bare IP:port — a real but small inconvenience traded for
-  closing a proven attack path.
+
+  - **Risk if this were reverted:** the exact incident already documented — an exposed dev port on a
+    machine with a public IP led to a ransomware bot wiping the dev database.
+
+  - **Cost of keeping it:** reaching the dev server from another device on the LAN (e.g. testing from
+    a phone) needs an SSH tunnel or explicit port-forward instead of a bare IP:port — a real but small
+    inconvenience traded for closing a proven attack path.
+
 - **Backend / Railway**: `railway.toml` builds `backend/Dockerfile` (multi-stage), runs the same
   migrate-then-start command, restarts on failure up to 3 times. Deploy is triggered by
   `.github/workflows/deploy.yml`'s `deploy` job on push to `main` only.
+
 - **Frontend & Admin / Vercel**: two separate Vercel projects, each with its own `vercel.json` (SPA
   rewrite only) and its own `CORS_ORIGIN` entry on the backend (see CLAUDE.md's
   [CORS](CLAUDE.md#cors) section — the env var is a comma-separated list covering both origins).
+
 - **Why Railway + Vercel**: free/low-cost tiers sufficient for a personal project, plus convenient
   GitHub-push-to-deploy integration on both platforms.
-  *Cost/Risk:* two separate platforms means split observability — logs and metrics live in two
-  different dashboards instead of one. Running `frontend`/`admin` as two separate Vercel projects
-  (rather than one) doubles the CORS surface to maintain (`CORS_ORIGIN` must list both origins,
-  everywhere it's set) — accepted because the two apps need genuinely independent deploy cadences (see
-  [ADR 0005](ADR/0005-cors-multi-origin-policy.md)).
+
+  - **Cost/Risk:** two separate platforms means split observability — logs and metrics live in two
+    different dashboards instead of one. Running `frontend`/`admin` as two separate Vercel projects
+    (rather than one) doubles the CORS surface to maintain (`CORS_ORIGIN` must list both origins,
+    everywhere it's set) — accepted because the two apps need genuinely independent deploy cadences
+    (see [ADR 0005](ADR/0005-cors-multi-origin-policy.md)).
+
 - **Node/pnpm pin**: `.nvmrc` = `24`; `packageManager: pnpm@10.33.0`, both enforced in CI.
 
 ## Tech Stack
@@ -195,36 +195,72 @@ Stacks section doesn't state.
   `@socket.io/redis-adapter`, `bcrypt`, `class-validator`/`class-transformer`, `graphql` 16,
   `graphql-redis-subscriptions`, `ioredis`, `joi`, `nest-winston`/`winston`, `nodemailer`,
   `passport-jwt`, `pg`, `socket.io`/`socket.io-client`, `typeorm` 0.3, `cookie-parser`, `dotenv`.
+
 - **frontend**: React 19, `@apollo/client` 4, `graphql-ws`, `socket.io-client`, `axios`, `dompurify`,
   `react-hook-form`, `react-router-dom` 7, `zustand`, `jwt-decode`.
+
 - **admin**: React 19, `@apollo/client` 4, `axios`, `react-hook-form`, `react-router-dom` 7, `zustand`,
   `jwt-decode` — no `graphql-ws`/`socket.io-client` (query/mutation-only, no realtime subscription).
 
 ### Major choices — cost/risk
 
-- **NestJS as the backend framework**: *Cost:* more structure/boilerplate (modules, DI, decorators)
-  than a minimal Express app, and a steeper initial learning curve. *Risk:* GraphQL/TypeORM integration
-  goes through Nest's own wrapper packages (`@nestjs/graphql`, `@nestjs/typeorm`) rather than those
-  libraries directly, tying upgrade timing to Nest's own release cadence for those wrappers.
-- **Monolith, single deployable**: *Cost:* the chat, auth, AI, and moderation concerns all scale
-  together — the AI service can't be scaled independently from the chat service under load. *Risk:*
-  low at this project's actual traffic; would become a real constraint only if one concern's resource
-  needs diverged sharply from the others (e.g. AI calls needing far more memory/CPU than chat traffic).
-- **Socket.IO (connection lifecycle) + GraphQL (messaging)**: cost/risk already covered in
-  [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)'s Consequences section.
-- **PostgreSQL + TypeORM**: *Cost:* `migration:generate` has a known quirk in this repo — it re-emits a
-  spurious FK drop/re-add on the participants join table that must be manually stripped from every
-  generated migration (see CLAUDE.md's Database section). *Risk:* forgetting that step breaks
-  `ON DELETE CASCADE` for user deletion, silently, until someone tries to delete a user.
-- **Redis via ioredis**: cost/risk already covered in
-  [ADR 0002](ADR/0002-redis-cache-conventions.md)'s Consequences section.
-- **Google Gemini (AI)**: *Cost:* per-token billing means unbounded prompt size or retries translate
-  directly into cost — mitigated by the token/history/retry caps already in place
-  (`ai.service.ts`). *Risk:* a third-party API outage or rate-limit means AI replies silently stop;
-  already handled as a caught, logged skip rather than a crash, so the failure mode is "no AI reply,"
-  not "broken chat."
-- **JWT + Passport (auth)**: cost/risk already covered in
-  [ADR 0001](ADR/0001-jwt-auth-token-strategy.md)'s Consequences section.
+- **NestJS as the backend framework**
+
+  - **Risk realized:** `@nestjs/cli`'s build step couldn't create a symlink against pnpm's
+    symlink-based `node_modules` layout on Alpine Linux inside Docker, breaking the test build
+    entirely — debugged and fixed in `backend/Dockerfile` (2026-05-29). Not a hypothetical
+    compatibility concern; this is a real toolchain interaction that already broke a build in this
+    repo.
+
+- **Socket.IO (connection lifecycle) + GraphQL (messaging)**
+
+  - **Cost:** every new message-delivery use case must go through the single existing
+    `PubSubService.publish()` channel rather than adding a parallel path — this split itself took ~5
+    months to fully land (see [ROADMAP's Build Timeline](ROADMAP.md#build-timeline-2026-01--2026-07)).
+
+  - **Risk:** Redis Pub/Sub delivers at-most-once — a subscriber disconnected at publish time misses
+    the message permanently. See [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md) for the
+    full breakdown.
+
+- **PostgreSQL + TypeORM**
+
+  - **Cost:** `migration:generate` has a known quirk in this repo — it re-emits a spurious FK
+    drop/re-add on the participants join table that must be manually stripped from every generated
+    migration (see CLAUDE.md's Database section).
+
+  - **Risk:** forgetting that step breaks `ON DELETE CASCADE` for user deletion, silently, until
+    someone tries to delete a user.
+
+- **Redis via ioredis**
+
+  - **Cost:** every new cache/session key must follow the `{service}:{entity}:{id}` naming convention
+    and carry an explicit TTL — a small but mandatory extra step at every call site that touches
+    Redis.
+
+  - **Risk:** skipping the TTL risks unbounded memory growth (see
+    [Resolved Anomaly](#resolved-anomaly) for a related case), and running a second Redis client
+    alongside `ioredis` creates ambiguity about which one is authoritative — which had, in fact,
+    already happened by accident before this pass. See [ADR 0002](ADR/0002-redis-cache-conventions.md)
+    for the full breakdown.
+
+- **Google Gemini (AI)**
+
+  - **Cost:** per-token billing means unbounded prompt size or retries translate directly into cost —
+    mitigated by the token/history/retry caps already in place (`ai.service.ts`).
+
+  - **Risk:** a third-party API outage or rate-limit means AI replies silently stop; already handled
+    as a caught, logged skip rather than a crash, so the failure mode is "no AI reply," not "broken
+    chat."
+
+- **JWT + Passport (auth)**
+
+  - **Cost:** every client needing a fresh `accessToken` must route through the shared
+    `refreshAccessTokenSafely()` function instead of calling the refresh endpoint directly — an extra
+    layer of indirection every new call site has to know about.
+
+  - **Risk:** storing `accessToken` anywhere other than memory (e.g. `localStorage`), or bypassing the
+    shared refresh function, reopens the XSS/CSRF exposure and refresh-race conditions this design was
+    built to close. See [ADR 0001](ADR/0001-jwt-auth-token-strategy.md) for the full breakdown.
 
 ## Entities
 
@@ -239,11 +275,12 @@ client; `ioredis` is the only one actually imported anywhere in `backend/src`), 
 and `pnpm` as literal installed packages with no import site anywhere in the codebase — all four read
 as accidental `pnpm add` mistakes. Confirmed unused and removed.
 
-*Risk that made this worth fixing rather than leaving flagged:* an unused-but-installed `redis` client
-sitting alongside `ioredis` is exactly the kind of ambiguity that leads a future contributor (or an AI
-assistant) to import the wrong one, plus every installed package — used or not — is attack surface that
-`pnpm audit`/Dependabot will flag and someone has to triage. `audit`/`lint`/`pnpm` as literal packages
-added no functionality at all, only lockfile bloat and confusion about whether they were load-bearing.
+- **Risk that made this worth fixing rather than leaving flagged:** an unused-but-installed `redis`
+  client sitting alongside `ioredis` is exactly the kind of ambiguity that leads a future contributor
+  (or an AI assistant) to import the wrong one, plus every installed package — used or not — is attack
+  surface that `pnpm audit`/Dependabot will flag and someone has to triage. `audit`/`lint`/`pnpm` as
+  literal packages added no functionality at all, only lockfile bloat and confusion about whether they
+  were load-bearing.
 
 ## Related Documents
 
