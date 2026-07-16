@@ -159,6 +159,7 @@ as accidental `pnpm add` mistakes. Confirmed unused and removed.
 - [README.md](README.md) — pitch, quick start, features, full data-flow walkthrough
 - [CLAUDE.md](CLAUDE.md) — AI-agent conventions, Never Do rules, architecture decisions
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
-- [ADR/](ADR/) — formal records of the decisions in CLAUDE.md's Architecture Decisions section
+- [ADR/](ADR/) — formal records of decisions from CLAUDE.md's Architecture Decisions and
+  Project-Specific Principles sections
 - [ROADMAP.md](ROADMAP.md) — planned future work
 - [CHANGELOG.md](CHANGELOG.md) — full commit history

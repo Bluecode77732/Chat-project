@@ -157,6 +157,7 @@ flowchart LR
 - [README.md](README.md) — 소개, 빠른 시작, 기능, 전체 데이터 흐름
 - [CLAUDE.md](CLAUDE.md) — AI 에이전트 컨벤션, Never Do 규칙, 아키텍처 결정
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
-- [ADR/](ADR/) — CLAUDE.md의 Architecture Decisions 절을 공식 기록으로 정리한 문서
+- [ADR/](ADR/) — CLAUDE.md의 Architecture Decisions 및 Project-Specific Principles 절을 공식 기록으로
+  정리한 문서
 - [ROADMAP.md](ROADMAP.md) — 향후 계획
 - [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 히스토리

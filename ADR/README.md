@@ -19,7 +19,11 @@ Each ADR follows a lightweight structure: **Status**, **Context** (the problem/c
 | [0003](0003-database-transaction-strategy.md) | PostgreSQL + TypeORM transaction strategy | Accepted |
 | [0004](0004-graphql-socketio-api-layer-split.md) | GraphQL for data, Socket.IO for connection lifecycle only | Accepted |
 | [0005](0005-cors-multi-origin-policy.md) | CORS multi-origin allowlist via one env var | Accepted |
+| [0006](0006-moderation-one-directional-dependency.md) | ModerationModule's one-directional dependency | Accepted |
+| [0007](0007-ai-reply-distributed-lock.md) | Per-room distributed lock for AI reply generation | Accepted |
 
-Scope note: this first pass covers exactly the five decisions already in CLAUDE.md. Additional
-code-level rationale not yet promoted to an ADR (e.g. the `ModerationModule` one-directional dependency,
-the per-room AI-reply distributed lock) lives as inline comments at its source file for now.
+Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
+rationale that previously existed only as inline comments at their source file. Further code-level
+decisions (e.g. Single Active Session Enforcement / `forceLogout`, the audit-log requirement for
+privileged actions) remain inline-only in CLAUDE.md's Project-Specific Principles for now — promote
+them here as they come up.
