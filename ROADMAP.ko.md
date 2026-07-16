@@ -30,7 +30,7 @@ gantt
 
 1. **기반 구축** (2026-01-02 ~ 2026-01-21) — 첫 커밋: "Built user, auth, chat entities, relations,
    guard, interceptors, etc." 기본 JWT 인증, TypeORM 엔티티, 초기 Socket.IO 채팅 프로토타입.
-   *왜:* README의 [Project Motivation](README.ko.md#프로젝트-동기)에 따르면, 다른 걸 그 위에
+   *이유:* README의 [Project Motivation](README.ko.md#프로젝트-동기)에 따르면, 다른 걸 그 위에
    쌓기 전에 인증/인가(Basic/Bearer/JWT, RBAC 가드)를 end-to-end로 연습하기 위함.
 
 2. **Socket.IO → GraphQL 메시징 마이그레이션** (2026-01-22 ~ 2026-06-11) — 가장 오래 걸린 단계이며
@@ -40,48 +40,48 @@ gantt
    ("unused WS sendMessage handler and Socket.IO broadcast removed") — 즉 두 경로가 약 4.5개월간
    공존하다가 GraphQL이 유일한 메시지 전달 경로가 된 것입니다.
    [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md) 참고.
-   *왜:* 메시지 영속화에 트랜잭션 보장을 확보하기 위함이며, Project Motivation의 표현을 빌리면
+   *이유:* 메시지 영속화에 트랜잭션 보장을 확보하기 위함이며, Project Motivation의 표현을 빌리면
    "이런 변경이 실제 운영 중인 시스템에서 이론이 아니라 실제로 얼마나 비용이 드는지 배우기 위해."
 
 3. **배포 인프라** (2026-04-22 ~ 2026-05-27) — CI/CD 워크플로우는 2026-04-22, Docker Compose는
    2026-05-01에 추가되었고, 이후 모노레포 재구성(2026-05-13 ~ 2026-05-27)을 거쳐 지금의
    `backend/`/`frontend/` 워크스페이스 패키지 구조로 정리되었습니다.
-   *왜:* Project Motivation의 "기능 데모에서 멈추지 않았다"는 원칙대로 — 실제로 배포되는
+   *이유:* Project Motivation의 "기능 데모에서 멈추지 않았다"는 원칙대로 — 실제로 배포되는
    서비스가 필요로 하는 방식으로 CI/CD와 컨테이너화된 로컬 개발환경을 나중이 아니라 처음부터 갖춤.
 
 4. **AI 채팅 통합** (2026-05-29 ~) — Gemini 기반 AI 동반자(`AiService`), 첫 등장은 "Update: AI
    Chat Bot for registered users."
-   *왜:* README의 Project Motivation에는 명시되어 있지 않음 — 가장 가까운 문서화된 근거는
+   *이유:* README의 Project Motivation에는 명시되어 있지 않음 — 가장 가까운 문서화된 근거는
    비용 상한 설계(토큰 제한, 대화 이력 절단, 재시도 상한) 자체뿐이고, "왜 AI 채팅을 애초에
    추가했는지"는 근거가 없어 추측하지 않고 이 공백을 그대로 표시함.
 
 5. **관리자 패널 + RBAC/감사로그 시스템** (2026-06-16 ~ 2026-06-17) — `admin/` 워크스페이스
    패키지, superadmin 역할 계층, 감사로그 시스템이 이틀 사이에 연달아 들어왔습니다.
-   *왜:* 배포 인프라와 같은 "데모가 아니다" 동기 — 실사용자·방 관리와 감사 추적은 있으면 좋은
+   *이유:* 배포 인프라와 같은 "데모가 아니다" 동기 — 실사용자·방 관리와 감사 추적은 있으면 좋은
    기능이 아니라 실제 다중 사용자 서비스에 꼭 필요한 것.
 
 6. **보안 사고 대응** (2026-06-18) — "Fix: password leak via missing serializer, stale role cache,
    RBAC bypass on audit log, admin signout method, and bind local dev server to loopback." 전체
    경위는 README의 [AI-Assisted Development Notes](README.ko.md#ai-보조-개발-사례) 참고.
-   *왜:* 계획된 작업이 아니었음 — 실제 사고(노출된 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제)가
+   *이유:* 계획된 작업이 아니었음 — 실제 사고(노출된 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제)가
    발생했고, 이를 조용히 덮지 않고 봉쇄·자격증명 교체까지 끝까지 처리하고 문서화한 것.
 
 7. **트랜잭션 패턴 공식화** (2026-07-02) — 그때까지 `sendMessage`를 처리하던 인라인
    `dataSource.transaction()` 호출을 대체하며 `GqlTransactionInterceptor`가 도입되었습니다.
    [ADR 0003](ADR/0003-database-transaction-strategy.md) 참고.
-   *왜:* ADR 0003의 Context에 따르면, 여러 테이블에 걸친 쓰기가 공유 `QueryRunner` 없이
+   *이유:* ADR 0003의 Context에 따르면, 여러 테이블에 걸친 쓰기가 공유 `QueryRunner` 없이
    이루어지면 실패 시 부분 쓰기가 데이터를 고아 상태로 남깁니다 — open/commit/rollback/release를
    인터셉터 하나로 중앙화하면, 이걸 유발한 그 사례 하나만이 아니라 앞으로의 모든 다중 쓰기
    뮤테이션에 대해 이 문제가 막힙니다.
 
 8. **행동 기반 모더레이션 시스템** (2026-07-11) — 스트라이크 누적 + 에스컬레이션 사다리
    (경고 → 뮤트 → 기간제 밴 → 영구 밴). [ADR 0006](ADR/0006-moderation-one-directional-dependency.md) 참고.
-   *왜:* 관리자 패널·배포 인프라와 같은 "데모가 아니다" 동기 — 실사용자끼리 감독 없이 메시지를
+   *이유:* 관리자 패널·배포 인프라와 같은 "데모가 아니다" 동기 — 실사용자끼리 감독 없이 메시지를
    주고받을 수 있게 되면 실제로 필요해지는 악용 방지.
 
 9. **문서 정비** (2026-07-15 ~) — README 전면 개정, 이어서 이 ARCHITECTURE/CONTRIBUTING/ROADMAP/
    CHANGELOG/ADR 문서 세트 작업.
-   *왜:* 프로젝트가 단일 README 파일 수준을 넘어 커지면서, 컨벤션과 아키텍처 결정이 코드 주석과
+   *이유:* 프로젝트가 단일 README 파일 수준을 넘어 커지면서, 컨벤션과 아키텍처 결정이 코드 주석과
    CLAUDE.md 한 파일에 암묵적으로 흩어져 쌓여 있었음 — CLAUDE.md 자체의 공백(`ModerationModule`,
    `admin/` 워크스페이스 언급 누락 등)도 이 문서 세트를 만드는 과정에서 드러나 그대로 방치하지
    않고 고쳤음.
