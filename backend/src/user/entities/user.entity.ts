@@ -57,7 +57,11 @@ export class UserEntity extends EntityBase {
   password?: string;
 
   // Access level
+  // type: 'int' is explicit because emitDecoratorMetadata's design:type inference for an
+  // imported enum property is unreliable under ts-jest (tsconfig isolatedModules) — it
+  // resolves to Object there instead of Number, which TypeORM's postgres driver rejects.
   @Column({
+    type: 'int',
     enum: UserRole,
     default: UserRole.user,
   })
