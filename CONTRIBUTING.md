@@ -17,11 +17,12 @@ pnpm install   # installs all three workspace packages: backend/, frontend/, adm
 **backend**: copy `backend/.env.example` to `backend/.env` and fill in the values — every var is
 validated at startup via Joi (`app.module.ts`), so a missing one fails fast rather than silently.
 
-**frontend / admin**: there is currently no `.env.example` for either package — only real
-(non-template) `frontend/.env.local` / `frontend/.env.production` and `admin/.env.local` files exist.
-Until a template is added, create your own `.env.local` with:
-- `frontend/.env.local`: `VITE_API_URL`, `VITE_WS_URL`
-- `admin/.env.local`: `VITE_API_URL`
+**frontend / admin**: copy each package's `.env.example` to `.env.local` and adjust if your backend
+runs somewhere other than `localhost:3000`:
+```bash
+cp frontend/.env.example frontend/.env.local
+cp admin/.env.example admin/.env.local
+```
 
 ## Running locally
 

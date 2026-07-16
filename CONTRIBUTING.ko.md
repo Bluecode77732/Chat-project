@@ -17,11 +17,12 @@ pnpm install   # 워크스페이스 세 패키지(backend/, frontend/, admin/) �
 **backend**: `backend/.env.example`을 `backend/.env`로 복사하고 값을 채우세요 — 모든 변수는 시작 시
 Joi로 검증되므로(`app.module.ts`), 하나라도 빠지면 조용히 넘어가지 않고 바로 실패합니다.
 
-**frontend / admin**: 현재 두 패키지 모두 `.env.example`이 없습니다 — 실제(템플릿이 아닌)
-`frontend/.env.local` / `frontend/.env.production`, `admin/.env.local` 파일만 존재합니다. 템플릿이
-추가되기 전까지는 아래 변수로 직접 `.env.local`을 만드세요:
-- `frontend/.env.local`: `VITE_API_URL`, `VITE_WS_URL`
-- `admin/.env.local`: `VITE_API_URL`
+**frontend / admin**: 각 패키지의 `.env.example`을 `.env.local`로 복사하고, 백엔드가
+`localhost:3000`이 아닌 다른 곳에서 돈다면 값을 조정하세요:
+```bash
+cp frontend/.env.example frontend/.env.local
+cp admin/.env.example admin/.env.local
+```
 
 ## 로컬 실행
 
