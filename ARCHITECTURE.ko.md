@@ -58,7 +58,7 @@ pnpm 워크스페이스로 세 패키지를 구성합니다: `backend/`(NestJS A
 | `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule` | — | 루트 |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
-| `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | `UserModule`과 순환 의존, `forwardRef`로 해소 |
+| `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | `Auth → User → Chat → Auth` 3모듈 순환의 일부, `forwardRef`로 해소 — [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고 |
 | `AiModule` | TypeORM 피처만 | `AiService`, `AiRoomService` | 팩토리로 `GENAI_CLIENT` 제공 |
 | `ModerationModule` | `AuditLogModule` | `ModerationService`, `ModerationGuard` | `ChatModule`을 **절대** import하지 않음 — 아래 참고 |
 | `AuditLogModule` | TypeORM 피처만 | `AuditLogService` | |
@@ -85,9 +85,10 @@ flowchart TD
   직접 주입받는 대신 콜백 모양의 파라미터(`ModerationCallbacks`)를 받아야 합니다 — 호출부마다
   파라미터가 하나 더 필요하고, 결합관계도 일반 import보다 눈에 덜 띕니다.
 
-- **위험:** 이 코드베이스는 이미 다른 곳에서 순환 의존 하나를 `forwardRef`로 허용하고 있습니다(위
-  표의 `AuthModule` ↔ `UserModule`) — 그러니 여기서 우려하는 건 "NestJS가 두 번째 순환을 못
-  다룬다"가 아닙니다(`forwardRef`로 되긴 됩니다). 문제는 순환 하나가 더 생기면 모듈 그래프를
+- **위험:** 이 코드베이스는 이미 다른 곳에서 순환 의존 하나를 `forwardRef`로 허용하고 있습니다
+  (`AuthModule → UserModule → ChatModule → AuthModule`, `forwardRef` 하나로 해소 —
+  [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고) — 그러니 여기서 우려하는 건
+  "NestJS가 두 번째 순환을 못 다룬다"가 아닙니다(`forwardRef`로 되긴 됩니다). 문제는 순환 하나가 더 생기면 모듈 그래프를
   이해하기가 실질적으로 더 어려워지고 리팩터링에도 더 취약해지는데, 이미 `AiService`로 검증된 콜백
   패턴 대비 그럴 이득이 없다는 것입니다.
 

@@ -34,6 +34,8 @@ Each ADR has a Korean translation at the same number with a `.ko.md` suffix (e.g
 | [0014](0014-single-active-session.md) | Single active session per user (auto-evict prior socket) | Accepted |
 | [0015](0015-audit-trail-privileged-actions.md) | Audit trail for every privileged/enforcement action | Accepted |
 | [0016](0016-redis-unavailability-policy.md) | Redis unavailability: fail closed for security checks, degrade to DB for caches | Accepted |
+| [0017](0017-auth-user-chat-circular-dependency.md) | AuthModule ↔ UserModule ↔ ChatModule circular dependency via forwardRef | Accepted |
+
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
 extend coverage to decisions previously documented only in ARCHITECTURE.md or README.md; 0014–0015
@@ -42,5 +44,8 @@ fresh interview with the developer — the admin-app split's motivation and the 
 motivation were not recorded anywhere in code or prior docs before this pass. 0016 formalizes a policy
 decided and implemented during a follow-up gap review of the ADR set itself — three Redis call sites
 (JWT blacklist check, user_cache read/write, mute check) previously had no error handling at all, unlike
-the pre-existing RateLimitGuard; the fix and the ADR were done together, not documentation-only.
+the pre-existing RateLimitGuard; the fix and the ADR were done together, not documentation-only. 0017
+covers a related finding from the same gap review — a bootstrap-order circular dependency between
+AuthModule, UserModule, and ChatModule — assessed as low severity and left as-is, documented rather
+than refactored.
 motivation were not recorded anywhere in code or prior docs before this pass.

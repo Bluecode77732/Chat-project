@@ -59,7 +59,7 @@ Formalized as [ADR 0008](ADR/0008-pnpm-monorepo-layout.md).
 | `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule` | — | root |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
-| `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | circular dep with `UserModule`, broken via `forwardRef` |
+| `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | part of a 3-module cycle `Auth → User → Chat → Auth`, broken via `forwardRef` — see [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) |
 | `AiModule` | TypeORM features only | `AiService`, `AiRoomService` | provides `GENAI_CLIENT` via factory |
 | `ModerationModule` | `AuditLogModule` | `ModerationService`, `ModerationGuard` | **never** imports `ChatModule` — see below |
 | `AuditLogModule` | TypeORM features only | `AuditLogService` | |
@@ -87,9 +87,10 @@ as [ADR 0006](ADR/0006-moderation-one-directional-dependency.md).
   callback-shaped parameter (`ModerationCallbacks`) instead of a directly injected service — one more
   parameter to thread through call sites, and the coupling is less discoverable than a plain import.
 
-- **Risk:** this codebase already tolerates one circular dependency elsewhere (`AuthModule` ↔
-  `UserModule` via `forwardRef`, see the table above), so the concern here isn't that NestJS can't
-  handle a second cycle — `forwardRef` works. It's that a second circular edge would make the module
+- **Risk:** this codebase already tolerates one circular dependency elsewhere
+  (`AuthModule → UserModule → ChatModule → AuthModule`, broken via one `forwardRef`; see
+  [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md)), so the concern here isn't that NestJS
+  can't handle a second cycle — `forwardRef` works. It's that a second circular edge would make the module
   graph meaningfully harder to reason about and more fragile to refactor, for no benefit over the
   callback pattern already proven by `AiService`.
 
