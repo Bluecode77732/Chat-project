@@ -14,13 +14,13 @@ or a room broadcast could reach a stale socket the user no longer considers acti
 
 ## Decision
 
-`ChatGateway.handleConnection()` records the new socket as the current session first, then — if a
-different socket was previously registered for the same user — calls `kickPreviousSession()`
-(`chat.gateway.ts:57-62`), which emits a `forceLogout` event to the superseded socket and disconnects
-it. The write-then-kick order is deliberate: recording the new session before kicking the old one
-avoids a race where the old socket's own disconnect handler (`removeClient`,
-`chat.gateway.ts:65-69`) could otherwise clobber the new session's online status back to offline
-(`chat.gateway.ts:41-46`, inline comment).
+`ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records the new socket as
+the current session first, then — if a different socket was previously registered for the same user —
+calls `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a `forceLogout` event to the
+superseded socket and disconnects it. The write-then-kick order is deliberate: recording the new
+session before kicking the old one avoids a race where the old socket's own disconnect handler
+(`removeClient`, `chat.service.ts:65-69`) could otherwise clobber the new session's online status back
+to offline (`chat.service.ts:41-46`, inline comment).
 
 ## Consequences
 
@@ -30,6 +30,6 @@ avoids a race where the old socket's own disconnect handler (`removeClient`,
 - The superseded session's frontend receives an explicit `forceLogout` event rather than silently
   dropping — never suggest disconnecting the previous socket without emitting this event first, since
   the frontend depends on it to show a "logged in elsewhere" state instead of an unexplained drop.
-- Never suggest reordering `handleConnection` to kick the previous session before recording the new
+- Never suggest reordering `registerClient` to kick the previous session before recording the new
   one — that reopens the specific race the current order was written to avoid (see the inline comment
-  at `chat.gateway.ts:41-46`).
+  at `chat.service.ts:41-46`).

@@ -91,6 +91,8 @@ flowchart TD
   이해하기가 실질적으로 더 어려워지고 리팩터링에도 더 취약해지는데, 이미 `AiService`로 검증된 콜백
   패턴 대비 그럴 이득이 없다는 것입니다.
 
+**`AuditLogModule`이 `UserModule`/`ModerationModule`과 그 밖의 모든 것 사이에 있는 이유**: 권한 액션(역할 변경, 강제 로그아웃, 삭제)과 자동 제재(뮤트, 밴, 언밴) 모두 winston 로그 스트림과는 별개로 `AuditLogService.log()`를 통해 조회 가능한 기록으로 남습니다 — `ModerationService`는 자동으로 기록되는 항목의 행위자를 null이 아니라 `getSystemUserId()`로 지정합니다. [ADR 0015](ADR/0015-audit-trail-privileged-actions.md)로 정식화되어 있습니다.
+
 ## 전역 부트스트랩 설정
 
 `main.ts`에 한 번 등록되어 모듈과 무관하게 모든 라우트에 적용되는 횡단 관심사 설정입니다:
@@ -149,6 +151,8 @@ flowchart TD
 다시 증명합니다. 즉 구독 이후 토큰이 폐기되거나 방에서 나가도 스트림 도중에는 재확인되지
 않습니다(체크는 `receiveMessage` 호출 시점에 한 번만 실행되고, 전달되는 메시지마다 실행되지
 않음).
+
+**세션 충돌 시 축출 순서는 의도적입니다**: `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 현재 세션으로 먼저 기록한 *다음에* 이전 세션을 축출합니다(`kickPreviousSession()`, `chat.service.ts:57-62`) — 먼저 기록하는 이유는, 축출당하는 소켓 자신의 `disconnect` 핸들러가 새 세션의 온라인 상태를 다시 오프라인으로 덮어써 버리는 경합을 피하기 위해서입니다. [ADR 0014](ADR/0014-single-active-session.md) 참고.
 
 `ModerationGuard`(`moderation.guard.ts`) 자체는 밴/뮤트 상태만 확인하도록 의도적으로 얇게
 설계되어 있습니다(SRP) — 스트라이크 누적과 실제 제재 side effect는 모두 `ModerationService`에 있습니다.

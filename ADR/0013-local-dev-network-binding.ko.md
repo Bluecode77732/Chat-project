@@ -19,7 +19,12 @@ Redis(6379), 백엔드(3000)가 인터넷에서 접근 가능한 상태였고, �
 
 - 모든 `docker-compose.yml` 포트 바인딩은 `0.0.0.0:PORT:PORT`가 아니라 `127.0.0.1:PORT:PORT`입니다
   (`docker-compose.yml:17-18, 31-32, 55-56` — backend, Postgres, Redis).
-- `backend/src/main.ts`는 로컬/개발 환경에서 HTTP 리스너를 `127.0.0.1`에 바인딩합니다.
+- `backend/src/main.ts`는 맨몸으로 `pnpm start:dev`를 실행할 때(`NODE_ENV=development`)만 HTTP
+  리스너를 `127.0.0.1`에 바인딩합니다. 이건 그 특정 로컬 실행 경로만을 위한 별도의 방어 조치이지,
+  위 사고를 막은 요인이 아닙니다 — `docker-compose`(`NODE_ENV=docker`)에서는 컨테이너가 Docker
+  네트워크로부터의 연결을 받아야 하므로 `main.ts`가 내부적으로 의도적으로 `0.0.0.0`을 계속
+  유지합니다. 즉 docker-compose 노출은 순전히 포트 매핑 변경만으로 막힌 것이지, 이 인프로세스
+  바인딩 때문이 아닙니다(`main.ts:90-93`의 인라인 주석 참고).
 - Redis는 프로덕션뿐 아니라 로컬 개발에서도 비밀번호(`requirepass`)를 요구합니다.
 - 이와 유사한 노출이 발생했을 때의 대응 순서는 네트워크 봉쇄 → 자격 증명 교체 → 유물 정리
   순입니다 — 이 사고 대응 중 실제로 따랐던 순서를 정식화한 CLAUDE.md의

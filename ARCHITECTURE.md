@@ -93,6 +93,8 @@ as [ADR 0006](ADR/0006-moderation-one-directional-dependency.md).
   graph meaningfully harder to reason about and more fragile to refactor, for no benefit over the
   callback pattern already proven by `AiService`.
 
+**Why `AuditLogModule` sits between `UserModule`/`ModerationModule` and everything else**: privileged actions (role change, force logout, deletion) and automated enforcement (mute, ban, unban) both write through `AuditLogService.log()` as a queryable record independent of the winston log stream — `ModerationService` attributes its automated entries to `getSystemUserId()` rather than a null actor. Formalized as [ADR 0015](ADR/0015-audit-trail-privileged-actions.md).
+
 ## Guard Chains
 
 Order is load-bearing in every chain below — each guard depends on state the previous one set on the
@@ -114,6 +116,8 @@ This is the actual message-*delivery* guard — `sendMessage`'s guard chain (abo
 side; every subscriber independently re-proves both authentication and room membership on subscribe,
 so a token revoked or a room left after subscribing isn't re-checked mid-stream (the check runs once,
 at `receiveMessage` call time, not per delivered message).
+
+**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:57-62`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md).
 
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.

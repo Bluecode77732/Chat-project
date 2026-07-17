@@ -14,13 +14,13 @@ Accepted
 
 ## 결정
 
-`ChatGateway.handleConnection()`은 새 소켓을 먼저 현재 세션으로 기록한 다음 — 같은 사용자에 대해
-이전에 다른 소켓이 등록되어 있었다면 — `kickPreviousSession()`(`chat.gateway.ts:57-62`)을
-호출합니다. 이 함수는 대체된 소켓에 `forceLogout` 이벤트를 emit하고 연결을 끊습니다. "먼저
-기록하고 나중에 축출"하는 순서는 의도적입니다: 새 세션을 기록하기 전에 이전 소켓을 먼저 끊으면,
-이전 소켓 자신의 disconnect 핸들러(`removeClient`, `chat.gateway.ts:65-69`)가 새 세션의 온라인
-상태를 다시 오프라인으로 덮어써버릴 수 있는 레이스가 생깁니다(`chat.gateway.ts:41-46`의 인라인
-주석 참고).
+`ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 먼저 현재
+세션으로 기록한 다음 — 같은 사용자에 대해 이전에 다른 소켓이 등록되어 있었다면 —
+`kickPreviousSession()`(`chat.service.ts:57-62`)을 호출합니다. 이 함수는 대체된 소켓에
+`forceLogout` 이벤트를 emit하고 연결을 끊습니다. "먼저 기록하고 나중에 축출"하는 순서는
+의도적입니다: 새 세션을 기록하기 전에 이전 소켓을 먼저 끊으면, 이전 소켓 자신의 disconnect
+핸들러(`removeClient`, `chat.service.ts:65-69`)가 새 세션의 온라인 상태를 다시 오프라인으로
+덮어써버릴 수 있는 레이스가 생깁니다(`chat.service.ts:41-46`의 인라인 주석 참고).
 
 ## 결과
 
@@ -30,6 +30,6 @@ Accepted
 - 대체된 세션의 프론트엔드는 조용히 끊기는 대신 명시적인 `forceLogout` 이벤트를 받습니다 — 이
   이벤트를 먼저 emit하지 않고 이전 소켓을 끊는 것은 절대 제안하지 않습니다. 프론트엔드는 설명 없이
   끊기는 대신 "다른 곳에서 로그인됨" 상태를 보여주기 위해 이 이벤트에 의존합니다.
-- `handleConnection`의 순서를 바꿔서 새 세션을 기록하기 전에 이전 세션을 먼저 축출하는 것은 절대
-  제안하지 않습니다 — 현재 순서가 막고 있는 바로 그 레이스가 다시 열립니다(`chat.gateway.ts:41-46`의
+- `registerClient`의 순서를 바꿔서 새 세션을 기록하기 전에 이전 세션을 먼저 축출하는 것은 절대
+  제안하지 않습니다 — 현재 순서가 막고 있는 바로 그 레이스가 다시 열립니다(`chat.service.ts:41-46`의
   인라인 주석 참고).

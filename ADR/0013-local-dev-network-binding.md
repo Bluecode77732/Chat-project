@@ -19,7 +19,12 @@ PostgreSQL using default credentials, wiped the databases, and left a ransom not
 
 - All `docker-compose.yml` port bindings are `127.0.0.1:PORT:PORT`, not `0.0.0.0:PORT:PORT`
   (`docker-compose.yml:17-18, 31-32, 55-56` — backend, Postgres, Redis).
-- `backend/src/main.ts` binds its HTTP listener to `127.0.0.1` in the local/dev environment.
+- `backend/src/main.ts` binds its HTTP listener to `127.0.0.1` when run bare via `pnpm start:dev`
+  (`NODE_ENV=development`). This is a separate hardening measure for that specific local-run path, not
+  what closed the incident above — under `docker-compose` (`NODE_ENV=docker`), `main.ts` deliberately
+  keeps binding to `0.0.0.0` internally (the container has to accept connections from the Docker
+  network), so the docker-compose exposure was closed entirely by the port-mapping change, not by this
+  in-process binding (`main.ts:90-93`, inline comment).
 - Redis requires a password (`requirepass`) even in local dev, not just in production.
 - Response order for any similar exposure is containment (network) → credential rotation → artifact
   cleanup, in that order — see CLAUDE.md's "Containment Before Cleanup" principle under
