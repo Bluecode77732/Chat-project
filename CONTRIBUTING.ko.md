@@ -74,8 +74,8 @@ cd admin && pnpm dev           # Vite 개발 서버, :5174
 |---|---|---|
 | `test` (ubuntu-latest) | `pnpm --filter backend lint`(비차단, `\|\| true`), `pnpm --filter backend test`, `pnpm --filter admin lint`(비차단), `pnpm --filter admin test` | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
-| `e2e` | `frontend/` 대상 Playwright e2e, 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 아니오 — `continue-on-error: true` |
-| `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true` |
+| `e2e` | `frontend/` 대상 Playwright e2e, 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
+| `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 
 PR을 올리기 전 로컬에서:
 ```bash
