@@ -358,6 +358,14 @@ See README's [Entities](README.md#entities-typeorm) section for the full field-l
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`) — kept current there, no need
 to duplicate it here.
 
+- **Risk of this delegation**: this is a single point of failure by construction — if README's Entities
+  section drifts from the actual entity files (it already had, once: a stale `RoomEntity.aiPersonality`
+  field survived here until this documentation pass caught it against `room.entity.ts`), this section's
+  "kept current there" claim becomes silently false with no local signal. The same applies to every
+  other `file:line` citation across this document and the ADR/ suite — none of them are mechanically
+  checked against source, so accuracy depends entirely on the last person who happened to re-verify by
+  hand.
+
 **`AiRoomEntity` split from `RoomEntity`**: a room's active AI personality was originally a nullable
 `aiPersonality` column directly on `RoomEntity`; migration `ExtractAiPersonalityToAiRoomEntity`
 (`1749639600000`) moved it into a separate `AiRoomEntity` (`OneToOne` back to `RoomEntity`,

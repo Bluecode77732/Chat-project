@@ -348,6 +348,13 @@ flowchart LR
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`) — 최신 상태로 유지되고
 있으므로 여기서 다시 쓰지 않습니다.
 
+- **이 위임 구조의 리스크**: 구조상 단일 장애점입니다 — README의 엔티티 절이 실제 엔티티 파일과
+  어긋나면(실제로 한 번 그랬습니다: `RoomEntity.aiPersonality`라는 없어진 필드가 이번 문서화
+  작업에서 `room.entity.ts`와 대조하기 전까지 남아있었습니다) "최신 상태로 유지되고 있다"는 문장
+  자체가 아무 신호 없이 조용히 거짓이 됩니다. 이 문서와 ADR/ 스위트 전체의 다른 모든 `file:line`
+  인용도 마찬가지입니다 — 소스 코드와 기계적으로 대조되는 장치가 하나도 없어서, 정확성은 전적으로
+  마지막에 손으로 재검증한 사람에게 달려 있습니다.
+
 **`RoomEntity`에서 분리된 `AiRoomEntity`**: 방의 활성 AI 성격은 원래 `RoomEntity` 위에 직접 있는
 nullable `aiPersonality` 컬럼이었습니다. 마이그레이션 `ExtractAiPersonalityToAiRoomEntity`
 (`1749639600000`)가 이를 별도의 `AiRoomEntity`(`RoomEntity`로의 `OneToOne`, `onDelete: 'CASCADE'`)로

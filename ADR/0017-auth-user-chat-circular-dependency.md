@@ -9,7 +9,7 @@ Accepted
 Three independent, single-direction dependencies happen to chain into a closed loop:
 
 - **`AuthModule → UserModule`**: `JwtStrategy` (provided by `AuthModule`) calls
-  `userService.findOne(payload.sub)` on a `user_cache` miss (`jwt.strategy.ts:17,59`).
+  `userService.findOne(payload.sub)` on a `user_cache` miss (`jwt.strategy.ts:17,83`).
   `AuthService` itself does not depend on `UserService` — it reads `UserEntity` via its own injected
   repository.
 - **`UserModule → ChatModule`**: `UserService` calls `chatService.disconnectSocket()` from `forceLogout`
