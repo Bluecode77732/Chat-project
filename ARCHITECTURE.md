@@ -76,6 +76,11 @@ flowchart TD
     Redis((Redis — Global))
 ```
 
+Trace `User → Chat → Auth → User` in the diagram above to see the 3-module cycle — the `Auth -.
+forwardRef .-> User` edge is the only dotted one because it's the sole edge NestJS needs deferred to
+boot successfully; the other two edges (`User → Chat`, `Chat → Auth`) are ordinary eager imports that
+happen to close the loop. See [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md).
+
 **Why `ModerationModule` never imports `ChatModule`**: `ChatModule` already depends on
 `ModerationModule` (for `ModerationGuard` on `sendMessage`). If `ModerationModule` also depended on
 `ChatModule`, that would be a cycle. Instead, `ModerationService` receives chat-side effects

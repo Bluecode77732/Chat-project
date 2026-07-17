@@ -9,7 +9,7 @@ Accepted
 서로 독립적인 단방향 의존성 3개가 우연히 하나의 닫힌 원으로 이어져 있습니다.
 
 - **`AuthModule → UserModule`**: `AuthModule`이 제공하는 `JwtStrategy`가 `user_cache` 미스 시
-  `userService.findOne(payload.sub)`를 호출합니다(`jwt.strategy.ts:17,59`). `AuthService` 자신은
+  `userService.findOne(payload.sub)`를 호출합니다(`jwt.strategy.ts:17,83`). `AuthService` 자신은
   `UserService`에 의존하지 않고, 직접 주입받은 리포지토리로 `UserEntity`를 읽습니다.
 - **`UserModule → ChatModule`**: `UserService`가 `forceLogout`(`user.service.ts:43,320`)과 `remove`의
   캐스케이드 정리 경로(`user.service.ts:416`)에서 `chatService.disconnectSocket()`을 호출합니다.

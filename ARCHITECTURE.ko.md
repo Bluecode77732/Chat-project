@@ -75,6 +75,11 @@ flowchart TD
     Redis((Redis — Global))
 ```
 
+위 다이어그램에서 `User → Chat → Auth → User`를 따라가 보면 3-모듈 순환이 보입니다 — `Auth -.
+forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공하려면 그 엣지 하나만 지연 해석하면
+되기 때문입니다. 나머지 두 엣지(`User → Chat`, `Chat → Auth`)는 평범한 즉시 import인데 우연히 고리를
+닫아버립니다. [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고.
+
 **`ModerationModule`이 `ChatModule`을 import하지 않는 이유**: `ChatModule`이 이미 `ModerationModule`에
 의존합니다(`sendMessage`의 `ModerationGuard`). 여기서 `ModerationModule`도 `ChatModule`에 의존하면
 순환이 발생합니다. 대신 `ModerationService`는 채팅 쪽 side effect(`publishFn`, `disconnectFn`)를

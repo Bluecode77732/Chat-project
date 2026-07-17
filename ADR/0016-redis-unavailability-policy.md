@@ -33,7 +33,7 @@ Two policies, chosen per call site based on whether an authoritative non-Redis f
     with no guard-side changes needed.
 
 - **Degrade to the existing DB fallback (cache-only reads with a DB source of truth)** —
-  `JwtStrategy`'s `user_cache` read and write (`jwt.strategy.ts:61-71, 91-101`): a Redis error on the
+  `JwtStrategy`'s `user_cache` read and write (`jwt.strategy.ts:61-71, 90-102`): a Redis error on the
   read is treated identically to a cache miss (`cached` stays `null`), falling through to the DB lookup
   that already exists in the same method for that case; a Redis error on the write-back is logged and
   swallowed, since the caller already has the DB-resolved user and a failed cache write must not fail
