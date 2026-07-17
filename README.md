@@ -148,7 +148,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 - URL: `http://localhost:3000/document`
 
 **Authentication**
-- `POST /auth/register` - Register with Basic Auth
+- `POST /auth/register` - Register with Basic Auth — optional body `{ nickname? }`
 - `POST /auth/signin` - Get JWT tokens
 - `POST /auth/token/refreshaccess` - Refresh access token
 
@@ -156,7 +156,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 - `GET /user` - List users **(admin only)** — query params: `page`, `take`, `sort` (`ASC`/`DESC`), `sortBy` (`id`/`role`/`created`), `search` (email/nickname), `status` (`active`/`banned`), `humanOnly` (excludes the seeded AI and moderation-system accounts)
 - `GET /user/:id` - Get a user (own account or admin)
 - `POST /user` - Create a user
-- `PATCH /user/:id` - Update a user (own account or admin)
+- `PATCH /user/:id` - Update a user (own account or admin) — optional body `{ email?, password?, nickname?, profileImage? }` (nickname ≤20 chars, must be unique; profileImage as a base64 data URI, jpeg/png/webp, ≤2MB); 400 if the nickname is already in use
 - `PATCH /user/:id/role` - Change user role **(superadmin only)**
 - `POST /user/:id/force-logout` - Force logout a user **(admin only)**
 - `POST /user/:id/ban` - Manually ban a user, independent of the automatic strike system **(admin only)** — optional body `{ reason?, durationSec? }` (omit `durationSec` for a permanent ban); also evicts any active session
@@ -232,9 +232,7 @@ Test 'Auth' and 'User' Endpoints URL below.
     ```graphql
     {
       "input": {
-        "message": "Sent from Postman",
-        "recipientId": 2,
-        "room": 19
+        "message": "Sent from Postman"
       },
       "recipientId": 2
     }
@@ -246,12 +244,15 @@ Test 'Auth' and 'User' Endpoints URL below.
   - Headers: `authorization: Bearer token`
 
   **Queries**
+  - `ping` => `String` — Unauthenticated health-check query, returns `"ping has returned."`
   - `getMessages(roomId: Int!, cursor?: Int)` => `[MessageType]` — Fetch up to 15 messages before the cursor (cursor-based pagination)
   - `getMyRooms` => `[RoomInfoType]` — List all rooms the authenticated user belongs to
   - `getRoom(recipientId: Int!)` => `Int` — Return the room ID shared with a recipient, or null if none
   - `getOnlineUser` => `[Int]` — List user IDs currently marked online in Redis
   - `getAllUsers` => `[Int]` — List all user IDs except the caller
+  - `getUserNicknames` => `[UserType]` — List all non-AI users' `{id, nickname, profileImage}`, used to resolve display names/avatars (chat) or display names (Admin Panel — nickname only, profileImage not fetched there)
   - `getAiUserId` => `Int` — Return the system AI user's ID
+  - `getSystemUserId` => `Int` — Return the moderation system account's ID (used as the actor on automated audit-log entries, e.g. `USER_MUTED`/`USER_BANNED`)
   - `getAiPersonalityInfo(roomId: Int!)` => `AiPersonalityInfoType` — Return the active personality for the room
   - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` => `PaginatedAdminRooms` — **(admin only)** Paginated/sortable/searchable room list, backs the Admin Panel's Rooms page
 
@@ -315,6 +316,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Horizontal scaling ready - Redis-backed session
 - AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
 - Cursor-based message history with infinite scroll
+- Profile customization - optional nickname (unique, ≤20 chars) and profile image (jpeg/png/webp, ≤2MB) set via account settings
 - Admin dashboard - separate app for user/room management, moderation actions, and audit-log CSV export (see [Admin Panel](#admin-panel))
 
 
@@ -326,6 +328,7 @@ Chat Project/                   <= monorepo root
 │   └── src/
 │       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
 │       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
+│       │   ├── entities/       <= AiRoomEntity (room's active AI personality, split out of RoomEntity)
 │       │   └── enums/          <= ai-personality.enum.ts
 │       ├── audit-log/          <= AuditLogController, AuditLogService (privileged-action audit trail, CSV export)
 │       │   └── dto/            <= AuditLogQueryDto, AuditLogExportQueryDto
@@ -338,6 +341,7 @@ Chat Project/                   <= monorepo root
 │       │   └── strategy/       <= passport-local, passport-jwt
 │       ├── base/
 │       │   ├── entity/         <= EntityBase (created/updated timestamps)
+│       │   ├── filter/         <= AllExceptionsFilter (global HTTP+GraphQL error normalization)
 │       │   └── logger/         <= winston logger
 │       ├── chat/               <= ChatGateway, ChatService, ChatResolver
 │       │   ├── decorator/      <= gql-query-runner.decorator
@@ -361,7 +365,7 @@ Chat Project/                   <= monorepo root
 │   └── src/
 │       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
 │       ├── components/         <= ProtectedRoute
-│       ├── pages/               <= ChatPage, SigninPage, RegisterPage
+│       ├── pages/               <= ChatPage, SigninPage, RegisterPage, AccountPage
 │       ├── socket/              <= socket.ts (Socket.IO singleton)
 │       ├── store/                <= auth.store.ts (Zustand)
 │       └── types/
@@ -371,7 +375,8 @@ Chat Project/                   <= monorepo root
         ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
         ├── components/         <= ProtectedRoute
         ├── pages/               <= DashboardPage, UsersPage, RoomsPage, LogsPage
-        └── store/                <= auth.store.ts (Zustand)
+        ├── store/                <= auth.store.ts (Zustand)
+        └── test/                 <= Vitest setup (jest-dom matchers, RTL cleanup)
 ```
 
 ### Hybrid Storage Pattern
@@ -388,6 +393,8 @@ Chat Project/                   <= monorepo root
 UserEntity
   id          PK
   email       unique
+  nickname    nullable, unique, max 20 chars — display name shown to other users
+  profileImage nullable text (base64 data URI, jpeg/png/webp, max ~2MB)
   password    excluded from API responses
   isAI        boolean (true only for the seeded AI system account)
   role        enum: user (0) | admin (1) | superadmin (2)
@@ -404,11 +411,16 @@ ChatEntity
 
 RoomEntity
   id            PK
-  aiPersonality nullable string (active AI personality for this room)
   participants >< UserEntity   (ManyToMany owner, @JoinTable)
   chats        =< ChatEntity   (OneToMany)
 
-EntityBase (inherited by all three)
+AiRoomEntity — split out of RoomEntity for separation of concerns and cleaner ongoing
+management (see ARCHITECTURE.md's Entities section for the full rationale)
+  id          PK
+  room        -- RoomEntity  (OneToOne, onDelete: CASCADE)
+  personality string (active AI personality for this room)
+
+EntityBase (inherited by all four)
   created     CreateDateColumn — excluded from API responses
   updated     UpdateDateColumn — excluded from API responses
 ```

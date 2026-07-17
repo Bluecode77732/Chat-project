@@ -217,7 +217,11 @@ flowchart LR
 
 - **백엔드 / Railway**: `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을 빌드하고, 동일한
   마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작합니다. 배포는
-  `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거합니다.
+  `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거하며, 이제 그 job은
+  `test`, `e2e`, `admin-e2e` 세 개가 모두 성공해야 실행됩니다(`needs: [test, e2e, admin-e2e]`) — 원래
+  이 두 Playwright job은 비차단(`continue-on-error: true`, `deploy`에 영향 없음)이었는데, 그렇게 설정한
+  이유가 기록에 없어서 이번 문서화 작업 중에 차단으로 변경했습니다(전체 CI job 표는
+  [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고).
 
 - **프론트엔드 & 관리자 / Vercel**: 별개의 Vercel 프로젝트 두 개, 각자 자신의 `vercel.json`(SPA
   리라이트뿐)과 백엔드 쪽 `CORS_ORIGIN` 항목을 가집니다(CLAUDE.md의 [CORS](CLAUDE.md#cors) 절

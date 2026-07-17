@@ -232,9 +232,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
     ```graphql
     {
       "input": {
-        "message": "Sent from Postman",
-        "recipientId": 2,
-        "room": 19
+        "message": "Sent from Postman"
       },
       "recipientId": 2
     }
@@ -246,12 +244,15 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
   - Headers: `authorization: Bearer token`
 
   **쿼리**
+  - `ping` → `String` — 인증 불필요한 헬스체크 쿼리, `"ping has returned."` 반환
   - `getMessages(roomId: Int!, cursor?: Int)` → `[MessageType]` — 커서 기준 이전 메시지 최대 15개 조회 (커서 기반 페이지네이션)
   - `getMyRooms` → `[RoomInfoType]` — 인증된 사용자가 속한 모든 방 목록 조회
   - `getRoom(recipientId: Int!)` → `Int` — 수신자와 공유하는 방 ID 반환, 없으면 null
   - `getOnlineUser` → `[Int]` — Redis에 현재 온라인으로 표시된 사용자 ID 목록
   - `getAllUsers` → `[Int]` — 호출자를 제외한 전체 사용자 ID 목록
+  - `getUserNicknames` → `[UserType]` — AI를 제외한 전체 사용자의 `{id, nickname, profileImage}` 목록 — 표시 이름/아바타 해석에 사용(채팅) 또는 표시 이름만 사용(Admin Panel — profileImage는 조회 안 함)
   - `getAiUserId` → `Int` — 시스템 AI 유저 ID 반환
+  - `getSystemUserId` → `Int` — 모더레이션 시스템 계정 ID 반환 (자동 감사 로그 항목, 예: `USER_MUTED`/`USER_BANNED`의 행위자로 사용됨)
   - `getAiPersonalityInfo(roomId: Int!)` → `AiPersonalityInfoType` — 해당 방의 현재 AI 성격 반환
   - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` → `PaginatedAdminRooms` — **(admin 전용)** 페이지네이션/정렬/검색이 가능한 방 목록 — Admin Panel Rooms 페이지가 사용
 
@@ -326,6 +327,7 @@ Chat Project/                   ← 모노레포 루트
 │   └── src/
 │       ├── ai/                 ← Gemini AI (AiService, AiRoomService)
 │       │   ├── constants/      ← system-prompts.ts, AI_USER_EMAIL
+│       │   ├── entities/       ← AiRoomEntity (해당 방의 활성 AI 성격, RoomEntity에서 분리됨)
 │       │   └── enums/          ← ai-personality.enum.ts
 │       ├── audit-log/          ← AuditLogController, AuditLogService (권한 액션 감사 추적, CSV export)
 │       │   └── dto/            ← AuditLogQueryDto, AuditLogExportQueryDto
@@ -338,6 +340,7 @@ Chat Project/                   ← 모노레포 루트
 │       │   └── strategy/       ← passport-local, passport-jwt
 │       ├── base/
 │       │   ├── entity/         ← EntityBase (생성/수정 타임스탬프)
+│       │   ├── filter/         ← AllExceptionsFilter (HTTP+GraphQL 에러 응답 전역 정규화)
 │       │   └── logger/         ← winston 로거
 │       ├── chat/               ← ChatGateway, ChatService, ChatResolver
 │       │   ├── decorator/      ← gql-query-runner.decorator
@@ -371,7 +374,8 @@ Chat Project/                   ← 모노레포 루트
         ├── auth/               ← session-guard.ts (조용한 토큰 갱신, 탭 간 충돌 감지)
         ├── components/         ← ProtectedRoute
         ├── pages/               ← DashboardPage, UsersPage, RoomsPage, LogsPage
-        └── store/                ← auth.store.ts (Zustand)
+        ├── store/                ← auth.store.ts (Zustand)
+        └── test/                 ← Vitest 셋업 (jest-dom matcher, RTL cleanup)
 ```
 
 ### 하이브리드 저장소 패턴
@@ -404,11 +408,16 @@ ChatEntity
 
 RoomEntity
   id            PK
-  aiPersonality nullable string (해당 방의 현재 AI 성격)
   participants >< UserEntity   (ManyToMany 소유자, @JoinTable)
   chats        =< ChatEntity   (OneToMany)
 
-EntityBase (세 엔티티 모두 상속)
+AiRoomEntity — 관심사 분리와 더 깔끔한 관리를 위해 RoomEntity에서 분리됨
+(자세한 이유는 ARCHITECTURE.md의 엔티티 절 참고)
+  id          PK
+  room        -- RoomEntity  (OneToOne, onDelete: CASCADE)
+  personality string (해당 방의 현재 AI 성격)
+
+EntityBase (네 엔티티 모두 상속)
   created     CreateDateColumn — API 응답에서 제외
   updated     UpdateDateColumn — API 응답에서 제외
 ```
