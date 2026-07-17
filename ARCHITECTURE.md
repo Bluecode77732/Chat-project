@@ -3,7 +3,7 @@
 This document is the technical deep-dive companion to [README.md](README.md). README covers the
 project pitch, quick start, and feature list; [CLAUDE.md](CLAUDE.md) covers AI-agent conventions and
 guardrails. This file covers structure that neither of those fully spells out: the module dependency
-graph, guard-chain composition, and deployment topology. Where README already documents something well
+graph, guard-chain composition, global bootstrap/error handling, and deployment topology. Where README already documents something well
 (project structure tree, entity relationships, the `sendMessage` data flow), this file links to it
 instead of restating it, to avoid the two drifting out of sync. Design-intent explanations below are
 grounded in code and, where the reasoning isn't derivable from code alone, in the developer's own
@@ -48,6 +48,7 @@ Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management das
 
 - **Risk:** low at this scale (one developer, three packages); would grow if the team or package count
   grew — the standard mitigation (Nx/Turborepo-style affected-package filtering) isn't in place yet.
+Formalized as [ADR 0008](ADR/0008-pnpm-monorepo-layout.md).
 
 ## Module Dependency Graph
 
@@ -79,7 +80,8 @@ flowchart TD
 `ModerationModule` (for `ModerationGuard` on `sendMessage`). If `ModerationModule` also depended on
 `ChatModule`, that would be a cycle. Instead, `ModerationService` receives chat-side effects
 (`publishFn`, `disconnectFn`) as injected callbacks from `ChatResolver` at call time — the same pattern
-`AiService.handleReply()` uses. Documented at `backend/src/moderation/moderation.module.ts:1-4`.
+`AiService.handleReply()` uses. Documented at `backend/src/moderation/moderation.module.ts:1-4`; formalized
+as [ADR 0006](ADR/0006-moderation-one-directional-dependency.md).
 
 - **Cost:** `ModerationService`'s methods that need chat effects (e.g. `evaluateMessage`) must accept a
   callback-shaped parameter (`ModerationCallbacks`) instead of a directly injected service — one more
@@ -102,6 +104,16 @@ request.
 | GraphQL, admin-gated | `GraphQLAuthGuard` → `GraphQLRBACGuard` | `chat.resolver.ts` (comment: "`GraphQLAuthGuard` populates `req.user`; `GraphQLRBACGuard` reads it") |
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
 | Socket.IO `handleConnection` | JWT parse → `moderationService.isUserBanned()` check | `chat.gateway.ts` — same ban gate `jwt.strategy` applies over HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead |
+| GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:309-326` |
+
+**`receiveMessage` runs over `graphql-ws`, not HTTP** — the only guard chain in this table that does.
+`GraphQLAuthGuard` reads `ctx.req.headers.authorization`, but a subscription has no HTTP request; the
+GraphQL `context()` function (`app.module.ts:88-119`) builds a synthetic `req.headers.authorization`
+from `graphql-ws`'s `connectionParams`, captured during `onConnect` and threaded through as `extra`.
+This is the actual message-*delivery* guard — `sendMessage`'s guard chain (above) only gates the write
+side; every subscriber independently re-proves both authentication and room membership on subscribe,
+so a token revoked or a room left after subscribing isn't re-checked mid-stream (the check runs once,
+at `receiveMessage` call time, not per delivered message).
 
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.
@@ -114,15 +126,59 @@ request.
   Redis cycles on a request that was always going to be rejected, and could also feed spurious extra
   strikes into `recordVelocityViolation` for an account that's already banned.
 
+## Global Bootstrap Configuration
+
+Cross-cutting request-handling setup registered once in `main.ts`, applying to every route regardless
+of module:
+
+- **`ValidationPipe`** (`main.ts:32-41`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
+  (strips/rejects any property not declared on the target DTO class) and `transform: true` (coerces
+  incoming payloads into DTO class instances). This is the enforcement mechanism behind CLAUDE.md's
+  Never Do Group 3 "Raw `@Body()` without DTO" rule — validation runs once here for every
+  controller/resolver argument typed as a DTO, not re-implemented per endpoint.
+- **`app.enableShutdownHooks()`** (`main.ts:21`) — without this, `OnModuleDestroy` hooks
+  (`PubSubService`, `SessionCacheService`, `ChatGateway`) never run on `SIGTERM`/`SIGINT`, so every
+  deploy would drop Redis connections abruptly instead of closing them gracefully (per the code
+  comment at `main.ts:18-20`).
+- **Body parser limit raised to 3mb** (`main.ts:27-30`, both `json` and `urlencoded`) — the Express
+  default (100kb) is far smaller than a base64-encoded user-uploaded image, per the code comment at
+  `main.ts:27-28`. This is what `AllExceptionsFilter`'s payload-too-large → `413` branch (see
+  [Error Handling](#error-handling) below) exists to catch when a request exceeds it.
+
+## Error Handling
+
+`AllExceptionsFilter` (`backend/src/base/filter/all-exceptions.filter.ts`) is registered as a single
+global filter (`app.useGlobalFilters(new AllExceptionsFilter())`, `main.ts:25`) covering both HTTP and
+GraphQL — it branches on `host.getType<'http' | 'ws' | 'graphql'>()` rather than being split into two
+filters. Non-`HttpException` errors default to `500`/`INTERNAL_SERVER_ERROR`, except a `body-parser`
+"entity.too.large" error, which it detects structurally (not via `instanceof HttpException`, since
+`body-parser` throws a plain `Error`) and remaps to `413 PAYLOAD_TOO_LARGE`. In production
+(`NODE_ENV === 'production'`), the stack trace is omitted from both the HTTP JSON body and the GraphQL
+error's `extensions` — this is the concrete implementation behind CLAUDE.md's Never Do Group 3 "Stack
+trace in error response" rule.
+
+- **Korean-language user-facing message**: the payload-too-large message
+  (`'이미지 용량 크기가 너무 커요!'`) is hardcoded in Korean, unlike the rest of this filter's messages
+  and the surrounding codebase/docs (English). Confirmed intentional, not an oversight — written under
+  the assumption that the user base is Korean-speaking, and deliberately left as a temporary,
+  unextracted string pending future work: adding an English translation for English-speaking users (per
+  the developer). See CLAUDE.md's [Internationalization (i18n)](CLAUDE.md#internationalization-i18n)
+  section — this string is exactly the kind of inlined UI text that section flags for extraction once an
+  i18n library is adopted.
+
 ## Data Flow
 
 The `sendMessage` GraphQL mutation path and the Socket.IO connection lifecycle are both already
 diagrammed step-by-step in README's [Flow](README.md#flow) section — read that for the authoritative
-walkthrough (transaction boundary, post-commit AI reply trigger, Redis Pub/Sub delivery). The one
-addition relevant here: `ModerationService.evaluateMessage()` runs inside that same path, between guard
+walkthrough (transaction boundary, post-commit AI reply trigger, Redis Pub/Sub delivery); the
+transaction-boundary decision itself is formalized in [ADR 0003](ADR/0003-database-transaction-strategy.md).
+The one addition relevant here: `ModerationService.evaluateMessage()` runs inside that same path, between guard
 checks and persistence, and can itself trigger a system-message publish (warn/mute/ban notices) through
 the identical `receiveMessage :${roomId}` channel — see [AI Reply Channel Parity](CLAUDE.md#chat--caching)
-in CLAUDE.md, which this reuses rather than introducing a second delivery path.
+in CLAUDE.md, which this reuses rather than introducing a second delivery path. The post-commit AI
+reply trigger (`AiService.handleReply()`) acquires a per-room Redis lock before generating a reply —
+see [ADR 0007](ADR/0007-ai-reply-distributed-lock.md) for why a skip-not-queue lock at room granularity
+was chosen over alternatives.
 
 - **Risk:** `evaluateMessage()` runs in a `setImmediate` block that fires *after* `pubSub.publish()`
   has already delivered the triggering message to subscribers (`chat.resolver.ts:206` publishes before
@@ -164,6 +220,8 @@ flowchart LR
     a phone) needs an SSH tunnel or explicit port-forward instead of a bare IP:port — a real but small
     inconvenience traded for closing a proven attack path.
 
+See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
+
 - **Backend / Railway**: `railway.toml` builds `backend/Dockerfile` (multi-stage), runs the same
   migrate-then-start command, restarts on failure up to 3 times. Deploy is triggered by
   `.github/workflows/deploy.yml`'s `deploy` job on push to `main` only.
@@ -171,6 +229,8 @@ flowchart LR
 - **Frontend & Admin / Vercel**: two separate Vercel projects, each with its own `vercel.json` (SPA
   rewrite only) and its own `CORS_ORIGIN` entry on the backend (see CLAUDE.md's
   [CORS](CLAUDE.md#cors) section — the env var is a comma-separated list covering both origins).
+  Why `admin` is a separate app in the first place (rather than a protected route in
+  `frontend`) is formalized as [ADR 0009](ADR/0009-admin-separate-app.md).
 
 - **Why Railway + Vercel**: free/low-cost tiers sufficient for a personal project, plus convenient
   GitHub-push-to-deploy integration on both platforms.
@@ -180,6 +240,9 @@ flowchart LR
     (rather than one) doubles the CORS surface to maintain (`CORS_ORIGIN` must list both origins,
     everywhere it's set) — accepted because the two apps need genuinely independent deploy cadences
     (see [ADR 0005](ADR/0005-cors-multi-origin-policy.md)).
+
+See [ADR 0010](ADR/0010-railway-vercel-deployment.md) for the full breakdown of the Railway + Vercel
+choice.
 
 - **Node/pnpm pin**: `.nvmrc` = `24`; `packageManager: pnpm@10.33.0`, both enforced in CI.
 
@@ -233,6 +296,14 @@ Stacks section doesn't state.
 
 - **Redis via ioredis**
 
+  - **Three separate client instances**, not one shared connection: `REDIS_CLIENT` (`redis.module.ts`,
+    backs `SessionCacheService`), and `pubClient`/`subClient` (`chat.gateway.ts`'s `afterInit`, backing
+    `@socket.io/redis-adapter`) — plus whatever `graphql-redis-subscriptions` opens internally for
+    `PubSubService` (see CLAUDE.md's Cache section: "pub/sub uses a dedicated subscriber connection").
+    `redis.module.ts` and `chat.gateway.ts` each independently parse `REDIS_URL` and detect `rediss:`
+    for TLS — the connection-config logic (host/port/password/TLS extraction) is duplicated verbatim
+    between the two files rather than shared.
+
   - **Cost:** every new cache/session key must follow the `{service}:{entity}:{id}` naming convention
     and carry an explicit TTL — a small but mandatory extra step at every call site that touches
     Redis.
@@ -252,6 +323,9 @@ Stacks section doesn't state.
     as a caught, logged skip rather than a crash, so the failure mode is "no AI reply," not "broken
     chat."
 
+  See [ADR 0011](ADR/0011-gemini-ai-provider.md) for the full breakdown, including why Gemini rather
+  than another provider.
+
 - **JWT + Passport (auth)**
 
   - **Cost:** every client needing a fresh `accessToken` must route through the shared
@@ -265,8 +339,18 @@ Stacks section doesn't state.
 ## Entities
 
 See README's [Entities](README.md#entities-typeorm) section for the full field-level breakdown
-(`UserEntity`, `ChatEntity`, `RoomEntity`, `EntityBase`) — it's accurate and current, no need to
-duplicate it here.
+(`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`) — kept current there, no need
+to duplicate it here.
+
+**`AiRoomEntity` split from `RoomEntity`**: a room's active AI personality was originally a nullable
+`aiPersonality` column directly on `RoomEntity`; migration `ExtractAiPersonalityToAiRoomEntity`
+(`1749639600000`) moved it into a separate `AiRoomEntity` (`OneToOne` back to `RoomEntity`,
+`onDelete: 'CASCADE'`).
+
+- **Why:** separation of concerns between AI-specific room state and general room state, and cleaner
+  ongoing management of that data (per the developer).
+
+Formalized as [ADR 0012](ADR/0012-airoomentity-split.md).
 
 ## Resolved Anomaly
 

@@ -32,7 +32,7 @@ mechanism to keep Socket.IO room broadcasts consistent across instances.
 
 - Never suggest `node-redis` — `ioredis` is the only client used across this codebase; introducing a
   second client (which has in fact already happened accidentally — see the flagged, unused `redis` v5
-  dependency noted in [ARCHITECTURE.md](../ARCHITECTURE.md#known-anomaly-flagged-not-fixed)) creates
+  dependency noted in [ARCHITECTURE.md](../ARCHITECTURE.md#resolved-anomaly)) creates
   confusion about which client is authoritative.
 - Any new Redis key must follow the naming convention and carry an explicit TTL; a key without one is a
   Never Do Group 3 violation (unbounded memory growth).

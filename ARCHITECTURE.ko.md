@@ -2,7 +2,7 @@
 
 이 문서는 [README.md](README.md)의 기술 심화 버전입니다. README는 프로젝트 소개, 빠른 시작, 기능 목록을
 다루고, [CLAUDE.md](CLAUDE.md)는 AI 에이전트 컨벤션과 가드레일을 다룹니다. 이 문서는 그 두 문서가 충분히
-다루지 않는 부분 — 모듈 의존성 그래프, 가드 체인 구성, 배포 토폴로지 — 를 다룹니다. README가 이미 잘
+다루지 않는 부분 — 모듈 의존성 그래프, 가드 체인 구성, 전역 부트스트랩/에러 처리, 배포 토폴로지 — 를 다룹니다. README가 이미 잘
 정리한 내용(프로젝트 구조 트리, 엔티티 관계, `sendMessage` 데이터 흐름)은 다시 쓰지 않고 링크로
 대신하여 두 문서가 서로 어긋나지 않도록 합니다. 아래의 설계 의도 설명은 코드에 근거하거나, 코드만으로는
 알 수 없는 부분은 개발자 본인이 밝힌 동기에 근거합니다 — 지어내지 않습니다.
@@ -47,6 +47,8 @@ pnpm 워크스페이스로 세 패키지를 구성합니다: `backend/`(NestJS A
 - **위험:** 지금 규모(개발자 1명, 패키지 3개)에서는 낮지만, 팀이나 패키지 수가 늘어나면 커집니다 —
   Nx/Turborepo류의 영향받은-패키지만 필터링하는 표준적인 완화책은 아직 없습니다.
 
+[ADR 0008](ADR/0008-pnpm-monorepo-layout.md)로 정식화되어 있습니다.
+
 ## 모듈 의존성 그래프
 
 `backend/src/*/*.module.ts` 각 파일의 `imports`/`exports`를 직접 확인한 결과입니다.
@@ -77,7 +79,7 @@ flowchart TD
 의존합니다(`sendMessage`의 `ModerationGuard`). 여기서 `ModerationModule`도 `ChatModule`에 의존하면
 순환이 발생합니다. 대신 `ModerationService`는 채팅 쪽 side effect(`publishFn`, `disconnectFn`)를
 `ChatResolver`가 호출 시점에 콜백으로 주입받습니다 — `AiService.handleReply()`와 동일한 패턴입니다.
-`backend/src/moderation/moderation.module.ts:1-4`에 문서화되어 있습니다.
+`backend/src/moderation/moderation.module.ts:1-4`에 문서화되어 있으며, [ADR 0006](ADR/0006-moderation-one-directional-dependency.md)으로 공식화되어 있습니다.
 
 - **비용:** 채팅 쪽 효과가 필요한 `ModerationService`의 메서드(예: `evaluateMessage`)는 서비스를
   직접 주입받는 대신 콜백 모양의 파라미터(`ModerationCallbacks`)를 받아야 합니다 — 호출부마다
@@ -89,6 +91,43 @@ flowchart TD
   이해하기가 실질적으로 더 어려워지고 리팩터링에도 더 취약해지는데, 이미 `AiService`로 검증된 콜백
   패턴 대비 그럴 이득이 없다는 것입니다.
 
+## 전역 부트스트랩 설정
+
+`main.ts`에 한 번 등록되어 모듈과 무관하게 모든 라우트에 적용되는 횡단 관심사 설정입니다:
+
+- **전역 `ValidationPipe`** (`main.ts:32-41`) — `whitelist: true` + `forbidNonWhitelisted: true`(대상
+  DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO 클래스
+  인스턴스로 변환)로 설정되어 있습니다. CLAUDE.md의 Never Do Group 3 "Raw `@Body()` without DTO" 규칙이
+  실제로 강제되는 지점입니다 — DTO 타입으로 선언된 모든 컨트롤러/리졸버 인자에 대한 검증이 엔드포인트마다
+  다시 구현되지 않고 여기서 한 번에 이루어집니다.
+- **`app.enableShutdownHooks()`** (`main.ts:21`) — 이게 없으면 `OnModuleDestroy` 훅
+  (`PubSubService`, `SessionCacheService`, `ChatGateway`)이 `SIGTERM`/`SIGINT`에서 실행되지 않아, 배포할
+  때마다 Redis 연결이 정상 종료 대신 거칠게 끊깁니다(`main.ts:18-20`의 코드 주석 근거).
+- **Body 파서 한도를 3mb로 상향** (`main.ts:27-30`, `json`/`urlencoded` 둘 다) — Express 기본값(100kb)은
+  사용자가 업로드하는 base64 이미지보다 훨씬 작다는 것이 근거입니다(`main.ts:27-28` 코드 주석). 이
+  한도를 넘는 요청을 잡아내는 것이 바로 아래 [에러 처리](#에러-처리)의 `AllExceptionsFilter`
+  payload-too-large → `413` 분기입니다.
+
+## 에러 처리
+
+`AllExceptionsFilter`(`backend/src/base/filter/all-exceptions.filter.ts`)는 HTTP와 GraphQL을 모두
+커버하는 단일 전역 필터로 등록되어 있습니다(`app.useGlobalFilters(new AllExceptionsFilter())`,
+`main.ts:25`) — 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기합니다.
+`HttpException`이 아닌 에러는 기본적으로 `500`/`INTERNAL_SERVER_ERROR`로 처리되지만, 예외적으로
+`body-parser`의 "entity.too.large" 에러만은 구조적으로 감지해서(`body-parser`가 일반 `Error`를 던지므로
+`instanceof HttpException`으로는 구분이 안 됨) `413 PAYLOAD_TOO_LARGE`로 재매핑합니다. 운영 환경
+(`NODE_ENV === 'production'`)에서는 HTTP JSON 바디와 GraphQL 에러의 `extensions` 양쪽 모두에서 스택
+트레이스가 빠집니다 — CLAUDE.md의 Never Do Group 3 "Stack trace in error response" 규칙의 실제
+구현체입니다.
+
+- **사용자 노출 메시지가 한국어로 하드코딩된 부분**: payload-too-large 메시지
+  (`'이미지 용량 크기가 너무 커요!'`)만 이 필터의 다른 메시지들이나 주변 코드베이스/문서(영어)와 달리
+  한국어로 되어 있습니다. 확인 결과 의도적이며 실수가 아닙니다 — 이용자가 한국인이라는 가정 하에
+  작성되었고, 향후 영미권 이용자를 위한 영문 번역 기능을 추가할 때까지 임시로 추출되지 않은 채
+  남겨둔 것입니다(개발자 본인 확인). CLAUDE.md의 [Internationalization (i18n)](CLAUDE.md#internationalization-i18n)
+  절 참고 — 이 문자열이 바로 그 절에서 말하는, i18n 라이브러리가 도입되면 추출 대상이 될 인라인 UI
+  텍스트에 해당합니다.
+
 ## 가드 체인
 
 아래 모든 체인에서 순서는 의미를 가집니다 — 각 가드는 앞선 가드가 요청에 설정한 상태에 의존합니다.
@@ -99,6 +138,17 @@ flowchart TD
 | GraphQL, admin 전용 | `GraphQLAuthGuard` → `GraphQLRBACGuard` | `chat.resolver.ts` (주석: "`GraphQLAuthGuard`가 `req.user`를 채우고, `GraphQLRBACGuard`가 그것을 읽는다") |
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
 | Socket.IO `handleConnection` | JWT 파싱 → `moderationService.isUserBanned()` 확인 | `chat.gateway.ts` — HTTP/GraphQL에서 `jwt.strategy`가 적용하는 것과 동일한 밴 게이트로, 유효한 토큰이라도 소켓 연결로는 밴을 우회할 수 없음 |
+| GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:309-326` |
+
+**`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작합니다** — 이 표에서 유일하게 그런
+경로입니다. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP
+요청이 없습니다 — GraphQL `context()` 함수(`app.module.ts:88-119`)가 `graphql-ws`의
+`connectionParams`(`onConnect`에서 캡처되어 `extra`로 전달됨)로부터 synthetic한
+`req.headers.authorization`을 만들어냅니다. 이게 실제 메시지 *전달* 쪽 가드입니다 — `sendMessage`의
+가드 체인(위)은 쓰기 쪽만 막고, 모든 구독자는 구독 시점에 인증과 룸 멤버십을 각자 독립적으로
+다시 증명합니다. 즉 구독 이후 토큰이 폐기되거나 방에서 나가도 스트림 도중에는 재확인되지
+않습니다(체크는 `receiveMessage` 호출 시점에 한 번만 실행되고, 전달되는 메시지마다 실행되지
+않음).
 
 `ModerationGuard`(`moderation.guard.ts`) 자체는 밴/뮤트 상태만 확인하도록 의도적으로 얇게
 설계되어 있습니다(SRP) — 스트라이크 누적과 실제 제재 side effect는 모두 `ModerationService`에 있습니다.
@@ -114,11 +164,15 @@ flowchart TD
 
 `sendMessage` GraphQL mutation 경로와 Socket.IO 연결 라이프사이클은 이미 README의
 [흐름](README.ko.md#흐름) 절에 단계별로 도식화되어 있습니다 — 트랜잭션 경계, 커밋 이후 AI 응답 트리거,
-Redis Pub/Sub 전달까지 그쪽이 정본입니다. 여기서 추가할 내용은 하나뿐입니다: `ModerationService.evaluateMessage()`가
+Redis Pub/Sub 전달까지 그쪽이 정본입니다. 트랜잭션 경계 결정 자체는
+[ADR 0003](ADR/0003-database-transaction-strategy.md)으로 공식화되어 있습니다. 여기서 추가할 내용은
+하나뿐입니다: `ModerationService.evaluateMessage()`가
 같은 경로 안에서 가드 통과 이후·저장 이전에 실행되며, 경고/뮤트/밴 알림을 위한 시스템 메시지 발행도
 사람이 보낸 메시지와 동일한 `receiveMessage :${roomId}` 채널로 이루어집니다 — CLAUDE.md의
 [AI Reply Channel Parity](CLAUDE.md#chat--caching)를 그대로 재사용하는 것이며, 별도의 두 번째 전달
-경로를 만들지 않습니다.
+경로를 만들지 않습니다. 커밋 이후 AI 응답 트리거(`AiService.handleReply()`)는 응답을 생성하기 전에
+룸 단위 Redis 락을 획득합니다 — 왜 큐잉이 아니라 스킵 방식의 락을, 왜 룸 단위 정밀도를 선택했는지는
+[ADR 0007](ADR/0007-ai-reply-distributed-lock.md) 참고.
 
 - **위험:** `evaluateMessage()`는 `pubSub.publish()`가 이미 구독자에게 메시지를 전달한 *이후*에
   실행되는 `setImmediate` 블록 안에 있습니다(`chat.resolver.ts:206`의 발행이 모더레이션 블록보다
@@ -159,6 +213,8 @@ flowchart LR
     IP:포트 대신 SSH 터널이나 명시적 포트 포워딩이 필요합니다 — 이미 검증된 공격 경로를 막는
     대가로 감수하는, 실재하지만 작은 불편입니다.
 
+  전체 내용은 [ADR 0013](ADR/0013-local-dev-network-binding.md) 참고.
+
 - **백엔드 / Railway**: `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을 빌드하고, 동일한
   마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작합니다. 배포는
   `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거합니다.
@@ -166,6 +222,9 @@ flowchart LR
 - **프론트엔드 & 관리자 / Vercel**: 별개의 Vercel 프로젝트 두 개, 각자 자신의 `vercel.json`(SPA
   리라이트뿐)과 백엔드 쪽 `CORS_ORIGIN` 항목을 가집니다(CLAUDE.md의 [CORS](CLAUDE.md#cors) 절
   참고 — 이 환경변수는 두 origin을 모두 포함하는 콤마 구분 리스트입니다).
+
+  `admin`이 애초에(`frontend`의 보호된 라우트가 아니라) 별도 앱으로 존재하는 이유는
+  [ADR 0009](ADR/0009-admin-separate-app.md)로 정식화되어 있습니다.
 
 - **왜 Railway + Vercel인가**: 개인 프로젝트에 충분한 무료/저비용 티어, 그리고 두 플랫폼 모두
   GitHub push로 바로 배포되는 편의성.
@@ -175,6 +234,8 @@ flowchart LR
     CORS 표면도 두 배가 됩니다(`CORS_ORIGIN`을 설정하는 모든 곳에서 두 origin을 다 나열해야 함) —
     이는 두 앱이 실제로 독립적인 배포 주기를 가져야 하기 때문에 받아들인 대가입니다
     ([ADR 0005](ADR/0005-cors-multi-origin-policy.md) 참고).
+
+[ADR 0010](ADR/0010-railway-vercel-deployment.md)에 Railway + Vercel 선택의 전체 내용이 있습니다.
 
 - **Node/pnpm 고정 버전**: `.nvmrc` = `24`; `packageManager: pnpm@10.33.0`, 둘 다 CI에서 강제됩니다.
 
@@ -226,6 +287,14 @@ flowchart LR
 
 - **ioredis 기반 Redis**
 
+  - **별도의 클라이언트 인스턴스 3개**, 하나로 공유되는 연결이 아닙니다: `REDIS_CLIENT`(`redis.module.ts`,
+    `SessionCacheService`가 사용), `pubClient`/`subClient`(`chat.gateway.ts`의 `afterInit`,
+    `@socket.io/redis-adapter`용) — 여기에 `PubSubService`를 위해 `graphql-redis-subscriptions`가
+    내부적으로 여는 연결까지 더해집니다(CLAUDE.md의 Cache 절 참고: "pub/sub uses a dedicated
+    subscriber connection"). `redis.module.ts`와 `chat.gateway.ts`는 각각 독립적으로 `REDIS_URL`을
+    파싱하고 `rediss:`를 감지해 TLS를 켭니다 — 연결 설정 로직(host/port/password/TLS 추출)이 공유되지
+    않고 두 파일에 그대로 중복되어 있습니다.
+
   - **비용:** Redis를 건드리는 캐시/세션 키는 새로 만들 때마다 `{service}:{entity}:{id}` 네이밍
     컨벤션을 따르고 TTL을 명시해야 합니다 — 작지만 모든 호출 지점에서 빠뜨리면 안 되는 추가
     단계입니다.
@@ -244,6 +313,9 @@ flowchart LR
     아니라 잡아서 로깅하고 건너뛰는 방식으로 처리되어 있어, 장애 모드가 "AI 응답 없음"이지 "채팅
     자체가 깨짐"이 아닙니다.
 
+  전체 내용은 [ADR 0011](ADR/0011-gemini-ai-provider.md) 참고 — 왜 다른 제공자가 아니라
+  Gemini인지도 여기 포함되어 있습니다.
+
 - **JWT + Passport(인증)**
 
   - **비용:** 새 `accessToken`이 필요한 클라이언트는 리프레시 엔드포인트를 직접 호출하는 대신
@@ -257,8 +329,18 @@ flowchart LR
 ## 엔티티
 
 필드 단위 상세 내용은 README의 [엔티티](README.ko.md#엔티티-typeorm) 절을 참고하세요
-(`UserEntity`, `ChatEntity`, `RoomEntity`, `EntityBase`) — 이미 정확하고 최신 상태라 여기서 다시
-쓰지 않습니다.
+(`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`) — 최신 상태로 유지되고
+있으므로 여기서 다시 쓰지 않습니다.
+
+**`RoomEntity`에서 분리된 `AiRoomEntity`**: 방의 활성 AI 성격은 원래 `RoomEntity` 위에 직접 있는
+nullable `aiPersonality` 컬럼이었습니다. 마이그레이션 `ExtractAiPersonalityToAiRoomEntity`
+(`1749639600000`)가 이를 별도의 `AiRoomEntity`(`RoomEntity`로의 `OneToOne`, `onDelete: 'CASCADE'`)로
+옮겼습니다.
+
+- **이유:** AI 전용 방 상태와 일반 방 상태 사이의 관심사 분리, 그리고 그 데이터를 더 깔끔하게
+  관리하기 위함입니다(개발자 본인 확인).
+
+[ADR 0012](ADR/0012-airoomentity-split.md)로 정식화되어 있습니다.
 
 ## 해결된 이상 항목
 
