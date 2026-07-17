@@ -5,12 +5,14 @@ import {
   HttpCode,
   Post,
   Headers,
+  UseGuards,
   UseInterceptors,
   Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { AuthRateLimitGuard } from './guard/auth-rate-limit.guard';
 import { logger } from 'src/base/logger/logger';
 import type { Request as ExpressRequest, Response } from 'express';
 import {
@@ -40,6 +42,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @UseGuards(AuthRateLimitGuard)
   @ApiBasicAuth()
   @ApiBody({ type: RegisterDto })
   @ApiOperation({
@@ -61,6 +64,7 @@ export class AuthController {
   }
 
   @Post('signin')
+  @UseGuards(AuthRateLimitGuard)
   @HttpCode(200)
   @ApiBasicAuth()
   @ApiOperation({
