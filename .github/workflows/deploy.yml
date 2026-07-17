@@ -34,6 +34,7 @@ jobs:
       - run: pnpm --filter backend test
       - run: pnpm --filter admin lint
       - run: pnpm --filter admin test
+      - run: pnpm check:adr
 
   e2e:
     needs: test

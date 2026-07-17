@@ -42,6 +42,7 @@
     "test:cov": "pnpm --filter backend test:cov",
     "test:e2e": "pnpm --filter backend test:e2e",
     "migration:generate": "pnpm --filter backend migration:generate",
-    "migration:run": "pnpm --filter backend migration:run"
+    "migration:run": "pnpm --filter backend migration:run",
+    "check:adr": "node scripts/check-adr-integrity.mjs"
   }
 }
