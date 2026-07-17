@@ -33,7 +33,21 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     payload: Payload,
   ): Promise<Omit<UserEntity, 'password'>> {
     const token = req.headers.authorization?.split(' ')[1];
-    const isBlackListed = await this.redis.get(`blacklist:${token}`);
+
+    // Blacklist is a security check with no DB fallback — fail closed on Redis
+    // errors rather than let an uncaught exception surface as an opaque 500.
+    let isBlackListed: string | null;
+    try {
+      isBlackListed = await this.redis.get(`blacklist:${token}`);
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(
+        `[user=${payload.sub}] Redis unavailable during blacklist check, failing closed: ${errMessage}`,
+      );
+      throw new UnauthorizedException(
+        'Authentication temporarily unavailable. Please try again.',
+      );
+    }
 
     if (isBlackListed) {
       logger.warn(`[user=${payload.sub}] Blacklisted token used`);
@@ -44,7 +58,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
 
     let resolved: Omit<UserEntity, 'password'> | null = null;
 
-    const cached = await this.redis.get(`user_cache:${payload.sub}`);
+    // user_cache is a read-through cache in front of the DB lookup below — a Redis
+    // error here is treated the same as a cache miss, not a fatal auth failure.
+    let cached: string | null = null;
+    try {
+      cached = await this.redis.get(`user_cache:${payload.sub}`);
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        `[user=${payload.sub}] Redis unavailable for user_cache read, falling through to DB: ${errMessage}`,
+      );
+    }
     if (cached) {
       try {
         resolved = JSON.parse(cached) as Omit<UserEntity, 'password'>;
@@ -63,12 +87,19 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
       }
 
       const { password: _password, ...rest } = user;
-      await this.redis.set(
-        `user_cache:${payload.sub}`,
-        JSON.stringify(rest),
-        'EX',
-        this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
-      );
+      try {
+        await this.redis.set(
+          `user_cache:${payload.sub}`,
+          JSON.stringify(rest),
+          'EX',
+          this.configService.get<number>('USER_CACHE_TTL_SEC', 300),
+        );
+      } catch (err) {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        logger.warn(
+          `[user=${payload.sub}] Redis unavailable for user_cache write, continuing without cache: ${errMessage}`,
+        );
+      }
       resolved = rest;
     }
 

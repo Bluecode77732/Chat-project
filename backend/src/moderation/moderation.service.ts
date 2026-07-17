@@ -91,8 +91,18 @@ export class ModerationService implements OnModuleInit {
     return user ? isEffectivelyBanned(user) : false;
   }
 
+  // Mute state is Redis-only (no DB fallback) — a Redis error fails closed (treated
+  // as muted) rather than propagating uncaught through ModerationGuard as a 500.
   async isMuted(userId: number): Promise<boolean> {
-    return (await this.redis.exists(moderationKeys.mute(userId))) === 1;
+    try {
+      return (await this.redis.exists(moderationKeys.mute(userId))) === 1;
+    } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.error(
+        `[user=${userId}] Redis unavailable during mute check, failing closed: ${errMessage}`,
+      );
+      return true;
+    }
   }
 
   // ---- Detection entry points ----

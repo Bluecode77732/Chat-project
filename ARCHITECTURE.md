@@ -322,6 +322,13 @@ Stacks section doesn't state.
     already happened by accident before this pass. See [ADR 0002](ADR/0002-redis-cache-conventions.md)
     for the full breakdown.
 
+  - **Unavailability policy:** three call sites (JWT blacklist check, `user_cache` read/write, mute
+    check) previously had no error handling at all — an unexpected Redis failure propagated uncaught
+    into an undocumented `500`, inconsistent with `RateLimitGuard`'s deliberate fail-closed handling.
+    Fixed and formalized as [ADR 0016](ADR/0016-redis-unavailability-policy.md): security checks with
+    no DB fallback fail closed explicitly; `user_cache` (which already has a DB fallback in the same
+    method) degrades to a cache-miss instead.
+
 - **Google Gemini (AI)**
 
   - **Cost:** per-token billing means unbounded prompt size or retries translate directly into cost —

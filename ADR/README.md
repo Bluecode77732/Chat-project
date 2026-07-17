@@ -33,10 +33,14 @@ Each ADR has a Korean translation at the same number with a `.ko.md` suffix (e.g
 | [0013](0013-local-dev-network-binding.md) | Local dev services bind to 127.0.0.1 only, with Redis auth | Accepted |
 | [0014](0014-single-active-session.md) | Single active session per user (auto-evict prior socket) | Accepted |
 | [0015](0015-audit-trail-privileged-actions.md) | Audit trail for every privileged/enforcement action | Accepted |
-
+| [0016](0016-redis-unavailability-policy.md) | Redis unavailability: fail closed for security checks, degrade to DB for caches | Accepted |
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
 extend coverage to decisions previously documented only in ARCHITECTURE.md or README.md; 0014–0015
 formalize rationale already stated in CLAUDE.md's Project-Specific Principles. 0009 and 0011 required a
 fresh interview with the developer — the admin-app split's motivation and the Gemini choice's
+motivation were not recorded anywhere in code or prior docs before this pass. 0016 formalizes a policy
+decided and implemented during a follow-up gap review of the ADR set itself — three Redis call sites
+(JWT blacklist check, user_cache read/write, mute check) previously had no error handling at all, unlike
+the pre-existing RateLimitGuard; the fix and the ADR were done together, not documentation-only.
 motivation were not recorded anywhere in code or prior docs before this pass.

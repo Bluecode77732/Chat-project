@@ -312,6 +312,13 @@ flowchart LR
     실제로 이번 정비 전에 이미 그런 일이 사고로 일어났었습니다. 전체 내용은
     [ADR 0002](ADR/0002-redis-cache-conventions.md) 참고.
 
+  - **장애 시 정책:** JWT 블랙리스트 체크, `user_cache` 읽기/쓰기, 뮤트 체크 3곳은 원래 에러 처리가
+    전혀 없었습니다 — 예기치 못한 Redis 장애가 잡히지 않고 전파되어 문서화 안 된 `500`으로 노출됐고,
+    이는 `RateLimitGuard`의 의도적인 fail-closed 처리와 일관되지 않았습니다. 수정 후
+    [ADR 0016](ADR/0016-redis-unavailability-policy.md)로 정식화: DB 폴백이 없는 보안 체크는
+    명시적으로 fail-closed, 같은 메서드 안에 이미 DB 폴백이 있는 `user_cache`는 캐시 미스로
+    저하됩니다.
+
 - **Google Gemini(AI)**
 
   - **비용:** 토큰 단위 과금이라 프롬프트 크기나 재시도가 무제한이면 비용으로 바로 직결됩니다 —

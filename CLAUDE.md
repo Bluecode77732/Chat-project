@@ -662,6 +662,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - TTL required on every key — no indefinite cache
 - Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
+- Unavailability policy: security checks backed only by Redis (e.g. mute state, token blacklist) must fail closed explicitly (catch, log, deny) — never let an unguarded Redis call surface as an uncaught, undocumented `500`. A Redis read that already has a DB fallback in the same method (e.g. `user_cache`) should instead be treated as a cache miss and fall through to that DB path. See [ADR 0016](ADR/0016-redis-unavailability-policy.md).
 - **Never suggest**: node-redis (ioredis is unified across codebase)
 
 ### Database (PostgreSQL + TypeORM)

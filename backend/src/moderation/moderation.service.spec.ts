@@ -153,6 +153,10 @@ describe('ModerationService', () => {
       mockRedis.exists.mockResolvedValueOnce(0);
       await expect(service.isMuted(42)).resolves.toBe(false);
     });
+    it('fails closed (returns true) when redis is unavailable', async () => {
+      mockRedis.exists.mockRejectedValueOnce(new Error('redis down'));
+      await expect(service.isMuted(42)).resolves.toBe(true);
+    });
   });
 
   describe('evaluateMessage escalation', () => {
