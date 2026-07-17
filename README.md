@@ -364,7 +364,8 @@ Chat Project/                   <= monorepo root
 ├── frontend/                   <= React + Vite application (chat UI, port 5173)
 │   └── src/
 │       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
-│       ├── components/         <= ProtectedRoute
+│       ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
+│       ├── components/         <= ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
 │       ├── pages/               <= ChatPage, SigninPage, RegisterPage, AccountPage
 │       ├── socket/              <= socket.ts (Socket.IO singleton)
 │       ├── store/                <= auth.store.ts (Zustand)
@@ -374,7 +375,7 @@ Chat Project/                   <= monorepo root
         ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
         ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
         ├── components/         <= ProtectedRoute
-        ├── pages/               <= DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── pages/               <= LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
         ├── store/                <= auth.store.ts (Zustand)
         └── test/                 <= Vitest setup (jest-dom matchers, RTL cleanup)
 ```

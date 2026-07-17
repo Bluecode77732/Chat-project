@@ -363,8 +363,9 @@ Chat Project/                   ← 모노레포 루트
 ├── frontend/                   ← React + Vite 애플리케이션 (채팅 UI, 5173 포트)
 │   └── src/
 │       ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
-│       ├── components/         ← ProtectedRoute
-│       ├── pages/               ← ChatPage, SigninPage, RegisterPage
+│       ├── auth/               ← session-guard.ts (조용한 토큰 갱신, 탭 간 충돌 감지)
+│       ├── components/         ← ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
+│       ├── pages/               ← ChatPage, SigninPage, RegisterPage, AccountPage
 │       ├── socket/              ← socket.ts (Socket.IO 싱글톤)
 │       ├── store/                ← auth.store.ts (Zustand)
 │       └── types/
@@ -373,7 +374,7 @@ Chat Project/                   ← 모노레포 루트
         ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
         ├── auth/               ← session-guard.ts (조용한 토큰 갱신, 탭 간 충돌 감지)
         ├── components/         ← ProtectedRoute
-        ├── pages/               ← DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── pages/               ← LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
         ├── store/                ← auth.store.ts (Zustand)
         └── test/                 ← Vitest 셋업 (jest-dom matcher, RTL cleanup)
 ```
