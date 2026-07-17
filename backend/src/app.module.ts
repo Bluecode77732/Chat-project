@@ -14,6 +14,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
 import { ModerationModule } from './moderation/moderation.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -126,6 +127,7 @@ import { ModerationModule } from './moderation/moderation.module';
     AuthModule,
     AiModule,
     ModerationModule,
+    HealthModule,
   ],
   providers: [Logger],
 })
