@@ -55,7 +55,7 @@ pnpm 워크스페이스로 세 패키지를 구성합니다: `backend/`(NestJS A
 
 | 모듈 | Imports | Exports | 비고 |
 |---|---|---|---|
-| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule` | — | 루트 |
+| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | 루트 |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
 | `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | `Auth → User → Chat → Auth` 3모듈 순환의 일부, `forwardRef`로 해소 — [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고 |
@@ -232,13 +232,13 @@ flowchart LR
   (`continue-on-error: true`, `deploy`에 영향 없음)이었는데, 그렇게 설정한 이유가 기록에 없어서 이번
   문서화 작업 중에 차단으로 변경했습니다.
 
-  - **`admin-e2e`는 의도적으로 비차단으로 남겨뒀습니다**: GitHub Actions 실행 이력을 API로 직접
-    조회해본 결과(2026-07-17), `e2e`는 성공한 실행이 1건 있었지만 `admin-e2e`는 **0건**이었습니다 —
-    실제 CI 환경에서 한 번도 완주한 적이 없다는 뜻입니다. 실행 이력이 전혀 없는 job에 `deploy`를
-    걸어버리면, 실제 코드 문제가 아니라 검증 안 된 파이프라인 디테일(서비스 컨테이너 타이밍,
-    superadmin 시딩 스크립트 등) 때문에 정상적인 배포가 막힐 위험이 있습니다. 최소 1회 성공 실행이
-    확인되면 다시 `deploy`의 `needs`에 넣어 차단으로 전환하세요 — 전체 CI job 표는
-    [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고.
+  - **`admin-e2e`는 안정성이 확인될 때까지 의도적으로 비차단으로 남겨둡니다**: 실제 CI 환경에서 성공
+    실행이 확인되지 않은 job에 `deploy`를 걸면, 실제 코드 문제가 아니라 검증 안 된 파이프라인
+    디테일(서비스 컨테이너 타이밍, superadmin 시딩 스크립트 등) 때문에 정상적인 배포가 막힐 위험이
+    있습니다 — 로컬 YAML/유닛테스트 검증만으로는 GitHub Actions에서 실제로 완주하는지 확인이 안
+    됩니다. `admin-e2e`를 다시 `deploy`의 `needs`에 넣기 전에, 이 워크플로의 Actions 실행 이력을
+    확인해서 최소 1회 성공 완료를 확인하세요 — `e2e`도 차단으로 전환하기 전에 같은 방식으로
+    확인했습니다. 전체 CI job 표는 [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고.
 
 - **프론트엔드 & 관리자 / Vercel**: 별개의 Vercel 프로젝트 두 개, 각자 자신의 `vercel.json`(SPA
   리라이트뿐)과 백엔드 쪽 `CORS_ORIGIN` 항목을 가집니다(CLAUDE.md의 [CORS](CLAUDE.md#cors) 절

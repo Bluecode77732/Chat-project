@@ -56,7 +56,7 @@ Formalized as [ADR 0008](ADR/0008-pnpm-monorepo-layout.md).
 
 | Module | Imports | Exports | Notes |
 |---|---|---|---|
-| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule` | — | root |
+| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | root |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
 | `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | part of a 3-module cycle `Auth → User → Chat → Auth`, broken via `forwardRef` — see [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) |
@@ -239,13 +239,14 @@ See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
   (`continue-on-error: true`, no effect on `deploy`) to blocking during this documentation pass, since
   no reason for the original non-blocking setup was on record.
 
-  - **`admin-e2e` was deliberately left non-blocking**: a check against the GitHub Actions run history
-    (via the API, 2026-07-17) showed `e2e` has one confirmed successful run, but `admin-e2e` has *zero* —
-    it has never actually completed in the real CI environment. Gating `deploy` on a job with no
-    execution history risks blocking a legitimate deploy on an untested pipeline detail (service
-    container timing, the superadmin seed script, etc.) rather than a real code problem. Revert to
-    blocking (add back to `deploy`'s `needs`) once it has at least one confirmed successful run — see
-    [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) for the full CI job table.
+  - **`admin-e2e` is deliberately left non-blocking until proven stable**: gating `deploy` on a job
+    with no confirmed successful run in the real CI environment risks blocking a legitimate deploy on an
+    untested pipeline detail (service container timing, the superadmin seed script, etc.) rather than an
+    actual code problem — local YAML/unit-test validation alone doesn't confirm a job actually completes
+    in GitHub Actions. Before adding `admin-e2e` back to `deploy`'s `needs`, check this workflow's
+    Actions run history and confirm it has completed successfully at least once; `e2e` was confirmed the
+    same way before being made blocking. See [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr)
+    for the full CI job table.
 
 - **Frontend & Admin / Vercel**: two separate Vercel projects, each with its own `vercel.json` (SPA
   rewrite only) and its own `CORS_ORIGIN` entry on the backend (see CLAUDE.md's
