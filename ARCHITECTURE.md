@@ -235,10 +235,17 @@ See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
 - **Backend / Railway**: `railway.toml` builds `backend/Dockerfile` (multi-stage), runs the same
   migrate-then-start command, restarts on failure up to 3 times. Deploy is triggered by
   `.github/workflows/deploy.yml`'s `deploy` job on push to `main` only, and that job now requires
-  `test`, `e2e`, and `admin-e2e` to all succeed first (`needs: [test, e2e, admin-e2e]`) — the two
-  Playwright jobs were changed from non-blocking (`continue-on-error: true`, no effect on `deploy`) to
-  blocking during this documentation pass, since no reason for the original non-blocking setup was on
-  record (see [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) for the full CI job table).
+  `test` and `e2e` to succeed first (`needs: [test, e2e]`) — both changed from non-blocking
+  (`continue-on-error: true`, no effect on `deploy`) to blocking during this documentation pass, since
+  no reason for the original non-blocking setup was on record.
+
+  - **`admin-e2e` was deliberately left non-blocking**: a check against the GitHub Actions run history
+    (via the API, 2026-07-17) showed `e2e` has one confirmed successful run, but `admin-e2e` has *zero* —
+    it has never actually completed in the real CI environment. Gating `deploy` on a job with no
+    execution history risks blocking a legitimate deploy on an untested pipeline detail (service
+    container timing, the superadmin seed script, etc.) rather than a real code problem. Revert to
+    blocking (add back to `deploy`'s `needs`) once it has at least one confirmed successful run — see
+    [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) for the full CI job table.
 
 - **Frontend & Admin / Vercel**: two separate Vercel projects, each with its own `vercel.json` (SPA
   rewrite only) and its own `CORS_ORIGIN` entry on the backend (see CLAUDE.md's

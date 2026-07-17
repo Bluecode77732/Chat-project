@@ -228,10 +228,17 @@ flowchart LR
 - **백엔드 / Railway**: `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을 빌드하고, 동일한
   마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작합니다. 배포는
   `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거하며, 이제 그 job은
-  `test`, `e2e`, `admin-e2e` 세 개가 모두 성공해야 실행됩니다(`needs: [test, e2e, admin-e2e]`) — 원래
-  이 두 Playwright job은 비차단(`continue-on-error: true`, `deploy`에 영향 없음)이었는데, 그렇게 설정한
-  이유가 기록에 없어서 이번 문서화 작업 중에 차단으로 변경했습니다(전체 CI job 표는
-  [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고).
+  `test`와 `e2e`가 성공해야 실행됩니다(`needs: [test, e2e]`) — 둘 다 원래 비차단
+  (`continue-on-error: true`, `deploy`에 영향 없음)이었는데, 그렇게 설정한 이유가 기록에 없어서 이번
+  문서화 작업 중에 차단으로 변경했습니다.
+
+  - **`admin-e2e`는 의도적으로 비차단으로 남겨뒀습니다**: GitHub Actions 실행 이력을 API로 직접
+    조회해본 결과(2026-07-17), `e2e`는 성공한 실행이 1건 있었지만 `admin-e2e`는 **0건**이었습니다 —
+    실제 CI 환경에서 한 번도 완주한 적이 없다는 뜻입니다. 실행 이력이 전혀 없는 job에 `deploy`를
+    걸어버리면, 실제 코드 문제가 아니라 검증 안 된 파이프라인 디테일(서비스 컨테이너 타이밍,
+    superadmin 시딩 스크립트 등) 때문에 정상적인 배포가 막힐 위험이 있습니다. 최소 1회 성공 실행이
+    확인되면 다시 `deploy`의 `needs`에 넣어 차단으로 전환하세요 — 전체 CI job 표는
+    [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고.
 
 - **프론트엔드 & 관리자 / Vercel**: 별개의 Vercel 프로젝트 두 개, 각자 자신의 `vercel.json`(SPA
   리라이트뿐)과 백엔드 쪽 `CORS_ORIGIN` 항목을 가집니다(CLAUDE.md의 [CORS](CLAUDE.md#cors) 절

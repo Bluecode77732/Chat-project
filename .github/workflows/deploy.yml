@@ -124,6 +124,11 @@ jobs:
   admin-e2e:
     needs: test
     runs-on: ubuntu-latest
+    # Not yet blocking: this job has never completed a real run in GitHub Actions
+    # (checked via the Actions API on 2026-07-17 -- zero runs on record, unlike
+    # e2e which has one confirmed success). Revert to blocking once it has at
+    # least one confirmed successful run.
+    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -215,7 +220,7 @@ jobs:
           CI: true
 
   deploy:
-    needs: [test, e2e, admin-e2e]
+    needs: [test, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

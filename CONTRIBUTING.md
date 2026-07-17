@@ -77,7 +77,7 @@ CI (`.github/workflows/deploy.yml`) runs on every PR to `main`:
 | `test` (ubuntu-latest) | `pnpm --filter backend lint` (non-blocking, `\|\| true`), `pnpm --filter backend test`, `pnpm --filter admin lint` (non-blocking), `pnpm --filter admin test` | Yes |
 | `test` (windows-latest) | same steps | No — `continue-on-error: true` for this OS in the matrix |
 | `e2e` | Playwright e2e against `frontend/`, real Postgres 16 + Redis 7 service containers | Yes — blocks `deploy` (listed in its `needs`) |
-| `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | Yes — blocks `deploy` (listed in its `needs`) |
+| `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | No — `continue-on-error: true`; this job has never had a confirmed successful run in GitHub Actions, so it isn't wired into `deploy`'s `needs` yet (revert once proven stable) |
 
 Locally, before opening a PR:
 ```bash
