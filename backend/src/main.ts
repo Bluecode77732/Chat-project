@@ -7,6 +7,7 @@ import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
 import { AllExceptionsFilter } from './base/filter/all-exceptions.filter';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -20,8 +21,17 @@ async function bootstrap() {
   // dropped abruptly on every deploy instead of closed gracefully.
   app.enableShutdownHooks();
 
+  // Railway sits in front of the app as a reverse proxy — without this, req.ip
+  // resolves to the proxy's own address for every request, collapsing
+  // AuthRateLimitGuard's per-client IP buckets into one shared bucket.
+  // '1' trusts exactly the immediate hop rather than the full X-Forwarded-For chain.
+  app.set('trust proxy', 1);
+
   // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
+  // CSP is left to the frontend Vercel/Vite deployment; enabling it here would
+  // require a separate exception for Swagger UI's (/document) inline scripts.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Default Express body limit (100kb) is far smaller than a base64-encoded
