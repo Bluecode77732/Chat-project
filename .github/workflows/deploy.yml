@@ -112,10 +112,15 @@ jobs:
       - name: Wait for backend
         run: |
           for i in $(seq 1 30); do
-            nc -z localhost 3000 && echo "Backend is ready" && break
+            if nc -z localhost 3000; then
+              echo "Backend is ready"
+              exit 0
+            fi
             echo "Waiting for backend ($i/30)..."
             sleep 2
           done
+          echo "Backend failed to start within timeout" >&2
+          exit 1
 
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium
@@ -207,10 +212,15 @@ jobs:
       - name: Wait for backend
         run: |
           for i in $(seq 1 30); do
-            nc -z localhost 3000 && echo "Backend is ready" && break
+            if nc -z localhost 3000; then
+              echo "Backend is ready"
+              exit 0
+            fi
             echo "Waiting for backend ($i/30)..."
             sleep 2
           done
+          echo "Backend failed to start within timeout" >&2
+          exit 1
 
       - name: Seed superadmin account
         run: pnpm --filter admin e2e:seed
