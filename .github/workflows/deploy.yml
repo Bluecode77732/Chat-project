@@ -103,6 +103,9 @@ jobs:
       - name: Run migrations
         run: pnpm --filter backend migration:run
 
+      - name: Run backend e2e tests
+        run: pnpm --filter backend test:e2e
+
       - name: Start backend
         run: node backend/dist/main &
 
