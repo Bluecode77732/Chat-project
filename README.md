@@ -15,7 +15,7 @@
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
-- A private one-to-one real-time chat service, built solo over 570+ commits (2026-01 ~ 2026-07) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
+- A private one-to-one real-time chat service, built solo over 570+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
 - Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
 
@@ -33,7 +33,7 @@ Two real incidents hit during development — a live infrastructure security exp
 
 
 ## Project Motivation
-- Built solo, iterating live over 570+ commits (2026-01-02 ~ 2026-07-15): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Built solo, iterating live over 570+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
 - Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
@@ -147,15 +147,18 @@ Since Altair cannot test with Mutation, while Postman cannot test Subscription, 
 Test 'Auth' and 'User' Endpoints URL below.
 - URL: `http://localhost:3000/document`
 
+**Health**
+- `GET /health` - Liveness check, no auth — used by Railway's `healthcheckPath`; returns `{ status: 'ok' }` without checking DB/Redis (a dependency outage should not force a container restart)
+
 **Authentication**
-- `POST /auth/register` - Register with Basic Auth — optional body `{ nickname? }`
-- `POST /auth/signin` - Get JWT tokens
+- `POST /auth/register` - Register with Basic Auth — optional body `{ nickname? }`; rate-limited to 10 attempts/60s per IP (429 on exceed)
+- `POST /auth/signin` - Get JWT tokens — same 10 attempts/60s per-IP rate limit as register
+- `POST /auth/signOut` - Blacklists the current access token and clears the refreshToken cookie (cookie is cleared even if the token is already expired/invalid)
 - `POST /auth/token/refreshaccess` - Refresh access token
 
-**User**
+**User** — account creation happens via `POST /auth/register` above, not here
 - `GET /user` - List users **(admin only)** — query params: `page`, `take`, `sort` (`ASC`/`DESC`), `sortBy` (`id`/`role`/`created`), `search` (email/nickname), `status` (`active`/`banned`), `humanOnly` (excludes the seeded AI and moderation-system accounts)
 - `GET /user/:id` - Get a user (own account or admin)
-- `POST /user` - Create a user
 - `PATCH /user/:id` - Update a user (own account or admin) — optional body `{ email?, password?, nickname?, profileImage? }` (nickname ≤20 chars, must be unique; profileImage as a base64 data URI, jpeg/png/webp, ≤2MB); 400 if the nickname is already in use
 - `PATCH /user/:id/role` - Change user role **(superadmin only)**
 - `POST /user/:id/force-logout` - Force logout a user **(admin only)**
@@ -310,6 +313,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Real-time bidirectional messaging
 - Rate limiting - 10 messages per 15s/user
 - Behavioral moderation - duplicate/flood & velocity strikes escalate warn → mute → timed ban → permanent ban, with admin unban
+- Security hardening - Helmet security headers (CSP left to the frontend deployment), trust proxy for accurate client IPs behind Railway, IP-based rate limiting on signin/register (10 attempts/60s per IP, 429 on exceed)
 - Persistent user sessions across server restarts
 - Private chat rooms between users
 - Transaction-safe message storage & delivery
@@ -317,6 +321,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
 - Cursor-based message history with infinite scroll
 - Profile customization - optional nickname (unique, ≤20 chars) and profile image (jpeg/png/webp, ≤2MB) set via account settings
+- Chat UX polish - `/` keyboard shortcut to focus the message input, dismissible "empty chat" notice, click-and-hold banner auto-scroll, aria-live region for moderation notices
 - Admin dashboard - separate app for user/room management, moderation actions, and audit-log CSV export (see [Admin Panel](#admin-panel))
 
 
@@ -475,16 +480,19 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
 
 ## Build
 ### Total Installation
-Dependencies (37)
+Dependencies (43)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
 - @nestjs/apollo
+- @nestjs/common
 - @nestjs/config
+- @nestjs/core
 - @nestjs/graphql
 - @nestjs/jwt
 - @nestjs/mapped-types
 - @nestjs/passport
+- @nestjs/platform-express
 - @nestjs/platform-socket.io
 - @nestjs/swagger
 - @nestjs/typeorm
@@ -500,6 +508,7 @@ Dependencies (37)
 - graphql
 - graphql-redis-subscriptions
 - graphql-subscriptions
+- helmet
 - ioredis
 - joi
 - jwt-decode
@@ -508,24 +517,41 @@ Dependencies (37)
 - passport
 - passport-jwt
 - pg
+- reflect-metadata
+- rxjs
 - socket.io
 - socket.io-client
 - tsconfig-paths
 - typeorm
 - winston
 
-DevDependencies (9)
+DevDependencies (26)
+- @eslint/eslintrc
+- @eslint/js
+- @nestjs/cli
+- @nestjs/schematics
+- @nestjs/testing
 - @types/cookie-parser
+- @types/express
+- @types/jest
+- @types/node
 - @types/nodemailer
 - @types/supertest
 - @types/winston
 - cross-env
+- eslint
+- eslint-config-prettier
+- eslint-plugin-prettier
+- globals
+- jest
+- prettier
 - source-map-support
 - supertest
 - ts-jest (custom jest config)
 - ts-loader
-
-Excluded NestJS CLI defaults like common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript, etc.
+- ts-node
+- typescript
+- typescript-eslint
 
 
 ### Configuration
@@ -920,11 +946,11 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 **Coverage Results** (% Stmts, `pnpm test:cov`)
 - Auth Service: 100%
 - Chat Service: 97.72%
-- Redis Service: 100%
+- Redis Service: 96.34%
 - User Service: 100%
 - AI Service: 96.7%
 - AI Room Service: 100%
-- Moderation Service: 99.18%
+- Moderation Service: 99.21%
 - Audit Log Service: 97.56%
 - Mail Service: 100%
 

@@ -15,7 +15,7 @@
 > English version: [README.md](README.md)
 
 # 실시간 채팅 애플리케이션
-- 개인 1:1 실시간 채팅 서비스로, 570개 이상의 커밋(2026-01 ~ 2026-07)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
+- 개인 1:1 실시간 채팅 서비스로, 570개 이상의 커밋(2026-01 ~ 현재)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
 - 최소한의 인증 사용자 채팅 프로토타입으로 시작해, AI 챗봇 동반자, 별도 admin 패널, 행동 기반 모더레이션, 3개 서비스에 걸친 CI/CD를 갖춘 시스템으로 성장했습니다.
 
 
@@ -33,7 +33,7 @@
 
 
 ## 프로젝트 동기
-- 570개 이상의 커밋(2026-01-02 ~ 2026-07-15)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
+- 570개 이상의 커밋(2026-01-02 ~ 현재)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
 - 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 이런 변경이 이론이 아니라 실제 운영 중인 시스템에서 어떤 비용을 요구하는지 체감하기 위함
 - Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 찾아 수정한 경험 포함
 - 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 사례로 남기고 넘어가지 않음
@@ -147,15 +147,18 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 아래 URL에서 'Auth' 및 'User' 엔드포인트를 테스트하세요.
 - URL: `http://localhost:3000/document`
 
+**Health**
+- `GET /health` - 인증 불필요, liveness 체크 — Railway의 `healthcheckPath`가 사용; DB/Redis 확인 없이 `{ status: 'ok' }` 반환(의존성 장애가 컨테이너 재시작을 유발하지 않도록)
+
 **인증**
-- `POST /auth/register` - Basic Auth로 회원가입 — 선택적 body `{ nickname? }`
-- `POST /auth/signin` - JWT 토큰 발급
+- `POST /auth/register` - Basic Auth로 회원가입 — 선택적 body `{ nickname? }`, IP당 60초/10회 rate limit(초과 시 429)
+- `POST /auth/signin` - JWT 토큰 발급 — register와 동일하게 IP당 60초/10회 rate limit
+- `POST /auth/signOut` - 현재 액세스 토큰을 블랙리스트 처리하고 refreshToken 쿠키 삭제(토큰이 이미 만료/무효해도 쿠키는 삭제됨)
 - `POST /auth/token/refreshaccess` - 액세스 토큰 갱신
 
-**사용자**
+**사용자** — 계정 생성은 위 `POST /auth/register`를 통해서만 가능, 여기 없음
 - `GET /user` - 사용자 목록 조회 **(admin 전용)** — 쿼리 파라미터: `page`, `take`, `sort`(`ASC`/`DESC`), `sortBy`(`id`/`role`/`created`), `search`(이메일/닉네임), `status`(`active`/`banned`), `humanOnly`(시딩된 AI 계정과 moderation 시스템 계정 제외)
 - `GET /user/:id` - 특정 사용자 조회 (본인 또는 admin)
-- `POST /user` - 사용자 생성
 - `PATCH /user/:id` - 사용자 수정 (본인 또는 admin) — 선택적 body `{ email?, password?, nickname?, profileImage? }`(nickname은 20자 이하이며 고유해야 함; profileImage는 base64 data URI, jpeg/png/webp, 2MB 이하); 닉네임이 이미 사용 중이면 400
 - `PATCH /user/:id/role` - 사용자 역할 변경 **(superadmin 전용)**
 - `POST /user/:id/force-logout` - 강제 로그아웃 **(admin 전용)**
@@ -310,6 +313,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - 실시간 양방향 메시지 전송
 - 속도 제한 - 사용자당 15초당 10개 메시지
 - 행동 기반 모더레이션 - 중복/도배 및 속도 기반 스트라이크가 경고 → 뮤트 → 기간제 밴 → 영구 밴으로 에스컬레이션, admin unban 지원
+- 보안 강화 - Helmet 보안 헤더(CSP는 프론트엔드 배포 쪽에 위임), Railway 뒤에서 정확한 클라이언트 IP를 위한 trust proxy, 로그인/회원가입 IP 기반 rate limiting(IP당 60초/10회, 초과 시 429)
 - 서버 재시작 시에도 유지되는 사용자 세션
 - 사용자 간 개인 채팅방
 - 트랜잭션 안전한 메시지 저장 및 전달
@@ -317,6 +321,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - Google Gemini 2.5 Flash 기반 AI 채팅 (4가지 성격: 친절한 어시스턴트, 코드 도우미, 영어 선생님, 창의적인 작가)
 - 커서 기반 메시지 히스토리 및 무한 스크롤
 - 프로필 커스터마이징 - 계정 설정에서 설정하는 선택적 닉네임(고유값, 20자 이하)과 프로필 이미지(jpeg/png/webp, 2MB 이하)
+- 채팅 UX 개선 - 메시지 입력창 포커스용 `/` 단축키, 닫을 수 있는 "빈 채팅" 안내, 클릭-홀드 배너 자동 스크롤, 모더레이션 알림용 aria-live 리전
 - Admin 대시보드 - 유저/방 관리, 모더레이션 액션, 감사로그 CSV export를 위한 별도 앱([Admin 패널](#admin-패널) 참고)
 
 
@@ -920,11 +925,11 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 **커버리지 결과** (% Stmts 기준, `pnpm test:cov`)
 - Auth Service: 100%
 - Chat Service: 97.72%
-- Redis Service: 100%
+- Redis Service: 96.34%
 - User Service: 100%
 - AI Service: 96.7%
 - AI Room Service: 100%
-- Moderation Service: 99.18%
+- Moderation Service: 99.21%
 - Audit Log Service: 97.56%
 - Mail Service: 100%
 
