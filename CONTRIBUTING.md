@@ -105,6 +105,11 @@ CLAUDE.md's Scope Discipline.
 - Mock repositories rather than hitting a real DB — see the pattern in
   [CLAUDE.md's Testing section](CLAUDE.md#testing).
 - `frontend/e2e/` and `admin/e2e/` hold their own Playwright suites, run independently in CI.
+- `admin/` has unit tests (vitest, 14 specs); `frontend/` has none -- no `test` script even exists in
+  its `package.json`. Deliberately left as a low priority: Playwright e2e already drives the critical
+  user flows (signin, sending/receiving a message) through a real browser against a real backend, so
+  the gap is component/hook-level regression detection, not an unguarded production risk. Pick this up
+  by mirroring `admin/`'s exact vitest setup rather than introducing a different runner.
 
 ## Reporting issues
 

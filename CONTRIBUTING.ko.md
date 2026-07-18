@@ -102,6 +102,11 @@ Scope Discipline상 명시적 승인이 필요한 파일이라면 반드시 먼�
 - 실제 DB를 두드리지 말고 리포지토리를 mock하세요 — [CLAUDE.md의 Testing 절](CLAUDE.md#testing)에
   패턴이 있습니다.
 - `frontend/e2e/`와 `admin/e2e/`는 각자의 Playwright 스위트를 가지며 CI에서 독립적으로 실행됩니다.
+- `admin/`은 유닛테스트(vitest, 14개)를 갖고 있지만 `frontend/`는 없습니다 — `package.json`에
+  `test` 스크립트 자체가 없습니다. 의도적으로 낮은 우선순위로 남겨둔 상태입니다: 로그인, 메시지
+  송수신 등 핵심 사용자 플로우는 이미 Playwright e2e가 실제 브라우저로 실제 백엔드를 상대로 구동하고
+  있어, 빠진 부분은 컴포넌트/훅 단위 회귀 감지이지 방치된 프로덕션 리스크가 아닙니다. 착수할 때는
+  다른 러너를 도입하지 말고 `admin/`의 기존 vitest 설정을 그대로 이식하세요.
 
 ## 이슈 리포트
 
