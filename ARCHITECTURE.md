@@ -280,7 +280,7 @@ See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
   GitHub-push-to-deploy integration on both platforms.
 
   - **Cost/Risk:** two separate platforms means split observability — logs and metrics live in two
-    different dashboards instead of one. (Railway-side log durability specifically -- a narrower, single-platform concern -- is addressed separately in [ADR 0018](ADR/0018-railway-volume-log-persistence.md).) Running `frontend`/`admin` as two separate Vercel projects
+    different dashboards instead of one. (Railway-side log durability specifically -- a narrower, single-platform concern -- is addressed separately in [ADR 0018](ADR/0018-railway-volume-log-persistence.md). Backend error tracking is a third dashboard, Sentry, added on top of this split -- see [ADR 0019](ADR/0019-sentry-error-tracking.md).) Running `frontend`/`admin` as two separate Vercel projects
     (rather than one) doubles the CORS surface to maintain (`CORS_ORIGIN` must list both origins,
     everywhere it's set) — accepted because the two apps need genuinely independent deploy cadences
     (see [ADR 0005](ADR/0005-cors-multi-origin-policy.md)).

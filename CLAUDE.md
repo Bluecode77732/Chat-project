@@ -428,9 +428,11 @@ Principle Conflict Protocol.
   pinned, and whether the base build environment is pinned by digest or only by
   tag. State only the guarantee that actually exists — do not imply stronger
   reproducibility
-- Observability (Logging, Metrics, Tracing) — verify which of the three actually
-  exist before claiming coverage. Do not claim metrics/tracing coverage if absent;
-  adding either is a new dependency requiring explicit request
+- Observability (Logging, Metrics, Tracing, Error Tracking) — backend has error tracking via
+  Sentry (`@sentry/nestjs`, 5xx only, see [ADR 0019](ADR/0019-sentry-error-tracking.md)).
+  Metrics and tracing remain absent — do not claim coverage; adding either is a new
+  dependency requiring explicit request. frontend/admin have no error tracking yet —
+  a separate, deferred task.
 - Privacy & Compliance — advisory: before adding any user data collection (analytics,
   tracking SDKs, third-party pixels), check whether a consent mechanism is required;
   right-to-erasure for this app's current data model is covered by `DELETE /user/:id`.

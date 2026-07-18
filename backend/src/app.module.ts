@@ -15,6 +15,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
 import { ModerationModule } from './moderation/moderation.module';
 import { HealthModule } from './health/health.module';
+import { SentryModule } from '@sentry/nestjs/setup';
 
 @Module({
   imports: [
@@ -57,6 +58,8 @@ import { HealthModule } from './health/health.module';
         SMTP_USER: Joi.string().optional(),
         SMTP_PASS: Joi.string().optional(),
         MAIL_FROM: Joi.string().optional(),
+        // Sentry error tracking — optional; captureException becomes a no-op when unset
+        SENTRY_DSN: Joi.string().optional(),
       }),
       // Configuration global adoption
       isGlobal: true,
@@ -67,6 +70,7 @@ import { HealthModule } from './health/health.module';
             ? '.env.local'
             : '.env',
     }),
+    SentryModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         type: configService.get<string>('DB_TYPE') as 'postgres',
