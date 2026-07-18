@@ -103,6 +103,20 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 
 `main.ts`에 한 번 등록되어 모듈과 무관하게 모든 라우트에 적용되는 횡단 관심사 설정입니다:
 
+- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway가 리버스 프록시로 앞단에 있습니다. 이게
+  없으면 `req.ip`가 매 요청마다 프록시 자체 주소로 해석되어, `AuthRateLimitGuard`의 클라이언트별 IP
+  버킷이 전부 하나의 공유 버킷으로 뭉개집니다(위 [가드 체인](#가드-체인) 참고). `1`은
+  `X-Forwarded-For` 체인 전체가 아니라 바로 앞 홉 하나만 신뢰한다는 뜻입니다(`main.ts:24-27` 코드
+  주석 근거).
+- **`helmet`** (`main.ts:34`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의 표준
+  보안 관련 HTTP 응답 헤더를 설정합니다. CSP는 의도적으로 꺼져 있습니다 — 이 백엔드는 HTML을 거의
+  서빙하지 않습니다(REST/GraphQL 응답은 전부 JSON). 백엔드가 설정하는 CSP 헤더가 실제로 적용될
+  페이지는 Swagger UI(`/document`) 하나뿐이고, Swagger의 인라인 부트스트랩 스크립트는 CSP를 켜면
+  별도 예외가 필요합니다. 실제 XSS 관련 렌더링 표면은 `frontend`/`admin`의 React 페이지인데, 이들은
+  별도 Vercel 배포로 서빙되므로 이 백엔드의 CSP 헤더는 그쪽에 아무 영향을 주지 않습니다.
+  `frontend/vercel.json`, `admin/vercel.json` 어느 쪽에도 현재 CSP 헤더가 설정되어 있지 않습니다
+  (확인 결과: 둘 다 `headers` 블록 없음, 두 Vite 설정 어디에도 CSP 없음) — 실제 채팅 UI의 CSP는
+  프런트엔드 배포에 이미 위임된 상태가 아니라, 아직 손대지 않은 별도 과제입니다.
 - **전역 `ValidationPipe`** (`main.ts:32-41`) — `whitelist: true` + `forbidNonWhitelisted: true`(대상
   DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO 클래스
   인스턴스로 변환)로 설정되어 있습니다. CLAUDE.md의 Never Do Group 3 "Raw `@Body()` without DTO" 규칙이
@@ -147,6 +161,7 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
 | Socket.IO `handleConnection` | JWT 파싱 → `moderationService.isUserBanned()` 확인 | `chat.gateway.ts` — HTTP/GraphQL에서 `jwt.strategy`가 적용하는 것과 동일한 밴 게이트로, 유효한 토큰이라도 소켓 연결로는 밴을 우회할 수 없음 |
 | GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:309-326` |
+| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준입니다(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한, Redis 에러 시 fail-closed(거부)합니다 — [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이지만, 그 ADR 목록에는 포함되어 있지 않습니다 |
 
 **`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작합니다** — 이 표에서 유일하게 그런
 경로입니다. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP

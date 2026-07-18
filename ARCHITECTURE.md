@@ -113,6 +113,7 @@ request.
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
 | Socket.IO `handleConnection` | JWT parse → `moderationService.isUserBanned()` check | `chat.gateway.ts` — same ban gate `jwt.strategy` applies over HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead |
 | GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:309-326` |
+| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — IP-keyed (not userId-keyed, since no user exists pre-auth), 10 attempts/60s via atomic Lua `INCR`+`EXPIRE`, fails closed (denies) on a Redis error — same fail-closed policy as [ADR 0016](ADR/0016-redis-unavailability-policy.md)'s other no-DB-fallback security checks, though not itself listed there |
 
 **`receiveMessage` runs over `graphql-ws`, not HTTP** — the only guard chain in this table that does.
 `GraphQLAuthGuard` reads `ctx.req.headers.authorization`, but a subscription has no HTTP request; the
@@ -141,6 +142,20 @@ at `receiveMessage` call time, not per delivered message).
 Cross-cutting request-handling setup registered once in `main.ts`, applying to every route regardless
 of module:
 
+- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway sits in front as a reverse proxy; without
+  this, `req.ip` resolves to the proxy's own address for every request, which would collapse
+  `AuthRateLimitGuard`'s per-client IP buckets into one shared bucket (see [Guard
+  Chains](#guard-chains)). `1` trusts exactly the immediate hop rather than the full
+  `X-Forwarded-For` chain, per the code comment at `main.ts:24-27`.
+- **`helmet`** (`main.ts:34`, `app.use(helmet({ contentSecurityPolicy: false }))`) — sets Express's
+  standard security-related HTTP response headers. CSP is deliberately left off here: this backend
+  serves almost no HTML — REST/GraphQL responses are JSON, so the only page a backend-set CSP header
+  would ever apply to is Swagger UI (`/document`) itself, and Swagger's inline bootstrap script would
+  need its own CSP exception to keep working. The actual XSS-relevant rendering surface is
+  `frontend`/`admin`'s React pages, served from separate Vercel deployments — a CSP header set here has
+  no effect there. Neither `frontend/vercel.json` nor `admin/vercel.json` currently sets a CSP header
+  either (checked: no `headers` block in either, no CSP in either Vite config) — CSP for the actual
+  chat UI is an open, unstarted item, not something already delegated to the frontend deploy.
 - **`ValidationPipe`** (`main.ts:32-41`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
   (strips/rejects any property not declared on the target DTO class) and `transform: true` (coerces
   incoming payloads into DTO class instances). This is the enforcement mechanism behind CLAUDE.md's

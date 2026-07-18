@@ -29,8 +29,10 @@ async function bootstrap() {
 
   // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
-  // CSP is left to the frontend Vercel/Vite deployment; enabling it here would
-  // require a separate exception for Swagger UI's (/document) inline scripts.
+  // CSP omitted: this backend serves ~no HTML (REST/GraphQL are JSON-only), so a
+  // CSP header here would only ever protect Swagger UI (/document), which needs
+  // its own exception for inline scripts anyway. The actual XSS-relevant surface
+  // (frontend/admin's rendered pages) is a separate origin this header can't reach.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalFilters(new AllExceptionsFilter());
 

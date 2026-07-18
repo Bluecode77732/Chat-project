@@ -313,7 +313,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - 실시간 양방향 메시지 전송
 - 속도 제한 - 사용자당 15초당 10개 메시지
 - 행동 기반 모더레이션 - 중복/도배 및 속도 기반 스트라이크가 경고 → 뮤트 → 기간제 밴 → 영구 밴으로 에스컬레이션, admin unban 지원
-- 보안 강화 - Helmet 보안 헤더(CSP는 프론트엔드 배포 쪽에 위임), Railway 뒤에서 정확한 클라이언트 IP를 위한 trust proxy, 로그인/회원가입 IP 기반 rate limiting(IP당 60초/10회, 초과 시 429)
+- 보안 강화 - Helmet 보안 헤더(CSP는 의도적으로 생략 - 이 백엔드는 HTML을 거의 서빙하지 않아 켜봤자 Swagger만 보호됨; frontend/admin CSP는 아직 손대지 않은 별도 과제), Railway 뒤에서 정확한 클라이언트 IP를 위한 trust proxy, 로그인/회원가입 IP 기반 rate limiting(IP당 60초/10회, 초과 시 429)
 - 서버 재시작 시에도 유지되는 사용자 세션
 - 사용자 간 개인 채팅방
 - 트랜잭션 안전한 메시지 저장 및 전달
