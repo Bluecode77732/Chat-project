@@ -115,6 +115,16 @@ Scope Discipline상 명시적 승인이 필요한 파일이라면 반드시 먼�
   의존하지 않도록(라우팅 + 가드/서비스 단의 `HttpException`만) 일부러 골랐기 때문입니다. e2e에서
   `main.ts`의 middleware 스택까지 검증하려면 `bootstrap()`과 테스트의 `createNestApplication()` 호출이
   공유하는 함수로 분리하는 더 큰 리팩터가 필요한데, 이번엔 하지 않았습니다.
+- `frontend/`와 `admin/`엔 React 에러 바운더리도, 전역 `window.onerror`/`unhandledrejection`
+  핸들러도 없습니다 -- 예상 못 한 에러(예: `frontend/src/pages/chat-page.tsx:410`가 알려진
+  `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL 에러가 아닌 나머지를 rethrow하는 부분)는 오늘도 어디에도
+  흔적 없이 사라집니다. 프로덕션 코드에 애초에 바운더리/핸들러가 없어서 이걸 잡아낼 테스트도
+  없습니다. [ADR 0019](ADR/0019-sentry-error-tracking.ko.md)의 backend 전용 Sentry 연동과 함께
+  의도적으로 미뤄둔 것입니다 -- 그 결정에서 backend 에러 트래킹이 더 우선순위 높은 절반이었습니다.
+  나중에 착수할 때는 `@sentry/react`를 추가(backend의 `@sentry/nestjs` 설정을 그대로 본떠)하고
+  두 앱의 `main.tsx`에 최상위 에러 바운더리를 두는 한편, `errorLink`의 현재 조용히 지나가는
+  non-auth 분기(`frontend/src/api/apollo.ts`, `admin/src/api/apollo.ts`)도 함께 보고하도록
+  연결하는 방식으로 하세요.
 
 ## 이슈 리포트
 

@@ -118,6 +118,15 @@ CLAUDE.md's Scope Discipline.
   on any of that (routing plus guard/service-level `HttpException`s only). Exercising `main.ts`'s
   middleware stack in e2e would require extracting it into a function shared between `bootstrap()` and
   the test's `createNestApplication()` call -- a larger refactor, not done here.
+- `frontend/` and `admin/` have no React error boundary and no global `window.onerror`/
+  `unhandledrejection` handler -- an unexpected error (e.g. `frontend/src/pages/chat-page.tsx:410`'s
+  rethrow for anything other than a known `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL error) vanishes with
+  no trace anywhere today. No test catches this because there's no boundary/handler in production code
+  to test in the first place. Deliberately deferred alongside [ADR 0019](ADR/0019-sentry-error-tracking.md)'s
+  backend-only Sentry integration -- backend error tracking was the higher-priority half of that
+  decision. Pick this up by adding `@sentry/react` (mirroring the backend's `@sentry/nestjs` setup)
+  with a top-level error boundary in both apps' `main.tsx`, plus wiring `errorLink`'s currently-silent
+  non-auth branch (`frontend/src/api/apollo.ts`, `admin/src/api/apollo.ts`) to report as well.
 
 ## Reporting issues
 
