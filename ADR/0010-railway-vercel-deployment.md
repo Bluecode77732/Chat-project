@@ -14,6 +14,8 @@ Postgres + Redis connection, and two static/SPA React builds.
 - `backend` deploys to Railway: `railway.toml` builds `backend/Dockerfile` (multi-stage), runs
   `pnpm migration:run && node dist/main` on start, restarts on failure up to 3 times. Triggered by
   `.github/workflows/deploy.yml`'s `deploy` job on push to `main` only.
+- Railway gates deploy health via `healthcheckPath = "/health"` (liveness only — no DB/Redis probe,
+  to avoid a transient dependency blip forcing a restart loop on an otherwise-healthy container).
 - `frontend` and `admin` each deploy to their own separate Vercel project, each with its own
   `vercel.json` (SPA rewrite only).
 - **Why:** free/low-cost tiers sufficient for a personal project, plus convenient GitHub-push-to-deploy

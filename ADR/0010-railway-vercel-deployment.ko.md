@@ -15,6 +15,8 @@ Accepted
   빌드하고, 시작 시 `pnpm migration:run && node dist/main`을 실행하며, 실패 시 최대 3회까지
   재시작합니다. `main` 브랜치로 push될 때 `.github/workflows/deploy.yml`의 `deploy` 잡이
   트리거합니다.
+- Railway는 `healthcheckPath = "/health"`로 배포 헬스를 판단합니다(liveness만 확인 — DB/Redis는
+  점검하지 않아, 일시적 의존성 장애가 정상 컨테이너의 재시작 루프로 이어지는 것을 방지합니다).
 - `frontend`와 `admin`은 각각 자신만의 별도 Vercel 프로젝트에 배포되며, 각자 `vercel.json`(SPA
   리라이트만)을 가집니다.
 - **이유:** 개인 프로젝트에 충분한 무료/저비용 티어, 그리고 두 플랫폼 모두에서 편리한
