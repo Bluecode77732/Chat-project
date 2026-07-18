@@ -966,8 +966,28 @@ Advisory. No i18n library is currently in place; this convention activates when 
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/deploy.yml`):
-1. **Test job**: `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` (Node 24, pnpm 10.14.0)
-2. **Deploy job**: `pnpm --filter backend build` → Railway CLI deploy (requires `RAILWAY_TOKEN` secret)
+GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and on PRs targeting
+`main`. Node 24 (`.nvmrc`), pnpm 10.33.0 (pinned per job via `pnpm/action-setup`).
+
+1. **`test`** — matrix `ubuntu-latest` + `windows-latest` (Windows is `continue-on-error: true`,
+   ubuntu is not). `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` →
+   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (ADR integrity check:
+   broken links/anchors, stale citations, missing `.ko.md` pairs). No step has a `|| true` fallback —
+   any failure hard-fails the job.
+2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs
+   migrations, runs the backend's jest e2e boot-smoke suite (`pnpm --filter backend test:e2e`), starts
+   the compiled server, then runs Playwright e2e against `frontend/`. Blocks `deploy`.
+3. **`admin-e2e`** (needs `test`; same service containers) — seeds a superadmin, runs Playwright e2e
+   against `admin/`. Deliberately `continue-on-error: true` and excluded from `deploy`'s `needs` — as
+   of this writing it has never completed a confirmed run in GitHub Actions' history (checked via the
+   Actions API); revert to blocking once it has at least one confirmed success. See
+   [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) for the full CI job table.
+4. **`deploy`** (needs `[test, e2e]`; only runs on push to `main`) — `pnpm --filter backend build` →
+   Railway CLI deploy (requires `RAILWAY_TOKEN` secret).
+
+**Dependabot** (`.github/dependabot.yml`) — weekly PRs, no auto-merge (every update gets a manual
+review). One `npm`-ecosystem entry at the repo root covers the whole pnpm workspace
+(`backend`/`frontend`/`admin`) via the shared `pnpm-lock.yaml`; a second `github-actions` entry keeps
+the workflow's own action versions (`actions/checkout`, `pnpm/action-setup`, etc.) current.
 
 Railway start command: `cd backend && pnpm migration:run && node dist/main`
