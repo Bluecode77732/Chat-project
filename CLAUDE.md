@@ -531,8 +531,9 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `forceLogout` (`chat.service.ts:58-61`), which disconnects the
-  previous socket when a new connection registers for the same user.
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-63`), which emits a
+  `forceLogout` event and disconnects the previous socket when a new connection registers for
+  the same user.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
   conflicting real-time state.
 - Goal: any new per-user real-time registration (not just the existing socket path)
@@ -552,7 +553,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
-  (`user.service.ts:208,239,321`) — as a separate, queryable entity.
+  (`user.service.ts:296,323,419`) — as a separate, queryable entity.
 - Rationale: privileged actions need an attributable record independent of the
   application logs (which rotate/are unstructured); this already exists but isn't
   named as a requirement anywhere in this file.
@@ -565,7 +566,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: the backend validates message shape (`@IsString()`,
   `create-chat.dto.ts`) but does not sanitize or escape HTML — `ChatEntity.message` is
   stored exactly as submitted. The only sanitization point today is the React render
-  boundary (`DOMPurify.sanitize`, `chat-page.tsx:705`).
+  boundary (`DOMpurify.sanitize` -- note the library's actual export casing, `chat-page.tsx:733,771`).
 - Rationale: this means stored content is untrusted by default; any other surface that
   later reads `ChatEntity.message` (an admin viewer, an export, a log line, an AI prompt
   context) inherits that risk if it assumes the value is already safe.
@@ -686,7 +687,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
   pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
   empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
-  into an array in `backend/src/main.ts:47` before being passed to `app.enableCors({ origin })`
+  into an array in `backend/src/main.ts:57` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value

@@ -202,11 +202,25 @@ const adrFiles = readdirSync(adrDir).filter(
 
 for (const file of adrFiles) {
   const fullPath = join(adrDir, file);
-  const content = readText(fullPath);
-  checkMarkdownLinks(fullPath, content);
-  checkFileLineCitations(fullPath, content);
+  const fileContent = readText(fullPath);
+  checkMarkdownLinks(fullPath, fileContent);
+  checkFileLineCitations(fullPath, fileContent);
   checkTranslationPair(file);
 }
 
-console.log(`\nChecked ${adrFiles.length} ADR file(s). ${errorCount} error(s), ${warnCount} warning(s).`);
+// CLAUDE.md is the top of this repos doc hierarchy (every ADR formalizes something
+// from it) and is loaded into every future agent session, so its own citations get
+// the same link/anchor and file:line checks as the ADR set. It has no .ko.md
+// counterpart by design, so checkTranslationPair does not apply here.
+const extraDocs = ['CLAUDE.md'];
+for (const relPath of extraDocs) {
+  const fullPath = join(repoRoot, relPath);
+  const fileContent = readText(fullPath);
+  checkMarkdownLinks(fullPath, fileContent);
+  checkFileLineCitations(fullPath, fileContent);
+}
+
+const totalChecked = adrFiles.length + extraDocs.length;
+console.log(`
+Checked ${totalChecked} file(s) (${adrFiles.length} ADR + ${extraDocs.length} other). ${errorCount} error(s), ${warnCount} warning(s).`);
 process.exit(errorCount > 0 ? 1 : 0);
