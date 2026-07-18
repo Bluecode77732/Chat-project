@@ -114,9 +114,15 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
   페이지는 Swagger UI(`/document`) 하나뿐이고, Swagger의 인라인 부트스트랩 스크립트는 CSP를 켜면
   별도 예외가 필요합니다. 실제 XSS 관련 렌더링 표면은 `frontend`/`admin`의 React 페이지인데, 이들은
   별도 Vercel 배포로 서빙되므로 이 백엔드의 CSP 헤더는 그쪽에 아무 영향을 주지 않습니다.
-  `frontend/vercel.json`, `admin/vercel.json` 어느 쪽에도 현재 CSP 헤더가 설정되어 있지 않습니다
-  (확인 결과: 둘 다 `headers` 블록 없음, 두 Vite 설정 어디에도 CSP 없음) — 실제 채팅 UI의 CSP는
-  프런트엔드 배포에 이미 위임된 상태가 아니라, 아직 손대지 않은 별도 과제입니다.
+- **`frontend`/`admin`의 CSP** (`frontend/vercel.json`, `admin/vercel.json`의 `headers` 블록) —
+  실제 렌더링 표면이 있는 쪽인 Vercel 엣지에서 대신 설정합니다. 각 앱의 프로덕션 빌드를 직접
+  확인한 뒤 지시문을 작성했습니다: 빌드된 `index.html` 어느 쪽에도 인라인 `<script>`가 없어
+  `script-src 'self'`에 `'unsafe-inline'`이 필요 없고, `frontend`는 `chat-page.tsx`에 정적
+  `style={{ fontFamily: ... }}` 인라인 스타일이 6곳 있어(사용자 입력이 아닌 하드코딩된 값)
+  `style-src`에 `'unsafe-inline'`을 포함시켰지만 `admin`은 인라인 스타일이 없어 엄격하게 유지;
+  폰트는 자체 호스팅(`frontend/public/fonts/*.woff2`)이라 외부 폰트 CDN 불필요; `img-src`는
+  base64 프로필 이미지를 위해 `data:` 허용; `connect-src`는 프로덕션 백엔드 오리진을 HTTPS(양쪽)
+  + WSS(`frontend`만 — GraphQL 구독 + Socket.IO 용, `admin`은 실시간 의존성 없음)로 화이트리스트.
 - **전역 `ValidationPipe`** (`main.ts:32-41`) — `whitelist: true` + `forbidNonWhitelisted: true`(대상
   DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO 클래스
   인스턴스로 변환)로 설정되어 있습니다. CLAUDE.md의 Never Do Group 3 "Raw `@Body()` without DTO" 규칙이

@@ -313,7 +313,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Real-time bidirectional messaging
 - Rate limiting - 10 messages per 15s/user
 - Behavioral moderation - duplicate/flood & velocity strikes escalate warn → mute → timed ban → permanent ban, with admin unban
-- Security hardening - Helmet security headers (CSP intentionally omitted: this backend serves almost no HTML, so it would only protect Swagger; frontend/admin CSP is a separate, unstarted item), trust proxy for accurate client IPs behind Railway, IP-based rate limiting on signin/register (10 attempts/60s per IP, 429 on exceed)
+- Security hardening - Helmet security headers on the backend (CSP intentionally omitted there: it serves almost no HTML, so it would only protect Swagger), Content-Security-Policy on frontend/admin instead (Vercel `headers`, since that's where the actual rendering surface is), trust proxy for accurate client IPs behind Railway, IP-based rate limiting on signin/register (10 attempts/60s per IP, 429 on exceed)
 - Persistent user sessions across server restarts
 - Private chat rooms between users
 - Transaction-safe message storage & delivery

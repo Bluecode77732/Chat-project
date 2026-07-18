@@ -105,11 +105,12 @@ CLAUDE.md's Scope Discipline.
 - Mock repositories rather than hitting a real DB — see the pattern in
   [CLAUDE.md's Testing section](CLAUDE.md#testing).
 - `frontend/e2e/` and `admin/e2e/` hold their own Playwright suites, run independently in CI.
-- `admin/` has unit tests (vitest, 14 specs); `frontend/` has none -- no `test` script even exists in
-  its `package.json`. Deliberately left as a low priority: Playwright e2e already drives the critical
-  user flows (signin, sending/receiving a message) through a real browser against a real backend, so
-  the gap is component/hook-level regression detection, not an unguarded production risk. Pick this up
-  by mirroring `admin/`'s exact vitest setup rather than introducing a different runner.
+- `admin/` (vitest, 14 specs) and `frontend/` (vitest, 21 specs) both have unit test coverage now,
+  same setup (`src/test/setup.ts`, same devDependency versions). `frontend/`'s suite ports admin's
+  three files (axios/protected-route/auth.store, adapted for its simpler no-role auth model) plus a
+  new one for `session-guard.ts` -- the in-flight refresh dedup and cross-tab conflict-detection logic
+  had no test in either app despite being the most race-condition-sensitive piece of auth code (see
+  CLAUDE.md's Session Guard section).
 
 ## Reporting issues
 

@@ -153,9 +153,16 @@ of module:
   would ever apply to is Swagger UI (`/document`) itself, and Swagger's inline bootstrap script would
   need its own CSP exception to keep working. The actual XSS-relevant rendering surface is
   `frontend`/`admin`'s React pages, served from separate Vercel deployments — a CSP header set here has
-  no effect there. Neither `frontend/vercel.json` nor `admin/vercel.json` currently sets a CSP header
-  either (checked: no `headers` block in either, no CSP in either Vite config) — CSP for the actual
-  chat UI is an open, unstarted item, not something already delegated to the frontend deploy.
+  no effect there.
+- **CSP for `frontend`/`admin`** (`frontend/vercel.json`, `admin/vercel.json`, `headers` block) — set at
+  the Vercel edge instead, since that's where the actual rendering surface is. Verified against each
+  app's production build before writing directives: neither built `index.html` has an inline
+  `<script>` (`script-src 'self'` needs no `'unsafe-inline'`); `frontend` has 6 inline
+  `style={{ fontFamily: ... }}` usages in `chat-page.tsx` (static values, not user-derived), so its
+  `style-src` includes `'unsafe-inline'` — `admin` has none, so its stays strict; fonts are
+  self-hosted (`frontend/public/fonts/*.woff2`), no external font CDN; `img-src` allows `data:` for
+  base64 profile images; `connect-src` whitelists the production backend origin over HTTPS (both) and
+  WSS (`frontend` only — GraphQL subscriptions + Socket.IO; `admin` has no realtime deps).
 - **`ValidationPipe`** (`main.ts:32-41`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
   (strips/rejects any property not declared on the target DTO class) and `transform: true` (coerces
   incoming payloads into DTO class instances). This is the enforcement mechanism behind CLAUDE.md's

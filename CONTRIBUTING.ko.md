@@ -102,11 +102,12 @@ Scope Discipline상 명시적 승인이 필요한 파일이라면 반드시 먼�
 - 실제 DB를 두드리지 말고 리포지토리를 mock하세요 — [CLAUDE.md의 Testing 절](CLAUDE.md#testing)에
   패턴이 있습니다.
 - `frontend/e2e/`와 `admin/e2e/`는 각자의 Playwright 스위트를 가지며 CI에서 독립적으로 실행됩니다.
-- `admin/`은 유닛테스트(vitest, 14개)를 갖고 있지만 `frontend/`는 없습니다 — `package.json`에
-  `test` 스크립트 자체가 없습니다. 의도적으로 낮은 우선순위로 남겨둔 상태입니다: 로그인, 메시지
-  송수신 등 핵심 사용자 플로우는 이미 Playwright e2e가 실제 브라우저로 실제 백엔드를 상대로 구동하고
-  있어, 빠진 부분은 컴포넌트/훅 단위 회귀 감지이지 방치된 프로덕션 리스크가 아닙니다. 착수할 때는
-  다른 러너를 도입하지 말고 `admin/`의 기존 vitest 설정을 그대로 이식하세요.
+- `admin/`(vitest, 14개)과 `frontend/`(vitest, 21개) 둘 다 이제 유닛테스트를 갖추고 있습니다 —
+  동일한 설정(`src/test/setup.ts`, 동일 버전의 devDependency) 사용. `frontend/`의 스위트는 admin의
+  기존 3개 파일(axios/protected-route/auth.store, frontend의 더 단순한 role 없는 인증 모델에
+  맞게 조정)을 포팅하고, `session-guard.ts`용 신규 테스트를 추가했습니다 — in-flight 리프레시
+  중복 방지와 탭 간 계정 충돌 감지 로직으로, 두 앱 모두 테스트가 없었지만 인증 코드 중
+  레이스컨디션에 가장 민감한 부분입니다(CLAUDE.md의 Session Guard 절 참고).
 
 ## 이슈 리포트
 
