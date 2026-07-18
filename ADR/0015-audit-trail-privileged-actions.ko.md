@@ -19,7 +19,7 @@ Accepted
 - `UserService`: `'ROLE_CHANGE'`(`user.service.ts:293-298`), `'FORCE_LOGOUT'`
   (`user.service.ts:323`), `'USER_DELETE'`(`user.service.ts:419`) — `actorId`는 해당 작업을
   수행한 관리자입니다.
-- `ModerationService`: `'USER_MUTED'`(`moderation.service.ts:243-248`), `'USER_BANNED'`
+- `ModerationService`: `'USER_MUTED'`(`moderation.service.ts:253-258`), `'USER_BANNED'`
   (`moderation.service.ts:277-282`), `'USER_UNBAN'`(`moderation.service.ts:179`) — `actorId`는
   `getSystemUserId()`입니다. 이는 사람 관리자의 작업이 아니라 자동화된 제재 조치이기 때문이며,
   감사 로그는 `actorId`를 null로 두거나 항목을 아예 생략하는 대신 시스템 계정에 귀속시킵니다.

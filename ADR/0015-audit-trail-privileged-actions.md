@@ -19,7 +19,7 @@ separate, queryable entity, independent of the application log stream:
 - `UserService`: `'ROLE_CHANGE'` (`user.service.ts:293-298`), `'FORCE_LOGOUT'`
   (`user.service.ts:323`), `'USER_DELETE'` (`user.service.ts:419`) — `actorId` is the admin performing
   the action.
-- `ModerationService`: `'USER_MUTED'` (`moderation.service.ts:243-248`), `'USER_BANNED'`
+- `ModerationService`: `'USER_MUTED'` (`moderation.service.ts:253-258`), `'USER_BANNED'`
   (`moderation.service.ts:277-282`), `'USER_UNBAN'` (`moderation.service.ts:179`) — `actorId` is
   `getSystemUserId()`, since these are automated enforcement actions, not human admin actions; the
   audit trail attributes them to the system account rather than leaving `actorId` null or omitting the

@@ -14,6 +14,15 @@ Each ADR follows a lightweight structure: **Status**, **Context** (the problem/c
 Each ADR has a Korean translation at the same number with a `.ko.md` suffix (e.g.
 [0001-jwt-auth-token-strategy.ko.md](0001-jwt-auth-token-strategy.ko.md)).
 
+Citations to source use backtick-quoted `file.ts:NN` (a single line, a range `NN-MM`, or a
+comma-separated list `NN,MM,KK`). Name the specific symbol or call being cited in backticks near the
+citation (this is already the prevailing style, not a new requirement) -- `scripts/check-adr-integrity.mjs`
+(`pnpm check:adr`) cross-checks that a nearby symbol actually appears at the cited location and warns
+(never fails the build) when none do, since it is a heuristic and can false-positive on a citation that
+only names its enclosing class. Existence/range errors on citations (missing file, out-of-bounds line)
+do fail the build. See the script's own header comment for why a plain existence check was not enough --
+it was built after a stale citation slipped past one twice in the same session.
+
 ## Index
 
 | # | Title | Status |

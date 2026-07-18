@@ -1,10 +1,16 @@
-// Purpose: catches ADR documentation rot — broken cross-links/anchors, missing
-//   en/ko translation pairs, and citations pointing at files that no longer exist.
-// Usage: `pnpm check:adr` (root script); intended to run locally and, once proven
-//   stable, as a CI step alongside `pnpm lint`.
-// Rationale: an ADR gap review found two already-rotted citations (a renamed
-//   ARCHITECTURE.md anchor, an understated module-dependency description) with no
-//   mechanism that would have caught either — this script is that mechanism.
+// Purpose: catches ADR documentation rot -- broken cross-links/anchors, missing
+//   en/ko translation pairs, citations pointing at files that no longer exist,
+//   and (heuristically) citations whose cited line no longer matches the symbol
+//   named nearby in the prose.
+// Usage: `pnpm check:adr` (root script); wired into CI's `test` job.
+// Rationale: an ADR gap review found two rotted citations with nothing to catch
+//   them; a follow-up pass found the fix for the underlying content-drift case
+//   (a stale line number pointing at a real file, in range, but wrong content)
+//   was explicitly rejected as a plain existence/range check, since none of the
+//   5 real errors found that session would have been caught by one. This scripts
+//   nearby-symbol check targets exactly that gap. It is heuristic (regex-based
+//   symbol extraction, not a real parser) so it only ever warns, never fails --
+//   a false "broken" verdict here would be worse than no check at all.
 
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
@@ -27,14 +33,10 @@ function warn(file, msg) {
   warnCount++;
 }
 
-// Normalizes CRLF -> LF so per-line regexes anchored with `$` work regardless of
-// the file's line-ending style (this repo's docs are CRLF, source files are LF).
 function readText(path) {
   return readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-// GitHub-style heading slug (approximate): lowercase, strip markdown/punctuation
-// (keeping unicode word chars, spaces, hyphens), then spaces -> hyphens.
 function slugify(heading) {
   return heading
     .toLowerCase()
@@ -60,10 +62,10 @@ function checkMarkdownLinks(adrFile, content) {
   let m;
   while ((m = linkPattern.exec(content))) {
     const target = m[2];
-    if (/^https?:\/\//.test(target)) continue; // external links out of scope
+    if (/^https?:\/\//.test(target)) continue;
 
     const [pathPart, anchor] = target.split('#');
-    if (!pathPart) continue; // pure in-file anchor, e.g. "#foo" — skip (self-file, low risk)
+    if (!pathPart) continue;
 
     const resolvedPath = resolve(dirname(adrFile), pathPart);
     if (!existsSync(resolvedPath)) {
@@ -82,8 +84,6 @@ function checkMarkdownLinks(adrFile, content) {
   }
 }
 
-// Finds a file by basename anywhere under repoRoot (excluding node_modules/dist/.git),
-// used because ADR citations sometimes use a bare filename without its directory path.
 let fileIndexCache = null;
 function findByBasename(basename) {
   if (!fileIndexCache) {
@@ -106,12 +106,33 @@ function findByBasename(basename) {
   return fileIndexCache.get(basename) ?? [];
 }
 
+function parseLineSpec(spec) {
+  return spec.split(',').map((part) => {
+    const [a, b] = part.split('-').map(Number);
+    return { start: a, end: b ?? a };
+  });
+}
+
+function extractNearbySymbols(precedingText) {
+  const windowStart = Math.max(0, precedingText.length - 300);
+  const symbols = new Set();
+  for (const spanMatch of precedingText.matchAll(/`([^`]+)`/g)) {
+    if (spanMatch.index < windowStart) continue;
+    const span = spanMatch[1];
+    if ((span.includes('.ts:') || span.includes('.tsx:')) && /[0-9]/.test(span)) continue;
+    if (span.includes(' ') && !/[(){}._]/.test(span)) continue;
+    for (const token of span.matchAll(/[A-Za-z_$][A-Za-z0-9_$]*/g)) {
+      if (token[0].length >= 4) symbols.add(token[0]);
+    }
+  }
+  return [...symbols];
+}
+
 function checkFileLineCitations(adrFile, content) {
-  // Matches `path/to/file.ts:12` or `file.ts:12-34` inside backticks.
-  const citationPattern = /`([\w./-]+\.tsx?):(\d+)(?:-(\d+))?`/g;
+  const citationPattern = /`([\w./-]+\.tsx?):(\d+(?:[,-]\d+)*)`/g;
   let m;
   while ((m = citationPattern.exec(content))) {
-    const [, citedPath, startLine] = m;
+    const [full, citedPath, lineSpec] = m;
     const basename = citedPath.split('/').pop();
     let candidates;
     if (citedPath.includes('/')) {
@@ -128,16 +149,38 @@ function checkFileLineCitations(adrFile, content) {
     if (candidates.length > 1 && !citedPath.includes('/')) {
       warn(
         relative(repoRoot, adrFile),
-        `bare filename "${citedPath}" matches ${candidates.length} files — citation is ambiguous, prefer a path`,
+        `bare filename "${citedPath}" matches ${candidates.length} files -- citation is ambiguous, prefer a path`,
       );
     }
 
     const target = candidates[0];
-    const lineCount = readText(target).split('\n').length;
-    if (Number(startLine) > lineCount) {
+    const lines = readText(target).split('\n');
+    const ranges = parseLineSpec(lineSpec);
+
+    for (const range of ranges) {
+      if (range.start > lines.length) {
+        warn(
+          relative(repoRoot, adrFile),
+          `citation ${citedPath}:${range.start} exceeds file length (${lines.length} lines) -- likely stale`,
+        );
+      }
+    }
+
+    const symbols = extractNearbySymbols(content.slice(0, m.index));
+    if (symbols.length === 0) continue;
+
+    const matchesAnyRange = ranges.some((range) => {
+      if (range.start > lines.length) return true;
+      const from = Math.max(0, range.start - 4); // -1 for 0-index, -3 for context lines
+      const to = Math.min(lines.length, range.end + 2);
+      const windowText = lines.slice(from, to).join('\n');
+      return symbols.some((s) => windowText.includes(s));
+    });
+
+    if (!matchesAnyRange) {
       warn(
         relative(repoRoot, adrFile),
-        `citation ${citedPath}:${startLine} exceeds file length (${lineCount} lines) — likely stale`,
+        `citation ${full} -- none of nearby symbols [${symbols.join(', ')}] found near ${citedPath}:${lineSpec} -- possible content drift, re-verify by hand`,
       );
     }
   }
@@ -165,7 +208,5 @@ for (const file of adrFiles) {
   checkTranslationPair(file);
 }
 
-console.log(
-  `\nChecked ${adrFiles.length} ADR file(s). ${errorCount} error(s), ${warnCount} warning(s).`,
-);
+console.log(`\nChecked ${adrFiles.length} ADR file(s). ${errorCount} error(s), ${warnCount} warning(s).`);
 process.exit(errorCount > 0 ? 1 : 0);

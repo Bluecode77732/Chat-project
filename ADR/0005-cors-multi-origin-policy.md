@@ -17,7 +17,7 @@ incompatible with credentialed requests and is a Never Do regardless.
   `Joi.string().pattern(/\S/).required()` — the pattern check specifically rejects a
   whitespace-only string that would otherwise satisfy `.required()` and produce an empty allowlist) is
   a single env var holding a comma-separated list of allowed origins.
-- `backend/src/main.ts:47` splits it into an array (`.split(',').map(origin => origin.trim())`) before
+- `backend/src/main.ts:57` splits it into an array (`.split(',').map(origin => origin.trim())`) before
   passing it to `app.enableCors({ origin, credentials: true, ... })`.
 - Local dev default covers both `frontend/` (`:5173`) and `admin/` (`:5174`); see
   `backend/.env.example` for the example value.
