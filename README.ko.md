@@ -148,7 +148,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - URL: `http://localhost:3000/document`
 
 **인증**
-- `POST /auth/register` - Basic Auth로 회원가입
+- `POST /auth/register` - Basic Auth로 회원가입 — 선택적 body `{ nickname? }`
 - `POST /auth/signin` - JWT 토큰 발급
 - `POST /auth/token/refreshaccess` - 액세스 토큰 갱신
 
@@ -156,7 +156,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - `GET /user` - 사용자 목록 조회 **(admin 전용)** — 쿼리 파라미터: `page`, `take`, `sort`(`ASC`/`DESC`), `sortBy`(`id`/`role`/`created`), `search`(이메일/닉네임), `status`(`active`/`banned`), `humanOnly`(시딩된 AI 계정과 moderation 시스템 계정 제외)
 - `GET /user/:id` - 특정 사용자 조회 (본인 또는 admin)
 - `POST /user` - 사용자 생성
-- `PATCH /user/:id` - 사용자 수정 (본인 또는 admin)
+- `PATCH /user/:id` - 사용자 수정 (본인 또는 admin) — 선택적 body `{ email?, password?, nickname?, profileImage? }`(nickname은 20자 이하이며 고유해야 함; profileImage는 base64 data URI, jpeg/png/webp, 2MB 이하); 닉네임이 이미 사용 중이면 400
 - `PATCH /user/:id/role` - 사용자 역할 변경 **(superadmin 전용)**
 - `POST /user/:id/force-logout` - 강제 로그아웃 **(admin 전용)**
 - `POST /user/:id/ban` - 자동 스트라이크 시스템과 무관하게 수동으로 밴 **(admin 전용)** — 선택적 body `{ reason?, durationSec? }`(`durationSec` 생략 시 영구 밴), 활성 세션도 즉시 종료
@@ -316,6 +316,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - Redis 기반 세션으로 수평 확장 지원
 - Google Gemini 2.5 Flash 기반 AI 채팅 (4가지 성격: 친절한 어시스턴트, 코드 도우미, 영어 선생님, 창의적인 작가)
 - 커서 기반 메시지 히스토리 및 무한 스크롤
+- 프로필 커스터마이징 - 계정 설정에서 설정하는 선택적 닉네임(고유값, 20자 이하)과 프로필 이미지(jpeg/png/webp, 2MB 이하)
 - Admin 대시보드 - 유저/방 관리, 모더레이션 액션, 감사로그 CSV export를 위한 별도 앱([Admin 패널](#admin-패널) 참고)
 
 
@@ -393,6 +394,8 @@ Chat Project/                   ← 모노레포 루트
 UserEntity
   id          PK
   email       unique
+  nickname    nullable, unique, 최대 20자 — 다른 사용자에게 표시되는 이름
+  profileImage nullable text (base64 data URI, jpeg/png/webp, 최대 ~2MB)
   password    API 응답에서 제외
   isAI        boolean (시드된 AI 시스템 계정에만 true)
   role        enum: user (0) | admin (1) | superadmin (2)
