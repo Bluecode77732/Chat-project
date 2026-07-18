@@ -108,6 +108,13 @@ Scope Discipline상 명시적 승인이 필요한 파일이라면 반드시 먼�
   맞게 조정)을 포팅하고, `session-guard.ts`용 신규 테스트를 추가했습니다 — in-flight 리프레시
   중복 방지와 탭 간 계정 충돌 감지 로직으로, 두 앱 모두 테스트가 없었지만 인증 코드 중
   레이스컨디션에 가장 민감한 부분입니다(CLAUDE.md의 Session Guard 절 참고).
+- `backend/test/app.e2e-spec.ts`는 `Test.createTestingModule({ imports: [AppModule] })` +
+  `createNestApplication()` + `app.init()`으로 앱을 만들며, `main.ts`의 `bootstrap()`을 전혀 거치지
+  않습니다 -- 그래서 `cookieParser()`, `helmet()`, 전역 `ValidationPipe`, `AllExceptionsFilter`가 이
+  테스트들엔 적용되지 않습니다. 고치지 않고 그대로 둔 이유: 이 파일의 네 케이스는 전부 이런 것들에
+  의존하지 않도록(라우팅 + 가드/서비스 단의 `HttpException`만) 일부러 골랐기 때문입니다. e2e에서
+  `main.ts`의 middleware 스택까지 검증하려면 `bootstrap()`과 테스트의 `createNestApplication()` 호출이
+  공유하는 함수로 분리하는 더 큰 리팩터가 필요한데, 이번엔 하지 않았습니다.
 
 ## 이슈 리포트
 

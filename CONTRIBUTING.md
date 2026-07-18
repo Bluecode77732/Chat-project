@@ -111,6 +111,13 @@ CLAUDE.md's Scope Discipline.
   new one for `session-guard.ts` -- the in-flight refresh dedup and cross-tab conflict-detection logic
   had no test in either app despite being the most race-condition-sensitive piece of auth code (see
   CLAUDE.md's Session Guard section).
+- `backend/test/app.e2e-spec.ts` builds its app via `Test.createTestingModule({ imports: [AppModule] })`
+  + `createNestApplication()` + `app.init()` -- it never runs `main.ts`'s `bootstrap()`, so `cookieParser()`,
+  `helmet()`, the global `ValidationPipe`, and `AllExceptionsFilter` are not wired up for these tests.
+  Left as-is rather than fixed: its four cases were each picked specifically because they don't depend
+  on any of that (routing plus guard/service-level `HttpException`s only). Exercising `main.ts`'s
+  middleware stack in e2e would require extracting it into a function shared between `bootstrap()` and
+  the test's `createNestApplication()` call -- a larger refactor, not done here.
 
 ## Reporting issues
 
