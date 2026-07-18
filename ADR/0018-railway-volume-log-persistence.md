@@ -60,3 +60,9 @@ existing error log durable across redeploys."
 - If the container process lacks write permission on the mounted path, winston's `File` transport
   emits an `error` event rather than throwing -- file logging could silently stop while Console
   output keeps working. Worth checking after the first deploy, not an ongoing concern.
+- **Durability verification is a post-deploy-only test, not yet performed.** `pnpm lint`/`pnpm test`
+  and a local `pnpm start:dev` smoke test confirm the code logic (fallback path, no regressions) but
+  cannot confirm the actual claim this ADR makes -- that logs survive a Railway redeploy -- since
+  that depends on Railway's real volume-mount and container-restart behavior, which no local
+  environment reproduces. Pending steps, only possible after the volume is attached: trigger a 5xx,
+  confirm the entry in `error.logs.log`, redeploy, and confirm the entry is still there.
