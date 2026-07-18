@@ -24,7 +24,7 @@ Postgres + Redis connection, and two static/SPA React builds.
 ## Consequences
 
 - Two separate platforms means split observability — logs and metrics live in two different
-  dashboards instead of one; there is no unified view across `backend` and the two frontends.
+  dashboards instead of one; there is no unified view across `backend` and the two frontends. (Railway-side log durability specifically -- a narrower, single-platform concern, not the cross-platform split this decision covers -- is addressed separately in [ADR 0018](0018-railway-volume-log-persistence.md).)
 - Running `frontend`/`admin` as two separate Vercel projects (rather than one) doubles the CORS surface
   to maintain (`CORS_ORIGIN` must list both origins, everywhere it's set) — accepted because the two
   apps need genuinely independent deploy cadences and because the admin/frontend split itself was a

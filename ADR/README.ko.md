@@ -45,6 +45,7 @@
 | [0015](0015-audit-trail-privileged-actions.ko.md) | 모든 권한 있는 작업/제재 조치에 대한 감사 로그 | Accepted |
 | [0016](0016-redis-unavailability-policy.ko.md) | Redis 장애 시 정책: 보안 체크는 fail-closed, 캐시는 DB로 저하 | Accepted |
 | [0017](0017-auth-user-chat-circular-dependency.ko.md) | forwardRef를 통한 AuthModule ↔ UserModule ↔ ChatModule 순환 의존성 | Accepted |
+| [0018](0018-railway-volume-log-persistence.ko.md) | Railway 볼륨을 붙여 재배포 후에도 로그를 보존 | Accepted |
 
 범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것이고, 0006–0007은 소스
 파일의 인라인 주석으로만 존재하던 코드 레벨 근거를 정식화한 것입니다. 0008, 0010, 0012, 0013은
@@ -56,4 +57,4 @@ CLAUDE.md의 Project-Specific Principles에 이미 서술된 근거를 정식화
 user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 에러 처리가 전혀 없었고, 수정과
 ADR 작성을 함께 진행했습니다(문서화 전용 작업이 아님). 0017은 같은 재검토 과정에서 나온
 관련 발견 하나를 다룹니다 — AuthModule, UserModule, ChatModule 사이의 부팅 순서 순환 의존성이며,
-심각도가 낮다고 판단해 리팩터링 대신 문서화만 진행했습니다.
+심각도가 낮다고 판단해 리팩터링 대신 문서화만 진행했습니다. 0018은 같은 backend 에러 로깅의 지속성을 점검하는 후속 작업에서 나온 결정입니다 — 로그 휘발성 문제 해결과, 죽어 있던 `isVercel` 분기 제거를 함께 진행했습니다(문서화 전용 작업이 아님).

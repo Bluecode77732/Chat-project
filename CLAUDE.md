@@ -883,7 +883,7 @@ const mockRepository = {
 
 ### Logging
 - Use injected NestJS `Logger` (winston under the hood)
-- Logs write to `logs/logs.log` and `logs/error.logs.log` in non-Vercel environments
+- Logs write to `logs/logs.log` and `logs/error.logs.log`. On Railway these persist across redeploys via an attached volume (`RAILWAY_VOLUME_MOUNT_PATH`); locally/CI they fall back to `backend/logs/`. See [ADR 0018](ADR/0018-railway-volume-log-persistence.md).
 - Never log sensitive fields: `password`, `token`, `refreshToken`, `secret`
 
 ### Code Style

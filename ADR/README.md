@@ -44,6 +44,7 @@ it was built after a stale citation slipped past one twice in the same session.
 | [0015](0015-audit-trail-privileged-actions.md) | Audit trail for every privileged/enforcement action | Accepted |
 | [0016](0016-redis-unavailability-policy.md) | Redis unavailability: fail closed for security checks, degrade to DB for caches | Accepted |
 | [0017](0017-auth-user-chat-circular-dependency.md) | AuthModule ↔ UserModule ↔ ChatModule circular dependency via forwardRef | Accepted |
+| [0018](0018-railway-volume-log-persistence.md) | Persist logs across Railway redeploys via an attached volume | Accepted |
 
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
@@ -56,5 +57,4 @@ decided and implemented during a follow-up gap review of the ADR set itself — 
 the pre-existing RateLimitGuard; the fix and the ADR were done together, not documentation-only. 0017
 covers a related finding from the same gap review — a bootstrap-order circular dependency between
 AuthModule, UserModule, and ChatModule — assessed as low severity and left as-is, documented rather
-than refactored.
-motivation were not recorded anywhere in code or prior docs before this pass.
+than refactored. 0018 covers a follow-up fix found during a durability review of this backend's error logging -- the log-durability gap and the removal of a stale, dead `isVercel` branch were addressed together, not documentation-only.

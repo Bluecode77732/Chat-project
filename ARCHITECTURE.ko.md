@@ -272,7 +272,7 @@ flowchart LR
   GitHub push로 바로 배포되는 편의성.
 
   - **비용/위험:** 플랫폼이 둘로 나뉘어 있어 로그·메트릭이 대시보드 두 곳에 흩어집니다(관측성
-    분산). `frontend`/`admin`을 (하나가 아니라) 별도의 Vercel 프로젝트 두 개로 두면 유지해야 할
+    분산). (Railway 쪽 로그 지속성은 별개로, 이 위험이 다루는 플랫폼 간 분산보다 좁은, 단일 플랫폼 내부의 문제입니다 — [ADR 0018](ADR/0018-railway-volume-log-persistence.ko.md)에서 따로 다룹니다.) `frontend`/`admin`을 (하나가 아니라) 별도의 Vercel 프로젝트 두 개로 두면 유지해야 할
     CORS 표면도 두 배가 됩니다(`CORS_ORIGIN`을 설정하는 모든 곳에서 두 origin을 다 나열해야 함) —
     이는 두 앱이 실제로 독립적인 배포 주기를 가져야 하기 때문에 받아들인 대가입니다
     ([ADR 0005](ADR/0005-cors-multi-origin-policy.md) 참고).
