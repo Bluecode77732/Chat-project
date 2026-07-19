@@ -15,12 +15,12 @@
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
-- A private one-to-one real-time chat service, built solo over 570+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
+- A private one-to-one real-time chat service, built solo over 627+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
 - Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
 
 ## Overview
-A real-time private one-to-one chat service, iterated over 6+ months (570+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
+A real-time private one-to-one chat service, iterated over 6+ months (627+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
 - Authentication: JWT-based auth with Passport strategies; refresh token in an httpOnly cookie, access token in memory only
 - Chat Management: Socket.IO (connection lifecycle only) + GraphQL (Mutation/Subscription for messages), Redis-backed session/cache with transaction-safe writes
 - Moderation: automatic strike-based abuse detection (duplicate/flood + velocity) escalating warn → mute → timed/permanent ban, with admin recovery tools
@@ -33,7 +33,7 @@ Two real incidents hit during development — a live infrastructure security exp
 
 
 ## Project Motivation
-- Built solo, iterating live over 570+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Built solo, iterating live over 627+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
 - Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
@@ -1009,9 +1009,8 @@ to clear a deleted user's room membership. The guard scans only each migration's
 migrations (which set the original `NO ACTION`) are exempt via a `since` timestamp, so the
 original `InitialSchema` is not flagged.
 
-**Why it rides `pnpm test`.** The ESLint CI step is non-blocking (`pnpm --filter backend lint
-|| true`), so a lint rule could not gate a merge. The guard instead rides the already-blocking
-test suite, which fires at two points:
+**Why it rides `pnpm test`.** Lint is also a blocking CI step now, but it checks syntax/style,
+not cross-migration FK history — the guard instead rides the test suite, which fires at two points:
 
 | Fire point | Effect |
 |---|---|
