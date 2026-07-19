@@ -142,7 +142,7 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 
 `AllExceptionsFilter`(`backend/src/base/filter/all-exceptions.filter.ts`)는 HTTP와 GraphQL을 모두
 커버하는 단일 전역 필터로 등록되어 있습니다(`app.useGlobalFilters(new AllExceptionsFilter())`,
-`main.ts:25`) — 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기합니다.
+`main.ts:38`) — 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기합니다.
 `HttpException`이 아닌 에러는 기본적으로 `500`/`INTERNAL_SERVER_ERROR`로 처리되지만, 예외적으로
 `body-parser`의 "entity.too.large" 에러만은 구조적으로 감지해서(`body-parser`가 일반 `Error`를 던지므로
 `instanceof HttpException`으로는 구분이 안 됨) `413 PAYLOAD_TOO_LARGE`로 재매핑합니다. 운영 환경
@@ -210,7 +210,18 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 [흐름](README.ko.md#흐름) 절에 단계별로 도식화되어 있습니다 — 트랜잭션 경계, 커밋 이후 AI 응답 트리거,
 Redis Pub/Sub 전달까지 그쪽이 정본입니다. 트랜잭션 경계 결정 자체는
 [ADR 0003](ADR/0003-database-transaction-strategy.md)으로 공식화되어 있습니다. 여기서 추가할 내용은
-하나뿐입니다: `ModerationService.evaluateMessage()`가
+두 가지이며, 둘 다 README가 설명하는 것과 동일한 `receiveMessage :${roomId}` 채널 위에서 일어납니다.
+
+`pubSub.publish()`는 `graphql-redis-subscriptions`를 그냥 호출하는 게 아닙니다: `PubSubService`
+(`backend/src/graphql/pubsub.service.ts`)는 `graphql-redis-subscriptions`의 `RedisPubSub`를
+상속(extends)하고 `publish()`를 오버라이드해서, 트리거가 `receiveMessage :{roomId}` 패턴과 일치할
+때마다 방 단위로 최근 메시지를 도는 캐시(`SessionCacheService.cacheMessage()`, Redis 리스트
+`room_messages:{roomId}`, 최대 15개, TTL `MESSAGE_CACHE_TTL_SEC`)에도 씁니다 — 사람이 보낸 메시지든
+AI 응답이든 모더레이션 시스템 메시지든, 이 채널로 전달되는 모든 메시지는 발행되는 김에 함께
+캐시됩니다. `ChatService.getMessages()`는 방의 가장 최근 페이지(커서 없는 첫 조회)를 조회할 때 이
+캐시를 먼저 읽고, 캐시 미스일 때만 Postgres로 폴백합니다.
+
+`ModerationService.evaluateMessage()`가
 같은 경로 안에서 가드 통과 이후·저장 이전에 실행되며, 경고/뮤트/밴 알림을 위한 시스템 메시지 발행도
 사람이 보낸 메시지와 동일한 `receiveMessage :${roomId}` 채널로 이루어집니다 — CLAUDE.md의
 [AI Reply Channel Parity](CLAUDE.md#chat--caching)를 그대로 재사용하는 것이며, 별도의 두 번째 전달
@@ -351,13 +362,15 @@ flowchart LR
 
 - **ioredis 기반 Redis**
 
-  - **별도의 클라이언트 인스턴스 3개**, 하나로 공유되는 연결이 아닙니다: `REDIS_CLIENT`(`redis.module.ts`,
+  - **별도의 클라이언트 인스턴스 5개**, 하나로 공유되는 연결이 아닙니다: `REDIS_CLIENT`(`redis.module.ts`,
     `SessionCacheService`가 사용), `pubClient`/`subClient`(`chat.gateway.ts`의 `afterInit`,
-    `@socket.io/redis-adapter`용) — 여기에 `PubSubService`를 위해 `graphql-redis-subscriptions`가
-    내부적으로 여는 연결까지 더해집니다(CLAUDE.md의 Cache 절 참고: "pub/sub uses a dedicated
-    subscriber connection"). `redis.module.ts`와 `chat.gateway.ts`는 각각 독립적으로 `REDIS_URL`을
-    파싱하고 `rediss:`를 감지해 TLS를 켭니다 — 연결 설정 로직(host/port/password/TLS 추출)이 공유되지
-    않고 두 파일에 그대로 중복되어 있습니다.
+    `@socket.io/redis-adapter`용), 그리고 `publisher`/`subscriber`(`graphql/pubsub.service.ts`의
+    생성자에서 만들어 `super({ publisher, subscriber })`로 전달 — `PubSubService`는 `RedisPubSub`를
+    감싸는 게 아니라 **상속(extends)**합니다; CLAUDE.md의 Cache 절 참고: "pub/sub uses a dedicated
+    subscriber connection, separate from the publisher connection, created inline in
+    `graphql/pubsub.service.ts`"). `redis.module.ts`, `chat.gateway.ts`, `graphql/pubsub.service.ts`
+    셋 다 각각 독립적으로 `REDIS_URL`을 파싱하고 `rediss:`를 감지해 TLS를 켭니다 — 연결 설정 로직
+    (host/port/password/TLS 추출)이 공유되지 않고 세 파일 모두에 그대로 중복되어 있습니다.
 
   - **비용:** Redis를 건드리는 캐시/세션 키는 새로 만들 때마다 `{service}:{entity}:{id}` 네이밍
     컨벤션을 따르고 TTL을 명시해야 합니다 — 작지만 모든 호출 지점에서 빠뜨리면 안 되는 추가

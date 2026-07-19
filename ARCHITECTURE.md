@@ -183,7 +183,7 @@ of module:
 ## Error Handling
 
 `AllExceptionsFilter` (`backend/src/base/filter/all-exceptions.filter.ts`) is registered as a single
-global filter (`app.useGlobalFilters(new AllExceptionsFilter())`, `main.ts:25`) covering both HTTP and
+global filter (`app.useGlobalFilters(new AllExceptionsFilter())`, `main.ts:38`) covering both HTTP and
 GraphQL — it branches on `host.getType<'http' | 'ws' | 'graphql'>()` rather than being split into two
 filters. Non-`HttpException` errors default to `500`/`INTERNAL_SERVER_ERROR`, except a `body-parser`
 "entity.too.large" error, which it detects structurally (not via `instanceof HttpException`, since
@@ -218,7 +218,19 @@ The `sendMessage` GraphQL mutation path and the Socket.IO connection lifecycle a
 diagrammed step-by-step in README's [Flow](README.md#flow) section — read that for the authoritative
 walkthrough (transaction boundary, post-commit AI reply trigger, Redis Pub/Sub delivery); the
 transaction-boundary decision itself is formalized in [ADR 0003](ADR/0003-database-transaction-strategy.md).
-The one addition relevant here: `ModerationService.evaluateMessage()` runs inside that same path, between guard
+Two additions are relevant here, both riding on the same `receiveMessage :${roomId}` channel README
+describes.
+
+`pubSub.publish()` is not a bare `graphql-redis-subscriptions` call: `PubSubService`
+(`backend/src/graphql/pubsub.service.ts`) extends `graphql-redis-subscriptions`'s `RedisPubSub` and
+overrides `publish()` to also write to a rolling per-room message cache
+(`SessionCacheService.cacheMessage()`, Redis list `room_messages:{roomId}`, capped at 15 entries, TTL
+`MESSAGE_CACHE_TTL_SEC`) whenever the trigger matches `receiveMessage :{roomId}` — every message
+delivered through this channel, human, AI, or moderation system message alike, is cached as a side
+effect of being published. `ChatService.getMessages()` reads this cache first for the most-recent
+(no-cursor) page of a room's history, falling back to Postgres only on a cache miss.
+
+`ModerationService.evaluateMessage()` runs inside that same path, between guard
 checks and persistence, and can itself trigger a system-message publish (warn/mute/ban notices) through
 the identical `receiveMessage :${roomId}` channel — see [AI Reply Channel Parity](CLAUDE.md#chat--caching)
 in CLAUDE.md, which this reuses rather than introducing a second delivery path. The post-commit AI
@@ -364,13 +376,16 @@ Stacks section doesn't state.
 
 - **Redis via ioredis**
 
-  - **Three separate client instances**, not one shared connection: `REDIS_CLIENT` (`redis.module.ts`,
-    backs `SessionCacheService`), and `pubClient`/`subClient` (`chat.gateway.ts`'s `afterInit`, backing
-    `@socket.io/redis-adapter`) — plus whatever `graphql-redis-subscriptions` opens internally for
-    `PubSubService` (see CLAUDE.md's Cache section: "pub/sub uses a dedicated subscriber connection").
-    `redis.module.ts` and `chat.gateway.ts` each independently parse `REDIS_URL` and detect `rediss:`
-    for TLS — the connection-config logic (host/port/password/TLS extraction) is duplicated verbatim
-    between the two files rather than shared.
+  - **Five separate client instances**, not one shared connection: `REDIS_CLIENT` (`redis.module.ts`,
+    backs `SessionCacheService`), `pubClient`/`subClient` (`chat.gateway.ts`'s `afterInit`, backing
+    `@socket.io/redis-adapter`), and `publisher`/`subscriber` (`graphql/pubsub.service.ts`'s
+    constructor, passed to `super({ publisher, subscriber })` — `PubSubService extends RedisPubSub`
+    rather than wrapping it; see CLAUDE.md's Cache section: "pub/sub uses a dedicated subscriber
+    connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`").
+    `redis.module.ts`, `chat.gateway.ts`, and `graphql/pubsub.service.ts` each independently parse
+    `REDIS_URL` and detect `rediss:` for TLS — the connection-config logic
+    (host/port/password/TLS extraction) is duplicated verbatim across all three files rather than
+    shared.
 
   - **Cost:** every new cache/session key must follow the `{service}:{entity}:{id}` naming convention
     and carry an explicit TTL — a small but mandatory extra step at every call site that touches
