@@ -355,6 +355,7 @@ Chat Project/                   <= monorepo root
 │       │   ├── guard/          <= RateLimitGuard
 │       │   └── interceptor/    <= GqlTransactionInterceptor
 │       ├── graphql/            <= PubSubService, GraphQL input/return types
+│       ├── health/             <= HealthController (liveness probe, GET /health)
 │       ├── mail/                <= MailService (SMTP notifications, e.g. role-change emails)
 │       ├── migrations/         <= TypeORM migration files
 │       ├── mocks/              <= bcrypt mock for tests
@@ -578,18 +579,8 @@ Methods
       validationSchema: Joi.object({
         ENV: Joi.string().valid('dev', 'prod').required(),
         DB_TYPE: Joi.string().valid('postgres').required(),
-        DB_HOST: Joi.string().required(),
-        DB_PORT: Joi.number().required(),
-        DB_USERNAME: Joi.string().required(),
-        DB_PASSWORD: Joi.string().required(),
-        DB_DATABASE: Joi.string().required(),
-        HASH_ROUNDS: Joi.number().required(),
-        REFRESH_TOKEN_SECRET: Joi.string().required(),
-        ACCESS_TOKEN_SECRET: Joi.string().required(),
-        REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
-        ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
-        CORS_ORIGIN: Joi.string().required(),
-        GEMINI_API_KEY: Joi.string().required(),
+        // ...remaining fields validate DB/token/Redis/CORS/Gemini/mail/moderation config —
+        // see Environment Configuration below for the full current variable list
       }),
       isGlobal: true,
     }),
@@ -1061,7 +1052,6 @@ Auto-deploy — full CI job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#befor
 3. Add Redis plugin in Railway (replaces local Docker Redis)
 
 **Config Files**
-- '.github/workflows/deploy.yml' runs test & build, then deploys via Railway CLI
 - 'railway.toml' builds with Dockerfile, runs `cd backend && pnpm migration:run && node dist/main` on deploy
 
 

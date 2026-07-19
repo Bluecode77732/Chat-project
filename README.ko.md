@@ -355,6 +355,7 @@ Chat Project/                   ← 모노레포 루트
 │       │   ├── guard/          ← RateLimitGuard
 │       │   └── interceptor/    ← GqlTransactionInterceptor
 │       ├── graphql/            ← PubSubService, GraphQL 입력/반환 타입
+│       ├── health/             ← HealthController (liveness probe, GET /health)
 │       ├── mail/                ← MailService (SMTP 알림, 예: 역할 변경 이메일)
 │       ├── migrations/         ← TypeORM 마이그레이션 파일
 │       ├── mocks/              ← 테스트용 bcrypt 목
@@ -556,18 +557,8 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
       validationSchema: Joi.object({
         ENV: Joi.string().valid('dev', 'prod').required(),
         DB_TYPE: Joi.string().valid('postgres').required(),
-        DB_HOST: Joi.string().required(),
-        DB_PORT: Joi.number().required(),
-        DB_USERNAME: Joi.string().required(),
-        DB_PASSWORD: Joi.string().required(),
-        DB_DATABASE: Joi.string().required(),
-        HASH_ROUNDS: Joi.number().required(),
-        REFRESH_TOKEN_SECRET: Joi.string().required(),
-        ACCESS_TOKEN_SECRET: Joi.string().required(),
-        REFRESH_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
-        ACCESS_TOKEN_SECRET_EXPIRES_IN: Joi.number().required(),
-        CORS_ORIGIN: Joi.string().required(),
-        GEMINI_API_KEY: Joi.string().required(),
+        // ...나머지 필드는 DB/토큰/Redis/CORS/Gemini/mail/moderation 설정을 검증합니다 —
+        // 전체 최신 변수 목록은 아래 환경 변수 설정 참고
       }),
       isGlobal: true,
     }),
@@ -1040,7 +1031,6 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됩�
 3. Railway에 Redis 플러그인 추가 (로컬 Docker Redis 대체)
 
 **설정 파일**
-- '.github/workflows/deploy.yml': 테스트 & 빌드 실행 후 Railway CLI로 배포
 - 'railway.toml': Dockerfile로 빌드, 배포 시 `cd backend && pnpm migration:run && node dist/main` 실행
 
 
