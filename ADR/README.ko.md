@@ -47,6 +47,8 @@
 | [0017](0017-auth-user-chat-circular-dependency.ko.md) | forwardRef를 통한 AuthModule ↔ UserModule ↔ ChatModule 순환 의존성 | Accepted |
 | [0018](0018-railway-volume-log-persistence.ko.md) | Railway 볼륨을 붙여 재배포 후에도 로그를 보존 | Accepted |
 | [0019](0019-sentry-error-tracking.ko.md) | Sentry를 통한 backend 에러 트래킹 (5xx만) | Accepted |
+| [0020](0020-security-headers-and-auth-rate-limit.ko.md) | 보안 헤더 분리(Helmet은 backend / CSP는 frontend+admin)와 IP 기반 인증 레이트리밋 | Accepted |
+| [0021](0021-unified-message-delivery-channel.ko.md) | 사람·AI·모더레이션 시스템 메시지의 단일 전달 채널/형태 | Accepted |
 
 범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것이고, 0006–0007은 소스
 파일의 인라인 주석으로만 존재하던 코드 레벨 근거를 정식화한 것입니다. 0008, 0010, 0012, 0013은
@@ -58,4 +60,4 @@ CLAUDE.md의 Project-Specific Principles에 이미 서술된 근거를 정식화
 user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 에러 처리가 전혀 없었고, 수정과
 ADR 작성을 함께 진행했습니다(문서화 전용 작업이 아님). 0017은 같은 재검토 과정에서 나온
 관련 발견 하나를 다룹니다 — AuthModule, UserModule, ChatModule 사이의 부팅 순서 순환 의존성이며,
-심각도가 낮다고 판단해 리팩터링 대신 문서화만 진행했습니다. 0018은 같은 backend 에러 로깅의 지속성을 점검하는 후속 작업에서 나온 결정입니다 — 로그 휘발성 문제 해결과, 죽어 있던 `isVercel` 분기 제거를 함께 진행했습니다(문서화 전용 작업이 아님). 0019는 0018을 낳은 동일한 관측 가능성 재검토에서 이어진 것입니다 — 메트릭/트레이싱/APM이 완전히 부재함을 확인했지만, 사용자가 명시적으로 범위를 좁힌 뒤 backend 전용 에러 트래킹(Sentry)으로만 축소했습니다. 메트릭, 트레이싱, frontend/admin 커버리지는 여전히 보류 상태입니다.
+심각도가 낮다고 판단해 리팩터링 대신 문서화만 진행했습니다. 0018은 같은 backend 에러 로깅의 지속성을 점검하는 후속 작업에서 나온 결정입니다 — 로그 휘발성 문제 해결과, 죽어 있던 `isVercel` 분기 제거를 함께 진행했습니다(문서화 전용 작업이 아님). 0019는 0018을 낳은 동일한 관측 가능성 재검토에서 이어진 것입니다 — 메트릭/트레이싱/APM이 완전히 부재함을 확인했지만, 사용자가 명시적으로 범위를 좁힌 뒤 backend 전용 에러 트래킹(Sentry)으로만 축소했습니다. 메트릭, 트레이싱, frontend/admin 커버리지는 여전히 보류 상태입니다. 0020과 0021은 모든 ADR을 현재 구현과 전면 대조하는 감사에서 나왔습니다 — 0020은 README 한 줄로만 있던 보안 헤더/레이트리밋 설계를 정식화한 것이고, 0021은 원래 AI 답장에만 국한됐던 CLAUDE.md 원칙을, 실제 구현(모더레이션 시스템 메시지)이 두 번째로 생긴 지금 ADR로 승격한 것입니다.

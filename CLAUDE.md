@@ -588,6 +588,8 @@ one of these is violated, follow Principle Conflict Protocol.
   guaranteed delivery must use a persistent queue (e.g. BullMQ), not PubSub.
 - Goal: any new automated/system message source (not just the AI service) publishes
   through this same channel and shape — do not introduce a second message-delivery path.
+  Formalized as [ADR 0021](ADR/0021-unified-message-delivery-channel.md), now that a second
+  real implementation (moderation system messages) exists alongside AI replies.
 
 **Redis Adapter for Socket Horizontal Scaling**
 - Breakdown: `ChatGateway.afterInit()` wires Socket.IO to a Redis-backed adapter

@@ -43,7 +43,7 @@ function slugify(heading) {
     .replace(/`/g, '')
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
-    .replace(/\s+/g, '-');
+    .replace(/\s/g, '-');
 }
 
 function headingSlugsIn(filePath) {

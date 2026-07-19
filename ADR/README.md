@@ -46,6 +46,8 @@ it was built after a stale citation slipped past one twice in the same session.
 | [0017](0017-auth-user-chat-circular-dependency.md) | AuthModule ↔ UserModule ↔ ChatModule circular dependency via forwardRef | Accepted |
 | [0018](0018-railway-volume-log-persistence.md) | Persist logs across Railway redeploys via an attached volume | Accepted |
 | [0019](0019-sentry-error-tracking.md) | Backend error tracking via Sentry (5xx only) | Accepted |
+| [0020](0020-security-headers-and-auth-rate-limit.md) | Security headers split (Helmet backend / CSP frontend+admin) and IP-based auth rate limiting | Accepted |
+| [0021](0021-unified-message-delivery-channel.md) | Single delivery channel/shape for human, AI, and moderation system messages | Accepted |
 
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
@@ -58,4 +60,4 @@ decided and implemented during a follow-up gap review of the ADR set itself — 
 the pre-existing RateLimitGuard; the fix and the ADR were done together, not documentation-only. 0017
 covers a related finding from the same gap review — a bootstrap-order circular dependency between
 AuthModule, UserModule, and ChatModule — assessed as low severity and left as-is, documented rather
-than refactored. 0018 covers a follow-up fix found during a durability review of this backend's error logging -- the log-durability gap and the removal of a stale, dead `isVercel` branch were addressed together, not documentation-only. 0019 followed from the same observability review that produced 0018 -- confirming metrics/tracing/APM were entirely absent -- but scoped down to backend-only error tracking (Sentry) after explicit user narrowing; metrics, tracing, and frontend/admin coverage remain deferred.
+than refactored. 0018 covers a follow-up fix found during a durability review of this backend's error logging -- the log-durability gap and the removal of a stale, dead `isVercel` branch were addressed together, not documentation-only. 0019 followed from the same observability review that produced 0018 -- confirming metrics/tracing/APM were entirely absent -- but scoped down to backend-only error tracking (Sentry) after explicit user narrowing; metrics, tracing, and frontend/admin coverage remain deferred. 0020 and 0021 came from a full-project audit cross-checking every ADR against the current implementation: 0020 formalizes a security-header/rate-limit design that existed only as a one-line README bullet, and 0021 promotes a CLAUDE.md principle (originally scoped to AI replies only) to an ADR now that a second real implementation (moderation system messages) exists.
