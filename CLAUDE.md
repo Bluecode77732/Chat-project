@@ -809,7 +809,7 @@ docker compose up -d --build
   `MODERATION_MUTE_DURATION_SEC` (600), `MODERATION_BAN_THRESHOLD` (7), `MODERATION_BAN_DURATION_SEC`
   (604800), `MODERATION_DUP_WINDOW_SEC` (60), `MODERATION_DUP_THRESHOLD` (3)
 - Redis keys (`moderation:{strike,dup,mute,velmark}:{userId}`, `{service}:{entity}:{id}` convention)
-  track strike/mute state; `AuditLogService.countByTarget()` (`audit-log.service.ts:56-57`) tells
+  track strike/mute state; `AuditLogService.countByTarget()` (`audit-log.service.ts:56-60`) tells
   `ModerationService` whether a repeat ban on the same user should escalate to permanent rather than
   timed
 - One-directional dependency by design: `ModerationModule` never imports `ChatModule`, even though
