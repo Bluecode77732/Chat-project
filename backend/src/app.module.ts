@@ -43,6 +43,8 @@ import { SentryModule } from '@sentry/nestjs/setup';
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
+        // Admin cap — optional; UserService.updateRole falls back to 5 when unset.
+        MAX_ADMIN_COUNT: Joi.number().optional(),
         // Moderation thresholds/durations — all optional; ModerationService falls back to MODERATION_DEFAULTS.
         MODERATION_STRIKE_WINDOW_SEC: Joi.number().optional(),
         MODERATION_WARN_THRESHOLD: Joi.number().optional(),
