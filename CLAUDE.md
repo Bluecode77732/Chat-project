@@ -975,9 +975,11 @@ GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and
 
 1. **`test`** — matrix `ubuntu-latest` + `windows-latest` (Windows is `continue-on-error: true`,
    ubuntu is not). `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` →
-   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (ADR integrity check:
-   broken links/anchors, stale citations, missing `.ko.md` pairs). No step has a `|| true` fallback —
-   any failure hard-fails the job.
+   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (broken links/anchors,
+   stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
+   (`MODERATION_DEFAULTS` in sync across its 3 documented mirrors) → `pnpm check:deps` (README's
+   Dependencies/DevDependencies lists in sync with `backend/package.json`). No step has a `|| true`
+   fallback — any failure hard-fails the job.
 2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs
    migrations, runs the backend's jest e2e boot-smoke suite (`pnpm --filter backend test:e2e`), starts
    the compiled server, then runs Playwright e2e against `frontend/`. Blocks `deploy`.

@@ -35,6 +35,8 @@ jobs:
       - run: pnpm --filter admin lint
       - run: pnpm --filter admin test
       - run: pnpm check:adr
+      - run: pnpm check:config
+      - run: pnpm check:deps
 
   e2e:
     needs: test
