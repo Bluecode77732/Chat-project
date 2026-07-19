@@ -31,6 +31,17 @@ Accepted
 - 메서드 안에서 `createQueryRunner → connect → startTransaction → commit/rollback → release`를
   수동으로 인라인 처리하는 방식은 절대 쓰지 않습니다 — 위 두 패턴 중 하나가 항상 생명주기를
   소유합니다.
+- 고려했다가 배제한 대안:
+  - **여러 쓰기 지점마다 `QueryRunner` 생명주기를 수동으로 인라인 처리**: 배제 — 필요한 곳마다
+    같은 open/commit/rollback/release 보일러플레이트가 반복되고, `release()`를 깜빡하면 커넥션
+    풀에서 커넥션이 새어나갑니다(Never Do Group 1이 지목하는 바로 그 버그 유형).
+  - **다중 쓰기가 아닌 뮤테이션까지 포함해 모든 GraphQL 뮤테이션을 기본적으로 트랜잭션으로
+    감싸기**: 배제 — 대부분의 뮤테이션은 단일 쓰기라 트랜잭션 래핑에서 얻을 게 없는데, 무조건
+    감싸면 필요 없는 뮤테이션에도 커넥션 풀 부하만 추가됩니다.
+  - **`GqlTransactionInterceptor`가 적용되는 모든 곳에 `updateRole`뿐 아니라 어디든
+    `SERIALIZABLE` 격리 수준 사용**: 배제 — `SERIALIZABLE`의 충돌 시 재시도 오버헤드는 팬텀
+    리드가 실제로 불변식을 깨는 곳(superadmin/`MAX_ADMIN_COUNT` 검사)에서만 정당화됩니다.
+    `sendMessage`에도 적용하면 정합성 이득 없이 경합 비용만 추가됩니다.
 
 ## 결과
 

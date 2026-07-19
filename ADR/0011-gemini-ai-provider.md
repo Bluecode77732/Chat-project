@@ -20,6 +20,10 @@ provider in `AiModule`.
   대상으로 적절했음"). This was not a comparative evaluation against a specific competing provider; it
   was chosen as adequate and inexpensive for the feature's actual scope (short conversational replies,
   not a capability-intensive use case).
+- Alternatives considered and rejected: **none, explicitly.** No structured comparison against other
+  providers (OpenAI's GPT models, Anthropic's Claude) was performed before this choice — stating that
+  plainly here rather than inventing a comparison that didn't happen. Gemini was picked directly for
+  cost/simplicity fit to the feature's actual scope, per the developer.
 
 ## Consequences
 

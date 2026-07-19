@@ -39,6 +39,17 @@ Two policies, chosen per call site based on whether an authoritative non-Redis f
   swallowed, since the caller already has the DB-resolved user and a failed cache write must not fail
   the request.
 
+**Alternatives considered and rejected:**
+
+- **Fail open everywhere on Redis error**: rejected — would bypass rate limiting and the mute/ban gate
+  at exactly the moment (a Redis outage) when abuse or a banned user retrying is hardest to distinguish
+  from legitimate traffic recovering; this is the opposite of what a security-relevant check should do
+  under uncertainty.
+- **Fail closed everywhere, including `user_cache`**: rejected specifically for `user_cache` — since a
+  DB fallback already exists in the same method, failing the whole auth request on a cache-only read is
+  strictly worse than the "treat as a miss" degrade, which achieves the same safety with no user-facing
+  cost.
+
 ## Consequences
 
 - Any new Redis call added to a security-relevant guard or strategy must be wrapped in a try/catch and

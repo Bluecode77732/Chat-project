@@ -20,6 +20,17 @@ injected chat services — the identical pattern `AiService.handleReply()` alrea
 reason. Documented at `backend/src/moderation/moderation.module.ts:1-4`; the actual callback shape is
 `ModerationCallbacks` in `moderation.service.ts:39-43`.
 
+- Alternatives considered and rejected:
+  - **`ModerationModule` imports `ChatModule` directly**: this is the alternative the Context section
+    above already argues against — it would create the exact module cycle (`Chat → Moderation → Chat`)
+    this ADR exists to avoid, for no benefit over the callback pattern already proven by `AiService`.
+  - **An event emitter** (e.g. NestJS's `EventEmitter2`) instead of directly-injected callbacks:
+    `ModerationService` would emit a domain event (`moderation.mute`, `moderation.ban`) and `ChatModule`
+    would listen, avoiding a direct import in either direction. Rejected for now — it would introduce a
+    new architectural pattern not used anywhere else in this codebase, for a problem the
+    callback-injection pattern (already proven twice, here and in `AiService`) already solves at lower
+    cost.
+
 ## Consequences
 
 - Never suggest importing `ChatModule` into `ModerationModule` "for convenience" — it reintroduces the

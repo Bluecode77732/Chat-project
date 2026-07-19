@@ -18,6 +18,16 @@ calls and two AI replies for what should be one turn of conversation.
 returns immediately rather than queuing (`ai.service.ts:124-127`) — a skipped reply, not a queued one.
 The lock is released in a `finally` block (`ai.service.ts:196`) so it's freed even if reply generation
 throws.
+- Alternatives considered and rejected:
+  - **Non-atomic check-then-set** (`GET` to check, then `SET` if absent): rejected — the gap between the
+    two commands is exactly the race two near-simultaneous triggers would hit, reopening the double-reply
+    bug this lock exists to close.
+  - **A database-level lock** (e.g. `SELECT ... FOR UPDATE` on the room row) instead of a Redis key:
+    rejected — would hold a DB connection and transaction open for the full duration of the Gemini API
+    call, which is network-bound and can take seconds; a Redis key is held by a lightweight `SET`/`DEL`
+    pair instead.
+  - **A global lock** (not per-room): rejected — would serialize AI replies across every unrelated room
+    in the app for no reason, since the actual race only exists within a single room.
 
 ## Consequences
 

@@ -29,6 +29,17 @@ phantom reads that violate the "at least one superadmin" / "at most `MAX_ADMIN_C
   because of its serialization/retry overhead under contention.
 - Manual `createQueryRunner → connect → startTransaction → commit/rollback → release` inline in a
   method is never used — one of the two patterns above always owns the lifecycle.
+- Alternatives considered and rejected:
+  - **Manual `QueryRunner` lifecycle inline at every multi-write call site**: rejected — repeats the same
+    open/commit/rollback/release boilerplate everywhere it's needed, and a forgotten `release()` leaks a
+    connection out of the pool (the exact class of bug Never Do Group 1 calls out).
+  - **Wrapping every GraphQL mutation in a transaction by default** (not just multi-write ones): rejected
+    — most mutations are single-write and gain nothing from a transaction wrapper; doing it unconditionally
+    adds connection-pool pressure for mutations that don't need it.
+  - **Using `SERIALIZABLE` isolation everywhere `GqlTransactionInterceptor` applies**, not just
+    `updateRole`: rejected — `SERIALIZABLE`'s retry-on-conflict overhead is only justified where phantom
+    reads would actually violate an invariant (the superadmin/`MAX_ADMIN_COUNT` checks); applying it to
+    `sendMessage` too would add contention cost with no correctness benefit there.
 
 ## Consequences
 

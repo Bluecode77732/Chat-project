@@ -21,6 +21,13 @@ superseded socket and disconnects it. The write-then-kick order is deliberate: r
 session before kicking the old one avoids a race where the old socket's own disconnect handler
 (`removeClient`, `chat.service.ts:65-69`) could otherwise clobber the new session's online status back
 to offline (`chat.service.ts:41-46`, inline comment).
+- Alternatives considered and rejected:
+  - **Allow multiple concurrent sessions per user, no eviction**: this is the pre-existing problem
+    described in Context, not a viable option — both sockets would independently receive events meant
+    for one session, and a stale socket could keep receiving room broadcasts the user no longer sees.
+  - **Reject the new connection instead of evicting the old one**: rejected — would make "logging in on
+    a new device" fail outright while an old, possibly abandoned session keeps the slot, which is worse
+    for the common case (the user opening a new session usually wants *that* one to win, not the old one).
 
 ## Consequences
 

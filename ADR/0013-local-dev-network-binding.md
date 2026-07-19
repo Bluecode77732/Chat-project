@@ -30,6 +30,14 @@ PostgreSQL using default credentials, wiped the databases, and left a ransom not
   cleanup, in that order — see CLAUDE.md's "Containment Before Cleanup" principle under
   [Incident Response](../CLAUDE.md#incident-response), which formalizes the order actually followed
   during this incident.
+- Alternatives considered and rejected:
+  - **Keep `0.0.0.0` binding and rely on the Windows Firewall alone**: rejected — this is exactly what
+    failed in the actual incident (the firewall profile was misconfigured as "Private/trusted"); binding
+    to `127.0.0.1` at the application/port-mapping level is defense-in-depth that doesn't depend on
+    firewall state being correct.
+  - **VPN-only access** (e.g. Tailscale) instead of localhost-only binding plus manual port-forwarding
+    when needed: not pursued — would solve the same problem but with more ongoing setup/maintenance
+    overhead than this project's actual need (occasional phone testing by a single developer) warrants.
 
 ## Consequences
 

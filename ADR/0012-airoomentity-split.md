@@ -18,6 +18,14 @@ separate `AiRoomEntity`, related back to `RoomEntity` via a `OneToOne` relation 
 
 - **Why:** separation of concerns between AI-specific room state and general room state, and cleaner
   ongoing management of that data as the AI feature grew (per the developer).
+- Alternatives considered and rejected:
+  - **Keeping `aiPersonality` as a nullable column on `RoomEntity`** (the pre-migration state): rejected —
+    every room, including plain human-to-human rooms that never use it, carries an always-`null`,
+    always-unused column.
+  - **A separate lookup table with a many-to-one foreign key** on `RoomEntity`, instead of a `OneToOne`
+    split entity: rejected — a room has at most one active AI personality at a time, so a many-to-one
+    shape would need its own extra uniqueness constraint to enforce exactly the invariant `OneToOne`
+    already guarantees for free.
 
 ## Consequences
 

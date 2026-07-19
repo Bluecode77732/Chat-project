@@ -34,7 +34,8 @@ change which module depends on which; it only defers resolution of that one edge
 been registered, turning a bootstrap failure into a successful (if lazily-wired) boot. The cycle's shape
 is identical with or without `forwardRef` — only the timing of resolving the `Auth → User` edge changes.
 
-Full removal of the cycle is possible but not equally cheap across the three edges:
+**Alternatives considered and rejected:** full removal of the cycle is possible but not equally cheap
+across the three edges:
 
 - `Auth → User` is the cheapest to remove: `JwtStrategy` could read `UserEntity` via a directly injected
   repository instead of `UserService`, the same way `AuthService` already does — no new pattern needed.

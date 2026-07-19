@@ -27,6 +27,17 @@ mechanism to keep Socket.IO room broadcasts consistent across instances.
   `server.to(socketId).emit(...)` only reaches clients on the same process.
 - Per-resource concurrency guards (e.g. `AiService.handleReply()`'s `ai:lock:{roomId}` lock,
   `SET ... EX 30 NX`, released in a `finally` block) follow the same acquire-with-NX/TTL pattern.
+- Alternatives considered and rejected:
+  - **A second client (`node-redis`) alongside `ioredis`**: not a deliberate choice but the alternative
+    that actually materialized by accident — see the flagged, unused `redis` v5 dependency in
+    [ARCHITECTURE.md](../ARCHITECTURE.md#resolved-anomaly). Kept here as a concrete example of the exact
+    confusion ("which client is authoritative?") this convention exists to prevent.
+  - **Freeform keys with no naming convention**: rejected — without a shared `{service}:{entity}:{id}`
+    shape, detecting key collisions or auditing which keys carry which TTL requires reading every call
+    site individually instead of pattern-matching on the key itself.
+  - **No TTL, with a separate scheduled cleanup job**: rejected — adds an extra process to operate and
+    still leaves an unbounded-growth window between runs; a TTL set atomically at write time needs no
+    separate process and has no such window.
 
 ## Consequences
 

@@ -23,6 +23,16 @@ incompatible with credentialed requests and is a Never Do regardless.
   `backend/.env.example` for the example value.
 - `credentials: true` is required alongside this, since both frontends rely on the httpOnly
   `refreshToken` cookie (`withCredentials` / `credentials: 'include'`).
+- Alternatives considered and rejected:
+  - **Two separate CORS configs, one per app**, selected by branching on the request at runtime:
+    rejected — would require the backend to identify which frontend is calling before it can apply the
+    right policy, adding request-time logic for what a static comma-separated allowlist already handles.
+  - **`origin: '*'` with `credentials: false`** (drop cookie-based auth to allow the wildcard): rejected
+    — breaks the httpOnly `refreshToken` flow both `frontend` and `admin` depend on; would require a
+    different auth transport entirely.
+  - **Wildcard/regex origin matching** (e.g. accepting any `*.vercel.app` subdomain): rejected — too
+    permissive, since it would accept requests from any Vercel-hosted app, not just this project's two
+    known deployments.
 
 ## Consequences
 

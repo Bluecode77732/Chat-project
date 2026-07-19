@@ -24,6 +24,19 @@ can't provide (see [0003](0003-database-transaction-strategy.md)).
   (`chat.resolver.ts:284-289` vs `:206`) — one delivery path, no sender-type branching in clients.
 - Redis Pub/Sub (`graphql-redis-subscriptions`) provides at-most-once delivery for `receiveMessage` — a
   subscriber not connected at publish time misses the message permanently, with no replay.
+- Alternatives considered and rejected:
+  - **Staying on raw Socket.IO for messages** (the pre-migration state): rejected — a bare socket handler
+    has no way to get the ACID guarantees `GqlTransactionInterceptor` provides around the
+    room-create-plus-message-save write (see [0003](0003-database-transaction-strategy.md)); this was the
+    actual, lived reason for the migration, not a hypothetical comparison.
+  - **Running both paths at once** (Socket.IO message events alongside the GraphQL mutation): rejected —
+    forces the frontend to reconcile two sources of the same event and risks duplicate or
+    out-of-order delivery; this is also explicitly a Never Do in CLAUDE.md.
+  - **A persistent queue (e.g. BullMQ) instead of Redis Pub/Sub**: rejected for the general case — adds
+    operational complexity (a worker process, job retention policy) that live chat doesn't need, since a
+    missed at-most-once delivery here just means "didn't see a message while disconnected," not a lost
+    business event. Left as the documented answer for any *future* use case that does need guaranteed
+    delivery, not adopted now.
 
 ## Consequences
 

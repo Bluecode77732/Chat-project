@@ -29,6 +29,14 @@ separate, queryable entity, independent of the application log stream:
   audit log is a write-once record consumed as read-side state, not append-only-and-ignored.
 - Admin-facing audit-log CSV export is one of `admin/`'s stated features (see README's
   [Admin Panel](../README.md#admin-panel) section).
+- Alternatives considered and rejected:
+  - **Rely on the winston application logs alone**: this is the pre-existing gap described in Context,
+    not a viable option — the logs rotate, are unstructured, and were never meant to answer "who did
+    this to whom," so reconstructing an accountable history from them after the fact isn't reliable.
+  - **Leave `actorId` null (or omit the entry) for system-triggered enforcement**: rejected — a null
+    actor breaks the "who did this" guarantee for exactly the automated actions (mute/ban/unban) where an
+    admin might later need to explain why a user was sanctioned; `getSystemUserId()` keeps every entry
+    attributable.
 
 ## Consequences
 

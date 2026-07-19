@@ -23,6 +23,16 @@ Accepted
   `backend/.env.example`을 참고하세요.
 - 두 프론트엔드 모두 httpOnly `refreshToken` 쿠키(`withCredentials` / `credentials: 'include'`)에
   의존하므로 `credentials: true`가 함께 필요합니다.
+- 고려했다가 배제한 대안:
+  - **앱별로 별도의 CORS 설정 두 개**를 두고 요청 시점에 분기: 배제 — 백엔드가 어느 프론트엔드가
+    호출했는지 먼저 식별해야 올바른 정책을 적용할 수 있는데, 콤마 구분 허용 목록 하나면 이미
+    정적으로 해결되는 문제입니다.
+  - **`origin: '*'`에 `credentials: false`**(쿠키 기반 인증을 포기하고 와일드카드 허용): 배제 —
+    `frontend`와 `admin` 둘 다 의존하는 httpOnly `refreshToken` 흐름이 깨지고, 인증 방식 자체를
+    통째로 바꿔야 합니다.
+  - **와일드카드/정규식 오리진 매칭**(예: `*.vercel.app` 서브도메인 전부 허용): 배제 — 이 프로젝트의
+    알려진 배포 두 개가 아니라 Vercel에 호스팅된 아무 앱이나 요청을 보낼 수 있게 돼서 지나치게
+    허용적입니다.
 
 ## 결과
 

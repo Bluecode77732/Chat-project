@@ -24,6 +24,20 @@ subscriptions) and a Socket.IO connection, without forcing a session store looku
 - All silent refreshes go through one function, `refreshAccessTokenSafely()`
   (`frontend/src/auth/session-guard.ts`) — concurrent callers share one in-flight request, closing a
   race where a second caller could adopt a conflicting account mid-redirect.
+- Alternatives considered and rejected:
+  - **Session-based auth** (server-side session store keyed by a session-ID cookie): rejected because
+    it forces a store lookup on every request across three surfaces (REST, GraphQL, Socket.IO), which
+    is exactly the per-request lookup this design exists to avoid.
+  - **A single long-lived token with no refresh flow**: rejected because it forces a choice between two
+    bad options — a long expiry (a stolen token stays valid for its full lifetime, with revocation only
+    possible via a blacklist) or a short expiry with no silent renewal (frequent forced re-login). The
+    access/refresh split lets the access token stay short-lived without that UX cost.
+  - **`accessToken` in `localStorage`**: rejected on XSS-exposure grounds — this project self-discovered
+    an XSS/localStorage token-storage vulnerability during development (see README's
+    [Project Motivation](../README.md#project-motivation)), which is the concrete incident behind this
+    rule, not a hypothetical concern.
+  - **`refreshToken` returned in the response body instead of an httpOnly cookie**: rejected for the same
+    reason as `localStorage` — anything JavaScript can read, an XSS payload can read.
 
 ## Consequences
 

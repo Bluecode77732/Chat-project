@@ -19,6 +19,15 @@ Accepted
 넘겨주는 콜백으로 받습니다 — `AiService.handleReply()`가 동일한 이유로 이미 사용하고 있는 패턴과
 똑같습니다. `backend/src/moderation/moderation.module.ts:1-4`에 문서화되어 있고, 실제 콜백
 형태는 `moderation.service.ts:39-43`의 `ModerationCallbacks`입니다.
+- 고려했다가 배제한 대안:
+  - **`ModerationModule`이 `ChatModule`을 직접 임포트**: 위 배경 절이 이미 반박하는 대안입니다 —
+    이 ADR이 애초에 피하려는 바로 그 모듈 사이클(`Chat → Moderation → Chat`)이 생기며,
+    `AiService`로 이미 검증된 콜백 패턴 대비 아무 이득이 없습니다.
+  - **직접 주입된 콜백 대신 이벤트 이미터**(예: NestJS의 `EventEmitter2`): `ModerationService`가
+    도메인 이벤트(`moderation.mute`, `moderation.ban`)를 발행하고 `ChatModule`이 구독하는 방식으로,
+    어느 방향으로도 직접 임포트가 없게 됩니다. 지금은 배제 — 이 코드베이스 어디에도 없는 새
+    아키텍처 패턴을 도입하는 것인데, 콜백 주입 패턴(여기와 `AiService` 두 곳에서 이미 검증됨)이
+    더 낮은 비용으로 같은 문제를 이미 풀고 있습니다.
 
 ## 결과
 

@@ -20,6 +20,14 @@ Postgres + Redis connection, and two static/SPA React builds.
   `vercel.json` (SPA rewrite only).
 - **Why:** free/low-cost tiers sufficient for a personal project, plus convenient GitHub-push-to-deploy
   integration on both platforms.
+- Alternatives considered and rejected:
+  - **Everything on one platform** (all three deployables on Vercel, or all three on Railway): rejected —
+    Vercel's serverless model doesn't fit a long-running Socket.IO process with persistent Postgres/Redis
+    connections; Railway doesn't offer Vercel's zero-config static-site/preview-deployment ergonomics that
+    `frontend`/`admin` benefit from.
+  - **A self-hosted VPS** (e.g. a single droplet running everything): rejected — would push OS patching,
+    TLS certificate management, process supervision, and CI/CD wiring entirely onto the developer, none of
+    which Railway's/Vercel's free tiers require.
 
 ## Consequences
 

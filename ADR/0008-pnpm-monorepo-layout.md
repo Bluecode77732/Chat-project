@@ -20,6 +20,11 @@ Each could have lived in its own repository, or all three could share one repo.
   makes monorepo overhead lower than coordinating three separate repos and keeping their contracts in
   sync by hand (per the developer: "1인 프로젝트 규모에 적합하고, 관리가 편리하며, 관리 비용이 적음" —
   "fits a one-person project's scale, is convenient to manage, and keeps management cost low").
+- Alternatives considered and rejected:
+  - **Three separate repositories** (polyrepo), one per package: rejected — would require manually
+    keeping `schema.gql` and the GraphQL client operations that depend on it in sync across repo
+    boundaries, and versioning/publishing any code the packages needed to share, all coordination
+    overhead a single developer gets no benefit from at this scale.
 
 ## Consequences
 
