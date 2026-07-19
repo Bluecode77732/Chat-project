@@ -32,6 +32,11 @@ export class AuthService {
   ) {}
 
   parseBasicToken(rawToken: string) {
+    if (!rawToken) {
+      logger.warn('Bad Token Format: missing Authorization header');
+      throw new BadRequestException('Bad Token Format.');
+    }
+
     // 1. Splits token by basic and token. Regex(/\s+/) inserted for clearer space.
     // ['Basic', token]
     const basicToken = rawToken.split(' ');
