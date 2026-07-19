@@ -55,7 +55,7 @@ pnpm 워크스페이스로 세 패키지를 구성합니다: `backend/`(NestJS A
 
 | 모듈 | Imports | Exports | 비고 |
 |---|---|---|---|
-| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | 루트 |
+| `AppModule` | Config, TypeORM, GraphQL, Sentry, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | 루트 |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
 | `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | `Auth → User → Chat → Auth` 3모듈 순환의 일부, `forwardRef`로 해소 — [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고 |
@@ -104,12 +104,12 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 
 `main.ts`에 한 번 등록되어 모듈과 무관하게 모든 라우트에 적용되는 횡단 관심사 설정입니다:
 
-- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway가 리버스 프록시로 앞단에 있습니다. 이게
+- **`app.set('trust proxy', 1)`** (`main.ts:29`) — Railway가 리버스 프록시로 앞단에 있습니다. 이게
   없으면 `req.ip`가 매 요청마다 프록시 자체 주소로 해석되어, `AuthRateLimitGuard`의 클라이언트별 IP
   버킷이 전부 하나의 공유 버킷으로 뭉개집니다(위 [가드 체인](#가드-체인) 참고). `1`은
-  `X-Forwarded-For` 체인 전체가 아니라 바로 앞 홉 하나만 신뢰한다는 뜻입니다(`main.ts:24-27` 코드
+  `X-Forwarded-For` 체인 전체가 아니라 바로 앞 홉 하나만 신뢰한다는 뜻입니다(`main.ts:25-28` 코드
   주석 근거).
-- **`helmet`** (`main.ts:34`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의 표준
+- **`helmet`** (`main.ts:37`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의 표준
   보안 관련 HTTP 응답 헤더를 설정합니다. CSP는 의도적으로 꺼져 있습니다 — 이 백엔드는 HTML을 거의
   서빙하지 않습니다(REST/GraphQL 응답은 전부 JSON). 백엔드가 설정하는 CSP 헤더가 실제로 적용될
   페이지는 Swagger UI(`/document`) 하나뿐이고, Swagger의 인라인 부트스트랩 스크립트는 CSP를 켜면
@@ -124,16 +124,17 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
   폰트는 자체 호스팅(`frontend/public/fonts/*.woff2`)이라 외부 폰트 CDN 불필요; `img-src`는
   base64 프로필 이미지를 위해 `data:` 허용; `connect-src`는 프로덕션 백엔드 오리진을 HTTPS(양쪽)
   + WSS(`frontend`만 — GraphQL 구독 + Socket.IO 용, `admin`은 실시간 의존성 없음)로 화이트리스트.
-- **전역 `ValidationPipe`** (`main.ts:32-41`) — `whitelist: true` + `forbidNonWhitelisted: true`(대상
+  전체 내용(위의 Helmet 포함)은 [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) 참고.
+- **전역 `ValidationPipe`** (`main.ts:45-54`) — `whitelist: true` + `forbidNonWhitelisted: true`(대상
   DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO 클래스
   인스턴스로 변환)로 설정되어 있습니다. CLAUDE.md의 Never Do Group 3 "Raw `@Body()` without DTO" 규칙이
   실제로 강제되는 지점입니다 — DTO 타입으로 선언된 모든 컨트롤러/리졸버 인자에 대한 검증이 엔드포인트마다
   다시 구현되지 않고 여기서 한 번에 이루어집니다.
-- **`app.enableShutdownHooks()`** (`main.ts:21`) — 이게 없으면 `OnModuleDestroy` 훅
+- **`app.enableShutdownHooks()`** (`main.ts:23`) — 이게 없으면 `OnModuleDestroy` 훅
   (`PubSubService`, `SessionCacheService`, `ChatGateway`)이 `SIGTERM`/`SIGINT`에서 실행되지 않아, 배포할
-  때마다 Redis 연결이 정상 종료 대신 거칠게 끊깁니다(`main.ts:18-20`의 코드 주석 근거).
-- **Body 파서 한도를 3mb로 상향** (`main.ts:27-30`, `json`/`urlencoded` 둘 다) — Express 기본값(100kb)은
-  사용자가 업로드하는 base64 이미지보다 훨씬 작다는 것이 근거입니다(`main.ts:27-28` 코드 주석). 이
+  때마다 Redis 연결이 정상 종료 대신 거칠게 끊깁니다(`main.ts:20-22`의 코드 주석 근거).
+- **Body 파서 한도를 3mb로 상향** (`main.ts:42-43`, `json`/`urlencoded` 둘 다) — Express 기본값(100kb)은
+  사용자가 업로드하는 base64 이미지보다 훨씬 작다는 것이 근거입니다(`main.ts:40-41` 코드 주석). 이
   한도를 넘는 요청을 잡아내는 것이 바로 아래 [에러 처리](#에러-처리)의 `AllExceptionsFilter`
   payload-too-large → `413` 분기입니다.
 
@@ -179,11 +180,11 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
 | Socket.IO `handleConnection` | JWT 파싱 → `moderationService.isUserBanned()` 확인 | `chat.gateway.ts` — HTTP/GraphQL에서 `jwt.strategy`가 적용하는 것과 동일한 밴 게이트로, 유효한 토큰이라도 소켓 연결로는 밴을 우회할 수 없음 |
 | GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:309-326` |
-| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준입니다(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한, Redis 에러 시 fail-closed(거부)합니다 — [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이지만, 그 ADR 목록에는 포함되어 있지 않습니다 |
+| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준입니다(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한, Redis 에러 시 fail-closed(거부)합니다 — [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이며, (위의 Helmet/CSP 분리와 함께) [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md)으로 정식화되어 있습니다 |
 
 **`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작합니다** — 이 표에서 유일하게 그런
 경로입니다. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP
-요청이 없습니다 — GraphQL `context()` 함수(`app.module.ts:88-119`)가 `graphql-ws`의
+요청이 없습니다 — GraphQL `context()` 함수(`app.module.ts:106-126`)가 `graphql-ws`의
 `connectionParams`(`onConnect`에서 캡처되어 `extra`로 전달됨)로부터 synthetic한
 `req.headers.authorization`을 만들어냅니다. 이게 실제 메시지 *전달* 쪽 가드입니다 — `sendMessage`의
 가드 체인(위)은 쓰기 쪽만 막고, 모든 구독자는 구독 시점에 인증과 룸 멤버십을 각자 독립적으로
@@ -310,8 +311,8 @@ flowchart LR
 
 - **backend**: NestJS 11(`common`/`core`/`config`/`graphql`/`jwt`/`passport`/`platform-express`/
   `platform-socket.io`/`swagger`/`typeorm`/`websockets`), `@apollo/server` 5, `@google/genai`,
-  `@socket.io/redis-adapter`, `bcrypt`, `class-validator`/`class-transformer`, `graphql` 16,
-  `graphql-redis-subscriptions`, `ioredis`, `joi`, `nest-winston`/`winston`, `nodemailer`,
+  `@socket.io/redis-adapter`, `@sentry/nestjs`, `bcrypt`, `class-validator`/`class-transformer`,
+  `graphql` 16, `graphql-redis-subscriptions`, `ioredis`, `joi`, `nest-winston`/`winston`, `nodemailer`,
   `passport-jwt`, `pg`, `socket.io`/`socket.io-client`, `typeorm` 0.3, `cookie-parser`, `dotenv`.
 
 - **frontend**: React 19, `@apollo/client` 4, `graphql-ws`, `socket.io-client`, `axios`, `dompurify`,

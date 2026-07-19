@@ -56,7 +56,7 @@ Formalized as [ADR 0008](ADR/0008-pnpm-monorepo-layout.md).
 
 | Module | Imports | Exports | Notes |
 |---|---|---|---|
-| `AppModule` | Config, TypeORM, GraphQL, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | root |
+| `AppModule` | Config, TypeORM, GraphQL, Sentry, `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`, `HealthModule` | — | root |
 | `UserModule` | `ChatModule`, `AuditLogModule`, `MailModule`, `ModerationModule` | `UserService` | |
 | `ChatModule` | `AuthModule`, `RedisModule`, `AiModule`, `ModerationModule` | `ChatService`, `PubSubService` | |
 | `AuthModule` | `PassportModule`, `JwtModule`, `forwardRef(() => UserModule)` | `AuthService` | part of a 3-module cycle `Auth → User → Chat → Auth`, broken via `forwardRef` — see [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) |
@@ -114,11 +114,11 @@ request.
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
 | Socket.IO `handleConnection` | JWT parse → `moderationService.isUserBanned()` check | `chat.gateway.ts` — same ban gate `jwt.strategy` applies over HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead |
 | GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:309-326` |
-| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — IP-keyed (not userId-keyed, since no user exists pre-auth), 10 attempts/60s via atomic Lua `INCR`+`EXPIRE`, fails closed (denies) on a Redis error — same fail-closed policy as [ADR 0016](ADR/0016-redis-unavailability-policy.md)'s other no-DB-fallback security checks, though not itself listed there |
+| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — IP-keyed (not userId-keyed, since no user exists pre-auth), 10 attempts/60s via atomic Lua `INCR`+`EXPIRE`, fails closed (denies) on a Redis error — same fail-closed policy as [ADR 0016](ADR/0016-redis-unavailability-policy.md)'s other no-DB-fallback security checks; formalized (alongside the Helmet/CSP split above) as [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) |
 
 **`receiveMessage` runs over `graphql-ws`, not HTTP** — the only guard chain in this table that does.
 `GraphQLAuthGuard` reads `ctx.req.headers.authorization`, but a subscription has no HTTP request; the
-GraphQL `context()` function (`app.module.ts:88-119`) builds a synthetic `req.headers.authorization`
+GraphQL `context()` function (`app.module.ts:106-126`) builds a synthetic `req.headers.authorization`
 from `graphql-ws`'s `connectionParams`, captured during `onConnect` and threaded through as `extra`.
 This is the actual message-*delivery* guard — `sendMessage`'s guard chain (above) only gates the write
 side; every subscriber independently re-proves both authentication and room membership on subscribe,
@@ -143,12 +143,12 @@ at `receiveMessage` call time, not per delivered message).
 Cross-cutting request-handling setup registered once in `main.ts`, applying to every route regardless
 of module:
 
-- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway sits in front as a reverse proxy; without
+- **`app.set('trust proxy', 1)`** (`main.ts:29`) — Railway sits in front as a reverse proxy; without
   this, `req.ip` resolves to the proxy's own address for every request, which would collapse
   `AuthRateLimitGuard`'s per-client IP buckets into one shared bucket (see [Guard
   Chains](#guard-chains)). `1` trusts exactly the immediate hop rather than the full
-  `X-Forwarded-For` chain, per the code comment at `main.ts:24-27`.
-- **`helmet`** (`main.ts:34`, `app.use(helmet({ contentSecurityPolicy: false }))`) — sets Express's
+  `X-Forwarded-For` chain, per the code comment at `main.ts:25-28`.
+- **`helmet`** (`main.ts:37`, `app.use(helmet({ contentSecurityPolicy: false }))`) — sets Express's
   standard security-related HTTP response headers. CSP is deliberately left off here: this backend
   serves almost no HTML — REST/GraphQL responses are JSON, so the only page a backend-set CSP header
   would ever apply to is Swagger UI (`/document`) itself, and Swagger's inline bootstrap script would
@@ -163,19 +163,21 @@ of module:
   `style-src` includes `'unsafe-inline'` — `admin` has none, so its stays strict; fonts are
   self-hosted (`frontend/public/fonts/*.woff2`), no external font CDN; `img-src` allows `data:` for
   base64 profile images; `connect-src` whitelists the production backend origin over HTTPS (both) and
-  WSS (`frontend` only — GraphQL subscriptions + Socket.IO; `admin` has no realtime deps).
-- **`ValidationPipe`** (`main.ts:32-41`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
+  WSS (`frontend` only — GraphQL subscriptions + Socket.IO; `admin` has no realtime deps). See
+  [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) for the full breakdown of this split,
+  including the Helmet side above.
+- **`ValidationPipe`** (`main.ts:45-54`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
   (strips/rejects any property not declared on the target DTO class) and `transform: true` (coerces
   incoming payloads into DTO class instances). This is the enforcement mechanism behind CLAUDE.md's
   Never Do Group 3 "Raw `@Body()` without DTO" rule — validation runs once here for every
   controller/resolver argument typed as a DTO, not re-implemented per endpoint.
-- **`app.enableShutdownHooks()`** (`main.ts:21`) — without this, `OnModuleDestroy` hooks
+- **`app.enableShutdownHooks()`** (`main.ts:23`) — without this, `OnModuleDestroy` hooks
   (`PubSubService`, `SessionCacheService`, `ChatGateway`) never run on `SIGTERM`/`SIGINT`, so every
   deploy would drop Redis connections abruptly instead of closing them gracefully (per the code
-  comment at `main.ts:18-20`).
-- **Body parser limit raised to 3mb** (`main.ts:27-30`, both `json` and `urlencoded`) — the Express
+  comment at `main.ts:20-22`).
+- **Body parser limit raised to 3mb** (`main.ts:42-43`, both `json` and `urlencoded`) — the Express
   default (100kb) is far smaller than a base64-encoded user-uploaded image, per the code comment at
-  `main.ts:27-28`. This is what `AllExceptionsFilter`'s payload-too-large → `413` branch (see
+  `main.ts:40-41`. This is what `AllExceptionsFilter`'s payload-too-large → `413` branch (see
   [Error Handling](#error-handling) below) exists to catch when a request exceeds it.
 
 ## Error Handling
@@ -321,8 +323,8 @@ Stacks section doesn't state.
 
 - **backend**: NestJS 11 (`common`/`core`/`config`/`graphql`/`jwt`/`passport`/`platform-express`/
   `platform-socket.io`/`swagger`/`typeorm`/`websockets`), `@apollo/server` 5, `@google/genai`,
-  `@socket.io/redis-adapter`, `bcrypt`, `class-validator`/`class-transformer`, `graphql` 16,
-  `graphql-redis-subscriptions`, `ioredis`, `joi`, `nest-winston`/`winston`, `nodemailer`,
+  `@socket.io/redis-adapter`, `@sentry/nestjs`, `bcrypt`, `class-validator`/`class-transformer`,
+  `graphql` 16, `graphql-redis-subscriptions`, `ioredis`, `joi`, `nest-winston`/`winston`, `nodemailer`,
   `passport-jwt`, `pg`, `socket.io`/`socket.io-client`, `typeorm` 0.3, `cookie-parser`, `dotenv`.
 
 - **frontend**: React 19, `@apollo/client` 4, `graphql-ws`, `socket.io-client`, `axios`, `dompurify`,
