@@ -480,7 +480,7 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
 
 ## Build
 ### Total Installation
-Dependencies (43)
+Dependencies (44)
 - @apollo/server
 - @as-integrations/express5
 - @google/genai
@@ -497,6 +497,7 @@ Dependencies (43)
 - @nestjs/swagger
 - @nestjs/typeorm
 - @nestjs/websockets
+- @sentry/nestjs
 - @socket.io/redis-adapter
 - @types/bcrypt
 - @types/passport-jwt

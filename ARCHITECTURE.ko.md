@@ -64,10 +64,11 @@ pnpm 워크스페이스로 세 패키지를 구성합니다: `backend/`(NestJS A
 | `AuditLogModule` | TypeORM 피처만 | `AuditLogService` | |
 | `MailModule` | — | `MailService` | |
 | `RedisModule` | — | `REDIS_CLIENT`, `SessionCacheService` | `@Global()` |
+| `HealthModule` | — | — | `HealthController`만 있고 서비스/프로바이더 의존성 없음; liveness 엔드포인트(`/health`)가 Railway의 `healthcheckPath`에 연결됨 — [배포 토폴로지](#배포-토폴로지) 참고 |
 
 ```mermaid
 flowchart TD
-    App --> User & Chat & Auth & Ai & Moderation
+    App --> User & Chat & Auth & Ai & Moderation & Health
     User --> Chat & AuditLog & Mail & Moderation
     Chat --> Auth & Redis & Ai & Moderation
     Auth -. forwardRef .-> User
@@ -147,6 +148,17 @@ forwardRef .-> User` 엣지만 점선인 이유는, NestJS가 부트에 성공�
 (`NODE_ENV === 'production'`)에서는 HTTP JSON 바디와 GraphQL 에러의 `extensions` 양쪽 모두에서 스택
 트레이스가 빠집니다 — CLAUDE.md의 Never Do Group 3 "Stack trace in error response" 규칙의 실제
 구현체입니다.
+
+- **`>= 500`일 때 Sentry로 캡처** (`all-exceptions.filter.ts:56-58`): `logger.error`/`logger.warn`을
+  가르는 것과 동일한 상태 체크가 `Sentry.captureException(exception, { extra: { stack, isGraphQL } })`
+  호출도 게이트합니다. 선택적 통합입니다 — `instrument.ts`(`main.ts`의 말 그대로 첫 줄에서, `NestFactory`보다
+  먼저 import됨)는 `SENTRY_DSN`이 설정된 경우에만 `Sentry.init()`을 호출합니다. 설정 안 되어 있으면
+  `captureException`은 안전한 no-op이라 로컬 개발/CI에는 Sentry 계정이 전혀 필요 없습니다.
+  `instrument.ts`의 `beforeSend` 훅이 이벤트가 프로세스를 떠나기 전에 `password`/`token`/`secret` 이름의
+  필드를 재귀적으로 지웁니다 — Sentry는 winston 로그와 달리 서드파티 SaaS이기 때문입니다.
+  Sentry 자체의 `@SentryExceptionCaptured()` 데코레이터 대신 수동 캡처를 택한 이유는
+  [ADR 0019](ADR/0019-sentry-error-tracking.md) 참고(그 데코레이터의 기본 동작은 `HttpException` 타입인
+  500을 놓치고, 아래의 의도적인 413 분기를 과잉 보고합니다).
 
 - **사용자 노출 메시지가 한국어로 하드코딩된 부분**: payload-too-large 메시지
   (`'이미지 용량 크기가 너무 커요!'`)만 이 필터의 다른 메시지들이나 주변 코드베이스/문서(영어)와 달리
@@ -247,7 +259,9 @@ flowchart LR
   전체 내용은 [ADR 0013](ADR/0013-local-dev-network-binding.md) 참고.
 
 - **백엔드 / Railway**: `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을 빌드하고, 동일한
-  마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작합니다. 배포는
+  마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작하고, `healthcheckPath = "/health"`
+  (`HealthModule`의 liveness 엔드포인트, `healthcheckTimeout = 30`)를 폴링해서 새 컨테이너가 실제로
+  떴는지 확인한 뒤 트래픽을 넘깁니다. 배포는
   `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거하며, 이제 그 job은
   `test`와 `e2e`가 성공해야 실행됩니다(`needs: [test, e2e]`) — 둘 다 원래 비차단
   (`continue-on-error: true`, `deploy`에 영향 없음)이었는데, 그렇게 설정한 이유가 기록에 없어서 이번
@@ -278,6 +292,13 @@ flowchart LR
     ([ADR 0005](ADR/0005-cors-multi-origin-policy.md) 참고).
 
 [ADR 0010](ADR/0010-railway-vercel-deployment.md)에 Railway + Vercel 선택의 전체 내용이 있습니다.
+
+- **Railway Volume을 통한 로그 영속화**: Railway의 컨테이너 파일시스템은 휘발성이라, 재배포할 때마다
+  `error.logs.log`가 지워져서 사고 이후 조사에 쓸모가 없었습니다. `logger.ts`는 이제
+  `RAILWAY_VOLUME_MOUNT_PATH`(볼륨이 붙으면 자동 주입됨)를 읽고, 없으면 로컬 `./logs` 디렉터리로
+  폴백해서 Railway 밖에서의 동작은 그대로입니다. Railway는 볼륨에 대한 config-as-code 표현이 없어서
+  볼륨 자체는 저장소 밖에서(대시보드/CLI로) 프로비저닝해야 합니다 — 이 단계를 빠뜨린 새 환경은 요란하게
+  실패하는 대신 조용히 휘발성 로그로 되돌아갑니다. [ADR 0018](ADR/0018-railway-volume-log-persistence.md) 참고.
 
 - **Node/pnpm 고정 버전**: `.nvmrc` = `24`; `packageManager: pnpm@10.33.0`, 둘 다 CI에서 강제됩니다.
 

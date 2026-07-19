@@ -2,7 +2,7 @@
 
 ## Build Timeline (2026-01 ~ 2026-07)
 
-How this project actually got here — phases reconstructed from `git log` (573 commits), not
+How this project actually got here — phases reconstructed from `git log`, not
 recollection. Dates are when each phase's defining commit landed; several phases overlap rather than
 running cleanly end-to-end (the Socket.IO→GraphQL migration in particular took ~5 months to fully
 land). For the full commit-by-commit record, see [CHANGELOG.md](CHANGELOG.md).

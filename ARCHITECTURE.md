@@ -65,10 +65,11 @@ Formalized as [ADR 0008](ADR/0008-pnpm-monorepo-layout.md).
 | `AuditLogModule` | TypeORM features only | `AuditLogService` | |
 | `MailModule` | — | `MailService` | |
 | `RedisModule` | — | `REDIS_CLIENT`, `SessionCacheService` | `@Global()` |
+| `HealthModule` | — | — | `HealthController` only, no service/provider deps; liveness endpoint (`/health`) wired to Railway's `healthcheckPath` — see [Deployment Topology](#deployment-topology) |
 
 ```mermaid
 flowchart TD
-    App --> User & Chat & Auth & Ai & Moderation
+    App --> User & Chat & Auth & Ai & Moderation & Health
     User --> Chat & AuditLog & Mail & Moderation
     Chat --> Auth & Redis & Ai & Moderation
     Auth -. forwardRef .-> User
@@ -189,6 +190,17 @@ filters. Non-`HttpException` errors default to `500`/`INTERNAL_SERVER_ERROR`, ex
 error's `extensions` — this is the concrete implementation behind CLAUDE.md's Never Do Group 3 "Stack
 trace in error response" rule.
 
+- **Sentry capture on `>= 500`** (`all-exceptions.filter.ts:56-58`): the same status check that
+  decides `logger.error` vs `logger.warn` also gates a `Sentry.captureException(exception, { extra: {
+  stack, isGraphQL } })` call. Optional integration — `instrument.ts` (imported as the literal first
+  line of `main.ts`, before `NestFactory`) only calls `Sentry.init()` when `SENTRY_DSN` is set;
+  unset, `captureException` is a safe no-op, so local dev/CI need no Sentry account. A `beforeSend`
+  hook in `instrument.ts` recursively scrubs `password`/`token`/`secret`-named fields before an event
+  leaves the process, since Sentry is third-party SaaS unlike the winston logs. See
+  [ADR 0019](ADR/0019-sentry-error-tracking.md) for why manual capture was chosen over Sentry's own
+  `@SentryExceptionCaptured()` decorator (its default misses `HttpException`-typed 500s and
+  over-reports the intentional 413 branch below).
+
 - **Korean-language user-facing message**: the payload-too-large message
   (`'이미지 용량 크기가 너무 커요!'`) is hardcoded in Korean, unlike the rest of this filter's messages
   and the surrounding codebase/docs (English). Confirmed intentional, not an oversight — written under
@@ -255,7 +267,9 @@ flowchart LR
 See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
 
 - **Backend / Railway**: `railway.toml` builds `backend/Dockerfile` (multi-stage), runs the same
-  migrate-then-start command, restarts on failure up to 3 times. Deploy is triggered by
+  migrate-then-start command, restarts on failure up to 3 times, and polls `healthcheckPath = "/health"`
+  (`HealthModule`'s liveness endpoint, `healthcheckTimeout = 30`) to know when the new container is
+  actually up before cutting over. Deploy is triggered by
   `.github/workflows/deploy.yml`'s `deploy` job on push to `main` only, and that job now requires
   `test` and `e2e` to succeed first (`needs: [test, e2e]`) — both changed from non-blocking
   (`continue-on-error: true`, no effect on `deploy`) to blocking during this documentation pass, since
@@ -287,6 +301,14 @@ See [ADR 0013](ADR/0013-local-dev-network-binding.md) for the full breakdown.
 
 See [ADR 0010](ADR/0010-railway-vercel-deployment.md) for the full breakdown of the Railway + Vercel
 choice.
+
+- **Durable logs via an attached Railway Volume**: Railway's container filesystem is ephemeral —
+  every redeploy wiped `error.logs.log`, making it useless for post-incident investigation.
+  `logger.ts` now reads `RAILWAY_VOLUME_MOUNT_PATH` (auto-injected once a volume is attached) and
+  falls back to the local `./logs` dir when unset, so behavior off Railway is unchanged. Railway has
+  no config-as-code representation for volumes, so the volume itself is provisioned out-of-band
+  (dashboard/CLI) — a fresh environment that skips this step silently falls back to ephemeral logs
+  rather than failing loudly. See [ADR 0018](ADR/0018-railway-volume-log-persistence.md).
 
 - **Node/pnpm pin**: `.nvmrc` = `24`; `packageManager: pnpm@10.33.0`, both enforced in CI.
 
