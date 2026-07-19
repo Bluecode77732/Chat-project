@@ -22,6 +22,13 @@ const adrDir = join(repoRoot, 'ADR');
 
 let errorCount = 0;
 let warnCount = 0;
+// Every citation gets an existence + line-range check. Only some additionally get the
+// content check, which needs a usable symbol named on the citation's own line. Reporting
+// that split matters: without it, "0 warnings" reads as "every citation was verified",
+// when in practice roughly a third reach the content check -- the rest are structurally
+// sound but unverified against what the cited lines actually say.
+let contentChecked = 0;
+let contentSkipped = 0;
 
 function fail(file, msg) {
   console.error(`✗ ${file}: ${msg}`);
@@ -213,7 +220,11 @@ function checkFileLineCitations(adrFile, content) {
     const symbols = extractNearbySymbols(content.slice(0, m.index)).filter(
       (s) => fileText.includes(s) && !isDeclaredInFile(s, fileText),
     );
-    if (symbols.length === 0) continue;
+    if (symbols.length === 0) {
+      contentSkipped++;
+      continue;
+    }
+    contentChecked++;
 
     const matchesAnyRange = ranges.some((range) => {
       if (range.start > lines.length) return true;
@@ -312,6 +323,9 @@ for (const relPath of extraDocs) {
 }
 
 const totalChecked = adrFiles.length + extraDocs.length;
+const totalCitations = contentChecked + contentSkipped;
+const pct = totalCitations === 0 ? 0 : Math.round((contentChecked / totalCitations) * 100);
 console.log(`
-Checked ${totalChecked} file(s) (${adrFiles.length} ADR + ${extraDocs.length} other). ${errorCount} error(s), ${warnCount} warning(s).`);
+Checked ${totalChecked} file(s) (${adrFiles.length} ADR + ${extraDocs.length} other). ${errorCount} error(s), ${warnCount} warning(s).
+Citations: ${totalCitations} checked for existence/range; ${contentChecked} (${pct}%) also content-verified against a named symbol, ${contentSkipped} not (no usable symbol on the citation's line).`);
 process.exit(errorCount > 0 ? 1 : 0);
