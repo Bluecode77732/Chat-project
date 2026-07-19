@@ -13,12 +13,12 @@ incompatible with credentialed requests and is a Never Do regardless.
 
 ## Decision
 
-- `CORS_ORIGIN` (validated as required in `backend/src/app.module.ts:37`, via
+- `CORS_ORIGIN` (validated as required in `backend/src/app.module.ts:39`, via
   `Joi.string().pattern(/\S/).required()` — the pattern check specifically rejects a
   whitespace-only string that would otherwise satisfy `.required()` and produce an empty allowlist) is
   a single env var holding a comma-separated list of allowed origins.
-- `backend/src/main.ts:57` splits it into an array (`.split(',').map(origin => origin.trim())`) before
-  passing it to `app.enableCors({ origin, credentials: true, ... })`.
+- `backend/src/main.ts:60` splits it into an array (`.split(',').map(origin => origin.trim())`)
+  inline, as the `origin` property of the `app.enableCors({ ... })` call that opens at `main.ts:57`.
 - Local dev default covers both `frontend/` (`:5173`) and `admin/` (`:5174`); see
   `backend/.env.example` for the example value.
 - `credentials: true` is required alongside this, since both frontends rely on the httpOnly

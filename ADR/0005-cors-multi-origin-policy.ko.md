@@ -13,12 +13,13 @@ Accepted
 
 ## 결정
 
-- `CORS_ORIGIN`(`backend/src/app.module.ts:37`에서 `Joi.string().pattern(/\S/).required()`로
+- `CORS_ORIGIN`(`backend/src/app.module.ts:39`에서 `Joi.string().pattern(/\S/).required()`로
   검증 — 이 패턴 검사는 `.required()`만으로는 통과했을 공백 문자열을 특별히 걸러내어, 빈 허용
   목록이 만들어지는 것을 막습니다)은 허용된 오리진들을 콤마로 구분한 목록을 담는 환경변수
   하나입니다.
-- `backend/src/main.ts:57`에서 이를 배열로 분리한 뒤(`.split(',').map(origin => origin.trim())`)
-  `app.enableCors({ origin, credentials: true, ... })`에 전달합니다.
+- `backend/src/main.ts:60`에서 이를 배열로 분리하며(`.split(',').map(origin => origin.trim())`),
+  `main.ts:57`에서 시작하는 `app.enableCors({ ... })` 호출의 `origin` 속성값으로 인라인으로
+  들어갑니다.
 - 로컬 개발 기본값은 `frontend/`(`:5173`)와 `admin/`(`:5174`) 둘 다를 커버합니다. 예시 값은
   `backend/.env.example`을 참고하세요.
 - 두 프론트엔드 모두 httpOnly `refreshToken` 쿠키(`withCredentials` / `credentials: 'include'`)에
