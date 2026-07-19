@@ -253,6 +253,48 @@ function checkTranslationPair(file) {
   }
 }
 
+function headingOutlineIn(filePath) {
+  if (!existsSync(filePath)) return null;
+  const content = readText(filePath);
+  const levels = [];
+  for (const line of content.split('\n')) {
+    const m = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (m) levels.push(m[1].length);
+  }
+  return levels;
+}
+
+// Compares heading STRUCTURE (count + nesting level, in document order)
+// between an EN file and its .ko.md translation. Heading TEXT can't be
+// compared across languages, so the level sequence is the closest available
+// proxy for "a whole section was added to one side and not the other" --
+// drift checkTranslationPair cannot see once both files already exist (it
+// only checks the counterpart file exists, not that its structure matches).
+// Heuristic, so it only ever warns, matching this script's existing policy
+// (see file header) that a false "broken" verdict is worse than no check.
+function checkHeadingParity(enFile, koFile) {
+  const enLevels = headingOutlineIn(enFile);
+  const koLevels = headingOutlineIn(koFile);
+  if (!enLevels || !koLevels) return;
+
+  if (enLevels.length !== koLevels.length) {
+    warn(
+      relative(repoRoot, enFile),
+      `heading count differs from ${relative(repoRoot, koFile)}: ${enLevels.length} vs ${koLevels.length} -- a section may be missing on one side`,
+    );
+    return;
+  }
+  for (let i = 0; i < enLevels.length; i++) {
+    if (enLevels[i] !== koLevels[i]) {
+      warn(
+        relative(repoRoot, enFile),
+        `heading #${i + 1} level differs from ${relative(repoRoot, koFile)}: H${enLevels[i]} vs H${koLevels[i]} -- structure has diverged`,
+      );
+      return;
+    }
+  }
+}
+
 // A link like [ADR 0016](ADR/0016-....md) states the same number twice. Copying such a
 // link and editing only one half silently retargets it, and both halves still look
 // plausible in isolation -- so cross-check that the number in the link TEXT matches the
@@ -303,6 +345,9 @@ for (const file of adrFiles) {
   checkTranslationPair(file);
   checkAdrLinkNumbers(fullPath, fileContent);
   checkSelfNumber(file, fileContent);
+  if (!file.endsWith('.ko.md')) {
+    checkHeadingParity(fullPath, join(adrDir, file.replace(/\.md$/, '.ko.md')));
+  }
 }
 
 // CLAUDE.md is the top of this repos doc hierarchy (every ADR formalizes something
@@ -320,6 +365,16 @@ for (const relPath of extraDocs) {
   checkMarkdownLinks(fullPath, fileContent);
   checkFileLineCitations(fullPath, fileContent);
   checkAdrLinkNumbers(fullPath, fileContent);
+}
+
+// Root-level docs with a full en/ko pair (unlike CLAUDE.md, which has none by
+// design). checkHeadingParity only needs both paths to exist -- reuse it here
+// rather than adding a parallel root-specific mechanism.
+const rootPairs = ['README.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md', 'ROADMAP.md', 'CHANGELOG.md', 'ADR/README.md'];
+for (const relPath of rootPairs) {
+  const enPath = join(repoRoot, relPath);
+  const koPath = join(repoRoot, relPath.replace(/\.md$/, '.ko.md'));
+  checkHeadingParity(enPath, koPath);
 }
 
 const totalChecked = adrFiles.length + extraDocs.length;
