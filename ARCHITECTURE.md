@@ -230,8 +230,9 @@ delivered through this channel, human, AI, or moderation system message alike, i
 effect of being published. `ChatService.getMessages()` reads this cache first for the most-recent
 (no-cursor) page of a room's history, falling back to Postgres only on a cache miss.
 
-`ModerationService.evaluateMessage()` runs inside that same path, between guard
-checks and persistence, and can itself trigger a system-message publish (warn/mute/ban notices) through
+`ModerationService.evaluateMessage()` runs inside that same path, but post-commit — in a
+`setImmediate` that awaits `transactionCommitted` (the same trigger pattern as the AI reply) — and can
+itself trigger a system-message publish (warn/mute/ban notices) through
 the identical `receiveMessage :${roomId}` channel — see [AI Reply Channel Parity](CLAUDE.md#chat--caching)
 in CLAUDE.md, which this reuses rather than introducing a second delivery path. The post-commit AI
 reply trigger (`AiService.handleReply()`) acquires a per-room Redis lock before generating a reply —

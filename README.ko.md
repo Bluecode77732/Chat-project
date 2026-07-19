@@ -15,12 +15,12 @@
 > English version: [README.md](README.md)
 
 # 실시간 채팅 애플리케이션
-- 개인 1:1 실시간 채팅 서비스로, 627개 이상의 커밋(2026-01 ~ 현재)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
+- 개인 1:1 실시간 채팅 서비스로, 636개 이상의 커밋(2026-01 ~ 현재)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
 - 최소한의 인증 사용자 채팅 프로토타입으로 시작해, AI 챗봇 동반자, 별도 admin 패널, 행동 기반 모더레이션, 3개 서비스에 걸친 CI/CD를 갖춘 시스템으로 성장했습니다.
 
 
 ## 개요
-실시간 1:1 개인 채팅 서비스로, 6개월 이상(627개 이상의 커밋)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
+실시간 1:1 개인 채팅 서비스로, 6개월 이상(636개 이상의 커밋)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
 - 인증: Passport 전략 기반 JWT 인증 — refreshToken은 httpOnly 쿠키, accessToken은 메모리에만 보관
 - 채팅 관리: Socket.IO(연결 라이프사이클 전용) + GraphQL(메시지용 Mutation/Subscription), 트랜잭션 안전성을 갖춘 Redis 기반 세션/캐시
 - 모더레이션: 중복/도배 및 속도 기반 자동 스트라이크 탐지가 경고 → 뮤트 → 기간제/영구 밴으로 에스컬레이션, admin 복구 도구 제공
@@ -33,7 +33,7 @@
 
 
 ## 프로젝트 동기
-- 627개 이상의 커밋(2026-01-02 ~ 현재)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
+- 636개 이상의 커밋(2026-01-02 ~ 현재)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
 - 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 이런 변경이 이론이 아니라 실제 운영 중인 시스템에서 어떤 비용을 요구하는지 체감하기 위함
 - Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 찾아 수정한 경험 포함
 - 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 사례로 남기고 넘어가지 않음
@@ -290,7 +290,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 백엔드와의 엔드투엔드 통합을 보여주는 최소화된 React + TypeScript 클라이언트입니다.
 
 - 스택: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
-- 인증: JWT를 메모리(Zustand)에 저장, 리프레시 토큰은 localStorage에 유지 ✔
+- 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음 ✔
 - 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리 ✔
 - 보안: DOMPurify를 통한 XSS 방지, CORS 준수 요청, 보호된 페이지를 위한 Route Guard ✔
 - 배포: Vercel (푸시 시 자동 배포) ✔
@@ -301,7 +301,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 - **프레임워크**: NestJS 11.1.19 — DI 기반 모듈 경계 덕분에 리졸버 하나였던 규모에서 십수 개 모듈(auth/chat/moderation/ai/admin)로 커지는 동안 결합도를 낮게 유지
 - **아키텍처**: 모놀리식, 단일 배포 단위 — 모듈 경계([프로젝트 구조](#프로젝트-구조) 참고)로 이 규모에 굳이 필요 없는 서비스 메시 복잡도 없이 관심사를 분리
 - **실시간 처리 분리**: Socket.IO 4.8.3은 연결 라이프사이클 전용(연결 시 인증, 방 생성 알림), 채팅 메시지는 GraphQL 16.12.0 Mutation/Subscription([흐름](#흐름) 참고) — 원래 설계는 아니었고, 메시지 저장에 트랜잭션 보장(`GqlTransactionInterceptor`)을 주기 위해 프로젝트 중반에 raw Socket.IO에서 마이그레이션함
-- **데이터베이스**: PostgreSQL + TypeORM 0.3.28 — 상호 의존적인 유저/방/채팅/감사로그 데이터의 관계형 정합성; 마이그레이션 전용(`synchronize: false`)으로 스키마 변경을 리뷰 가능하게 유지
+- **데이터베이스**: PostgreSQL + TypeORM 0.3.29 — 상호 의존적인 유저/방/채팅/감사로그 데이터의 관계형 정합성; 마이그레이션 전용(`synchronize: false`)으로 스키마 변경을 리뷰 가능하게 유지
 - **캐시/Pub-Sub**: ioredis 5.9.3 기반 Redis — 세션/온라인 상태, 방별 최근 메시지 캐시, 수평 확장을 위한 `@socket.io/redis-adapter`(없으면 방 브로드캐스트가 서버 인스턴스 간에 전달되지 않음)
 - **AI**: `@google/genai`를 통한 Google Gemini 2.5 Flash, 선택 가능한 성격 4종 — 설계 단계부터 비용 상한 적용(출력 토큰 제한, 대화 이력 절단, 재시도 상한), 나중에 요금 폭탄 맞고 붙인 게 아님
 - **인증**: JWT(액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키) + Passport 전략; RBAC 가드는 REST와 GraphQL 계층 모두에서 서브클래싱이 아니라 조합(composition)으로 구성
@@ -821,7 +821,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 **응답 전달 방식**
 - `generateContent()` 완전 응답을 목적으로 사용
-- AI 응답 전문이 WebSocket 브로드캐스트와 GraphQL Pub/Sub을 통해 단일 메시지로 전달
+- AI 응답 전문이 사람 메시지와 동일한 `receiveMessage :${roomId}` GraphQL Pub/Sub 채널을 통해 단일 메시지로 전달 — 별도의 Socket.IO/WebSocket 브로드캐스트는 없음
 
 **시스템 프롬프트**
 - 성격별 `systemInstruction` 문자열을 Gemini API의 `config.systemInstruction`으로 전달
@@ -885,7 +885,8 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
   "data-source.ts",
   "migrations",
   "system-prompts.ts",
-  "ai-personality.enum.ts"
+  "ai-personality.enum.ts",
+  "all-exceptions.filter.ts"
 ],
 ```
 
@@ -913,7 +914,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 **테스트 결과**
 - Test Suites: 12 passed, 12 total
 
-**커버리지 결과** (% Stmts 기준, `pnpm test:cov`)
+**커버리지 결과** (% Stmts 기준, `pnpm test:cov` — 2026-07-16 기준)
 - Auth Service: 100%
 - Chat Service: 97.72%
 - Redis Service: 96.34%

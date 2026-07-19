@@ -222,7 +222,7 @@ AI 응답이든 모더레이션 시스템 메시지든, 이 채널로 전달되�
 캐시를 먼저 읽고, 캐시 미스일 때만 Postgres로 폴백합니다.
 
 `ModerationService.evaluateMessage()`가
-같은 경로 안에서 가드 통과 이후·저장 이전에 실행되며, 경고/뮤트/밴 알림을 위한 시스템 메시지 발행도
+같은 경로 안에서, 단 커밋 이후에 실행되며(`transactionCommitted`를 기다리는 `setImmediate` — AI 응답과 동일한 트리거 패턴), 경고/뮤트/밴 알림을 위한 시스템 메시지 발행도
 사람이 보낸 메시지와 동일한 `receiveMessage :${roomId}` 채널로 이루어집니다 — CLAUDE.md의
 [AI Reply Channel Parity](CLAUDE.md#chat--caching)를 그대로 재사용하는 것이며, 별도의 두 번째 전달
 경로를 만들지 않습니다. 커밋 이후 AI 응답 트리거(`AiService.handleReply()`)는 응답을 생성하기 전에

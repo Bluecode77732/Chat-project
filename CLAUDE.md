@@ -533,7 +533,7 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-63`), which emits a
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a
   `forceLogout` event and disconnects the previous socket when a new connection registers for
   the same user.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
@@ -603,7 +603,7 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Distributed Lock for Concurrent Write Prevention**
 - Breakdown: `AiService.handleReply()` acquires an atomic Redis lock
-  (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:109-116`) before generating a reply,
+  (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:115-122`) before generating a reply,
   and releases it in a `finally` block (`:196`); a failed acquisition skips the reply
   rather than queuing it.
 - Rationale: without this, two messages arriving in quick succession for the same room
@@ -691,7 +691,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
   pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
   empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
-  into an array in `backend/src/main.ts:57` before being passed to `app.enableCors({ origin })`
+  into an array in `backend/src/main.ts:60` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value

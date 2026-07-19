@@ -72,10 +72,14 @@ cd admin && pnpm dev           # Vite 개발 서버, :5174
 
 | Job | 하는 일 | 필수 통과? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`(비차단, `\|\| true`), `pnpm --filter backend test`, `pnpm --filter admin lint`(비차단), `pnpm --filter admin test` | 예 |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr` — `\|\| true` 폴백이 없어 어떤 단계든 실패하면 잡 전체가 실패 | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
 | `e2e` | 백엔드 jest e2e 부팅 스모크 테스트 실행 후 `frontend/` 대상 Playwright e2e — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 | `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`; 이 워크플로의 실행 이력으로 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않습니다 |
+
+> 참고: CI의 `e2e`/`admin-e2e`는 `postgres:16` 서비스 컨테이너로 실행되지만, 로컬 Docker
+> (`docker-compose.yml`)와 문서상의 로컬 사전 요구사항은 `postgres:18`을 사용합니다 — 드리프트가
+> 아니라 의도된 환경 차이입니다.
 
 PR을 올리기 전 로컬에서:
 ```bash

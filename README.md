@@ -15,12 +15,12 @@
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
-- A private one-to-one real-time chat service, built solo over 627+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
+- A private one-to-one real-time chat service, built solo over 636+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
 - Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
 
 ## Overview
-A real-time private one-to-one chat service, iterated over 6+ months (627+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
+A real-time private one-to-one chat service, iterated over 6+ months (636+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
 - Authentication: JWT-based auth with Passport strategies; refresh token in an httpOnly cookie, access token in memory only
 - Chat Management: Socket.IO (connection lifecycle only) + GraphQL (Mutation/Subscription for messages), Redis-backed session/cache with transaction-safe writes
 - Moderation: automatic strike-based abuse detection (duplicate/flood + velocity) escalating warn → mute → timed/permanent ban, with admin recovery tools
@@ -33,7 +33,7 @@ Two real incidents hit during development — a live infrastructure security exp
 
 
 ## Project Motivation
-- Built solo, iterating live over 627+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Built solo, iterating live over 636+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
 - Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
@@ -290,7 +290,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
 
 - Stack: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
-- Auth: JWT stored in memory (Zustand) with refresh token persistence via localStorage ✔
+- Auth: access token in memory (Zustand), refresh token in a backend-set httpOnly cookie — never in localStorage ✔
 - Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
 - Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
 - Deployment: Vercel (auto-deploy on push) ✔
@@ -301,7 +301,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/moderation/ai/admin) decoupled as it grew from a single resolver to a dozen+ modules
 - **Architecture**: Monolith, single deployable — module boundaries (see [Project Structure](#project-structure)) provide separation without paying for service-mesh complexity this scale doesn't need
 - **Realtime split**: Socket.IO 4.8.3 for connection lifecycle only (auth on connect, room-creation notifications) + GraphQL 16.12.0 Mutation/Subscription for chat messages (see [Flow](#flow)) — not the original design; messages were migrated off raw Socket.IO mid-project to get transactional guarantees around persistence (`GqlTransactionInterceptor`)
-- **Database**: PostgreSQL + TypeORM 0.3.28 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
+- **Database**: PostgreSQL + TypeORM 0.3.29 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
 - **Cache / Pub-Sub**: Redis via ioredis 5.9.3 — session/online-status, a per-room recent-message cache, and `@socket.io/redis-adapter` for horizontal scaling (without it, room broadcasts don't cross server instances)
 - **AI**: Google Gemini 2.5 Flash via `@google/genai`, 4 selectable personalities — cost-capped by design (output token limit, conversation-history truncation, retry ceiling), not bolted on after the fact
 - **Auth**: JWT (access token in memory, refresh token in an httpOnly cookie) + Passport strategies; RBAC guards are composed at both the REST and GraphQL layer, not subclassed
@@ -843,7 +843,7 @@ Powered by Google Gemini 2.5 Flash. The `AiModule` contains two services:
 
 **Response Delivery**
 - Uses `generateContent()` for full response at once
-- The complete AI reply is delivered as a single message via WebSocket broadcast and GraphQL Pub/Sub
+- The complete AI reply is delivered as a single message through the same `receiveMessage :${roomId}` GraphQL Pub/Sub channel as human messages — there is no separate Socket.IO/WebSocket broadcast
 
 **System Prompts**
 - Each personality maps to a `systemInstruction` string passed to Gemini via `config.systemInstruction`
@@ -907,7 +907,8 @@ In `coveragePathIgnorePatterns`, it creates and passes in what not to test in 'P
   "data-source.ts",
   "migrations",
   "system-prompts.ts",
-  "ai-personality.enum.ts"
+  "ai-personality.enum.ts",
+  "all-exceptions.filter.ts"
 ],
 ```
 
@@ -935,7 +936,7 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 **Test Results**
 - Test Suites: 12 passed, 12 total
 
-**Coverage Results** (% Stmts, `pnpm test:cov`)
+**Coverage Results** (% Stmts, `pnpm test:cov` — as of 2026-07-16)
 - Auth Service: 100%
 - Chat Service: 97.72%
 - Redis Service: 96.34%

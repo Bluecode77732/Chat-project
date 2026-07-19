@@ -74,10 +74,14 @@ CI (`.github/workflows/deploy.yml`) runs on every PR to `main`:
 
 | Job | What it does | Blocking? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint` (non-blocking, `\|\| true`), `pnpm --filter backend test`, `pnpm --filter admin lint` (non-blocking), `pnpm --filter admin test` | Yes |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
 | `test` (windows-latest) | same steps | No — `continue-on-error: true` for this OS in the matrix |
 | `e2e` | backend jest e2e boot smoke test, then Playwright e2e against `frontend/` — both against real Postgres 16 + Redis 7 service containers | Yes — blocks `deploy` (listed in its `needs`) |
 | `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | No — `continue-on-error: true`; kept out of `deploy`'s `needs` until a successful run in the real GitHub Actions environment is confirmed via this workflow's run history (not just local YAML/unit-test validation) |
+
+> Note: CI's `e2e`/`admin-e2e` run against `postgres:16` service containers, while local Docker
+> (`docker-compose.yml`) and the documented local prerequisite use `postgres:18` — an intentional
+> environment difference, not a drift.
 
 Locally, before opening a PR:
 ```bash
