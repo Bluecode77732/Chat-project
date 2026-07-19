@@ -40,6 +40,18 @@ JSON 전용, `/document`의 Swagger UI만 예외), 실제로 브라우저가 렌
   키로 60초 창에 10회 — `RateLimitGuard`와 동일한 원자적 `INCR`+조건부 `EXPIRE` Lua 패턴과 Redis
   에러 시 fail-closed 처리를 그대로 재사용합니다. 가드 하나 더 추가한다고 새 의존성(예:
   `@nestjs/throttler`)을 들이는 대신, 이미 확립된 손수 구현 패턴을 재사용한 것입니다.
+- 고려했다가 배제한 대안:
+  - **`backend`에도 Helmet의 CSP를 켜기**: 배제 — `backend`가 서빙하는 유일한 HTML은 `/document`의
+    Swagger UI인데, 여기엔 어차피 정책을 무력화할 만큼의 인라인 스크립트 예외가 필요하고, 여기서
+    헤더를 걸어도 실제 렌더링이 일어나는 `frontend`/`admin`(다른 오리진)에는 닿지 않습니다.
+  - **인증 레이트리밋에 `@nestjs/throttler` 사용**: 배제 — 가드 하나를 위해 런타임 의존성을 새로
+    들이는 셈인데, `RateLimitGuard`의 원자적 Lua `INCR`+`EXPIRE` 패턴(그리고 Redis fail-closed 처리,
+    [0016](0016-redis-unavailability-policy.ko.md) 참고)이 이미 있고 여기서 그대로 재사용됩니다.
+  - **`1` 대신 `trust proxy: true`**(전체 `X-Forwarded-For` 체인 신뢰): 배제 — 클라이언트가 위조한
+    `X-Forwarded-For` 헤더를 직접 넣어 요청마다 새 레이트리밋 버킷을 얻을 수 있게 되어
+    `AuthRateLimitGuard`가 완전히 무력화됩니다.
+  - **두 가드가 공유하는 레이트리밋 헬퍼 하나로 추출**: 진행 안 함 — 사용자별/IP별 키잉이 달라서
+    지금은 깔끔하게 추출되지 않습니다. 세 번째 호출부가 생기면 다시 검토합니다(결과 절에도 명시).
 
 ## 결과
 

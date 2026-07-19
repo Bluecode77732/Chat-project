@@ -31,6 +31,20 @@ payload:
 No second delivery mechanism exists anywhere in the codebase for any of these three sources — one
 channel, one shape, one frontend render path with no sender-type branching.
 
+**Alternatives considered and rejected:**
+
+- **A dedicated channel or GraphQL subscription per source** (e.g. `systemNotice :${roomId}` separate
+  from `receiveMessage`): rejected — the frontend would need a second subscription and a merge/ordering
+  strategy between the two streams, and every client would have to branch on sender type to render what
+  are all just messages in the same room.
+- **Delivering moderation notices over Socket.IO** (since `ChatGateway` already has a socket per user):
+  rejected — splits message delivery across two transports, which is exactly the dual-path complexity
+  [0004](0004-graphql-socketio-api-layer-split.md) migrated away from.
+- **Publishing moderation notices without persisting them** (transient toast-style notification):
+  rejected — the notice would vanish on reload or when scrolling back through cursor-paginated history,
+  leaving no record of why a user was warned; persisting first makes it survive exactly like a human
+  message.
+
 ## Consequences
 
 - Any new automated/system message source (a future moderation action type, a bot, a scheduled

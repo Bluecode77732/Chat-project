@@ -37,7 +37,7 @@ Railway는 `process.env.VERCEL`을 절대 설정하지 않으므로, 운영 환�
   변하지 않습니다(`backend/src/base/logger/logger.ts:26-28`).
 - 죽은 `isVercel` 분기를 제거했습니다. 두 `File` transport 모두 이제 조건 없이 생성되며,
   해석된 `logDir`을 가리킵니다(`backend/src/base/logger/logger.ts:50,61`).
-- 검토 후 기각한 대안:
+- 고려했다가 배제한 대안:
   - **외부 로그 저장 서비스**(예: Better Stack): 새 npm 의존성, 새 외부 계정, 로그 내용의
     제3자 전송이 추가되는데 Railway 자체 인프라가 이미 동일한 문제에 대한 1차적인 지속성
     메커니즘을 제공하므로 기각했습니다.

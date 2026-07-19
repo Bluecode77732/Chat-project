@@ -38,6 +38,19 @@ still needed a velocity limit.
   `auth:{handler}-attempt:{ip}` key, using the identical atomic `INCR`+conditional-`EXPIRE` Lua pattern
   and fail-closed-on-Redis-error handling as `RateLimitGuard` — reusing the established hand-rolled
   pattern rather than introducing a new dependency (e.g. `@nestjs/throttler`) for one additional guard.
+- Alternatives considered and rejected:
+  - **Helmet's CSP enabled on `backend` as well**: rejected — the only HTML `backend` serves is Swagger
+    UI at `/document`, which needs inline-script exceptions that would gut the policy anyway, and a
+    header set here cannot reach `frontend`/`admin` (separate origins) where the real rendering happens.
+  - **`@nestjs/throttler` for the auth rate limit**: rejected — a new runtime dependency for one guard,
+    when `RateLimitGuard`'s atomic Lua `INCR`+`EXPIRE` pattern (and its Redis fail-closed handling, see
+    [0016](0016-redis-unavailability-policy.md)) already exists and is reused verbatim here.
+  - **`trust proxy: true`** (trust the whole `X-Forwarded-For` chain) instead of `1`: rejected — a client
+    could then supply its own forged `X-Forwarded-For` header and get a fresh rate-limit bucket per
+    request, defeating `AuthRateLimitGuard` entirely.
+  - **Extracting one shared rate-limit helper** used by both guards: not done — per-user and per-IP keying
+    differ enough that the extraction isn't trivially clean today; revisit if a third call site appears
+    (also noted under Consequences).
 
 ## Consequences
 

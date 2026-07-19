@@ -20,11 +20,11 @@ separate, queryable entity, independent of the application log stream:
   (`user.service.ts:323`), `'USER_DELETE'` (`user.service.ts:419`) — `actorId` is the admin performing
   the action.
 - `ModerationService`: `'USER_MUTED'` (`moderation.service.ts:253-258`), `'USER_BANNED'`
-  (`moderation.service.ts:277-282`), `'USER_UNBAN'` (`moderation.service.ts:179`) — `actorId` is
+  (`moderation.service.ts:287-292`), `'USER_UNBAN'` (`moderation.service.ts:189`) — `actorId` is
   `getSystemUserId()`, since these are automated enforcement actions, not human admin actions; the
   audit trail attributes them to the system account rather than leaving `actorId` null or omitting the
   entry.
-- `AuditLogService.countByTarget(userId, 'USER_BANNED')` (`moderation.service.ts:262-265`) is read back
+- `AuditLogService.countByTarget(userId, 'USER_BANNED')` (`moderation.service.ts:272-275`) is read back
   by `applyBan` to decide whether a repeat ban on the same user should escalate to permanent — the
   audit log is a write-once record consumed as read-side state, not append-only-and-ignored.
 - Admin-facing audit-log CSV export is one of `admin/`'s stated features (see README's

@@ -25,6 +25,14 @@ diagram).
   gate inside `frontend` still ships the admin UI code (component tree, mutation strings, moderation
   action handlers) to every visitor's browser bundle, relying entirely on a runtime check to hide it;
   a separate app never ships that code to a non-admin user in the first place.
+- Alternatives considered and rejected:
+  - **A protected `/admin` route inside `frontend`** (the alternative named in Context): rejected on the
+    bundle-exposure grounds above — one codebase and one Vercel project would have been cheaper to
+    operate, but the admin UI code would ship to every chat user's browser regardless of role.
+  - **Route-level code splitting** (lazy-loading the admin bundle inside `frontend` so non-admins never
+    download it): rejected — a lazy chunk is still served by the same origin and fetchable by anyone who
+    knows its path, so it narrows the default exposure without actually removing the code from the
+    deployment a regular user can reach.
 
 ## Consequences
 

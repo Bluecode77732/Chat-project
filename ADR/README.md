@@ -9,10 +9,17 @@ files exist so each decision has its own context/rationale trail without bloatin
 
 ## Format
 
-Each ADR follows a lightweight structure: **Status**, **Context** (the problem/constraint), **Decision**
-(what was chosen), **Consequences** (what that commits you to, including what NOT to suggest instead).
+Each ADR follows the same four sections: **Status**, **Context** (the problem/constraint), **Decision**
+(what was chosen, plus an "Alternatives considered and rejected" block naming what else was on the table
+and why it lost), **Consequences** (what that commits you to, including what NOT to suggest instead).
 Each ADR has a Korean translation at the same number with a `.ko.md` suffix (e.g.
 [0001-jwt-auth-token-strategy.ko.md](0001-jwt-auth-token-strategy.ko.md)).
+
+These are **not** minimal Nygard-style one-pagers, and the format shouldn't be described as
+"lightweight": records here run 40-90 lines because they carry file:line citations, explicit rejected
+alternatives, and "never suggest X" guardrails aimed at AI agents as much as at humans. That verbosity is
+the deliberate tradeoff — the same detail that makes a record long is what makes it verifiable by
+`pnpm check:adr` and directly actionable for an agent reading it cold.
 
 Citations to source use backtick-quoted `file.ts:NN` (a single line, a range `NN-MM`, or a
 comma-separated list `NN,MM,KK`). Name the specific symbol or call being cited in backticks near the
@@ -22,6 +29,29 @@ citation (this is already the prevailing style, not a new requirement) -- `scrip
 only names its enclosing class. Existence/range errors on citations (missing file, out-of-bounds line)
 do fail the build. See the script's own header comment for why a plain existence check was not enough --
 it was built after a stale citation slipped past one twice in the same session.
+
+The same script also fails the build on two number-consistency errors, across `ADR/`, `CLAUDE.md`, and
+`ARCHITECTURE.md`/`.ko.md`: an ADR link whose text and path disagree (`[ADR 0016](0007-....md)` -- the
+usual cause is copying a link and editing only one half), and an ADR whose filename number disagrees
+with its own `# NNNN:` heading. Both checks are verified by deliberately injecting each failure and
+confirming it is caught, rather than trusting a clean run.
+
+## Status lifecycle
+
+Every record here is currently `Accepted`, and no decision has been reversed yet — so the procedure
+below is written in advance rather than derived from a case that already happened.
+
+- **`Accepted`** — the decision is in force and the code reflects it.
+- **`Superseded by NNNN`** — a later ADR replaced this decision. **Never rewrite an existing ADR's
+  Decision to reflect a reversal.** Write a new ADR that states the new decision and links back to the
+  old number, then change only the old record's Status line to `Superseded by NNNN` and add the same
+  link. The superseded file otherwise stays exactly as it was — the point of the record is that it
+  captures what was believed at the time, and editing that away destroys the history the file exists for.
+- **`Deprecated`** — the decision no longer applies but nothing replaced it (e.g. the feature it governed
+  was removed). Same rule: change the Status line, leave the body intact.
+
+A reversal therefore always produces two file edits (new ADR + old Status line) in both `.md` and
+`.ko.md`, and both index tables need their Status column updated to match.
 
 ## Index
 
