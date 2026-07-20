@@ -12,6 +12,7 @@
 
 ## 2026-07-20
 
+- Docs: sync CONTRIBUTING with actual CI steps, PR flow, and issue template
 - Add: check:changelog to verify CHANGELOG tracks every commit
 - CI: wire pnpm check:config and check:deps into the blocking test job
 - Add sustainability checks: config-value sync, EN/KO heading parity, dependency-list drift

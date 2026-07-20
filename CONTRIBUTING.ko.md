@@ -68,27 +68,53 @@ cd admin && pnpm dev           # Vite 개발 서버, :5174
 
 ## PR 제출 전
 
+PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 `pull_request` 트리거는
+`branches: [main]`으로 한정되어 있어서, `dev`(또는 그 외 브랜치)를 대상으로 한 PR에서는 **CI가 전혀
+돌지 않습니다**. PR 제목은 커밋과 동일한 `Prefix: description` 컨벤션을 사용하세요. PR 템플릿이나
+필수 리뷰어 규칙은 설정되어 있지 않으며, 아래 CI 잡들이 그 관문 역할을 합니다.
+
 `.github/workflows/deploy.yml`은 `main`으로의 모든 PR에서 실행됩니다.
 
 | Job | 하는 일 | 필수 통과? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr` — `\|\| true` 폴백이 없어 어떤 단계든 실패하면 잡 전체가 실패 | 예 |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어떤 단계든 실패하면 잡 전체가 실패 | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
 | `e2e` | 백엔드 jest e2e 부팅 스모크 테스트 실행 후 `frontend/` 대상 Playwright e2e — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 | `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`; 이 워크플로의 실행 이력으로 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않습니다 |
+
+`test` 잡의 마지막 네 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패 시 빌드를 막습니다:
+`check:adr`(깨진 ADR 링크/앵커, 낡은 `file:line` 인용, 누락된 `.ko.md` 짝, EN/KO 헤딩 구조 패리티),
+`check:config`(`MODERATION_DEFAULTS`가 문서화된 미러들 사이에서 동기화되어 있는지),
+`check:deps`(README의 의존성 목록과 `backend/package.json`의 일치 여부),
+`check:changelog`(`CHANGELOG.md`/`.ko.md`가 `git log`의 모든 커밋을 올바른 날짜 헤딩 아래 담고 있는지).
+
+`check:changelog`는 기록되지 않은 최신 커밋을 **하나만** 허용합니다 — 기록을 수행하는 그 커밋
+자신입니다. 따라서 커밋이 하나뿐이면 CHANGELOG를 건드릴 필요가 없지만, 그 위에 두 번째 커밋을
+쌓는 순간 첫 번째 커밋이 실패합니다. PR에 커밋이 둘 이상이라면 각 커밋의 제목 줄을 그 커밋 안에서
+`CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(두 파일 모두 영문 제목 원문) 추가하세요.
 
 > 참고: CI의 `e2e`/`admin-e2e`는 `postgres:16` 서비스 컨테이너로 실행되지만, 로컬 Docker
 > (`docker-compose.yml`)와 문서상의 로컬 사전 요구사항은 `postgres:18`을 사용합니다 — 드리프트가
 > 아니라 의도된 환경 차이입니다.
 
-PR을 올리기 전 로컬에서:
+PR을 올리기 전 로컬에서 — backend 쪽만이 아니라 필수 통과 잡인 `test`가 실행하는 전부를 돌리세요.
+그러지 않으면 나머지 여섯 단계가 CI에서 먼저 깨집니다:
 ```bash
 cd backend
 pnpm lint          # ESLint --fix
 pnpm format        # Prettier
 pnpm test          # Jest 유닛 테스트
-pnpm test:e2e       # backend e2e (test/app.e2e-spec.ts)
+pnpm test:e2e      # backend e2e (test/app.e2e-spec.ts)
+
+cd ..              # 나머지는 리포지토리 루트에서 실행
+pnpm --filter admin lint
+pnpm --filter admin test
+pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
 ```
+
+`frontend/`의 vitest 스위트는 유일한 예외입니다: 현재 CI 스텝이 없어서(`admin/`만 있습니다)
+`pnpm --filter frontend test`는 대신 실행해주지 않습니다 — `frontend/src`를 건드렸다면 로컬에서
+직접 돌려주세요.
 
 코드 스타일은 `backend/.prettierrc`(`singleQuote: true`, `trailingComma: "all"`)와 ESLint
 (`backend/eslint.config.mjs`)로 강제됩니다. 포맷팅 외에도 이 프로젝트는 더 엄격한 컨벤션 규칙(`any`
@@ -132,6 +158,8 @@ Scope Discipline상 명시적 승인이 필요한 파일이라면 반드시 먼�
 
 ## 이슈 리포트
 
-아직 이슈 템플릿이 설정되어 있지 않습니다 — 명확한 재현 방법/설명과 함께 GitHub 이슈를 열어주세요.
+설정된 이슈 템플릿은 정기 문서 갭 점검을 진행하는
+`.github/ISSUE_TEMPLATE/architecture-completeness-sweep.md` 하나뿐입니다 — 범용 버그/기능 템플릿은
+아직 없으니, 그 외의 건은 명확한 재현 방법/설명과 함께 일반 GitHub 이슈를 열어주세요.
 보안 관련 사안이라면 CLAUDE.md의 [Incident Response](CLAUDE.md#incident-response) 절에서 이
 프로젝트의 AI 보조 워크플로우가 침해 의심 상황을 어떻게 다루는지 확인하세요.
