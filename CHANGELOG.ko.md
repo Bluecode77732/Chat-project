@@ -12,6 +12,7 @@
 
 ## 2026-07-20
 
+- Docs: add check:changelog to ROADMAP phase 11, scope phase 9 against later edits
 - Docs: add 2 missing ROADMAP phases, correct Planned items already implemented
 - Docs: sync CONTRIBUTING with actual CI steps, PR flow, and issue template
 - Add: check:changelog to verify CHANGELOG tracks every commit

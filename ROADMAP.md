@@ -83,7 +83,8 @@ gantt
 
 9. **Documentation overhaul** (2026-07-15 ~ 2026-07-20) — README rewrite, then this
    ARCHITECTURE/CONTRIBUTING/ROADMAP/CHANGELOG suite, plus an ADR set that grew from CLAUDE.md's
-   original 5 decisions to 21 — each with a Korean `.ko.md` pair.
+   original 5 decisions to 21 — each with a Korean `.ko.md` pair. Ongoing edits after 2026-07-20
+   count as maintenance under phase 11, not a continuation of this phase.
    *Why:* conventions and architecture decisions had accumulated implicitly across code comments and
    one large CLAUDE.md as the project grew past a single-file README — including gaps CLAUDE.md itself
    had (e.g. no mention of `ModerationModule` or the `admin/` workspace) — surfaced and fixed while
@@ -103,9 +104,10 @@ gantt
 
 11. **Doc-integrity CI enforcement** (2026-07-18 ~ ) — `pnpm check:adr` (broken links/anchors, stale
     line citations, nearby-symbol content match, missing `.ko.md` pairs, EN/KO heading-structure
-    parity), `pnpm check:config` (`MODERATION_DEFAULTS` across its 4 documented mirrors), and
-    `pnpm check:deps` (README's dependency lists vs `backend/package.json`) — all wired into the
-    blocking `test` job.
+    parity), `pnpm check:config` (`MODERATION_DEFAULTS` across its 4 documented mirrors),
+    `pnpm check:deps` (README's dependency lists vs `backend/package.json`), and
+    `pnpm check:changelog` (every commit has a matching entry in both CHANGELOG languages) — all
+    wired into the blocking `test` job.
     *Why:* the phase-9 suite cites specific `file:line` locations throughout, and several were
     already stale within days of being written (`5759009` fixed 4 such citations in CLAUDE.md
     itself). Prose conventions don't survive a moving codebase — the accuracy claims had to become

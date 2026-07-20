@@ -83,7 +83,8 @@ gantt
 
 9. **문서 정비** (2026-07-15 ~ 2026-07-20) — README 전면 개정, 이어서 이
    ARCHITECTURE/CONTRIBUTING/ROADMAP/CHANGELOG 문서 세트 작업, 그리고 CLAUDE.md의 원래 5개
-   결정에서 21개까지 늘어난 ADR 세트(각각 한국어 `.ko.md` 쌍 포함).
+   결정에서 21개까지 늘어난 ADR 세트(각각 한국어 `.ko.md` 쌍 포함). 2026-07-20 이후의 계속되는
+   문서 수정은 이 단계의 연장이 아니라 11번 단계가 강제하는 유지보수로 간주합니다.
    *이유:* 프로젝트가 단일 README 파일 수준을 넘어 커지면서, 컨벤션과 아키텍처 결정이 코드 주석과
    CLAUDE.md 한 파일에 암묵적으로 흩어져 쌓여 있었음 — CLAUDE.md 자체의 공백(`ModerationModule`,
    `admin/` 워크스페이스 언급 누락 등)도 이 문서 세트를 만드는 과정에서 드러나 그대로 방치하지
@@ -105,7 +106,8 @@ gantt
 11. **문서 정합성 CI 강제** (2026-07-18 ~) — `pnpm check:adr`(끊긴 링크/앵커, 오래된 라인 인용,
     인접 심볼 내용 일치, `.ko.md` 쌍 누락, EN/KO 제목 구조 parity), `pnpm check:config`
     (`MODERATION_DEFAULTS`가 문서화된 4개 미러에서 동기화되어 있는지), `pnpm check:deps`
-    (README의 의존성 목록과 `backend/package.json` 일치) — 전부 차단(blocking) `test` 잡에 배선.
+    (README의 의존성 목록과 `backend/package.json` 일치), `pnpm check:changelog`(모든 커밋이
+    영·한 양쪽 CHANGELOG에 1:1로 기록되어 있는지) — 전부 차단(blocking) `test` 잡에 배선.
     *이유:* 9번 단계의 문서 세트는 전반에 걸쳐 구체적인 `file:line` 위치를 인용하는데, 작성된 지
     며칠 만에 이미 낡아버린 것들이 있었음(`5759009`은 CLAUDE.md 자체의 그런 인용 4건을 고침).
     산문으로 된 관례는 움직이는 코드베이스를 견디지 못함 — 정확성 주장을 기계 검사 대상으로
