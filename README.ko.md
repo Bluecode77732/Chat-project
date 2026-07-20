@@ -478,6 +478,34 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
   4.1. Redis Pub/Sub이 활성 `receiveMessage(roomId)` 구독자에게 전달
   4.2. GraphQL 구독 리졸버가 페이로드를 클라이언트에 push
 
+### 인증 토큰 생명주기
+두 토큰은 의도적으로 서로 다른 곳에 저장됩니다. 수명이 짧은 `accessToken`은 메모리에만
+(Zustand, `persist`에서 제외), 수명이 긴 `refreshToken`은 JavaScript가 읽을 수 없는 백엔드 설정
+httpOnly 쿠키에 보관합니다. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strategy.ko.md) 참고.
+
+1. 로그인 — `POST /auth/signin` (Basic 인증)
+  1.1. 백엔드가 응답 body로 `accessToken`을 반환하고, `refreshToken`은 httpOnly 쿠키로 설정
+       (`secure`, `sameSite: 'none'` — 프론트엔드와 백엔드가 서로 다른 출처이기 때문)
+  1.2. 프론트엔드는 `setTokens(accessToken, userId)` 호출; 토큰은 `localStorage`에 기록되지 않음
+
+2. 인증된 요청
+  2.1. `authLink`가 요청 시점에 `useAuthStore.getState().accessToken`을 읽어
+       `Authorization: Bearer` 헤더 설정
+
+3. 조용한 갱신 — 페이지 새로고침(메모리가 비어 있음) 또는 `errorLink`가 401을 감지했을 때
+  3.1. 모든 호출 지점은 `refreshAccessTokenSafely()`(`session-guard.ts`)를 거치며, 동시 호출자는
+       진행 중인 요청 하나를 공유
+  3.2. `POST /auth/token/refreshaccess`를 `credentials: 'include'`로 전송 — 브라우저가 쿠키를
+       자동 첨부하므로 JavaScript가 리프레시 토큰을 읽는 일이 없음
+  3.3. 새 `accessToken`이 body로 돌아와 다시 메모리에 저장됨
+  3.4. 갱신 결과가 이 탭이 마지막으로 인증했던 계정과 다르면
+       (`sessionStorage['chat:sessionUserId']`), 조용히 신원을 바꾸는 대신 해당 탭을 로그아웃시킴
+
+4. 로그아웃 — `POST /auth/signOut`
+  4.1. 백엔드가 액세스 토큰을 블랙리스트에 등록하고 `res.clearCookie('refreshToken')` 호출 —
+       토큰이 이미 만료됐거나 유효하지 않아도 쿠키는 삭제됨
+  4.2. 프론트엔드는 Zustand 스토어를 비우고 리다이렉트
+
 
 ## 빌드
 ### 전체 설치

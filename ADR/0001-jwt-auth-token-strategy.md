@@ -24,6 +24,10 @@ subscriptions) and a Socket.IO connection, without forcing a session store looku
 - All silent refreshes go through one function, `refreshAccessTokenSafely()`
   (`frontend/src/auth/session-guard.ts`) — concurrent callers share one in-flight request, closing a
   race where a second caller could adopt a conflicting account mid-redirect.
+- Cross-tab identity is guarded separately, by `sessionStorage['chat:sessionUserId']` recording which
+  account this tab last authenticated as. The `refreshToken` cookie is shared across tabs, so a
+  refresh resolving to a different account means a sibling tab signed in as someone else — the tab is
+  logged out rather than silently adopting the new identity.
 - Alternatives considered and rejected:
   - **Session-based auth** (server-side session store keyed by a session-ID cookie): rejected because
     it forces a store lookup on every request across three surfaces (REST, GraphQL, Socket.IO), which

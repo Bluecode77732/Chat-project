@@ -478,6 +478,35 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
   4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers
   4.2. GraphQL subscription resolves and pushes payload to client
 
+### Auth Token Lifecycle
+The two tokens live in deliberately different places: the short-lived `accessToken` in memory only
+(Zustand, excluded from `persist`), the long-lived `refreshToken` in a backend-set httpOnly cookie
+that JavaScript cannot read. See [ADR 0001](ADR/0001-jwt-auth-token-strategy.md) for the rationale.
+
+1. Sign-in — `POST /auth/signin` (Basic auth)
+  1.1. Backend returns `accessToken` in the response body and sets `refreshToken` as an httpOnly
+       cookie (`secure`, `sameSite: 'none'` — frontend and backend are separate origins)
+  1.2. Frontend calls `setTokens(accessToken, userId)`; no token is written to `localStorage`
+
+2. Authenticated request
+  2.1. `authLink` reads `useAuthStore.getState().accessToken` at request time and sets
+       `Authorization: Bearer`
+
+3. Silent refresh — on page reload (memory is empty) or on a 401 surfaced by `errorLink`
+  3.1. Every call site goes through `refreshAccessTokenSafely()` (`session-guard.ts`); concurrent
+       callers share one in-flight request
+  3.2. `POST /auth/token/refreshaccess` is sent with `credentials: 'include'` — the browser attaches
+       the cookie automatically, so JavaScript never reads the refresh token
+  3.3. A fresh `accessToken` comes back in the body and goes into memory again
+  3.4. If the refresh resolves to a different account than this tab last authenticated as
+       (`sessionStorage['chat:sessionUserId']`), the tab is logged out instead of silently
+       switching identity
+
+4. Sign-out — `POST /auth/signOut`
+  4.1. Backend blacklists the access token and calls `res.clearCookie('refreshToken')` — the cookie
+       is cleared even if the token is already expired or invalid
+  4.2. Frontend clears the Zustand store and redirects
+
 
 ## Build
 ### Total Installation
