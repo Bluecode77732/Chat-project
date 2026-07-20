@@ -17,7 +17,11 @@ jobs:
       run:
         shell: bash
     steps:
+      # fetch-depth: 0 -- check:changelog compares CHANGELOG.md against the full
+      # `git log`; the default shallow clone would leave it nothing to compare.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v6
         with:
@@ -37,6 +41,7 @@ jobs:
       - run: pnpm check:adr
       - run: pnpm check:config
       - run: pnpm check:deps
+      - run: pnpm check:changelog
 
   e2e:
     needs: test

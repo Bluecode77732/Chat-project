@@ -10,8 +10,91 @@
 무관하게) 번역하지 않고 그대로 실었습니다 — 실제로 쓰이지 않은 말을 지어내는 것이 되기 때문입니다.
 
 
+## 2026-07-20
+
+- Add: check:changelog to verify CHANGELOG tracks every commit
+- CI: wire pnpm check:config and check:deps into the blocking test job
+- Add sustainability checks: config-value sync, EN/KO heading parity, dependency-list drift
+- CI: report citation content-verification coverage in check:adr output
+- Docs: add moderation defaults source-of-truth pointer, fix audit-log citation
+- Harden: validate MAX_ADMIN_COUNT in the Joi env schema
+- Docs: correct localStorage/AI-delivery/CI-lint claims and 8 stale doc entries
+- Docs: close the 5 gaps named in the ADR set's own final review
+
+## 2026-07-19
+
+- Fix: correct 2 stale line citations in ADR 0005 (CORS)
+- Docs: document PubSubService's caching side effect and fix Redis client-count/duplication claims
+- Docs: fix stale Config Files line, add health/ to tree, de-risk Configuration snippet
+- Docs: fix stale main.ts/app.module.ts citations and link ADR 0020/Sentry gaps in ARCHITECTURE.md
+- Fix: return 400 instead of 500 when Authorization header is missing on register/signin
+- Docs: add Alternatives-considered sections to ADR 0001-0008, 0010-0017
+- Docs: update stale commit count and fix now-false lint non-blocking claim
+- Docs: add ADR 0020 (security headers/auth rate limit) and 0021 (unified message channel)
+- Docs: document HealthModule, Sentry error tracking, Railway volume logging
+- Docs: record frontend/admin unhandled-JS-error gap and its deferred rationale
+- Add: backend error tracking via Sentry (5xx only), minimal APM
+- Add: Dependabot for continuous dependency vulnerability monitoring
+
+## 2026-07-18
+
+- Docs: mark ADR 0018's durability claim as unverified pending actual deploy
+- Docs: add provisioning command + Korean translation to RAILWAY_VOLUME_MOUNT_PATH note
+- Docs: document RAILWAY_VOLUME_MOUNT_PATH in .env.example as informational-only
+- Fix: persist Railway error logs across redeploys, remove dead isVercel branch
+- Docs: record app.e2e-spec.ts's middleware coverage gap
+- Fix: correct 4 stale citations in CLAUDE.md, extend check:adr to cover it
+- CI: fail fast on backend boot timeout, widen e2e smoke route coverage
+- Docs: update CSP and frontend-testing sections to reflect 7474278/ad25256
+- Add: Content-Security-Policy for frontend and admin (Vercel headers)
+- Add: frontend unit tests (vitest), mirroring admin's setup
+- Docs: record frontend unit-test gap and its priority rationale
+- Docs: mention backend jest e2e in CONTRIBUTING's CI job table
+- CI: wire backend jest e2e into the existing e2e job
+- Fix: correct misleading "CSP left to frontend" claim in docs and comment
+- Docs: fix nonexistent POST /user, document health check/signOut/rate-limit/security headers
+- Fix: surface actual rate-limit message on signin instead of generic wrong-password text
+- CI: add nearby-symbol content-match check to check:adr, fix 3 citations it found
+- Docs: document healthcheckPath in ADR 0010
+- Docs: mirror nickname/profileImage documentation into README.ko.md
+- Docs: rewrite admin-e2e non-blocking rationale as policy, not a snapshot fact
+- Add: liveness health check endpoint, wire into Railway healthcheckPath
+- CI: add ADR integrity checker (broken links/anchors, stale citations, missing ko pairs)
+- Fix: revert admin-e2e to non-blocking -- zero confirmed runs in CI history
+- Docs: fix remaining ADR 0016/0017 citation drift, clarify 3-module cycle in diagram
+- Add: IP-based rate limiting on signin/register
+- Add: Helmet security headers, trust proxy for accurate client IPs
+- Fix: patch 23 dependency vulnerabilities (5 high) via version/override bumps
+- CI: enforce backend/admin lint as a hard gate
+- Docs: fix ADR 0017 stale line citation, flag citation-accuracy risk
+- Docs: add ADR 0017 for the AuthModule/UserModule/ChatModule circular dependency
+- Fix: unify Redis-unavailability handling to fail-closed/degrade-to-DB, add ADR 0016
+- Fix: correct file/function misattribution in ADR 0014, scope claim in ADR 0013
+- Docs: add missing frontend/admin files to Project Structure tree
+- Docs: fix broken sendMessage example, document AiRoomEntity/AllExceptionsFilter/receiveMessage auth gaps
+- CI: block deploy on e2e/admin-e2e failure
+- Docs: add ADR 0008-0015, Korean translations for all ADRs, cross-link from ARCHITECTURE
+
+## 2026-07-17
+
+- Docs: fill NestJS cost/risk with real incident, reformat as dash-bullets
+
 ## 2026-07-16
 
+- Fix: explicit type on UserEntity.role to fix e2e DataSource init failure
+- Docs: add cost/risk framing throughout ARCHITECTURE.md/.ko.md
+- Docs: add "why this file exists" opening to CONTRIBUTING.md/.ko.md
+- Fix: replace online_users boot-time wipe with TTL-based reconciliation
+- Docs: rename ROADMAP.ko.md's "왜" label to "이유"
+- Docs: add "Why" line to each Build Timeline phase in ROADMAP.md/.ko.md
+- Docs: scope File Creation Convention to source code files only
+- Docs: sync README dependency list and env setup with recent backend/tooling changes
+- Docs: rework ROADMAP.md/.ko.md as a build-history milestone timeline
+- Docs: add ADR 0006-0007, extend ADR scope beyond CLAUDE.md's original 5
+- Add: .env.example templates for frontend/admin
+- Remove: unused audit/lint/pnpm/redis packages from backend dependencies
+- Docs: realign README with cross-reference convention, fix stale facts
+- Docs: add ARCHITECTURE/CONTRIBUTING/ROADMAP/CHANGELOG/ADR, fill CLAUDE.md gaps
 - Fix: suppress dotenv's random tip line from migration CLI output
 - Docs: document admin GraphQL ops/role-change email, refresh test coverage table
 

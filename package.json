@@ -45,6 +45,7 @@
     "migration:run": "pnpm --filter backend migration:run",
     "check:adr": "node scripts/check-adr-integrity.mjs",
     "check:config": "node scripts/check-config-values.mjs",
-    "check:deps": "node scripts/check-dependency-list.mjs"
+    "check:deps": "node scripts/check-dependency-list.mjs",
+    "check:changelog": "node scripts/check-changelog-sync.mjs"
   }
 }
