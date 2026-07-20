@@ -25,7 +25,9 @@ gantt
     보안 사고 대응                                 :crit, done, 2026-06-18, 1d
     트랜잭션 패턴 공식화                            :done, 2026-07-02, 1d
     행동 기반 모더레이션 시스템                       :done, 2026-07-11, 1d
-    문서 정비                                     :active, 2026-07-15, 2d
+    문서 정비                                     :done, 2026-07-15, 6d
+    보안 및 관측 가능성 강화                          :done, 2026-07-18, 2d
+    문서 정합성 CI 강제                             :active, 2026-07-18, 3d
 ```
 
 1. **기반 구축** (2026-01-02 ~ 2026-01-21) — 첫 커밋: "Built user, auth, chat entities, relations,
@@ -79,12 +81,35 @@ gantt
    *이유:* 관리자 패널·배포 인프라와 같은 "데모가 아니다" 동기 — 실사용자끼리 감독 없이 메시지를
    주고받을 수 있게 되면 실제로 필요해지는 악용 방지.
 
-9. **문서 정비** (2026-07-15 ~) — README 전면 개정, 이어서 이 ARCHITECTURE/CONTRIBUTING/ROADMAP/
-   CHANGELOG/ADR 문서 세트 작업.
+9. **문서 정비** (2026-07-15 ~ 2026-07-20) — README 전면 개정, 이어서 이
+   ARCHITECTURE/CONTRIBUTING/ROADMAP/CHANGELOG 문서 세트 작업, 그리고 CLAUDE.md의 원래 5개
+   결정에서 21개까지 늘어난 ADR 세트(각각 한국어 `.ko.md` 쌍 포함).
    *이유:* 프로젝트가 단일 README 파일 수준을 넘어 커지면서, 컨벤션과 아키텍처 결정이 코드 주석과
    CLAUDE.md 한 파일에 암묵적으로 흩어져 쌓여 있었음 — CLAUDE.md 자체의 공백(`ModerationModule`,
    `admin/` 워크스페이스 언급 누락 등)도 이 문서 세트를 만드는 과정에서 드러나 그대로 방치하지
    않고 고쳤음.
+
+10. **보안 및 관측 가능성 강화** (2026-07-18 ~ 2026-07-19) — Helmet 보안 헤더와 `trust proxy`,
+    `signin`/`register`에 대한 IP 기준 레이트리밋
+    ([ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) 참고), `frontend`/`admin` CSP,
+    의존성 취약점 23건(high 5건) 패치, Railway healthcheck에 연결된 liveness `/health` 엔드포인트,
+    재배포 간 로그 영속화([ADR 0018](ADR/0018-railway-volume-log-persistence.md)),
+    Sentry 에러 트래킹([ADR 0019](ADR/0019-sentry-error-tracking.md)), Dependabot.
+    *이유:* ADR 0019의 Context에 따르면 메트릭·트레이싱·에러 그룹화가 모노레포 전체에 부재했음 —
+    ADR 0018이 로그의 영속성은 확보했지만, Railway 볼륨 위의 `error.logs.log`는 결국 누군가가
+    "가서 봐야 한다"는 걸 알고 있어야만 의미가 있음. 2026-06-18 사고는 봉쇄에 성공했지만, 그
+    시점의 구성으로는 다음 사고를 아무도 묻지 않아도 먼저 알려주는 장치가 없었음. 범위는
+    의도적으로 좁혀서 백엔드 에러 트래킹만 대상으로 했고, `frontend`/`admin` 에러 트래킹은 별도
+    작업으로 미뤄둔 상태.
+
+11. **문서 정합성 CI 강제** (2026-07-18 ~) — `pnpm check:adr`(끊긴 링크/앵커, 오래된 라인 인용,
+    인접 심볼 내용 일치, `.ko.md` 쌍 누락, EN/KO 제목 구조 parity), `pnpm check:config`
+    (`MODERATION_DEFAULTS`가 문서화된 4개 미러에서 동기화되어 있는지), `pnpm check:deps`
+    (README의 의존성 목록과 `backend/package.json` 일치) — 전부 차단(blocking) `test` 잡에 배선.
+    *이유:* 9번 단계의 문서 세트는 전반에 걸쳐 구체적인 `file:line` 위치를 인용하는데, 작성된 지
+    며칠 만에 이미 낡아버린 것들이 있었음(`5759009`은 CLAUDE.md 자체의 그런 인용 4건을 고침).
+    산문으로 된 관례는 움직이는 코드베이스를 견디지 못함 — 정확성 주장을 기계 검사 대상으로
+    만들지 않으면 조용히 썩게 되고, 그건 애초에 인용이 없는 것보다 나쁨.
 
 ## 예정 (Planned)
 
@@ -92,23 +117,31 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그입니다 — 
 
 ### 백엔드
 
-- 사용자별 대화 목록 저장 (마지막 메시지, 읽지 않은 메시지 수 등) — 범위 아직 미확정. 참여자별
+- 대화 목록의 마지막 메시지 + 읽지 않은 메시지 수 — 목록 자체는 이미 있음
+  (`getMyRooms`, `chat.service.ts`). 다만 `{ roomId, recipientId }`만 반환하므로, 없는 것은
+  "목록"이 아니라 마지막 메시지 미리보기와 읽지 않은 수임. 범위 아직 미확정. 참여자별
   "마지막으로 읽은 시각"을 저장하는 방향이 유력하지만, 정확한 스키마(기존 participants
   조인테이블에 컬럼 추가 vs 별도 read-receipt 테이블)는 아직 열려 있음.
 - 그룹 채팅방 (`roomId`로 여러 참여자에게 브로드캐스트) — `RoomEntity.participants`는 이미
   `@ManyToMany`라 데이터 모델은 지원하지만, `findRoom`/`getRoom`/`createRoom`(`chat.service.ts`)이
-  현재 정확히 2명 기준으로 하드코딩되어 있어 단순 확장이 아니라 재설계가 필요함. 현재 방향: 방을
+  현재 정확히 2명 기준으로 하드코딩되어 있어 단순 확장이 아니라 재설계가 필요함. `getMyRooms`는
+  더 조용한 네 번째 호출부: 상대를 `participants.find(p => p.id !== userId)`로 고르기 때문에,
+  3인 이상 방에서는 실패하는 게 아니라 임의의 참여자 한 명을 반환하게 됨. 현재 방향: 방을
   만든 사람(방장)만 새 참여자를 초대할 수 있음(오픈 초대 모델 아님).
-- 방/대화 이력 삭제 기능 — 현재 방향: 방장이 삭제하면 전체 참여자에게 삭제로 표시되고, 방장이
-  아닌 참여자가 삭제하면 그 사람만 방에서 나가는 개념(방 자체는 나머지 참여자에게 유지). 구체적인
-  구현 방식(스키마, cascade 동작)은 아직 미설계.
+- 방/대화 이력 삭제 기능 — 관리자 전용 `deleteRoom` 뮤테이션은 이미 존재하지만
+  (`chat.resolver.ts`, `@RBAC(UserRole.admin)`) 전체 참여자 기준 hard delete이고, 사용자向 경로는
+  없음. 사용자向 기능의 현재 방향: 방장이 삭제하면 전체 참여자에게 삭제로 표시되고, 방장이
+  아닌 참여자가 삭제하면 그 사람만 방에서 나가는 개념(방 자체는 나머지 참여자에게 유지). 이때
+  함께 결정해야 할 미결 사항: 기존 관리자 hard delete를 같은 soft-delete 방식으로 수렴시킬지,
+  아니면 별개 동작으로 남길지. 구체적인 구현 방식(스키마, cascade 동작)은 아직 미설계.
 - "입력 중" 표시기 — 방향: [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)의 "Socket.IO는
   채팅 트래픽을 나르지 않는다" 원칙을 유지하기 위해, Socket.IO에 추가하지 않고 `receiveMessage`와
   같은 GraphQL Subscription 채널로 구현.
 
 ### 프론트엔드
 
-- 읽지 않은 메시지 수가 포함된 채팅방 목록 UI — 위 백엔드 대화 목록 항목에 종속.
+- 채팅방 목록의 읽지 않은 메시지 수 배지 — 목록 UI 자체는 이미 `getMyRooms` 기반으로 렌더링되고
+  있음(`chat-page.tsx`). 없는 것은 읽지 않음 배지뿐이며, 위 백엔드 항목에 종속.
 
 ## 관련 문서
 

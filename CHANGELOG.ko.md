@@ -12,6 +12,7 @@
 
 ## 2026-07-20
 
+- Docs: add 2 missing ROADMAP phases, correct Planned items already implemented
 - Docs: sync CONTRIBUTING with actual CI steps, PR flow, and issue template
 - Add: check:changelog to verify CHANGELOG tracks every commit
 - CI: wire pnpm check:config and check:deps into the blocking test job
