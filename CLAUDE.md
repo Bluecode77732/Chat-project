@@ -27,6 +27,13 @@ Before making any change:
    existing utilities) and prefer extending it. An unverified "let's build X" is the same
    unfounded inference as inventing an API — advisory answers get the same inspect-first
    rigor as file edits.
+10. Evidence expires: a grep/read/test result is a snapshot of the moment it ran, not of the
+    moment you conclude from it. Before stating a conclusion or reporting a gap, re-read the
+    file the claim is about if anything (a commit, an edit, another session) may have touched
+    it since the evidence was gathered. `git status`/`git log` only say *that* something
+    changed, never *what* the content now says — they are not a substitute for re-reading.
+    (Origin: a pre-commit grep was reused after an intervening commit, producing a report of
+    a CONTRIBUTING.md gap that the commit had already closed.)
 
 ## Scope Discipline (범위 준수)
 

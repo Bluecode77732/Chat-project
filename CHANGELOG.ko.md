@@ -10,8 +10,14 @@
 무관하게) 번역하지 않고 그대로 실었습니다 — 실제로 쓰이지 않은 말을 지어내는 것이 되기 때문입니다.
 
 
+## 2026-07-22
+
+- Docs: add evidence-freshness rule 10 to CLAUDE.md Hallucination Prevention
+- Docs: link the verified architecture-diagram artifact from README/ARCHITECTURE
+
 ## 2026-07-20
 
+- Docs: document the auth token lifecycle end-to-end
 - Docs: add check:changelog to ROADMAP phase 11, scope phase 9 against later edits
 - Docs: add 2 missing ROADMAP phases, correct Planned items already implemented
 - Docs: sync CONTRIBUTING with actual CI steps, PR flow, and issue template

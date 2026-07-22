@@ -9,8 +9,14 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-07-22
+
+- Docs: add evidence-freshness rule 10 to CLAUDE.md Hallucination Prevention
+- Docs: link the verified architecture-diagram artifact from README/ARCHITECTURE
+
 ## 2026-07-20
 
+- Docs: document the auth token lifecycle end-to-end
 - Docs: add check:changelog to ROADMAP phase 11, scope phase 9 against later edits
 - Docs: add 2 missing ROADMAP phases, correct Planned items already implemented
 - Docs: sync CONTRIBUTING with actual CI steps, PR flow, and issue template
