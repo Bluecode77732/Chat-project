@@ -15,12 +15,12 @@
 > English version: [README.md](README.md)
 
 # 실시간 채팅 애플리케이션
-- 개인 1:1 실시간 채팅 서비스로, 636개 이상의 커밋(2026-01 ~ 현재)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
+- 개인 1:1 실시간 채팅 서비스로, 600개 이상의 커밋(2026-01 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
 - 최소한의 인증 사용자 채팅 프로토타입으로 시작해, AI 챗봇 동반자, 별도 admin 패널, 행동 기반 모더레이션, 3개 서비스에 걸친 CI/CD를 갖춘 시스템으로 성장했습니다.
 
 
 ## 개요
-실시간 1:1 개인 채팅 서비스로, 6개월 이상(636개 이상의 커밋)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
+실시간 1:1 개인 채팅 서비스로, 6개월 이상(600개 이상의 커밋, [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
 - 인증: Passport 전략 기반 JWT 인증 — refreshToken은 httpOnly 쿠키, accessToken은 메모리에만 보관
 - 채팅 관리: Socket.IO(연결 라이프사이클 전용) + GraphQL(메시지용 Mutation/Subscription), 트랜잭션 안전성을 갖춘 Redis 기반 세션/캐시
 - 모더레이션: 중복/도배 및 속도 기반 자동 스트라이크 탐지가 경고 → 뮤트 → 기간제/영구 밴으로 에스컬레이션, admin 복구 도구 제공
@@ -33,7 +33,7 @@
 
 
 ## 프로젝트 동기
-- 636개 이상의 커밋(2026-01-02 ~ 현재)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
+- 600개 이상의 커밋(2026-01-02 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
 - 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 이런 변경이 이론이 아니라 실제 운영 중인 시스템에서 어떤 비용을 요구하는지 체감하기 위함
 - Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 찾아 수정한 경험 포함
 - 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 사례로 남기고 넘어가지 않음
@@ -75,7 +75,7 @@ pnpm migration:run
 docker start redis-chat
 ```
 
-**백엔드 실행** (backend 디렉토리에서 실행)
+**백엔드 실행** (backend 디렉터리에서 실행)
 ```powershell
 cd backend && pnpm start:dev
 ```
@@ -105,7 +105,7 @@ Subscription)로만 오갑니다. Socket.IO는 연결 라이프사이클과 방 
 pnpm test
 ```
 
-**테스트 커버리지 실행** (backend 디렉토리에서 실행)
+**테스트 커버리지 실행** (backend 디렉터리에서 실행)
 ```powershell
 cd backend && pnpm test:cov
 ```
@@ -123,14 +123,6 @@ cd backend && pnpm test:cov
   - 해결책 
     - ✅ 터미널에서 `docker start redis-chat` 실행
 
-- 연결 실패
-  - 로그: "Failed to send message: Sender isn't online"
-  - 로그: "Failed to send message: Cannot Find Sender ID"
-
-  - 해결책 
-    - ✅ 서버가 HTTP 또는 TCP 소켓을 통해 헤더에서 올바른 경로로 요청을 찾지 못하는 경우가 많습니다. 요청이 사용자 id 또는 sub 형태로 전달되지 않는 경우, 요청 경로를 수정한 'Guard' 또는 'Decorator'를 확인해야 합니다.
-
-
 - DB에 메시지 저장 실패
 
   - 해결책 
@@ -140,7 +132,7 @@ cd backend && pnpm test:cov
 ## API 문서
 ### Swagger UI
 ***모든 기능을 테스트하려면 먼저 회원가입을 해야 합니다.***
-Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트가 불가하기 때문에, 두 플랫폼이 각각 역할을 분담하여 채팅 통신을 완전하게 테스트합니다.
+Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없습니다. 그래서 두 도구가 역할을 나눠 맡아야 채팅 통신을 빠짐없이 테스트할 수 있습니다.
 
 ### 주요 엔드포인트
 **Swagger**
@@ -184,7 +176,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 - Altair (구독)
   - URL: POST `http://localhost:3000/graphql`
-  - 설명: 이 플랫폼은 대체 가능합니다. Altair에서 탭을 열고 아래와 같이 요청 핸들러를 설정한 후 GraphQL에 연결합니다. 연결에 성공하면 GraphQL로 메시지를 전송할 때 수신자로서 채팅 통신을 테스트할 수 있습니다.
+  - 설명: 이 단계는 다른 GraphQL 클라이언트로 대체해도 됩니다. Altair에서 탭을 열고 아래처럼 요청 핸들러를 설정한 뒤 GraphQL에 연결하세요. 연결에 성공하면, GraphQL로 메시지를 전송할 때 수신자 입장에서 채팅 통신을 테스트할 수 있습니다.
 
   - 요청 핸들러
     - 기본 요청 핸들러: HTTP
@@ -213,7 +205,7 @@ Altair는 Mutation 테스트가 불가하고, Postman은 Subscription 테스트�
 
 - GraphQL (뮤테이션)
   - URL: `http://localhost:3000/graphql`
-  - 설명: 이 플랫폼은 대체 불가합니다. Postman에서 GraphQL 탭을 열고 아래와 같이 사전 요구사항을 설정한 후 Altair에 연결합니다. 모두 설정되면 발신자로서 채팅 통신을 테스트할 준비가 완료됩니다.
+  - 설명: 이 단계는 다른 도구로 대체할 수 없습니다. Postman에서 GraphQL 탭을 열고 아래처럼 사전 요구사항을 설정한 뒤 Altair와 연결하세요. 설정이 끝나면 발신자 입장에서 채팅 통신을 테스트할 준비가 완료됩니다.
 
   - 요청 핸들러
     - Headers: authorization: Bearer token
@@ -343,7 +335,7 @@ Chat Project/                   ← 모노레포 루트
 │       │   ├── guard/          ← JwtAuthGuard, RbacGuard, GraphqlAuthGuard
 │       │   ├── interface/      ← Payload (JWT payload shape)
 │       │   ├── role/
-│       │   └── strategy/       ← passport-local, passport-jwt
+│       │   └── strategy/       ← passport-jwt
 │       ├── base/
 │       │   ├── entity/         ← EntityBase (생성/수정 타임스탬프)
 │       │   ├── filter/         ← AllExceptionsFilter (HTTP+GraphQL 에러 응답 전역 정규화)
@@ -389,7 +381,7 @@ Chat Project/                   ← 모노레포 루트
 ### 하이브리드 저장소 패턴
 - Redis(세션/캐시): 일관된 데이터 흐름과 서버 공유를 위해 `userId` => `socketId` 매핑 저장
 - 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `socketId` => `Socket` 객체 저장
-- 두 방식을 함께 사용하는 이유: Redis는 직렬화된 객체를 'JSON' 형식으로 저장하는 반면, 소켓은 클라이언트가 TCP 레벨 연결을 통해 연결된 동안에만 저장합니다. 따라서 클라이언트는 세션/캐시 데이터로 재연결할 수 있습니다.
+- 두 방식을 함께 쓰는 이유: Redis에는 직렬화된 객체가 'JSON' 형식으로 남지만, Socket 객체는 클라이언트가 TCP 연결을 유지하는 동안에만 존재합니다. 그래서 연결이 끊겨도 클라이언트는 Redis의 세션/캐시 데이터를 근거로 재연결할 수 있습니다.
 
 ### Redis Pub/Sub
 - `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신합니다.
@@ -563,17 +555,17 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 
 
 ### 설정
-설치가 완료되면 `backend/src/app.module.ts`로 이동하여 패키지 설정을 진행합니다.
+설치가 끝나면 `backend/src/app.module.ts`에서 패키지 설정을 진행합니다.
 
 패키지
 - joi
-  - JavaScript 객체 스키마 유효성 검사를 강제하는 내장 유효성 검사기 패키지입니다.
-  - `validationSchema`만으로 자동 유효성 검사가 되지 않는 설정 파일을 검증하기 위해 사용합니다.
+  - JavaScript 객체를 스키마 기준으로 검증하는 유효성 검사 패키지입니다.
+  - `validationSchema`만으로는 자동 검증되지 않는 설정 값을 검증하는 데 사용합니다.
 
 메서드
 - join
-  - 'path'가 아닌 'node:path' 사용: 같은 이름의 외부 패키지와의 충돌 방지.
-  - 경로 구분자를 사용하여 OS 크로스 플랫폼 호환성을 보장합니다.
+  - 'path' 대신 'node:path'를 사용합니다: 같은 이름의 외부 패키지와 충돌을 막기 위해서입니다.
+  - 경로 구분자를 OS에 맞게 처리하므로 크로스 플랫폼 호환성이 보장됩니다.
 
 ```ts
   import * as Joi from 'joi';
@@ -654,8 +646,8 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 
 ### Docker 
 #### 공개 - Dockerfile
-무거운 `devDependencies`와 보안 취약점을 줄이기 위해 Multi-Stage 패턴 사용.
-- `git push`하면 Dockerfile 모델의 테스트 및 배포 프로세스가 자동으로 진행됩니다.
+무거운 `devDependencies`와 보안 취약점을 줄이기 위해 Multi-Stage 패턴을 사용합니다.
+이 이미지를 빌드·배포하는 CI/CD 흐름은 [배포 → 공개 - Railway](#공개---railway)를 참고하세요.
 
 #### 로컬 - docker-compose
 Docker를 통해 모든 서비스 실행
@@ -686,16 +678,18 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 
 
 ### 인증
-두 가지 로그인 엔드포인트 구현.
-- Basic 인증
-  - 클라이언트는 바이너리 데이터를 안전하게 전송하기 위해 'base64'로 인코딩된 사용자명과 비밀번호를 제출하여 자격증명을 확인합니다.
-- 토큰 기반 인증
-  - 클라이언트가 로그인하면 JWT(Javascript Web Token) 형태의 토큰을 받고, 서버는 Basic 인증의 자격증명 대신 이 토큰이 포함된 후속 요청에 토큰을 전송합니다. 서버는 토큰을 유효성 검사합니다.
+- **Basic 인증** (`POST /auth/register`, `POST /auth/signin`) — email:password를 base64로 인코딩한
+  `Authorization: Basic` 헤더로 보내며, Passport 전략 없이 `AuthService`가 직접 파싱·검증합니다.
+- **JWT** (그 외 모든 보호된 라우트) — `passport-jwt`의 `JwtAuthGuard`
+  (`backend/src/auth/strategy/jwt.strategy.ts`)로 검증하며, 액세스 토큰은 `Authorization: Bearer`
+  헤더에 실립니다.
+- `register`/`signin`은 둘 다 `AuthRateLimitGuard`로 레이트리밋됩니다([주요 엔드포인트](#주요-엔드포인트) 참고).
 
 
 ### 사용자
-- TypeORM을 통한 기본 CRUD 엔드포인트와 영구 데이터 저장을 가진 일반적인 사용자 관리 서비스.
-- 더 쉽고 깔끔한 모듈식 구현을 위한 NestJS 의존성 주입 기법.
+`UserController`/`UserService` — `UserEntity`에 대한 REST CRUD입니다. 전체 엔드포인트 목록은
+[주요 엔드포인트](#주요-엔드포인트), 스키마는 [엔티티](#엔티티-typeorm), 역할·모더레이션 상태
+동작은 [역할](#역할)/[모더레이션](#모더레이션)을 참고하세요.
 
 
 ### 역할
@@ -745,12 +739,12 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 
 #### 수동 E2E 검증 (개발자 인수인계용)
 
-자동화된 E2E로 커버되지 않습니다(유닛 테스트만 있음). 세 계정으로 검증하세요 — **A**(위반자),
-**B**(수신자), **admin**. 상위 단계에 빠르게 도달하려면 `.env`에서 임계값을 일시적으로 낮추세요 —
-서로 다른 값으로 유지해야 합니다(`warn < mute < ban`), 그렇지 않으면 `escalate()`의 정확히-일치
-검사가 충돌합니다. 예: `MODERATION_WARN_THRESHOLD=2`, `MODERATION_MUTE_THRESHOLD=3`,
-`MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30` — 백엔드를 재시작한 뒤 이후
-원래대로 되돌리세요.
+이 부분은 자동화된 E2E로 커버되지 않습니다(유닛 테스트만 있음). 세 계정 — **A**(위반자),
+**B**(수신자), **admin** — 으로 검증하세요. 상위 단계에 빨리 도달하려면 `.env`에서 임계값을
+일시적으로 낮추되, 값들은 반드시 서로 다르게(`warn < mute < ban`) 유지해야 합니다. 값이 겹치면
+`escalate()`의 정확히-일치 검사가 충돌합니다. 예: `MODERATION_WARN_THRESHOLD=2`,
+`MODERATION_MUTE_THRESHOLD=3`, `MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30`.
+백엔드를 재시작해 적용하고, 검증이 끝나면 원래 값으로 되돌리세요.
 
 1. **경고** — A에서 B에게 *동일한* 메시지를 반복 전송(`DUP_WINDOW` 이내, rate limit 이하). warn
    임계값에서 방에 가운데 정렬된 System 계정 알림이 나타남; 새로고침해도 유지됨(저장된
@@ -866,25 +860,25 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 
 ### 테스트
-테스트 성공률을 확인하기 위해 커버리지 테스트가 적합한 지원 도구입니다.
+테스트 성공률과 함께 코드가 얼마나 검증됐는지 보려면 커버리지 리포트가 유용합니다.
 
 #### 설정
 - 유닛 테스트
 
-테스트 코드는 `spec.ts`에 정의되어 있으며 실행 가능합니다.
+테스트 코드는 `spec.ts` 파일에 정의되어 있고 바로 실행할 수 있습니다.
 
-테스트 디렉토리를 상대 경로 `src`에서 별도의 루트 `["src"]`로 재배치합니다 ('Package.json' 기준).
+테스트 디렉터리는 상대 경로 `src` 대신 별도의 루트 배열 `["src"]`로 지정합니다('Package.json' 기준).
 
-배열로 감싸진 디렉토리는 e2e 테스트 등의 추가 테스트 위치를 나중에 추가할 유연성을 제공합니다.
+배열로 지정해 두면 나중에 e2e 테스트 같은 추가 테스트 위치를 붙이기 쉽습니다.
 
-**단일 기본 디렉토리**
+**단일 기본 디렉터리**
 ```json
 "jest": {
   "rootDir": "src",
 }
 ```
 
-**다중 기본 디렉토리**
+**다중 기본 디렉터리**
 ```json
 "jest": {
   "roots": ["src"],
@@ -920,8 +914,8 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 ],
 ```
 
-- 디렉토리 루트
-'Package.json'에서 설정 파일의 상위 디렉토리에 커버리지 보고서 출력 디렉토리를 설정하여 모든 테스트 파일을 한 번에 테스트할 수 있습니다.
+- 디렉터리 루트
+'Package.json'에서 커버리지 리포트 출력 위치를 설정 파일의 상위 디렉터리로 지정하면, 모든 테스트 파일을 한 번에 돌리고 결과를 한곳에서 볼 수 있습니다.
   - 하위 저장소
   ```json
     "coverageDirectory": "../coverage",
@@ -933,7 +927,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
   ```
 
 - 모듈명 매퍼
-'Package.json'에서 정규식을 사용하여 `src/utils`를 `<rootDir>/src/utils`로 변경하는 모듈 임포트 경로 매핑.
+'Package.json'에서 정규식으로 모듈 임포트 경로를 매핑합니다. 예를 들어 `src/utils`를 `<rootDir>/src/utils`로 해석하게 합니다.
 ```json
 "moduleNameMapper": {
   "src/(.*)": "<rootDir>/src/$1"
@@ -945,7 +939,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 - Test Suites: 12 passed, 12 total
 
 **커버리지 결과** (% Stmts 기준, `pnpm test:cov` — 2026-07-16 기준)
-- Auth Service: 100%
+- Auth Service: 98.29%
 - Chat Service: 97.72%
 - Redis Service: 96.34%
 - User Service: 100%
@@ -1032,7 +1026,7 @@ spec의 `GUARDED_FKS` 배열에 항목을 추가하세요.
 `git push origin main` => Vercel 자동 배포
 
 **설정**
-- 루트 디렉토리: `frontend/`
+- 루트 디렉터리: `frontend/`
 - 모노레포 패키지 해석을 위한 `pnpm-workspace.yaml`
 
 
@@ -1043,7 +1037,7 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됩�
 `git push origin main` => Vercel 자동 배포
 
 **설정**
-- 루트 디렉토리: `admin/`
+- 루트 디렉터리: `admin/`
 - 모노레포 패키지 해석을 위한 `pnpm-workspace.yaml`
 - 환경변수: `VITE_API_URL` (frontend와 동일한 백엔드)
 
@@ -1170,7 +1164,12 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 새로 추가한 AI 응답 재시도/폴백 기능을 라이브 브라우저 세션에서 수동 검증하던 중, 백엔드 재시작으로 소켓이 재연결되며 방의 메시지 기록을 캐시에서 다시 불러올 때 콘솔 에러(`CombinedGraphQLErrors: Invalid time value`)가 발생했습니다.
 
 **근본 원인**
-`AiService`가 자신의 응답을 직접 캐싱하고, `PubSubService`의 발행 시점 훅이 한 번 더 캐싱했는데 — 이때 넘어간 값은 `plainToClass`로 직렬화된 사본이라 `@Exclude()`가 붙은 `created` 필드가 이미 제거된 상태였습니다. 이 손상된 캐시 항목은 이후 `getCachedMessages`를 거치며 `new Date(undefined)`(유효한 `Date` 인스턴스이지만 내부적으로 `NaN`)가 되었고, 캐시에서 읽은 `getMessages` 응답에 그 항목이 포함되는 순간 GraphQL의 기본 `DateTime` 스칼라(`value.toISOString()`)가 크래시했습니다.
+`AiService`가 자신의 응답을 직접 캐싱하고, `PubSubService`의 발행 시점 훅이 같은 응답을 한 번 더
+캐싱하고 있었습니다. 문제는 두 번째 캐싱에 넘어간 값이 `plainToClass`로 직렬화된 사본이라,
+`@Exclude()`가 붙은 `created` 필드가 이미 제거된 상태였다는 점입니다. 이 손상된 캐시 항목은
+이후 `getCachedMessages`를 거치며 `new Date(undefined)`(유효한 `Date` 인스턴스지만 내부적으로
+`NaN`)가 되었고, 캐시에서 읽은 `getMessages` 응답에 그 항목이 포함되는 순간 GraphQL의 기본
+`DateTime` 스칼라(`value.toISOString()`)가 크래시했습니다.
 
 **AI가 수행한 것**
 1. `psql`로 DB의 `created` 컬럼을 직접 조회해 데이터 자체의 손상 여부를 배제

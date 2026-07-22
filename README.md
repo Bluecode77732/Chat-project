@@ -15,12 +15,12 @@
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Real-Time Chat Application
-- A private one-to-one real-time chat service, built solo over 636+ commits (2026-01 ~ present) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
+- A private one-to-one real-time chat service, built solo over 600+ commits (2026-01 ~ present, see [CHANGELOG.md](CHANGELOG.md) for the exact count) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
 - Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
 
 ## Overview
-A real-time private one-to-one chat service, iterated over 6+ months (636+ commits) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
+A real-time private one-to-one chat service, iterated over 6+ months (600+ commits, see [CHANGELOG.md](CHANGELOG.md)) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
 - Authentication: JWT-based auth with Passport strategies; refresh token in an httpOnly cookie, access token in memory only
 - Chat Management: Socket.IO (connection lifecycle only) + GraphQL (Mutation/Subscription for messages), Redis-backed session/cache with transaction-safe writes
 - Moderation: automatic strike-based abuse detection (duplicate/flood + velocity) escalating warn → mute → timed/permanent ban, with admin recovery tools
@@ -33,7 +33,7 @@ Two real incidents hit during development — a live infrastructure security exp
 
 
 ## Project Motivation
-- Built solo, iterating live over 636+ commits (2026-01-02 ~ present): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Built solo, iterating live over 600+ commits (2026-01-02 ~ present; see [CHANGELOG.md](CHANGELOG.md) for the exact count): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
 - Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
@@ -122,14 +122,6 @@ List of Troubleshooting when the program runs
   
   - Solution 
     - ✅ Open terminal to run `docker start redis-chat`
-
-- Connection failure
-  - Log: "Failed to send message: Sender isn't online"
-  - Log: "Failed to send message: Cannot Find Sender ID"
-
-  - Solution 
-    - ✅ Most likely the reason is, the server cannot find request from the correct path in header through HTTP or TCP socket. If when request is not delivered in forms of user's id or sub, requires to be fixed in 'Guard' or 'Decorator' where modified pathway of requests.
-
 
 - Message saving failure in DB
 
@@ -343,7 +335,7 @@ Chat Project/                   <= monorepo root
 │       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
 │       │   ├── interface/      <= Payload (JWT payload shape)
 │       │   ├── role/
-│       │   └── strategy/       <= passport-local, passport-jwt
+│       │   └── strategy/       <= passport-jwt
 │       ├── base/
 │       │   ├── entity/         <= EntityBase (created/updated timestamps)
 │       │   ├── filter/         <= AllExceptionsFilter (global HTTP+GraphQL error normalization)
@@ -678,7 +670,7 @@ optional `MAIL_*` variable group (SMTP notification config, used by the role-cha
 ### Docker 
 #### Public - Dockerfile
 Using Multi-Stage Pattern to reduce heavy-weight `devDependencies` of image and weakness of securities.
-- `git push` will automatically get the app through the process of testing and deploying as model of Dockerfile.
+See [Deployment → Public - Railway](#public---railway) for the CI/CD flow that builds and deploys this image.
 
 #### Local - docker-compose
 Running all of services through Docker
@@ -709,16 +701,17 @@ See **Deployment → Local - Docker → Redis Container Usage** below for the re
 
 
 ### Auth
-Implementation of two ways of sign-in endpoints.
-- Basic Authentication
-  - The clients need to submit username and password, encoded by 'base64', which converts binary data into plain text to transmit safely, to verify credentials.
-- Token-based Authentication
-  - When the clients logs in, they can get token formed as JWT(Javascript Web Token), then server sends token on subsequent requests, which is authenticated, instead of your credentials in Basic Authentication, so the server validates the token
+- **Basic Auth** (`POST /auth/register`, `POST /auth/signin`) — email:password sent as a base64-encoded
+  `Authorization: Basic` header, parsed and verified directly in `AuthService` (no Passport strategy involved)
+- **JWT** (all other protected routes) — validated via `passport-jwt`'s `JwtAuthGuard`
+  (`backend/src/auth/strategy/jwt.strategy.ts`); access token in the `Authorization: Bearer` header
+- Both `register`/`signin` are rate-limited by `AuthRateLimitGuard` (see [Key Endpoints](#key-endpoints))
 
 
 ### User
-- A casual user managing service that has basic CRUD endpoints and persistent data savings in via TypeORM. 
-- NestJs dependency injection technique for easier and cleaner modular implementation.
+`UserController`/`UserService` — REST CRUD over `UserEntity`. See [Key Endpoints](#key-endpoints) for
+the full endpoint list, [Entities](#entities-typeorm) for the schema, and [Role](#role)/
+[Moderation](#moderation) for role and moderation-status behavior.
 
 
 ### Role
@@ -968,7 +961,7 @@ It maps module import paths using Regex to change `src/utils` into `<rootDir>/sr
 - Test Suites: 12 passed, 12 total
 
 **Coverage Results** (% Stmts, `pnpm test:cov` — as of 2026-07-16)
-- Auth Service: 100%
+- Auth Service: 98.29%
 - Chat Service: 97.72%
 - Redis Service: 96.34%
 - User Service: 100%
