@@ -455,4 +455,7 @@ nullable `aiPersonality` 컬럼이었습니다. 마이그레이션 `ExtractAiPer
 - [ADR/](ADR/) — CLAUDE.md의 Architecture Decisions 및 Project-Specific Principles 절을 공식 기록으로
   정리한 문서
 - [ROADMAP.md](ROADMAP.md) — 향후 계획
+- [아키텍처 다이어그램](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 인증,
+  `sendMessage`, 소켓, AI, 모더레이션, Redis, 가드, 모듈 등 코드 검증 기반 다이어그램 14종(private
+  링크, 저장소 내 다른 곳에는 색인되어 있지 않음)
 - [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 히스토리

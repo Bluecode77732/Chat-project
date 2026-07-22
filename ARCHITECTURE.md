@@ -474,3 +474,6 @@ as accidental `pnpm add` mistakes. Confirmed unused and removed.
   Project-Specific Principles sections
 - [ROADMAP.md](ROADMAP.md) — planned future work
 - [CHANGELOG.md](CHANGELOG.md) — full commit history
+- [Architecture Diagrams](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 14
+  code-verified sequence/flowchart/ERD diagrams (auth, `sendMessage`, sockets, AI, moderation, Redis,
+  guards, modules); a private link, not indexed elsewhere in the repo

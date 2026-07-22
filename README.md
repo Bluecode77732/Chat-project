@@ -1212,6 +1212,9 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
 - [CHANGELOG.md](CHANGELOG.md) — full commit history
 - [ADR/](ADR/) — formal architecture decision records
+- [Architecture Diagrams](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 14
+  code-verified sequence/flowchart/ERD diagrams (auth, `sendMessage`, sockets, AI, moderation, Redis,
+  guards, modules); a private link, not indexed elsewhere in the repo
 
 
 ## License

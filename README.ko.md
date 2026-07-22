@@ -1190,6 +1190,9 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
 - [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력
 - [ADR/](ADR/) — 아키텍처 결정 기록(영문 전용)
+- [아키텍처 다이어그램](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 인증,
+  `sendMessage`, 소켓, AI, 모더레이션, Redis, 가드, 모듈 등 코드 검증 기반 다이어그램 14종(private
+  링크, 저장소 내 다른 곳에는 색인되어 있지 않음)
 
 
 ## 라이선스
