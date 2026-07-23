@@ -13,6 +13,9 @@ import { EntityBase } from './base/entity/base.entity';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'node:path';
+import { ModerationModule } from './moderation/moderation.module';
+import { HealthModule } from './health/health.module';
+import { SentryModule } from '@sentry/nestjs/setup';
 
 @Module({
   imports: [
@@ -35,15 +38,34 @@ import { join } from 'node:path';
         // pattern(/\S/) rejects whitespace-only strings that satisfy .required() but produce an empty allowlist.
         CORS_ORIGIN: Joi.string().pattern(/\S/).required(),
         GEMINI_API_KEY: Joi.string().required(),
+        // Redis connection string — required by RedisModule and PubSubService
+        REDIS_URL: Joi.string().required(),
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
+        // Admin cap — optional; UserService.updateRole falls back to 5 when unset.
+        MAX_ADMIN_COUNT: Joi.number().optional(),
+        // Auth rate limit — optional; AuthRateLimitGuard falls back to 60s/10 attempts.
+        // CI e2e overrides these so serial register/signin bursts don't trip the guard.
+        AUTH_RATE_LIMIT_WINDOW_SEC: Joi.number().optional(),
+        AUTH_RATE_LIMIT_MAX_ATTEMPTS: Joi.number().optional(),
+        // Moderation thresholds/durations — all optional; ModerationService falls back to MODERATION_DEFAULTS.
+        MODERATION_STRIKE_WINDOW_SEC: Joi.number().optional(),
+        MODERATION_WARN_THRESHOLD: Joi.number().optional(),
+        MODERATION_MUTE_THRESHOLD: Joi.number().optional(),
+        MODERATION_MUTE_DURATION_SEC: Joi.number().optional(),
+        MODERATION_BAN_THRESHOLD: Joi.number().optional(),
+        MODERATION_BAN_DURATION_SEC: Joi.number().optional(),
+        MODERATION_DUP_WINDOW_SEC: Joi.number().optional(),
+        MODERATION_DUP_THRESHOLD: Joi.number().optional(),
         // Mail (SMTP) is optional — role-change emails are skipped if unset
         SMTP_HOST: Joi.string().optional(),
         SMTP_PORT: Joi.number().optional(),
         SMTP_USER: Joi.string().optional(),
         SMTP_PASS: Joi.string().optional(),
         MAIL_FROM: Joi.string().optional(),
+        // Sentry error tracking — optional; captureException becomes a no-op when unset
+        SENTRY_DSN: Joi.string().optional(),
       }),
       // Configuration global adoption
       isGlobal: true,
@@ -54,6 +76,7 @@ import { join } from 'node:path';
             ? '.env.local'
             : '.env',
     }),
+    SentryModule.forRoot(),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         type: configService.get<string>('DB_TYPE') as 'postgres',
@@ -113,6 +136,8 @@ import { join } from 'node:path';
     ChatModule,
     AuthModule,
     AiModule,
+    ModerationModule,
+    HealthModule,
   ],
   providers: [Logger],
 })

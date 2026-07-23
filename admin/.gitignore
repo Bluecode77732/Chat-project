@@ -2,6 +2,9 @@ node_modules
 dist
 *.tsbuildinfo
 
+# playwright artifacts
+test-results/
+
 # dotenv environment variable files
 .env
 .env.development.local
@@ -9,3 +12,8 @@ dist
 .env.production
 .env.production.local
 .env.local
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

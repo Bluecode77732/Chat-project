@@ -7,6 +7,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -142,17 +143,14 @@ describe('AuthService', () => {
       ).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
 
-    it('should throw BadRequestException for not a bearer token', async () => {
-      jest
-        .spyOn(jwtService, 'verifyAsync')
-        .mockResolvedValue({ type: 'refresh' });
+    it('should throw BadRequestException for a non-Bearer prefix', async () => {
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
 
       await expect(
-        authService.parseBearerToken('bEaReR token', false),
-      ).rejects.toThrow(
-        new UnauthorizedException(new UnauthorizedException('Token Expired')),
-      );
+        authService.parseBearerToken('Basic token', false),
+      ).rejects.toThrow(new UnauthorizedException('Token Expired'));
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(jwtService.verifyAsync)).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for not a refresh token', async () => {
@@ -163,6 +161,17 @@ describe('AuthService', () => {
 
       await expect(
         authService.parseBearerToken('Bearer validToken', false),
+      ).rejects.toThrow(new UnauthorizedException('Token Expired'));
+    });
+
+    it('should throw UnauthorizedException when an access token is presented where a refresh token is required', async () => {
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ type: 'access' });
+      jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue('secret');
+
+      await expect(
+        authService.parseBearerToken('Bearer accessToken', true),
       ).rejects.toThrow(new UnauthorizedException('Token Expired'));
     });
 
@@ -352,6 +361,17 @@ describe('AuthService', () => {
         new BadRequestException('Invalid User.'),
       );
     });
+
+    it('should throw a BadRequestException for an AI system account', async () => {
+      jest
+        .spyOn(mockUserRepository, 'findOne')
+        .mockResolvedValue({ ...user, isAI: true });
+
+      await expect(authService.validateUser(email, password)).rejects.toThrow(
+        new BadRequestException('Invalid User.'),
+      );
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
   });
 
   describe('issueToken', () => {
@@ -436,6 +456,94 @@ describe('AuthService', () => {
         refreshToken: 'token',
         accessToken: 'token',
       });
+    });
+  });
+
+  describe('refreshAccessToken', () => {
+    const rawToken = 'Bearer refreshToken';
+
+    it('should issue a fresh access token for an active user', async () => {
+      jest
+        .spyOn(authService, 'parseBearerToken')
+        .mockResolvedValue({ sub: 1 } as any);
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue({
+        id: 1,
+        role: 0,
+        status: ModerationStatus.active,
+      });
+      jest.spyOn(authService, 'issueToken').mockResolvedValue('newAccessToken');
+
+      const result = await authService.refreshAccessToken(rawToken);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(authService.parseBearerToken)).toHaveBeenCalledWith(
+        rawToken,
+        true,
+      );
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(authService.issueToken)).toHaveBeenCalledWith(
+        { id: 1, role: 0 },
+        false,
+      );
+      expect(result).toEqual({ accessToken: 'newAccessToken' });
+    });
+
+    it('should throw UnauthorizedException when the user no longer exists', async () => {
+      jest
+        .spyOn(authService, 'parseBearerToken')
+        .mockResolvedValue({ sub: 1 } as any);
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(authService.refreshAccessToken(rawToken)).rejects.toThrow(
+        new UnauthorizedException('User Not Found.'),
+      );
+    });
+
+    it('should throw UnauthorizedException when the user is currently banned', async () => {
+      jest
+        .spyOn(authService, 'parseBearerToken')
+        .mockResolvedValue({ sub: 1 } as any);
+      jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue({
+        id: 1,
+        role: 0,
+        status: ModerationStatus.banned,
+        bannedUntil: null,
+      });
+
+      await expect(authService.refreshAccessToken(rawToken)).rejects.toThrow(
+        new UnauthorizedException('Account Suspended'),
+      );
+    });
+  });
+
+  describe('signOut', () => {
+    it('should blacklist the access token for its remaining TTL', async () => {
+      const exp = Math.floor(Date.now() / 1000) + 60;
+      jest.spyOn(authService, 'parseBearerToken').mockResolvedValue({
+        exp,
+        iat: 0,
+      } as any);
+
+      await authService.signOut('Bearer accessToken');
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'blacklist:accessToken',
+        '1',
+        'EX',
+        expect.any(Number),
+      );
+    });
+
+    it('should not blacklist an already-expired token', async () => {
+      const exp = Math.floor(Date.now() / 1000) - 60;
+      jest.spyOn(authService, 'parseBearerToken').mockResolvedValue({
+        exp,
+        iat: 0,
+      } as any);
+
+      await authService.signOut('Bearer accessToken');
+
+      expect(mockRedis.set).not.toHaveBeenCalled();
     });
   });
 });

@@ -15,7 +15,7 @@ interface GqlContext {
 import { CreateChatInput } from 'src/graphql/create-chat-input.type';
 import { MessageType } from 'src/graphql/message-type.dto';
 import { RoomInfoType } from 'src/graphql/room-info.type';
-import { AdminRoomType } from 'src/graphql/admin-room.type';
+import { PaginatedAdminRooms } from 'src/graphql/admin-room.type';
 import { UserType } from 'src/graphql/user.type';
 import { AiPersonalityInfoType } from 'src/graphql/ai-personality-info.type';
 import { ChatService } from './chat.service';
@@ -25,6 +25,8 @@ import { GraphQLRBACGuard } from 'src/auth/guard/graphql-rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { RateLimitGuard } from './guard/rate-limit.guard';
+import { ModerationGuard } from 'src/moderation/moderation.guard';
+import { ModerationService } from 'src/moderation/moderation.service';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import type { QueryRunner } from 'typeorm';
 import { logger } from 'src/base/logger/logger';
@@ -43,14 +45,34 @@ export class ChatResolver {
     private readonly sessionCacheService: SessionCacheService,
     private readonly aiService: AiService,
     private readonly aiRoomService: AiRoomService,
+    private readonly moderationService: ModerationService,
   ) {}
 
-  @Query(() => [AdminRoomType])
+  @Query(() => PaginatedAdminRooms)
   @RBAC(UserRole.admin)
   // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
-  async getAllRooms(): Promise<AdminRoomType[]> {
-    return this.chatService.findAllRooms();
+  async getAllRooms(
+    @Args('page', { type: () => Int, nullable: true, defaultValue: 1 })
+    page: number,
+    @Args('take', { type: () => Int, nullable: true, defaultValue: 20 })
+    take: number,
+    @Args('sort', { type: () => String, nullable: true, defaultValue: 'DESC' })
+    sort: string,
+    @Args('sortBy', { type: () => String, nullable: true, defaultValue: 'id' })
+    sortBy: string,
+    @Args('search', { type: () => String, nullable: true })
+    search?: string,
+  ): Promise<PaginatedAdminRooms> {
+    const sortOrder = sort === 'ASC' ? 'ASC' : 'DESC';
+    const sortField = sortBy === 'created' ? 'created' : 'id';
+    return this.chatService.findAllRooms(
+      page,
+      take,
+      sortOrder,
+      sortField,
+      search || undefined,
+    );
   }
 
   @Mutation(() => Boolean)
@@ -72,6 +94,11 @@ export class ChatResolver {
   @Query(() => Int)
   getAiUserId(): number {
     return this.aiService.getAiUserId();
+  }
+
+  @Query(() => Int)
+  getSystemUserId(): number {
+    return this.moderationService.getSystemUserId();
   }
 
   @Query(() => AiPersonalityInfoType, { nullable: true })
@@ -156,7 +183,9 @@ export class ChatResolver {
 
   // Non-idempotent: a client retry after timeout produces a duplicate ChatEntity; RateLimitGuard reduces but does not prevent this.
   @Mutation(() => MessageType)
-  @UseGuards(GraphQLAuthGuard, RateLimitGuard)
+  // Order is load-bearing: GraphQLAuthGuard populates req.user; ModerationGuard gates muted/banned
+  // users before RateLimitGuard spends its velocity budget.
+  @UseGuards(GraphQLAuthGuard, ModerationGuard, RateLimitGuard)
   @UseInterceptors(GqlTransactionInterceptor)
   async sendMessage(
     @Context() ctx: GqlContext,
@@ -192,6 +221,40 @@ export class ChatResolver {
                 err instanceof Error ? err.message : String(err);
               logger.error(
                 `[user=${userId}, room=${roomId}] notifyRoomParticipants failed: ${errMessage}`,
+              );
+            });
+        })();
+      });
+    }
+
+    // Moderation: evaluate the just-sent message for duplicate/flood behavior after commit.
+    // Runs post-commit (like the AI trigger) so the message is durable and counted, and so any
+    // warning/mute/ban escalation adds no latency to the sendMessage response.
+    if (roomId) {
+      setImmediate(() => {
+        void (async () => {
+          await transactionCommitted;
+          await this.moderationService
+            .evaluateMessage(userId, input.message ?? '', {
+              roomId,
+              publishFn: (msg) =>
+                this.pubSub.publish(`receiveMessage :${roomId}`, {
+                  receiveMessage: msg,
+                }),
+              disconnectFn: async (uid) => {
+                const session =
+                  await this.sessionCacheService.getUserStatus(uid);
+                if (session?.socketId) {
+                  this.chatService.disconnectSocket(session.socketId);
+                }
+                await this.sessionCacheService.sethUserOffline(uid);
+              },
+            })
+            .catch((err) => {
+              const errMessage =
+                err instanceof Error ? err.message : String(err);
+              logger.error(
+                `[user=${userId}, room=${roomId}] moderation evaluate error: ${errMessage}`,
               );
             });
         })();

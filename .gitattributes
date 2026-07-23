@@ -1,0 +1,20 @@
+# Purpose: normalize all text files to LF in the repository so Windows/mac/Linux
+#          checkouts don't produce CRLF/LF diff churn or ship CRLF into the Linux container.
+# Usage: applied automatically by Git on add/checkout for every contributor.
+# Rationale: core.autocrlf is a per-machine git setting that can't be shared via the repo;
+#            a committed .gitattributes is the correct cross-OS mechanism.
+
+* text=auto eol=lf
+
+# Scripts that run inside the Linux container must stay LF regardless of author OS.
+*.sh text eol=lf
+
+# Binary assets: never normalized.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.woff binary
+*.woff2 binary

@@ -306,24 +306,49 @@ export class ChatService {
     this.server?.sockets.sockets.get(socketId)?.disconnect(true);
   }
 
-  async findAllRooms(): Promise<
-    { roomId: number; participantIds: number[] }[]
-  > {
-    const rooms = await this.roomRepository.find({
-      relations: ['participants'],
-    });
-    return rooms.flatMap((room) => {
+  async findAllRooms(
+    page = 1,
+    take = 20,
+    sort: 'ASC' | 'DESC' = 'DESC',
+    sortBy: 'id' | 'created' = 'id',
+    search?: string,
+  ): Promise<{
+    data: { roomId: number; participantIds: number[]; created: Date }[];
+    total: number;
+    page: number;
+    take: number;
+  }> {
+    const orderColumn = sortBy === 'created' ? 'room.created' : 'room.id';
+    const qb = this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.participants', 'user');
+
+    if (search) {
+      qb.where('user.email ILIKE :search OR user.nickname ILIKE :search', {
+        search: `%${search}%`,
+      });
+    }
+
+    const [rooms, total] = await qb
+      .orderBy(orderColumn, sort)
+      .skip((page - 1) * take)
+      .take(take)
+      .getManyAndCount();
+
+    const data = rooms.flatMap((room) => {
       const roomId = room.id;
-      if (roomId === undefined) return [];
+      if (roomId === undefined || !room.created) return [];
       return [
         {
           roomId,
           participantIds: (room.participants ?? [])
             .map((p) => p.id)
             .filter((id): id is number => id !== undefined),
+          created: room.created,
         },
       ];
     });
+    return { data, total, page, take };
   }
 
   async deleteRoom(roomId: number): Promise<void> {

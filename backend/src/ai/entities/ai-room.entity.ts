@@ -16,7 +16,7 @@ export class AiRoomEntity extends EntityBase {
 
   @OneToOne(() => RoomEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'room_id' })
-  room!: RoomEntity;
+  room?: RoomEntity;
 
   @Column({ type: 'varchar' })
   personality!: AiPersonality;

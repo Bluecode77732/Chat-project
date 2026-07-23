@@ -1,0 +1,169 @@
+# 기여 가이드
+
+이 저장소에 변경사항을 기여하기 위한 진입점입니다. 설치, 브랜치 모델, 커밋 컨벤션, PR
+체크리스트를 다룹니다. README의 빠른 시작은 앱을 로컬에서 실행하는 방법까지만 다루고, 변경사항을
+제출하는 워크플로우는 다루지 않습니다. 코드 수준의 깊은 컨벤션(Never Do 규칙, 테스트 패턴,
+트랜잭션 경계)은 CLAUDE.md에 이미 상세히 문서화되어 있습니다. 이 문서는 그 내용을 다시 쓰지
+않고, 새 기여자가 PR을 열 수 있는 지점까지 데려다주는 진입로 역할만 하며, 그 이후는 CLAUDE.md로
+안내합니다.
+
+## 사전 준비물
+
+- Node.js `24.x` (`.nvmrc`와 루트 `package.json`의 `engines`에 고정)
+- pnpm `>=10` (루트 `package.json`에 `packageManager: pnpm@10.33.0`으로 고정 — CI도
+  `pnpm/action-setup`으로 동일 버전을 설치)
+- Docker + Docker Compose — 서비스를 하나씩 띄우는 대신 로컬 풀스택(Postgres + Redis + backend)을
+  쓰고 싶을 때 필요
+
+## 설치
+
+```bash
+pnpm install   # 워크스페이스 세 패키지(backend/, frontend/, admin/) 전부 설치
+```
+
+**backend**: `backend/.env.example`을 `backend/.env`로 복사하고 값을 채우세요. 모든 변수는 시작
+시점에 Joi로 검증되므로(`app.module.ts`), 하나라도 빠지면 조용히 넘어가지 않고 바로 실패합니다.
+
+**frontend / admin**: 각 패키지의 `.env.example`을 `.env.local`로 복사하고, 백엔드가
+`localhost:3000`이 아닌 곳에서 돈다면 값을 조정하세요:
+```bash
+cp frontend/.env.example frontend/.env.local
+cp admin/.env.example admin/.env.local
+```
+
+## 로컬 실행
+
+**Docker로 풀스택 실행** (backend 작업에 권장 — 운영 환경과 동일한 "마이그레이션 후 시작" 순서):
+```bash
+docker compose up -d --build   # 프로젝트 루트에 .env.local이 필요합니다
+docker compose down -v         # 종료
+```
+
+**Docker 없이 패키지별 실행**:
+```bash
+cd backend && pnpm start:dev   # NODE_ENV=development, 127.0.0.1:3000에 바인딩
+cd frontend && pnpm dev        # Vite 개발 서버, :5173
+cd admin && pnpm dev           # Vite 개발 서버, :5174
+```
+
+## 브랜치 모델
+
+- `main` — 배포 브랜치입니다. `.github/workflows/deploy.yml`의 `deploy` job은 `main` push에서만
+  트리거되어 Railway로 배포합니다.
+- `dev` — 활성 개발 브랜치입니다.
+
+(리모트에 보일 수 있는 `dev1`이나 자동 생성되는 `railway/code-change-*` 같은 다른 브랜치는 여기
+문서화된 워크플로우에 포함되지 않습니다. 그런 브랜치에서 분기하려면 먼저 메인테이너에게
+확인하세요.)
+
+## 커밋 컨벤션
+
+최근 히스토리는 `Prefix: description` 스타일을 씁니다. 대문자로 시작하는 접두어, 콜론, 짧은 설명
+순서입니다. 앞으로는 다음 중 하나를 사용하세요:
+
+`Fix:` `Feat:` `Add:` `Docs:` `Refactor:` `Test:` `Chore:` `Harden:` `Remove:` `Style:` `Logging:` `CI:`
+
+참고: 이 컨벤션이 프로젝트 전체 히스토리에서 **일관되게** 지켜진 것은 아닙니다(오래된 커밋은
+대소문자나 접두어 어휘가 꽤 제각각입니다). `CHANGELOG.md`는 이를 미화하지 않고 있는 그대로
+반영합니다. 새로 작성하는 커밋은 위 목록을 따라주세요.
+
+## PR 제출 전
+
+PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 `pull_request` 트리거가
+`branches: [main]`으로 한정되어 있어서, `dev`(또는 그 외 브랜치)를 대상으로 한 PR에서는 **CI가
+전혀 돌지 않습니다**. PR 제목은 커밋과 동일한 `Prefix: description` 컨벤션을 사용하세요. PR
+템플릿이나 필수 리뷰어 규칙은 없으며, 아래 CI 잡들이 그 관문 역할을 합니다.
+
+`.github/workflows/deploy.yml`은 `main`으로의 모든 PR에서 실행됩니다.
+
+| Job | 하는 일 | 필수 통과? |
+|---|---|---|
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
+| `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
+| `e2e` | 백엔드 jest e2e 부팅 스모크 테스트를 돌린 뒤 `frontend/` 대상 Playwright e2e 실행 — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
+| `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`. 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않습니다 |
+
+`test` 잡의 마지막 네 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패하면 빌드를 막습니다:
+`check:adr`(깨진 ADR 링크/앵커, 낡은 `file:line` 인용, 누락된 `.ko.md` 짝, EN/KO 헤딩 구조 패리티),
+`check:config`(`MODERATION_DEFAULTS`가 문서화된 미러들 사이에서 동기화되어 있는지),
+`check:deps`(README의 의존성 목록과 `backend/package.json`의 일치 여부),
+`check:changelog`(`CHANGELOG.md`/`.ko.md`가 `git log`의 모든 커밋을 올바른 날짜 헤딩 아래 담고 있는지).
+
+`check:changelog`는 기록되지 않은 최신 커밋을 **하나만** 허용합니다. 기록을 수행하는 그 커밋
+자신입니다. 커밋이 하나뿐이면 CHANGELOG를 건드릴 필요가 없지만, 그 위에 두 번째 커밋을 쌓는
+순간 첫 번째 커밋에서 검사가 실패합니다. PR에 커밋이 둘 이상이라면 각 커밋의 제목 줄을 그 커밋
+안에서 `CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(두 파일 모두 영문 제목 원문) 추가하세요.
+
+> 참고: CI의 `e2e`/`admin-e2e`는 `postgres:16` 서비스 컨테이너로 실행되지만, 로컬 Docker
+> (`docker-compose.yml`)와 문서상의 로컬 사전 요구사항은 `postgres:18`을 사용합니다. 드리프트가
+> 아니라 의도된 환경 차이입니다.
+
+PR을 올리기 전에 로컬에서, backend 쪽만이 아니라 필수 통과 잡인 `test`가 실행하는 전부를
+돌리세요. 그러지 않으면 나머지 여섯 단계가 CI에서 먼저 깨집니다:
+```bash
+cd backend
+pnpm lint          # ESLint --fix
+pnpm format        # Prettier
+pnpm test          # Jest 유닛 테스트
+pnpm test:e2e      # backend e2e (test/app.e2e-spec.ts)
+
+cd ..              # 나머지는 저장소 루트에서 실행
+pnpm --filter admin lint
+pnpm --filter admin test
+pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
+```
+
+`frontend/`의 vitest 스위트만 예외입니다. 현재 CI 스텝이 없어서(`admin/`만 있습니다)
+`pnpm --filter frontend test`는 CI가 대신 돌려주지 않습니다. `frontend/src`를 건드렸다면
+로컬에서 직접 돌려주세요.
+
+코드 스타일은 `backend/.prettierrc`(`singleQuote: true`, `trailingComma: "all"`)와 ESLint
+(`backend/eslint.config.mjs`)로 강제됩니다. 포맷팅 외에도 이 프로젝트는 더 엄격한 컨벤션
+규칙(`any` 금지, floating promise 금지, 빈 `catch` 금지, `GqlTransactionInterceptor`를 통한
+트랜잭션 경계 등)을 [CLAUDE.md](CLAUDE.md#never-do--forbidden-patterns)에 문서화해 두었습니다.
+backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `app.module.ts`, `*.entity.ts`,
+`*.interceptor.ts`, `backend/src/schema.gql`처럼 CLAUDE.md의 Scope Discipline상 명시적 승인이
+필요한 파일이라면 더욱 그렇습니다.
+
+## 테스트 컨벤션
+
+- 테스트는 소스 파일 옆에 `*.spec.ts`로 둡니다. 커버리지는 서비스와 Redis 모듈만 측정합니다
+  (`backend/package.json`의 `coveragePathIgnorePatterns`가 controller, guard, gateway, resolver,
+  interceptor, DTO, entity 등을 제외합니다 — 의도된 정책이지 빈틈이 아닙니다).
+- `bcrypt`는 `backend/src/mocks/bcrypt.ts`를 통해 전역으로 mock 처리됩니다.
+- 실제 DB를 두드리지 말고 리포지토리를 mock하세요. 패턴은
+  [CLAUDE.md의 Testing 절](CLAUDE.md#testing)에 있습니다.
+- `frontend/e2e/`와 `admin/e2e/`는 각자의 Playwright 스위트를 가지며 CI에서 독립적으로
+  실행됩니다.
+- `admin/`(vitest, 14개)과 `frontend/`(vitest, 21개) 둘 다 이제 유닛테스트를 갖추고 있으며,
+  동일한 설정(`src/test/setup.ts`, 동일 버전의 devDependency)을 씁니다. `frontend/` 스위트는
+  admin의 기존 3개 파일(axios/protected-route/auth.store — frontend의 더 단순한, role 없는
+  인증 모델에 맞게 조정)을 포팅하고, `session-guard.ts`용 테스트를 새로 추가했습니다.
+  in-flight 리프레시 중복 방지와 탭 간 계정 충돌 감지 로직인데, 두 앱 모두 테스트가 없었지만
+  인증 코드에서 레이스 컨디션에 가장 민감한 부분입니다(CLAUDE.md의 Session Guard 절 참고).
+- `backend/test/app.e2e-spec.ts`는 `Test.createTestingModule({ imports: [AppModule] })` +
+  `createNestApplication()` + `app.init()`으로 앱을 만들며, `main.ts`의 `bootstrap()`을 전혀
+  거치지 않습니다. 그래서 `cookieParser()`, `helmet()`, 전역 `ValidationPipe`,
+  `AllExceptionsFilter`가 이 테스트들에는 적용되지 않습니다. 고치지 않고 그대로 둔 이유: 이
+  파일의 네 케이스는 전부 이런 것들에 의존하지 않도록(라우팅 + 가드/서비스 단의
+  `HttpException`만 쓰도록) 일부러 골랐기 때문입니다. e2e에서 `main.ts`의 middleware 스택까지
+  검증하려면 `bootstrap()`과 테스트의 `createNestApplication()` 호출이 공유하는 함수로 분리하는
+  더 큰 리팩터가 필요한데, 이번에는 하지 않았습니다.
+- `frontend/`와 `admin/`에는 React 에러 바운더리도, 전역 `window.onerror`/`unhandledrejection`
+  핸들러도 없습니다. 예상 못 한 에러(예: `frontend/src/pages/chat-page.tsx:410`이 알려진
+  `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL 에러가 아닌 나머지를 rethrow하는 부분)는 지금도
+  어디에도 흔적 없이 사라집니다. 프로덕션 코드에 애초에 바운더리/핸들러가 없으니 이를 잡아낼
+  테스트도 없습니다. [ADR 0019](ADR/0019-sentry-error-tracking.ko.md)의 backend 전용 Sentry
+  연동과 함께 의도적으로 미뤄둔 것입니다 — 그 결정에서 backend 에러 트래킹이 우선순위가 더
+  높은 절반이었습니다. 나중에 착수할 때는 `@sentry/react`를 추가하고(backend의
+  `@sentry/nestjs` 설정을 그대로 본떠서) 두 앱의 `main.tsx`에 최상위 에러 바운더리를 두는
+  한편, `errorLink`에서 현재 조용히 지나가는 non-auth 분기(`frontend/src/api/apollo.ts`,
+  `admin/src/api/apollo.ts`)도 함께 보고하도록 연결하세요.
+
+## 이슈 리포트
+
+설정된 이슈 템플릿은 정기 문서 갭 점검용인
+`.github/ISSUE_TEMPLATE/architecture-completeness-sweep.md` 하나뿐입니다. 범용 버그/기능
+템플릿은 아직 없으니, 그 외의 건은 명확한 재현 방법/설명과 함께 일반 GitHub 이슈로 열어주세요.
+보안 관련 사안이라면 CLAUDE.md의 [Incident Response](CLAUDE.md#incident-response) 절에서 이
+프로젝트의 AI 보조 워크플로우가 침해 의심 상황을 어떻게 다루는지 확인하세요.

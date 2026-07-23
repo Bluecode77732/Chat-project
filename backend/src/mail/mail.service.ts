@@ -49,5 +49,8 @@ export class MailService {
         : 'Your role has changed',
       text: `Your account role has changed from ${roleLabel(previousRole)} to ${roleLabel(newRole)}.`,
     });
+    logger.info(
+      `Role change email sent to ${to}: ${roleLabel(previousRole)} → ${roleLabel(newRole)}`,
+    );
   }
 }

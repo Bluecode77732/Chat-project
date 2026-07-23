@@ -18,6 +18,22 @@ Before making any change:
 5. Run `pnpm lint` and `pnpm test` (or the relevant subset) before claiming success.
 6. Show the exact diff of changes made, not a paraphrase.
 7. Explicitly state all uncertainties instead of guessing — say "I'm not sure" and propose a verification step.
+8. After writing any code, scan the diff against Never Do Groups 1–3 and the Architecture
+   Decisions before claiming success. If a violation is found, fix it or invoke the
+   Principle Conflict Protocol — do not ship the diff as-is.
+9. This applies to *recommendations*, not just edits: before proposing a new script, guard,
+   tool, component, or dependency, first inspect the existing infrastructure (ESLint config
+   `backend/eslint.config.mjs`, CI workflow `.github/workflows/deploy.yml`, git hooks,
+   existing utilities) and prefer extending it. An unverified "let's build X" is the same
+   unfounded inference as inventing an API — advisory answers get the same inspect-first
+   rigor as file edits.
+10. Evidence expires: a grep/read/test result is a snapshot of the moment it ran, not of the
+    moment you conclude from it. Before stating a conclusion or reporting a gap, re-read the
+    file the claim is about if anything (a commit, an edit, another session) may have touched
+    it since the evidence was gathered. `git status`/`git log` only say *that* something
+    changed, never *what* the content now says — they are not a substitute for re-reading.
+    (Origin: a pre-commit grep was reused after an intervening commit, producing a report of
+    a CONTRIBUTING.md gap that the commit had already closed.)
 
 ## Scope Discipline (범위 준수)
 
@@ -108,6 +124,8 @@ After completing any implementation, apply the review perspective that matches w
 - Are there any regressions in existing functionality?
 - What side effects or hidden risks does this change introduce?
 - Is the change isolated enough, or does it bleed into unrelated areas?
+- Compliance scan: does the diff introduce any Never Do Group 1–3 pattern or violate an
+  Architecture Decision? List what was checked.
 
 ## Change Summary
 
@@ -119,10 +137,15 @@ After completing any task, always append a brief summary in this format:
 - Why: <the stated reason>
 - Side effects: <impact on: schema.gql / Redis key set / guard chain / frontend graphql-operations.ts>
 - Guard chain impact: <any change to guard order or new guard added — list affected endpoints; omit if no guard was touched>
+- README impact: <update README.md if a user-visible feature was added, modified, or removed; omit if no feature surface changed>
 - Pending: <anything deferred, left incomplete, or requiring follow-up>
 ```
 
 ## File Creation Convention
+
+Scope: applies to source code files (`.ts`/`.tsx`, etc.) only — the mechanic is a comment
+placed above an `import` statement, which has no equivalent in Markdown docs, `.env.example`
+templates, or other non-code files. Those are exempt from this section.
 
 When creating a new file (not when editing an existing one), add a short header
 comment above the imports stating:
@@ -412,9 +435,11 @@ Principle Conflict Protocol.
   pinned, and whether the base build environment is pinned by digest or only by
   tag. State only the guarantee that actually exists — do not imply stronger
   reproducibility
-- Observability (Logging, Metrics, Tracing) — verify which of the three actually
-  exist before claiming coverage. Do not claim metrics/tracing coverage if absent;
-  adding either is a new dependency requiring explicit request
+- Observability (Logging, Metrics, Tracing, Error Tracking) — backend has error tracking via
+  Sentry (`@sentry/nestjs`, 5xx only, see [ADR 0019](ADR/0019-sentry-error-tracking.md)).
+  Metrics and tracing remain absent — do not claim coverage; adding either is a new
+  dependency requiring explicit request. frontend/admin have no error tracking yet —
+  a separate, deferred task.
 - Privacy & Compliance — advisory: before adding any user data collection (analytics,
   tracking SDKs, third-party pixels), check whether a consent mechanism is required;
   right-to-erasure for this app's current data model is covered by `DELETE /user/:id`.
@@ -515,8 +540,9 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `forceLogout` (`chat.service.ts:58-61`), which disconnects the
-  previous socket when a new connection registers for the same user.
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a
+  `forceLogout` event and disconnects the previous socket when a new connection registers for
+  the same user.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
   conflicting real-time state.
 - Goal: any new per-user real-time registration (not just the existing socket path)
@@ -536,7 +562,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
-  (`user.service.ts:208,239,321`) — as a separate, queryable entity.
+  (`user.service.ts:296,323,419`) — as a separate, queryable entity.
 - Rationale: privileged actions need an attributable record independent of the
   application logs (which rotate/are unstructured); this already exists but isn't
   named as a requirement anywhere in this file.
@@ -549,7 +575,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: the backend validates message shape (`@IsString()`,
   `create-chat.dto.ts`) but does not sanitize or escape HTML — `ChatEntity.message` is
   stored exactly as submitted. The only sanitization point today is the React render
-  boundary (`DOMPurify.sanitize`, `chat-page.tsx:705`).
+  boundary (`DOMpurify.sanitize` -- note the library's actual export casing, `chat-page.tsx:733,771`).
 - Rationale: this means stored content is untrusted by default; any other surface that
   later reads `ChatEntity.message` (an admin viewer, an export, a log line, an AI prompt
   context) inherits that risk if it assumes the value is already safe.
@@ -560,7 +586,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: AI-generated replies publish through the exact same channel and shape as
   human messages — `aiService.handleReply()` is given a `publishFn` that calls
   `pubSub.publish('receiveMessage :${roomId}', { receiveMessage: msg })`
-  (`chat.resolver.ts:194-199`), identical to the human-message publish call (`:177`).
+  (`chat.resolver.ts:284-289`), identical to the human-message publish call (`:206`).
 - Rationale: this is what lets the frontend render AI and human messages through one
   code path with no sender-type branching.
 - Delivery guarantee: Redis PubSub provides at-most-once delivery — a subscriber not
@@ -569,10 +595,12 @@ one of these is violated, follow Principle Conflict Protocol.
   guaranteed delivery must use a persistent queue (e.g. BullMQ), not PubSub.
 - Goal: any new automated/system message source (not just the AI service) publishes
   through this same channel and shape — do not introduce a second message-delivery path.
+  Formalized as [ADR 0021](ADR/0021-unified-message-delivery-channel.md), now that a second
+  real implementation (moderation system messages) exists alongside AI replies.
 
 **Redis Adapter for Socket Horizontal Scaling**
 - Breakdown: `ChatGateway.afterInit()` wires Socket.IO to a Redis-backed adapter
-  (`@socket.io/redis-adapter`, `chat.gateway.ts:47-49`) so room membership and emits
+  (`@socket.io/redis-adapter`, `chat.gateway.ts:64`) so room membership and emits
   work correctly when more than one server instance is running.
 - Rationale: without the adapter, `server.to(socketId).emit(...)` and room broadcasts
   only reach clients connected to the same process — silently broken under horizontal
@@ -582,8 +610,8 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Distributed Lock for Concurrent Write Prevention**
 - Breakdown: `AiService.handleReply()` acquires an atomic Redis lock
-  (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:109-116`) before generating a reply,
-  and releases it in a `finally` block (`:178`); a failed acquisition skips the reply
+  (`SET ai:lock:{roomId} 1 EX 30 NX`, `ai.service.ts:115-122`) before generating a reply,
+  and releases it in a `finally` block (`:196`); a failed acquisition skips the reply
   rather than queuing it.
 - Rationale: without this, two messages arriving in quick succession for the same room
   could trigger two concurrent AI replies.
@@ -644,8 +672,9 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:219`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
+- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
+- Unavailability policy: security checks backed only by Redis (e.g. mute state, token blacklist) must fail closed explicitly (catch, log, deny) — never let an unguarded Redis call surface as an uncaught, undocumented `500`. A Redis read that already has a DB fallback in the same method (e.g. `user_cache`) should instead be treated as a cache miss and fall through to that DB path. See [ADR 0016](ADR/0016-redis-unavailability-policy.md).
 - **Never suggest**: node-redis (ioredis is unified across codebase)
 
 ### Database (PostgreSQL + TypeORM)
@@ -655,6 +684,8 @@ Do not suggest alternatives to these decisions without explicit request.
 - Relations: always explicit (`eager`/`lazy` never assumed from defaults)
 - Isolation level: `SERIALIZABLE` is used specifically for `updateRole` to prevent phantom reads in concurrent role-mutation checks (required by Role Population Invariants); do not apply `SERIALIZABLE` to other operations without explicit justification — it adds serialization overhead and retry costs under contention
 - Migration rollback: implement `down()` wherever reversal is meaningful; if a migration is intentionally irreversible (e.g. destructive column drop after data copy), document it with a comment in the migration file — never leave `down()` silently empty or throwing without explanation
+- Local Docker: after any migration that alters entity columns, rebuild the local stack — `docker compose up -d --build` — so the running container reflects the new schema
+- Generated-migration review: `migration:generate` re-emits a spurious FK drop/re-add on `room_entity_participants_user_entity` — its ManyToMany relation carries no `onDelete`, so TypeORM keeps trying to revert the `ON DELETE CASCADE` that `FixUserDeleteCascade1749700000000` set (and that `UserService.remove` relies on). Always strip those FK lines from the generated file, keep only the intended column change, then after running verify `SELECT confdeltype FROM pg_constraint WHERE conname='FK_501a0aef55632e3cf2894bda97f'` returns `c` (CASCADE) — an `a` (NO ACTION) breaks user deletion with a FK violation.
 - **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)
 
 ### API Layer
@@ -664,9 +695,10 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
 ### CORS
-- `CORS_ORIGIN` (`backend/src/app.module.ts:35`, `Joi.string().required()`) is a single
-  env var holding a **comma-separated list** of allowed origins, split into an array in
-  `backend/src/main.ts:42` before being passed to `app.enableCors({ origin })`
+- `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
+  pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
+  empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
+  into an array in `backend/src/main.ts:60` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value
@@ -714,7 +746,7 @@ pnpm lint             # ESLint
 ### Targeting a single test file
 ```bash
 cd backend
-pnpm test -- --testPathPattern=auth.service
+pnpm test --testPathPatterns auth.service
 ```
 
 ### Docker (local full stack)
@@ -725,8 +757,13 @@ docker compose up -d --build
 ## Architecture
 
 ### Monorepo Layout
-- **`backend/`** — NestJS backend (pnpm workspace package, single deployable)
-- **`frontend/`** — React + Vite (pnpm workspace package)
+- **`backend/`** — NestJS backend (pnpm workspace package, single deployable, Railway)
+- **`frontend/`** — React + Vite chat client (pnpm workspace package, Vercel, port 5173 local)
+- **`admin/`** — React + Vite admin dashboard (pnpm workspace package, its own separate Vercel
+  project, port 5174 local) — user/room management, moderation actions, audit-log CSV export.
+  Query/mutation-only against the GraphQL API: no `graphql-ws`/`socket.io-client` dependency, so it
+  never participates in realtime chat delivery. Has its own Playwright e2e suite (`admin/e2e/`, CI job
+  `admin-e2e`) which seeds a superadmin account before running.
 - **`backend/src/`** — NestJS source
 - **`backend/test/`** — E2E specs
 - **`backend/src/migrations/`** — TypeORM migration files
@@ -737,12 +774,12 @@ docker compose up -d --build
 - `ConfigModule` — Joi-validated env (see `backend/.env.example` for all required vars)
 - `TypeOrmModule` — PostgreSQL with `synchronize: false`; auto-runs migrations in prod
 - `GraphQLModule` — Apollo Driver, auto-generates `backend/src/schema.gql`, subscriptions via `graphql-ws`
-- `UserModule`, `ChatModule`, `AuthModule`, `AiModule`
+- `UserModule`, `ChatModule`, `AuthModule`, `AiModule`, `ModerationModule`
 
 **AuthModule** (`backend/src/auth/`)
 - REST: `POST /auth/register`, `POST /auth/signin`, `POST /auth/signOut`, `POST /auth/token/refreshaccess`
 - JWT access + refresh token pair; access token in memory, refreshToken in httpOnly cookie
-- Guards: `JwtAuthGuard`, `RbacGuard`, `GraphqlAuthGuard`
+- Guards: `JwtAuthGuard`, `RbacGuard`, `GraphQLAuthGuard`, `GraphQLRBACGuard`
 - `UserRole` enum: `user` (0) | `admin` (1) | `superadmin` (2) — `RbacGuard` compares numeric privilege level (`rbac.guard.ts`); the last remaining `superadmin` cannot be demoted (`user.service.ts`)
 
 **ChatModule** (`backend/src/chat/`)
@@ -762,6 +799,31 @@ docker compose up -d --build
 - `AiService.handleReply()` acquires `ai:lock:{roomId}` (NX/EX 30 s) before generating — prevents concurrent replies per room
 - Triggered by `ChatResolver` after `ctx.req.transactionCommitted` resolves (post-commit hook, not inline)
 - Registers `GENAI_CLIENT` (`@google/genai` `GoogleGenAI`) via `useFactory`
+
+**ModerationModule** (`backend/src/moderation/`)
+- Provides `ModerationService` (all stateful/side-effecting logic: strike accrual, escalation,
+  enforcement, the system-account seed, system-message dispatch) and `ModerationGuard` (thin
+  ban/mute check only — SRP split, see `moderation.guard.ts`)
+- Guard position on `sendMessage`: `@UseGuards(GraphQLAuthGuard, ModerationGuard, RateLimitGuard)` —
+  order is load-bearing (`chat.resolver.ts:186-188`): `ModerationGuard` must gate a muted/banned user
+  **before** `RateLimitGuard` spends its velocity budget on them
+- Socket.IO `handleConnection` applies the same ban gate as `jwt.strategy` (via
+  `moderationService.isUserBanned()`) so a still-valid token can't bypass a ban by connecting over a
+  socket instead
+- Escalation ladder: warn → mute → timed ban → permanent ban, driven by 8 optional env vars (all fall
+  back to `MODERATION_DEFAULTS` in `moderation.constants.ts` if unset): `MODERATION_STRIKE_WINDOW_SEC`
+  (default 86400), `MODERATION_WARN_THRESHOLD` (3), `MODERATION_MUTE_THRESHOLD` (5),
+  `MODERATION_MUTE_DURATION_SEC` (600), `MODERATION_BAN_THRESHOLD` (7), `MODERATION_BAN_DURATION_SEC`
+  (604800), `MODERATION_DUP_WINDOW_SEC` (60), `MODERATION_DUP_THRESHOLD` (3)
+- Redis keys (`moderation:{strike,dup,mute,velmark}:{userId}`, `{service}:{entity}:{id}` convention)
+  track strike/mute state; `AuditLogService.countByTarget()` (`audit-log.service.ts:56-60`) tells
+  `ModerationService` whether a repeat ban on the same user should escalate to permanent rather than
+  timed
+- One-directional dependency by design: `ModerationModule` never imports `ChatModule`, even though
+  `ChatModule` imports `ModerationModule` — `ModerationService` receives chat-side effects
+  (`publishFn`, `disconnectFn`) as callbacks injected by `ChatResolver` at call time, the same pattern
+  `AiService.handleReply()` uses, so no `ChatModule` ↔ `ModerationModule` cycle exists
+  (`moderation.module.ts:1-4`)
 
 **RedisModule** (`backend/src/redis/`) — global module; provides `ioredis` client and `SessionCacheService`
 
@@ -832,7 +894,7 @@ const mockRepository = {
 
 ### Logging
 - Use injected NestJS `Logger` (winston under the hood)
-- Logs write to `logs/logs.log` and `logs/error.logs.log` in non-Vercel environments
+- Logs write to `logs/logs.log` and `logs/error.logs.log`. On Railway these persist across redeploys via an attached volume (`RAILWAY_VOLUME_MOUNT_PATH`); locally/CI they fall back to `backend/logs/`. See [ADR 0018](ADR/0018-railway-volume-log-persistence.md).
 - Never log sensitive fields: `password`, `token`, `refreshToken`, `secret`
 
 ### Code Style
@@ -897,6 +959,12 @@ Advisory. Apply to new components; do not retroactively audit existing ones.
   announce new content without requiring focus movement.
 - Focus should return to a logical anchor element after a modal or drawer closes.
 
+#### E2E Testing (Playwright)
+- Selector priority: `getByRole` / `getByLabel` first — use `getByTestId` only when no
+  semantic equivalent exists. `getByRole` catches a11y regressions as a side effect.
+- `getByText` is for assertions only — using it for interactions (click, fill, etc.)
+  causes silent test breakage when visible text changes.
+
 #### Internationalization (i18n)
 Advisory. No i18n library is currently in place; this convention activates when one is adopted.
 - UI-visible strings in new components should be externalized to a named constant or
@@ -909,8 +977,30 @@ Advisory. No i18n library is currently in place; this convention activates when 
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/deploy.yml`):
-1. **Test job**: `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` (Node 24, pnpm 10.14.0)
-2. **Deploy job**: `pnpm --filter backend build` → Railway CLI deploy (requires `RAILWAY_TOKEN` secret)
+GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and on PRs targeting
+`main`. Node 24 (`.nvmrc`), pnpm 10.33.0 (pinned per job via `pnpm/action-setup`).
+
+1. **`test`** — matrix `ubuntu-latest` + `windows-latest` (Windows is `continue-on-error: true`,
+   ubuntu is not). `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` →
+   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (broken links/anchors,
+   stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
+   (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:deps` (README's
+   Dependencies/DevDependencies lists in sync with `backend/package.json`). No step has a `|| true`
+   fallback — any failure hard-fails the job.
+2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs
+   migrations, runs the backend's jest e2e boot-smoke suite (`pnpm --filter backend test:e2e`), starts
+   the compiled server, then runs Playwright e2e against `frontend/`. Blocks `deploy`.
+3. **`admin-e2e`** (needs `test`; same service containers) — seeds a superadmin, runs Playwright e2e
+   against `admin/`. Deliberately `continue-on-error: true` and excluded from `deploy`'s `needs` — as
+   of this writing it has never completed a confirmed run in GitHub Actions' history (checked via the
+   Actions API); revert to blocking once it has at least one confirmed success. See
+   [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) for the full CI job table.
+4. **`deploy`** (needs `[test, e2e]`; only runs on push to `main`) — `pnpm --filter backend build` →
+   Railway CLI deploy (requires `RAILWAY_TOKEN` secret).
+
+**Dependabot** (`.github/dependabot.yml`) — weekly PRs, no auto-merge (every update gets a manual
+review). One `npm`-ecosystem entry at the repo root covers the whole pnpm workspace
+(`backend`/`frontend`/`admin`) via the shared `pnpm-lock.yaml`; a second `github-actions` entry keeps
+the workflow's own action versions (`actions/checkout`, `pnpm/action-setup`, etc.) current.
 
 Railway start command: `cd backend && pnpm migration:run && node dist/main`

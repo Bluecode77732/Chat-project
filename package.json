@@ -2,6 +2,11 @@
   "name": "chat-app-workspace",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",
+  "engines": {
+    "node": "24.x",
+    "pnpm": ">=10"
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "bcrypt",
@@ -12,14 +17,21 @@
       "unrs-resolver"
     ],
     "overrides": {
-      "qs": ">=6.14.2",
+      "qs": ">=6.15.2",
       "diff": ">=4.0.4",
       "socket.io-parser": ">=4.2.6",
       "flatted": ">=3.4.2",
       "picomatch": ">=4.0.4",
       "path-to-regexp": ">=8.4.0",
       "lodash": ">=4.18.0",
-      "@apollo/client": "^4.1.9"
+      "@apollo/client": "^4.1.9",
+      "multer": ">=2.2.0",
+      "form-data": ">=4.0.6",
+      "js-yaml": ">=4.2.0",
+      "uuid": ">=11.1.1 <12.0.0",
+      "protobufjs": ">=7.6.3",
+      "@protobufjs/utf8": ">=1.1.1",
+      "ws": ">=8.21.0"
     }
   },
   "scripts": {
@@ -30,6 +42,10 @@
     "test:cov": "pnpm --filter backend test:cov",
     "test:e2e": "pnpm --filter backend test:e2e",
     "migration:generate": "pnpm --filter backend migration:generate",
-    "migration:run": "pnpm --filter backend migration:run"
+    "migration:run": "pnpm --filter backend migration:run",
+    "check:adr": "node scripts/check-adr-integrity.mjs",
+    "check:config": "node scripts/check-config-values.mjs",
+    "check:deps": "node scripts/check-dependency-list.mjs",
+    "check:changelog": "node scripts/check-changelog-sync.mjs"
   }
 }

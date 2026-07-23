@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SessionCacheService } from './redis.service';
+import { RECONCILE_INTERVAL_MS, SessionCacheService } from './redis.service';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
+import { logger } from 'src/base/logger/logger';
+
+jest.mock('src/base/logger/logger', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 describe('SessionCacheService', () => {
   let redisService: SessionCacheService;
@@ -23,11 +28,14 @@ describe('SessionCacheService', () => {
       sadd: jest.fn(),
       srem: jest.fn(),
       smembers: jest.fn(),
+      sscan: jest.fn(),
+      pipeline: jest.fn(),
       lpush: jest.fn(),
       ltrim: jest.fn(),
       lrange: jest.fn(),
       del: jest.fn(),
       multi: jest.fn(),
+      quit: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -52,12 +60,199 @@ describe('SessionCacheService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should clear online_users Set on startup', async () => {
-      jest.spyOn(mockRedisClient, 'del').mockResolvedValue(1);
+    let setIntervalSpy: jest.SpyInstance;
+
+    const mockPipeline = (
+      execResult: Array<[Error | null, unknown]> | null,
+    ) => {
+      const pipeline = {
+        exists: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(execResult),
+      };
+      jest
+        .spyOn(mockRedisClient, 'pipeline')
+        .mockReturnValue(pipeline as never);
+      return pipeline;
+    };
+
+    beforeEach(() => {
+      // Prevent a real 5-minute interval from being scheduled during tests (open-handle leak).
+      setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockReturnValue(999 as unknown as ReturnType<typeof setInterval>);
+    });
+
+    afterEach(() => {
+      setIntervalSpy.mockRestore();
+    });
+
+    it('should reconcile online_users on startup, removing members with no matching user:{id} hash', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', ['1', '2']]);
+      mockPipeline([
+        [null, 1],
+        [null, 0],
+      ]);
+      jest.spyOn(mockRedisClient, 'srem').mockResolvedValue(1);
 
       await redisService.onModuleInit();
 
-      expect(mockRedisClient.del).toHaveBeenCalledWith('online_users');
+      expect(mockRedisClient.sscan).toHaveBeenCalledWith(
+        'online_users',
+        '0',
+        'COUNT',
+        100,
+      );
+      expect(mockRedisClient.srem).toHaveBeenCalledWith('online_users', '2');
+      expect(mockRedisClient.srem).not.toHaveBeenCalledWith(
+        'online_users',
+        '1',
+      );
+    });
+
+    it('should schedule a recurring reconciliation interval', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', []]);
+
+      await redisService.onModuleInit();
+
+      expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+      expect(setIntervalSpy).toHaveBeenCalledWith(
+        expect.any(Function),
+        RECONCILE_INTERVAL_MS,
+      );
+    });
+
+    it('should not throw when the reconciliation sweep fails during startup', async () => {
+      jest
+        .spyOn(mockRedisClient, 'sscan')
+        .mockRejectedValue(new Error('ECONNRESET'));
+
+      await expect(redisService.onModuleInit()).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should page through multiple SSCAN cursors before stopping', async () => {
+      jest
+        .spyOn(mockRedisClient, 'sscan')
+        .mockResolvedValueOnce(['5', ['1']])
+        .mockResolvedValueOnce(['0', ['2']]);
+      mockPipeline([[null, 1]]);
+
+      await redisService.onModuleInit();
+
+      expect(mockRedisClient.sscan).toHaveBeenCalledTimes(2);
+      expect(mockRedisClient.pipeline).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle an empty online_users set without calling pipeline', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', []]);
+
+      await redisService.onModuleInit();
+
+      expect(mockRedisClient.pipeline).not.toHaveBeenCalled();
+    });
+
+    it('should skip srem for a member whose EXISTS check errored', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', ['1', '2']]);
+      mockPipeline([
+        [new Error('timeout'), null],
+        [null, 0],
+      ]);
+      jest.spyOn(mockRedisClient, 'srem').mockResolvedValue(1);
+
+      await redisService.onModuleInit();
+
+      expect(mockRedisClient.srem).toHaveBeenCalledWith('online_users', '2');
+      expect(mockRedisClient.srem).not.toHaveBeenCalledWith(
+        'online_users',
+        '1',
+      );
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('should skip srem entirely when no members are stale', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', ['1', '2']]);
+      mockPipeline([
+        [null, 1],
+        [null, 1],
+      ]);
+
+      await redisService.onModuleInit();
+
+      expect(mockRedisClient.srem).not.toHaveBeenCalled();
+    });
+
+    it('should log a warning and skip srem when pipeline exec returns null', async () => {
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', ['1']]);
+      mockPipeline(null);
+
+      await redisService.onModuleInit();
+
+      expect(mockRedisClient.srem).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('onModuleDestroy', () => {
+    it('should quit the shared Redis connection', async () => {
+      jest.spyOn(mockRedisClient, 'quit').mockResolvedValue('OK');
+
+      await redisService.onModuleDestroy();
+
+      expect(mockRedisClient.quit).toHaveBeenCalled();
+    });
+
+    it('should log and rethrow when quit fails', async () => {
+      jest
+        .spyOn(mockRedisClient, 'quit')
+        .mockRejectedValue(new Error('connection already closed'));
+
+      await expect(redisService.onModuleDestroy()).rejects.toThrow(
+        'connection already closed',
+      );
+    });
+
+    it('should clear the reconciliation interval before quitting Redis', async () => {
+      const setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockReturnValue(999 as unknown as ReturnType<typeof setInterval>);
+      const clearIntervalSpy = jest
+        .spyOn(global, 'clearInterval')
+        .mockImplementation(() => undefined);
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', []]);
+      jest.spyOn(mockRedisClient, 'quit').mockResolvedValue('OK');
+
+      await redisService.onModuleInit();
+      await redisService.onModuleDestroy();
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(999);
+      expect(mockRedisClient.quit).toHaveBeenCalled();
+
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
+    });
+
+    it('should still clear the reconciliation interval when quit fails', async () => {
+      const setIntervalSpy = jest
+        .spyOn(global, 'setInterval')
+        .mockReturnValue(999 as unknown as ReturnType<typeof setInterval>);
+      const clearIntervalSpy = jest
+        .spyOn(global, 'clearInterval')
+        .mockImplementation(() => undefined);
+      jest.spyOn(mockRedisClient, 'sscan').mockResolvedValue(['0', []]);
+      jest
+        .spyOn(mockRedisClient, 'quit')
+        .mockRejectedValue(new Error('connection already closed'));
+
+      await redisService.onModuleInit();
+      await expect(redisService.onModuleDestroy()).rejects.toThrow(
+        'connection already closed',
+      );
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(999);
+
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
     });
   });
 
@@ -212,6 +407,16 @@ describe('SessionCacheService', () => {
     });
   });
 
+  describe('deleteMessageCache', () => {
+    it('should delete the room message cache key', async () => {
+      jest.spyOn(mockRedisClient, 'del').mockResolvedValue(1);
+
+      await redisService.deleteMessageCache(1);
+
+      expect(mockRedisClient.del).toHaveBeenCalledWith('room_messages:1');
+    });
+  });
+
   describe('getCachedMessages', () => {
     it('should return null when cache is empty', async () => {
       jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue([]);
@@ -261,6 +466,24 @@ describe('SessionCacheService', () => {
 
       expect(result![0].created).toBeInstanceOf(Date);
       expect(Number.isNaN(result![0].created.getTime())).toBe(true);
+    });
+
+    it('drops an entry that fails to JSON.parse and keeps the rest', async () => {
+      const entries = [
+        '{not valid json',
+        JSON.stringify({
+          id: 1,
+          message: 'hello',
+          created: '2026-05-27T00:00:00.000Z',
+          participant: { id: 1 },
+        }),
+      ];
+      jest.spyOn(mockRedisClient, 'lrange').mockResolvedValue(entries);
+
+      const result = await redisService.getCachedMessages(1);
+
+      expect(result).toHaveLength(1);
+      expect(result![0].id).toBe(1);
     });
   });
 });

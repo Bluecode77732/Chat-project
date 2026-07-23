@@ -41,8 +41,18 @@ function SignInPage() {
             recordSessionUser(decoded.sub);
             // Move to the chat page
             navigate('/chat');
-        } catch {
-            setError('Your email or password is not correct.');
+        } catch (err: unknown) {
+            // Rate-limited (429) attempts get the server's actual message; anything
+            // else (wrong credentials, etc.) keeps the existing generic message rather
+            // than surfacing the backend's less user-friendly "Invalid User." text.
+            const status = (err as { response?: { status?: number } })?.response?.status;
+            if (status === 429) {
+                const message = (err as { response?: { data?: { message?: string } } })
+                    ?.response?.data?.message;
+                setError(message ?? 'Too many attempts, please try again later.');
+            } else {
+                setError('Your email or password is not correct.');
+            }
         };
     };
 

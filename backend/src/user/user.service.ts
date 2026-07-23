@@ -8,7 +8,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { And, DataSource, ILike, Not, Repository } from 'typeorm';
+import { ModerationStatus } from 'src/moderation/enums/moderation-status.enum';
+import { SYSTEM_USER_EMAIL } from 'src/moderation/constants/moderation.constants';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/auth/role/role';
@@ -89,8 +91,78 @@ export class UserService {
     });
   }
 
-  async findAll() {
-    return await this.userRepository.find();
+  async findAll(
+    page = 1,
+    take = 20,
+    sort: 'ASC' | 'DESC' = 'DESC',
+    sortBy: 'id' | 'role' | 'created' = 'id',
+    search?: string,
+    status?: ModerationStatus,
+    humanOnly?: boolean,
+  ): Promise<{
+    data: {
+      id: number;
+      email: string;
+      nickname: string | null;
+      role: number;
+      created: Date;
+    }[];
+    total: number;
+    page: number;
+    take: number;
+  }> {
+    const statusFilter = status ? { status } : {};
+    // humanOnly excludes the two seeded non-human accounts: the AI companion (isAI:true)
+    // and the moderation system account (isAI:false, so caught by email exclusion instead).
+    const humanFilter = humanOnly ? { isAI: false } : {};
+    const systemEmailExclusion = humanOnly
+      ? { email: Not(SYSTEM_USER_EMAIL) }
+      : {};
+    const nonEmailFilter = { ...statusFilter, ...humanFilter };
+    const where = search
+      ? [
+          {
+            // And() is needed only here: this branch already sets `email` for the search
+            // match, and a plain spread would let systemEmailExclusion's `email` key
+            // silently overwrite it (same collision the audit-log date range hit).
+            email: humanOnly
+              ? And(ILike(`%${search}%`), Not(SYSTEM_USER_EMAIL))
+              : ILike(`%${search}%`),
+            ...nonEmailFilter,
+          },
+          {
+            nickname: ILike(`%${search}%`),
+            ...nonEmailFilter,
+            ...systemEmailExclusion,
+          },
+        ]
+      : status || humanOnly
+        ? { ...nonEmailFilter, ...systemEmailExclusion }
+        : undefined;
+    const [rows, total] = await this.userRepository.findAndCount({
+      where,
+      order: { [sortBy]: sort },
+      skip: (page - 1) * take,
+      take,
+    });
+    const data = rows.map((u) => {
+      if (
+        u.id === undefined ||
+        u.email === undefined ||
+        u.role === undefined ||
+        !u.created
+      ) {
+        throw new Error(`user entity missing required field: id=${u.id}`);
+      }
+      return {
+        id: u.id,
+        email: u.email,
+        nickname: u.nickname ?? null,
+        role: u.role,
+        created: u.created,
+      };
+    });
+    return { data, total, page, take };
   }
 
   async findOne(id: number) {
@@ -183,7 +255,6 @@ export class UserService {
 
         // 마지막 superadmin 강등 방지
         if (
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
           previousRole === UserRole.superadmin &&
           role !== UserRole.superadmin
         ) {
@@ -237,6 +308,9 @@ export class UserService {
       }
     }
 
+    logger.info(
+      `[actor=${actorId}, user=${targetId}] Role changed: ${roleLabel(previousRole)} → ${roleLabel(role)}`,
+    );
     return { id: targetId, role };
   }
 
@@ -263,6 +337,12 @@ export class UserService {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User Not Found.');
+    }
+
+    // ①-2 시스템 계정(AI 답장/moderation 경고·밴 메시지 발신용) 삭제 방지 —
+    // 삭제되면 해당 기능이 통째로 깨짐. 둘 다 실제 로그인 경로가 없어 본인 요청으로는 도달 불가.
+    if (user.isAI || user.email === SYSTEM_USER_EMAIL) {
+      throw new BadRequestException('Cannot delete a system-managed account.');
     }
 
     // ② 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)

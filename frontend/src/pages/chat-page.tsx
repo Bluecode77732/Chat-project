@@ -9,7 +9,7 @@ import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/cl
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import {
     SEND_MESSAGE, RECEIVE_MESSAGE, GET_ONLINE_USERS, GET_ALL_USERS, GET_MESSAGES,
-    GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
+    GET_ROOM, GET_MY_ROOMS, GET_AI_USER_ID, GET_SYSTEM_USER_ID, SET_AI_PERSONALITY, GET_AI_PERSONALITY_INFO,
     GET_USER_NICKNAMES,
     SendMessageVariables,
 } from "../api/graphql-operations";
@@ -90,6 +90,7 @@ function ChatPage() {
     const navigate = useNavigate();
 
     const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState<number | null>(null);
+    const [moderationNotice, setModerationNotice] = useState<string | null>(null);
     const [pendingPersonality, setPendingPersonality] = useState<string | null>(null);
     const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
     const [isInitialSelect, setIsInitialSelect] = useState(true);
@@ -154,7 +155,12 @@ function ChatPage() {
 
     const { data: aiUserData } = useQuery<{ getAiUserId: number }>(GET_AI_USER_ID);
     const aiUserId = aiUserData?.getAiUserId ?? null;
-    const initials = (id: number) => (aiUserId !== null && id === aiUserId) ? 'AI' : displayName(id).slice(0, 2);
+    const { data: systemUserData } = useQuery<{ getSystemUserId: number }>(GET_SYSTEM_USER_ID);
+    const systemUserId = systemUserData?.getSystemUserId ?? null;
+    const initials = (id: number) =>
+        (aiUserId !== null && id === aiUserId) ? 'AI'
+            : (systemUserId !== null && id === systemUserId) ? 'SYS'
+                : displayName(id).slice(0, 2);
     // iMessage-style tail: a small same-color blob plus a page-background-color mask curving part of it away.
     const bubbleTailClass = (isMine: boolean) =>
         isMine
@@ -391,6 +397,14 @@ function ChatPage() {
             if (CombinedGraphQLErrors.is(err) &&
                 err.errors.some(e => e.extensions?.['code'] === 'TOO_MANY_REQUESTS')) {
                 setRateLimitSecondsLeft(RATE_LIMIT_WINDOW_SECONDS);
+                return;
+            }
+            // Moderation block (temporary mute / defense-in-depth ban) — surface a notice
+            // instead of failing silently. A hard ban is separately handled at the auth layer.
+            if (CombinedGraphQLErrors.is(err) &&
+                err.errors.some(e => e.extensions?.['code'] === 'FORBIDDEN')) {
+                setModerationNotice('메시지 전송이 일시적으로 제한되었습니다.');
+                window.setTimeout(() => setModerationNotice(null), 4000);
                 return;
             }
             throw err;
@@ -659,6 +673,7 @@ function ChatPage() {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
+                data-testid="chat-messages-list"
                 className="flex-1 min-w-0 overflow-y-auto flex flex-col gap-2"
             >
                 {messagesLoading && messages.length === 0 && (
@@ -696,8 +711,33 @@ function ChatPage() {
                 }, []).map((group, gi, allGroups) => {
                     const isMine = group[0].userId === userId;
                     const isAi = aiUserId !== null && group[0].userId === aiUserId;
+                    const isSystem = systemUserId !== null && group[0].userId === systemUserId;
                     const profileImage = isAi ? null : profileImageById.get(group[0].userId);
                     const showDateDivider = dateKey(group[0].createdAt) !== dateKey(allGroups[gi - 1]?.[0]?.createdAt);
+
+                    // System moderation notices render centered, not as a participant bubble.
+                    if (isSystem) {
+                        return (
+                            <Fragment key={group[0].id ?? gi}>
+                                {showDateDivider && group[0].createdAt && (
+                                    <div className="flex justify-center my-1">
+                                        <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1">
+                                            {formatDate(group[0].createdAt)}
+                                        </span>
+                                    </div>
+                                )}
+                                {group.map((msg, i) => (
+                                    <div key={msg.id ?? i} className="flex justify-center my-1">
+                                        <span
+                                            className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 max-w-[80%] text-center"
+                                            dangerouslySetInnerHTML={{ __html: DOMpurify.sanitize(msg.message) }}
+                                        />
+                                    </div>
+                                ))}
+                            </Fragment>
+                        );
+                    }
+
                     return (
                         <Fragment key={group[0].id ?? gi}>
                             {showDateDivider && group[0].createdAt && (
@@ -753,6 +793,15 @@ function ChatPage() {
         )}
         {rateLimitSecondsLeft !== null && (
             <RateLimitNotice secondsLeft={rateLimitSecondsLeft} />
+        )}
+        {moderationNotice && (
+            <div
+                className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 text-center"
+                role="status"
+                aria-live="polite"
+            >
+                {moderationNotice}
+            </div>
         )}
         <div className="flex gap-2 mt-4 items-end">
                 <textarea

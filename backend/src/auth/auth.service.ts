@@ -15,6 +15,7 @@ import { UserRole } from './role/role';
 import { logger } from 'src/base/logger/logger';
 import Redis from 'ioredis';
 import { Payload } from './interface/payload.interface';
+import { isEffectivelyBanned } from 'src/moderation/moderation.util';
 
 type JwtPayload = Payload & { iat: number; exp: number };
 
@@ -31,6 +32,11 @@ export class AuthService {
   ) {}
 
   parseBasicToken(rawToken: string) {
+    if (!rawToken) {
+      logger.warn('Bad Token Format: missing Authorization header');
+      throw new BadRequestException('Bad Token Format.');
+    }
+
     // 1. Splits token by basic and token. Regex(/\s+/) inserted for clearer space.
     // ['Basic', token]
     const basicToken = rawToken.split(' ');
@@ -288,6 +294,12 @@ export class AuthService {
     });
     if (!user) {
       throw new UnauthorizedException('User Not Found.');
+    }
+    // Auth-level ban gate: a banned user must not be able to mint a fresh access token,
+    // otherwise the client's silent-refresh retry would loop against jwt.strategy's ban check.
+    if (isEffectivelyBanned(user)) {
+      logger.warn(`[user=${user.id}] Banned user attempted token refresh`);
+      throw new UnauthorizedException('Account Suspended');
     }
     return {
       accessToken: await this.issueToken(

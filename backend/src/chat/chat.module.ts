@@ -11,12 +11,14 @@ import { RedisModule } from 'src/redis/redis.module';
 import { PubSubService } from 'src/graphql/pubsub.service';
 import { AiModule } from 'src/ai/ai.module';
 import { GqlTransactionInterceptor } from './interceptor/gql-transaction.interceptor';
+import { ModerationModule } from 'src/moderation/moderation.module';
 
 @Module({
   imports: [
     AuthModule,
     RedisModule,
     AiModule,
+    ModerationModule,
     TypeOrmModule.forFeature([UserEntity, ChatEntity, RoomEntity]),
   ],
   providers: [

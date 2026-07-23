@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { GraphQLError } from 'graphql';
+import * as Sentry from '@sentry/nestjs';
 import { logger } from 'src/base/logger/logger';
 
 @Catch()
@@ -52,6 +53,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `[${isGraphQL ? 'GraphQL' : 'HTTP'}] ${status} — ${exception instanceof Error ? exception.message : String(exception)}`,
       { stack },
     );
+    if (Number(status) >= 500) {
+      Sentry.captureException(exception, { extra: { stack, isGraphQL } });
+    }
 
     if (isGraphQL) {
       throw new GraphQLError(message, {

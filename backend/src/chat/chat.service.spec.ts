@@ -52,6 +52,8 @@ describe('ChatService', () => {
           useValue: {
             createQueryBuilder: jest.fn(),
             manager: jest.fn(),
+            findOne: jest.fn(),
+            delete: jest.fn(),
           },
         },
         {
@@ -68,6 +70,7 @@ describe('ChatService', () => {
             getUserStatus: jest.fn(),
             cacheMessage: jest.fn().mockResolvedValue(undefined),
             getCachedMessages: jest.fn().mockResolvedValue(null),
+            deleteMessageCache: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -716,6 +719,23 @@ describe('ChatService', () => {
       expect(result).toHaveProperty('message', 'a message');
     });
 
+    it('should throw WsException when the resolved sender has no id', async () => {
+      const payload = { sub: 1 };
+      const senderWithoutId = { id: undefined } as unknown as UserEntity;
+
+      jest
+        .spyOn(userRepository, 'findOneByOrFail')
+        .mockResolvedValue(senderWithoutId);
+
+      await expect(
+        chatService.sendMessage(
+          payload,
+          { message: 'hi', recipientId: 2 },
+          mockManager as EntityManager,
+        ),
+      ).rejects.toThrow(WsException);
+    });
+
     it('should throw WsException when recipientId is invalid', async () => {
       const payload = { sub: 1 };
       const mockSender = { id: 1 } as UserEntity;
@@ -832,6 +852,218 @@ describe('ChatService', () => {
         select: ['id', 'nickname', 'profileImage'],
       });
       expect(result).toEqual(mockUsers);
+    });
+  });
+
+  describe('getAllUsers', () => {
+    it('should return non-AI user ids excluding the current user', async () => {
+      const mockUsers = [{ id: 1 }, { id: 2 }, { id: 3 }] as UserEntity[];
+      jest.spyOn(userRepository, 'find').mockResolvedValue(mockUsers);
+
+      const result = await chatService.getAllUsers(2);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(userRepository.find)).toHaveBeenCalledWith({
+        where: { isAI: false },
+        select: ['id'],
+      });
+      expect(result).toEqual([1, 3]);
+    });
+
+    it('should filter out users with an undefined id', async () => {
+      const mockUsers = [
+        { id: 1 },
+        { id: undefined },
+      ] as unknown as UserEntity[];
+      jest.spyOn(userRepository, 'find').mockResolvedValue(mockUsers);
+
+      const result = await chatService.getAllUsers(99);
+
+      expect(result).toEqual([1]);
+    });
+  });
+
+  describe('disconnectSocket', () => {
+    it('should disconnect the matching socket when present', () => {
+      const mockDisconnect = jest.fn();
+      const mockServer = {
+        sockets: {
+          sockets: new Map([['abc', { disconnect: mockDisconnect }]]),
+        },
+      };
+      chatService.setServer(mockServer as any);
+
+      chatService.disconnectSocket('abc');
+
+      expect(mockDisconnect).toHaveBeenCalledWith(true);
+    });
+
+    it('should do nothing when the socket is not found', () => {
+      const mockServer = { sockets: { sockets: new Map() } };
+      chatService.setServer(mockServer as any);
+
+      expect(() => chatService.disconnectSocket('missing')).not.toThrow();
+    });
+
+    it('should do nothing when the server has not been set', () => {
+      expect(() => chatService.disconnectSocket('abc')).not.toThrow();
+    });
+  });
+
+  describe('findAllRooms', () => {
+    const mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn(),
+    };
+
+    beforeEach(() => {
+      jest
+        .spyOn(roomRepository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
+    });
+
+    it('should return paginated rooms with participant ids', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          {
+            id: 1,
+            created: new Date('2025-01-01'),
+            participants: [{ id: 1 }, { id: 2 }],
+          },
+        ],
+        1,
+      ]);
+
+      const result = await chatService.findAllRooms();
+
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('room.id', 'DESC');
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(0);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(20);
+      expect(result).toEqual({
+        data: [
+          {
+            roomId: 1,
+            participantIds: [1, 2],
+            created: new Date('2025-01-01'),
+          },
+        ],
+        total: 1,
+        page: 1,
+        take: 20,
+      });
+    });
+
+    it('should sort by created date when sortBy is created', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await chatService.findAllRooms(2, 10, 'ASC', 'created');
+
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'room.created',
+        'ASC',
+      );
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
+    });
+
+    it('should apply an ILIKE search filter on email/nickname when search is provided', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await chatService.findAllRooms(1, 20, 'DESC', 'id', 'alice');
+
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'user.email ILIKE :search OR user.nickname ILIKE :search',
+        { search: '%alice%' },
+      );
+    });
+
+    it('should skip rooms with no id or no created date', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          { id: undefined, created: new Date(), participants: [] },
+          { id: 1, created: undefined, participants: [] },
+        ],
+        2,
+      ]);
+
+      const result = await chatService.findAllRooms();
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('should filter out participants with an undefined id', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          {
+            id: 1,
+            created: new Date('2025-01-01'),
+            participants: [{ id: 1 }, { id: undefined }],
+          },
+        ],
+        1,
+      ]);
+
+      const result = await chatService.findAllRooms();
+
+      expect(result.data[0].participantIds).toEqual([1]);
+    });
+  });
+
+  describe('deleteRoom', () => {
+    it('should delete the room and its message cache', async () => {
+      jest.spyOn(roomRepository, 'findOne').mockResolvedValue({ id: 1 });
+      jest.spyOn(roomRepository, 'delete').mockResolvedValue({} as any);
+
+      await chatService.deleteRoom(1);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(roomRepository.delete)).toHaveBeenCalledWith(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(jest.mocked(redisService.deleteMessageCache)).toHaveBeenCalledWith(
+        1,
+      );
+    });
+
+    it('should throw when the room does not exist', async () => {
+      jest.spyOn(roomRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(chatService.deleteRoom(1)).rejects.toThrow('Room not found');
+    });
+  });
+
+  describe('isRoomParticipant', () => {
+    const mockQueryBuilder = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getCount: jest.fn(),
+    };
+
+    beforeEach(() => {
+      jest
+        .spyOn(roomRepository, 'createQueryBuilder')
+        .mockReturnValue(mockQueryBuilder as any);
+    });
+
+    it('should return true when the user is a participant', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(1);
+
+      const result = await chatService.isRoomParticipant(1, 5);
+
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('room.id = :roomId', {
+        roomId: 5,
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false when the user is not a participant', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+
+      const result = await chatService.isRoomParticipant(1, 5);
+
+      expect(result).toBe(false);
     });
   });
 });

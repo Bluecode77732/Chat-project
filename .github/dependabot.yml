@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # pnpm workspace: a single entry at the root covers backend/, frontend/, and
+  # admin/ via the shared pnpm-lock.yaml -- Dependabot resolves all workspace
+  # packages from there, no per-package entry needed.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

@@ -1,3 +1,4 @@
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { WinstonModule } from 'nest-winston';
 import { logger } from './base/logger/logger';
 import { AllExceptionsFilter } from './base/filter/all-exceptions.filter';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -20,8 +22,19 @@ async function bootstrap() {
   // dropped abruptly on every deploy instead of closed gracefully.
   app.enableShutdownHooks();
 
+  // Railway sits in front of the app as a reverse proxy — without this, req.ip
+  // resolves to the proxy's own address for every request, collapsing
+  // AuthRateLimitGuard's per-client IP buckets into one shared bucket.
+  // '1' trusts exactly the immediate hop rather than the full X-Forwarded-For chain.
+  app.set('trust proxy', 1);
+
   // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
+  // CSP omitted: this backend serves ~no HTML (REST/GraphQL are JSON-only), so a
+  // CSP header here would only ever protect Swagger UI (/document), which needs
+  // its own exception for inline scripts anyway. The actual XSS-relevant surface
+  // (frontend/admin's rendered pages) is a separate origin this header can't reach.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Default Express body limit (100kb) is far smaller than a base64-encoded
@@ -59,13 +72,25 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Chat')
+    .setTitle('Chat API')
     .setDescription(
-      'Go to Auth section and register a user to issue an access token to test out.',
+      [
+        'REST API for the Chat application (auth, user and audit-log management).',
+        'Real-time chat itself runs over GraphQL subscriptions and Socket.IO and is not documented here.',
+        '',
+        'Getting started: use the Authentication API — register, then sign in with Basic auth to obtain an access token, and authorize with it (Bearer) to call the protected endpoints.',
+      ].join('\n'),
     )
     .setVersion('1.0')
+    // Basic auth: register/signin carry email:password in the Authorization header.
     .addBasicAuth()
-    .addBearerAuth()
+    // Bearer auth: protected endpoints expect the JWT access token.
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+    // Cookie auth: token/refreshaccess reads the httpOnly refreshToken cookie.
+    .addCookieAuth('refreshToken')
+    .addTag('Authentication API', 'Register, sign in/out and token refresh')
+    .addTag('User API', 'User CRUD, role management and force-logout')
+    .addTag('Audit Log API', 'Audit trail of privileged actions (admin only)')
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
@@ -82,4 +107,6 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000, host);
   logger.info(`Server running on ${host}:${process.env.PORT ?? 3000}`);
 }
-bootstrap().catch(console.error);
+bootstrap().catch((err: Error) =>
+  logger.error(`Bootstrap failed: ${err.message}\n${err.stack ?? ''}`),
+);

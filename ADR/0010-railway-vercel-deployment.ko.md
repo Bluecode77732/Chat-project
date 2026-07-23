@@ -1,0 +1,49 @@
+# 0010: 배포는 Railway(backend) + Vercel(frontend, admin)
+
+## 상태
+
+Accepted
+
+## 배경
+
+배포 단위 세 개(`backend`, `frontend`, `admin`)에 호스팅이 필요합니다. 하나는 Postgres + Redis
+연결을 유지하는 장기 실행 Node 프로세스이고, 나머지 둘은 정적/SPA React 빌드입니다.
+
+## 결정
+
+- `backend`는 Railway에 배포합니다. `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을
+  빌드하고, 시작 시 `pnpm migration:run && node dist/main`을 실행하며, 실패 시 최대 3회까지
+  재시작합니다. `main` 브랜치 push 시 `.github/workflows/deploy.yml`의 `deploy` 잡이
+  트리거합니다.
+- Railway는 `healthcheckPath = "/health"`로 배포 헬스를 판단합니다. liveness만 확인하고
+  DB/Redis는 점검하지 않는데, 이는 일시적인 의존성 장애가 멀쩡한 컨테이너의 재시작 루프로
+  이어지는 것을 막기 위해서입니다.
+- `frontend`와 `admin`은 각각 자기만의 별도 Vercel 프로젝트에 배포하며, 각자
+  `vercel.json`(SPA 리라이트만)을 가집니다.
+- **이유:** 개인 프로젝트에 충분한 무료/저비용 티어, 그리고 두 플랫폼 모두 GitHub push만으로
+  배포되는 편리한 연동을 제공하기 때문입니다.
+- 고려했다가 배제한 대안:
+  - **한 플랫폼에 전부**(세 배포 단위 모두 Vercel, 혹은 모두 Railway): 배제했습니다. Vercel의
+    서버리스 모델은 Postgres/Redis에 영구 연결을 유지하는 장기 실행 Socket.IO 프로세스와 맞지
+    않고, Railway는 `frontend`/`admin`이 누리는 Vercel의 제로-설정 정적 사이트/프리뷰 배포
+    편의를 제공하지 않습니다.
+  - **셀프 호스팅 VPS**(모든 걸 돌리는 드롭릿 하나): 배제했습니다. OS 패치, TLS 인증서 관리,
+    프로세스 감독, CI/CD 연결까지 전부 개발자가 직접 떠안아야 하는데, Railway/Vercel의 무료
+    티어는 이 중 어느 것도 요구하지 않습니다.
+
+## 결과
+
+- 플랫폼이 둘로 나뉘면 관측 가능성도 나뉩니다. 로그와 메트릭이 서로 다른 두 대시보드에
+  존재하며, `backend`와 두 프론트엔드를 아우르는 통합 뷰는 없습니다. (Railway 쪽 로그 지속성은
+  이 결정이 다루는 플랫폼 간 분리보다 좁은, 단일 플랫폼 내부의 별개 문제라
+  [ADR 0018](0018-railway-volume-log-persistence.ko.md)에서 따로 다룹니다. backend 에러
+  트래킹은 이 분산 위에 얹힌 세 번째 대시보드인 Sentry입니다 —
+  [ADR 0019](0019-sentry-error-tracking.ko.md) 참고.)
+- `frontend`/`admin`을 하나가 아니라 두 개의 별도 Vercel 프로젝트로 운영하면 유지할 CORS
+  표면도 두 배가 됩니다(`CORS_ORIGIN`이 설정되는 모든 곳에 두 오리진을 다 나열해야 합니다).
+  두 앱에 정말로 독립적인 배포 주기가 필요하고, admin/frontend 분리 자체가 의도된 보안 경계
+  결정이었기 때문에([0009](0009-admin-separate-app.ko.md) 참고) 받아들인 비용입니다.
+- `backend`를 Vercel로 옮기는 것(서버리스 모델은 Postgres/Redis 영구 연결을 유지하는 장기
+  실행 Socket.IO 프로세스와 맞지 않습니다)이나, 명시적 요청 없이 `frontend`/`admin`을
+  Railway로 옮기는 것은 절대 제안하지 않습니다. 현재 구조는 각 배포 단위의 실제 런타임 형태에
+  맞춰져 있습니다.

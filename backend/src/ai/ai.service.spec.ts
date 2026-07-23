@@ -151,7 +151,8 @@ describe('AiService', () => {
     });
 
     it('should throw BadRequestException when AI user is not initialized', () => {
-      (aiService as { aiUser: UserEntity | undefined }).aiUser = undefined;
+      (aiService as unknown as { aiUser: UserEntity | undefined }).aiUser =
+        undefined;
 
       expect(() => aiService.getAiUserId()).toThrow(BadRequestException);
     });
