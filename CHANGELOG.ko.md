@@ -10,6 +10,10 @@
 번역하지 않고 그대로 두었습니다. 번역하면 실제로 쓰이지 않은 말을 지어내는 셈이 되기 때문입니다.
 
 
+## 2026-07-23
+
+- Fix: tolerate absent merge commits in check:changelog
+
 ## 2026-07-22
 
 - Docs: rewrite all .ko.md docs into natural Korean, sync README edits, fix mirror count

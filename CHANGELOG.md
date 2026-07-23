@@ -9,6 +9,10 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-07-23
+
+- Fix: tolerate absent merge commits in check:changelog
+
 ## 2026-07-22
 
 - Docs: rewrite all .ko.md docs into natural Korean, sync README edits, fix mirror count
