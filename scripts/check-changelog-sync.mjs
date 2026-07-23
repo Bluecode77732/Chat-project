@@ -49,10 +49,17 @@ const commits = rawLog
 
 // On `pull_request` runs, actions/checkout builds a synthetic merge commit
 // ("Merge <sha> into <sha>") that exists only for the CI run and can never be
-// in the changelog. Real merge commits in this history read "Merge branch ..."
-// or "Merge pull request #N from ...", so this pattern cannot mask them.
+// in the changelog. Drop it outright.
 const SYNTHETIC_MERGE = /^Merge [0-9a-f]{40} into [0-9a-f]{40}$/;
 const realCommits = commits.filter((c) => !SYNTHETIC_MERGE.test(c.subject));
+
+// Real merge commits are tolerated when absent, not excluded: GitHub's PR
+// merges ("Merge pull request #N from ...") exist only on main, while this
+// changelog is maintained on dev -- a PR/push-to-main checkout sees them but a
+// dev checkout never does (surfaced by PR #12's CI failing on #11's merge
+// commit). Merge commits that *are* recorded (dev's own historical merges)
+// still match normally, so every existing entry stays verified.
+const TOLERATED_MERGE = /^Merge (pull request #\d+ from |branch |remote-tracking branch )/;
 
 function parseChangelog(relPath) {
   const lines = readFileSync(resolve(repoRoot, relPath), 'utf8').split(/\r?\n/);
@@ -92,10 +99,13 @@ function checkFile(relPath) {
   }
 
   // The commit that updates the changelog cannot list its own subject, so the
-  // single newest commit is allowed to be absent. Anything older than that is
-  // real drift: once one more commit lands on top, the tolerance no longer
-  // covers the unrecorded one and this check fails.
-  const newest = realCommits[0];
+  // newest commit is allowed to be absent. Anything older than that is real
+  // drift: once one more commit lands on top, the tolerance no longer covers
+  // the unrecorded one and this check fails. Skip tolerated merges when
+  // picking it: on a PR/push-to-main checkout the newest commit is the merge
+  // commit itself, and the tolerance must still cover the newest work commit
+  // underneath it.
+  const newest = realCommits.find((c) => !TOLERATED_MERGE.test(c.subject));
   let toleratedNewest = false;
 
   for (const [date, subjects] of gitByDate) {
@@ -112,6 +122,7 @@ function checkFile(relPath) {
         toleratedNewest = true;
         continue;
       }
+      if (TOLERATED_MERGE.test(m)) continue;
       fail(relPath, `${date}: commit not recorded -- "${m}"`);
     }
     for (const extra of pool) {

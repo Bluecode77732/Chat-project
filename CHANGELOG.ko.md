@@ -12,6 +12,7 @@
 
 ## 2026-07-22
 
+- Docs: rewrite all .ko.md docs into natural Korean, sync README edits, fix mirror count
 - Docs: add evidence-freshness rule 10 to CLAUDE.md Hallucination Prevention
 - Docs: link the verified architecture-diagram artifact from README/ARCHITECTURE
 
