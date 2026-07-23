@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",
-    "axios": "^1.15.2",
+    "axios": "^1.18.1",
     "dompurify": "^3.4.11",
     "graphql": "^16.13.2",
     "graphql-ws": "^6.0.8",
