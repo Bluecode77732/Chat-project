@@ -11,6 +11,7 @@ commits should follow). Nothing below has been reworded, curated, or omitted.
 
 ## 2026-07-23
 
+- Chore: gitignore admin playwright test-results artifacts
 - Fix: tolerate absent merge commits in check:changelog
 
 ## 2026-07-22

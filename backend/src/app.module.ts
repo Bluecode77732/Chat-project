@@ -45,6 +45,10 @@ import { SentryModule } from '@sentry/nestjs/setup';
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
         // Admin cap — optional; UserService.updateRole falls back to 5 when unset.
         MAX_ADMIN_COUNT: Joi.number().optional(),
+        // Auth rate limit — optional; AuthRateLimitGuard falls back to 60s/10 attempts.
+        // CI e2e overrides these so serial register/signin bursts don't trip the guard.
+        AUTH_RATE_LIMIT_WINDOW_SEC: Joi.number().optional(),
+        AUTH_RATE_LIMIT_MAX_ATTEMPTS: Joi.number().optional(),
         // Moderation thresholds/durations — all optional; ModerationService falls back to MODERATION_DEFAULTS.
         MODERATION_STRIKE_WINDOW_SEC: Joi.number().optional(),
         MODERATION_WARN_THRESHOLD: Joi.number().optional(),

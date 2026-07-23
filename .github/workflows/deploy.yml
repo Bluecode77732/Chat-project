@@ -88,6 +88,9 @@ jobs:
       MESSAGE_CACHE_TTL_SEC: 300
       CORS_ORIGIN: http://localhost:5173
       GEMINI_API_KEY: ci-placeholder-not-called-in-e2e
+      # The serial e2e specs register/sign in >10 times from one IP inside the
+      # 60s window — relax the auth rate limit here, production keeps 10.
+      AUTH_RATE_LIMIT_MAX_ATTEMPTS: 10000
       VITE_API_URL: http://localhost:3000
       VITE_WS_URL: ws://localhost:3000
     steps:
@@ -188,6 +191,8 @@ jobs:
       # Admin runs on a different origin (:5174) than the main frontend (:5173).
       CORS_ORIGIN: http://localhost:5174
       GEMINI_API_KEY: ci-placeholder-not-called-in-e2e
+      # Same rationale as the e2e job: don't let serial CI auth bursts trip the guard.
+      AUTH_RATE_LIMIT_MAX_ATTEMPTS: 10000
       VITE_API_URL: http://localhost:3000
       # No in-app flow can create a superadmin — this DB is fresh and thrown away
       # after the job, so a fixed CI-only credential (not a real secret) is fine.
