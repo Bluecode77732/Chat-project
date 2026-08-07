@@ -335,8 +335,9 @@ Principle Conflict Protocol.
 - Principle of Least Astonishment — covered by "reuse existing patterns only"
 - Convention over Configuration — favor the project's existing framework and
   validation conventions over introducing custom configuration
-- Pragmatism over Perfection — conflicts with Never Do's zero-tolerance rules;
-  routed through Principle Conflict Protocol — does not excuse a violation by default
+- Pragmatism over Perfection — applies to design/architecture judgment calls only
+  (e.g., not over-building for a hypothetical future need); never applies to Never Do
+  Group 1-3, which admit no exception regardless of time pressure
 - Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct rules
 - Incremental Development — reflected in Introduction Analysis
 - Continuous Improvement — reflected in Result Review; in-session only
@@ -383,8 +384,6 @@ Principle Conflict Protocol.
   and Never Do Groups 1-3
 - Idempotence — check whether retry/duplicate-submission behavior is documented
   for write operations; flag gaps rather than assuming idempotency
-- Immutability — may conflict with an existing intentionally-mutable shared
-  instance; routed through Principle Conflict Protocol — default is to leave as-is
 - Self-Documenting Code, Readability over Cleverness, Keep Functions Small,
   Minimize Cognitive Load — judgment calls
 - Refactor Continuously — see Boy Scout Rule above
@@ -547,6 +546,22 @@ one of these is violated, follow Principle Conflict Protocol.
   conflicting real-time state.
 - Goal: any new per-user real-time registration (not just the existing socket path)
   must check for and evict a prior registration, not assume one connection per user.
+
+**Sanctioned Mutable Module State**
+- Breakdown: a concrete instance of Maintainability > Immutability. Two frontend
+  module-level bindings are deliberately mutable and reassigned at runtime:
+  `pendingRefresh` (`frontend/src/auth/session-guard.ts:78`, reassigned to coalesce
+  concurrent refresh calls into one in-flight request) and `socket`
+  (`frontend/src/socket/socket.ts`, reassigned by `reconnectSocket()` after a token
+  refresh). Both patterns are mirrored in `admin/src/auth/session-guard.ts`.
+- Rationale: `pendingRefresh` must be reassignable for the single-in-flight-refresh
+  coalescing that Single Refresh Authority depends on; `socket` must be reassignable
+  because a Socket.IO client instance can't have its auth handshake swapped in
+  place — reconnecting means constructing a new instance.
+- Goal: these two bindings are the only sanctioned exceptions to immutability at
+  module scope; a new mutable module-level binding requires the same kind of
+  concrete justification (a specific coordination problem an immutable alternative
+  can't solve), not just convenience.
 
 ### Privilege & Audit (Security)
 
