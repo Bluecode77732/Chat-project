@@ -390,8 +390,10 @@ Principle Conflict Protocol.
 
 ### Reliability
 - Input Validation, Fail Securely — covered by Never Do Group 3
-- Defensive Programming — conflicts with boundary-only validation stance; routed
-  through Principle Conflict Protocol — boundary-only wins by default
+- Defensive Programming — the project validates once at the DTO boundary (Never Do
+  Group 3's `@Body() dto: RegisterDto` pattern) rather than re-checking at every
+  internal function call; adding redundant internal validation duplicates what
+  `class-validator` already guarantees by the time a payload reaches a service method
 - Robustness Principle (Postel's Law) — conflicts with strict input validation and
   is a known security anti-pattern for parsing untrusted input; do not apply
 - Graceful Degradation — reflected in existing client-side auth-refresh/retry
