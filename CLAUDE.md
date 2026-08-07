@@ -394,8 +394,9 @@ Principle Conflict Protocol.
   Group 3's `@Body() dto: RegisterDto` pattern) rather than re-checking at every
   internal function call; adding redundant internal validation duplicates what
   `class-validator` already guarantees by the time a payload reaches a service method
-- Robustness Principle (Postel's Law) — conflicts with strict input validation and
-  is a known security anti-pattern for parsing untrusted input; do not apply
+- Robustness Principle (Postel's Law) — conflicts with strict input validation
+  (Never Do Group 3's DTO enforcement); not negotiable — Group 3 is an already-settled
+  security control, not a design preference, so this does not apply, full stop
 - Graceful Degradation — reflected in existing client-side auth-refresh/retry
   handling, where one exists
 - Error Transparency — conflicts with the existing practice of stripping internal
