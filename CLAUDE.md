@@ -367,8 +367,10 @@ Principle Conflict Protocol.
 - DIP — favor constructor injection over direct instantiation
 - LSP — watch for subclasses that strengthen a parent method's precondition
   (rejecting cases the parent would accept) — prefer composition over inheritance
-  when adding a stricter variant of existing behavior. Routed through Principle
-  Conflict Protocol when an existing pattern already does this
+  when adding a stricter variant of existing behavior. Already found and fixed once
+  — see Project-Specific Principles > Module & Guard Architecture > Guard Composition
+  over Guard Inheritance for the concrete violation (`GraphQLAdminGuard`) and its
+  resolution
 - ISP — no confirmed violation; do not introduce an interface layer until one is found
 
 ### Object Interaction
