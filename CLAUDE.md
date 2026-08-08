@@ -338,7 +338,10 @@ Principle Conflict Protocol.
 - Pragmatism over Perfection — applies to design/architecture judgment calls only
   (e.g., not over-building for a hypothetical future need); never applies to Never Do
   Group 1-3, which admit no exception regardless of time pressure
-- Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct rules
+- Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct
+  rules; grounded in the same evidence SRP already cites (`ModerationModule` never
+  imports `ChatModule`, `moderation.module.ts:1-4`) — keeping them separate would
+  risk the two entries drifting apart over time
 - Incremental Development — reflected in Introduction Analysis
 - Continuous Improvement — reflected in Result Review; in-session only
 
