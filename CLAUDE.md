@@ -411,7 +411,8 @@ Principle Conflict Protocol.
   error details from client-facing responses in production; transparency applies
   to internal logs only, never client responses
 - Design by Contract, Deterministic Behavior — judgment calls, not adopted
-- Safe Defaults — duplicate of Secure by Default below
+- Safe Defaults — concrete instance in Project-Specific Principles > Privilege &
+  Audit (Security) > Fail-Closed Secrets, No Fallback Defaults
 - Retry Limits — advisory: external API calls (Gemini) must cap retry attempts and apply
   backoff; unbounded retry converts a transient failure into sustained cost and load.
   New retry paths must declare an attempt ceiling and delay strategy.
@@ -609,6 +610,20 @@ one of these is violated, follow Principle Conflict Protocol.
   named as a requirement anywhere in this file.
 - Goal: any new privileged action (role change, force logout, deletion, ban, etc.)
   calls `AuditLogService.log()` — do not add a privileged mutation without an audit entry.
+
+**Fail-Closed Secrets, No Fallback Defaults**
+- Breakdown: a concrete instance of Safe Defaults / Secure by Default. In
+  `app.module.ts`'s Joi schema, every security-sensitive var (`DB_PASSWORD`,
+  `HASH_ROUNDS`, `REFRESH_TOKEN_SECRET`, `ACCESS_TOKEN_SECRET`, `GEMINI_API_KEY`,
+  `CORS_ORIGIN`) is `.required()` with no fallback value; only non-security
+  tuning knobs (`MAX_ADMIN_COUNT`, `MODERATION_*`, `AUTH_RATE_LIMIT_*`, `SMTP_*`,
+  `SENTRY_DSN`) are `.optional()`.
+- Rationale: "safe default" here specifically means no default at all for
+  anything security-relevant — the app fails to boot rather than silently
+  running with a weak or empty secret.
+- Goal: any new env var touching auth, secrets, or access control is
+  `.required()` with no fallback constant; only genuinely optional tuning
+  values get `.optional()`.
 
 ### Chat & Caching
 
