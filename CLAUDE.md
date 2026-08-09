@@ -366,7 +366,8 @@ Principle Conflict Protocol.
 ### SOLID
 - SRP — basis of the project's module/service boundaries
 - OCP — extend via new classes/strategies, don't modify existing logic in place
-  to add a new case
+  to add a new case; concrete instance in Project-Specific Principles > Chat &
+  Caching > Config-Driven Extension over Branching
 - DIP — favor constructor injection over direct instantiation
 - LSP — watch for subclasses that strengthen a parent method's precondition
   (rejecting cases the parent would accept) — prefer composition over inheritance
@@ -641,6 +642,19 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: any new per-room (or per-resource) background operation that must not run
   concurrently for the same key follows this same acquire-with-NX/TTL,
   release-in-finally pattern — do not introduce an unguarded concurrent write path.
+
+**Config-Driven Extension over Branching**
+- Breakdown: a concrete instance of SOLID > OCP. `AiService` selects personality
+  behavior via `SYSTEM_PROMPTS: Record<AiPersonality, string>`
+  (`ai/constants/system-prompts.ts:9`) — `AiService.handleReply()`
+  (`ai.service.ts:139`, `SYSTEM_PROMPTS[personality]`) looks up the prompt by key
+  and never branches on which personality it is.
+- Rationale: keeping "which case" as data (a map) rather than control flow
+  (if/switch) means adding a new personality never touches tested generation
+  logic, only adds a map entry.
+- Goal: any new personality, or similarly-shaped "one of several known variants"
+  extension point, follows this map pattern — do not add a branch to existing
+  logic to special-case a new value.
 
 ### Incident Response
 
