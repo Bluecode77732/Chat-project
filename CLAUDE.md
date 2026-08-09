@@ -368,7 +368,9 @@ Principle Conflict Protocol.
 - OCP — extend via new classes/strategies, don't modify existing logic in place
   to add a new case; concrete instance in Project-Specific Principles > Chat &
   Caching > Config-Driven Extension over Branching
-- DIP — favor constructor injection over direct instantiation
+- DIP — favor constructor injection over direct instantiation; concrete instance
+  in Project-Specific Principles > Module & Guard Architecture > External SDK
+  Clients Injected via Factory
 - LSP — watch for subclasses that strengthen a parent method's precondition
   (rejecting cases the parent would accept) — prefer composition over inheritance
   when adding a stricter variant of existing behavior. Already found and fixed once
@@ -535,6 +537,21 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: before adding a new interface or type alias, check whether anything outside its
   defining file — excluding its own spec file — imports it. If not, keep it inline. If
   yes, place it under `{module}/interface/`.
+
+**External SDK Clients Injected via Factory**
+- Breakdown: a concrete instance of SOLID > DIP. Three external clients are
+  registered behind `useFactory` providers reading from `ConfigService` —
+  TypeORM's connection (`app.module.ts:81`), the Gemini `GoogleGenAI` client as
+  `GENAI_CLIENT` (`ai.module.ts:26`), and the `ioredis` client
+  (`redis.module.ts:13`). Consuming services receive the instance via
+  constructor injection and never call `new GoogleGenAI()` / `new Redis()`
+  directly.
+- Rationale: this is what lets tests override the provider (`ai.service.spec.ts:100`,
+  `provide: 'GENAI_CLIENT'`) instead of needing a module-level `jest.mock()` of
+  the third-party SDK.
+- Goal: any new external SDK client (a new third-party API, cache, or queue
+  client) is registered via `useFactory` behind a DI token, not instantiated
+  inline in a service constructor.
 
 ### Auth & Session
 
