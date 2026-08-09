@@ -411,7 +411,8 @@ Principle Conflict Protocol.
   error details from client-facing responses in production; transparency applies
   to internal logs only, never client responses
 - Design by Contract, Deterministic Behavior — concrete instance in Project-Specific
-  Principles > Chat & Caching > AI Reply Non-Determinism, Bounded by a Fixed Fallback
+  Principles > Chat & Caching > Non-Deterministic External Call, Bounded by a
+  Fixed Fallback
 - Safe Defaults — concrete instance in Project-Specific Principles > Privilege &
   Audit (Security) > Fail-Closed Secrets, No Fallback Defaults
 - Retry Limits — advisory: external API calls (Gemini) must cap retry attempts and apply
@@ -689,7 +690,7 @@ one of these is violated, follow Principle Conflict Protocol.
   extension point, follows this map pattern — do not add a branch to existing
   logic to special-case a new value.
 
-**AI Reply Non-Determinism, Bounded by a Fixed Fallback**
+**Non-Deterministic External Call, Bounded by a Fixed Fallback**
 - Breakdown: a concrete instance of Design by Contract / Deterministic Behavior (not
   adopted for this path). `AiService.handleReply()`'s Gemini call (`ai.service.ts:144-151`)
   sets `maxOutputTokens` but no `temperature`/`topP` override, so replies are
