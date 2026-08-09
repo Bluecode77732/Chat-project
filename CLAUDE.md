@@ -352,8 +352,11 @@ Principle Conflict Protocol.
   (see Architecture Decisions)
 - Composition over Inheritance — prefer composition via dependency injection over
   building new class hierarchies; see SOLID > LSP below for a known counter-example
-- Abstraction — conflicts with "no new abstractions unless asked"; routed through
-  Principle Conflict Protocol
+- Abstraction — conflicts with "no new abstractions unless asked"; the bar for a
+  justified abstraction is Project-Specific Principles > Module & Guard
+  Architecture > Transaction Boundary per Mutation — `GqlTransactionInterceptor`
+  exists because Never Do Group 2's partial-write failure was real, not
+  hypothetical
 - Layered Architecture, Dependency Direction — reflected in the existing layering
   between request handling, business logic, and data access
 - Feature Isolation — may conflict with an existing single-file-per-concern
