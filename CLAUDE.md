@@ -410,7 +410,8 @@ Principle Conflict Protocol.
 - Error Transparency — conflicts with the existing practice of stripping internal
   error details from client-facing responses in production; transparency applies
   to internal logs only, never client responses
-- Design by Contract, Deterministic Behavior — judgment calls, not adopted
+- Design by Contract, Deterministic Behavior — concrete instance in Project-Specific
+  Principles > Chat & Caching > AI Reply Non-Determinism, Bounded by a Fixed Fallback
 - Safe Defaults — concrete instance in Project-Specific Principles > Privilege &
   Audit (Security) > Fail-Closed Secrets, No Fallback Defaults
 - Retry Limits — advisory: external API calls (Gemini) must cap retry attempts and apply
@@ -687,6 +688,20 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: any new personality, or similarly-shaped "one of several known variants"
   extension point, follows this map pattern — do not add a branch to existing
   logic to special-case a new value.
+
+**AI Reply Non-Determinism, Bounded by a Fixed Fallback**
+- Breakdown: a concrete instance of Design by Contract / Deterministic Behavior (not
+  adopted for this path). `AiService.handleReply()`'s Gemini call (`ai.service.ts:144-151`)
+  sets `maxOutputTokens` but no `temperature`/`topP` override, so replies are
+  non-deterministic by construction; `generateWithRetry()` (`:206`) retries on 429/5xx
+  but a retried call can return different text than the failed attempt.
+- Rationale: formal pre/post-condition contracts don't fit an inherently
+  non-deterministic external call. The only guarantee actually honored is the
+  fallback: on exhausted retries, a fixed string (`AI_REPLY_FAILURE_MESSAGE`, `:27-28`)
+  is returned instead of propagating the error or retrying indefinitely.
+- Goal: any new AI-generated content path should not assume repeatable output between
+  calls (e.g. don't write a test asserting exact AI reply text) — the only deterministic
+  contract to rely on is the fixed fallback string on exhausted retries.
 
 ### Incident Response
 
