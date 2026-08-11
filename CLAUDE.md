@@ -339,9 +339,8 @@ Principle Conflict Protocol.
   (e.g., not over-building for a hypothetical future need); never applies to Never Do
   Group 1-3, which admit no exception regardless of time pressure
 - Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct
-  rules; grounded in the same evidence SRP already cites (`ModerationModule` never
-  imports `ChatModule`, `moderation.module.ts:1-4`) — keeping them separate would
-  risk the two entries drifting apart over time
+  rules; kept merged rather than split into a separate entry to avoid two
+  descriptions of the same module-boundary fact drifting apart over time
 - Incremental Development — reflected in Introduction Analysis
 - Continuous Improvement — reflected in Result Review; in-session only
 
@@ -353,10 +352,10 @@ Principle Conflict Protocol.
 - Composition over Inheritance — prefer composition via dependency injection over
   building new class hierarchies; see SOLID > LSP below for a known counter-example
 - Abstraction — conflicts with "no new abstractions unless asked"; the bar for a
-  justified abstraction is Project-Specific Principles > Module & Guard
-  Architecture > Transaction Boundary per Mutation — `GqlTransactionInterceptor`
-  exists because Never Do Group 2's partial-write failure was real, not
-  hypothetical
+  justified abstraction is demonstrated in Project-Specific Principles > Module &
+  Guard Architecture > Transaction Boundary per Mutation, where the existing
+  abstraction was introduced to prevent a real Never Do Group 2 failure, not a
+  hypothetical one
 - Layered Architecture, Dependency Direction — reflected in the existing layering
   between request handling, business logic, and data access
 - Feature Isolation — may conflict with an existing single-file-per-concern
@@ -378,15 +377,15 @@ Principle Conflict Protocol.
   (rejecting cases the parent would accept) — prefer composition over inheritance
   when adding a stricter variant of existing behavior. Already found and fixed once
   — see Project-Specific Principles > Module & Guard Architecture > Guard Composition
-  over Guard Inheritance for the concrete violation (`GraphQLAdminGuard`) and its
-  resolution
+  over Guard Inheritance for the concrete violation and its resolution
 - ISP — no confirmed violation; do not introduce an interface layer until one is found
 
 ### Object Interaction
 - Dependency Injection, Inversion of Control — already the framework's core
   mechanism; no new rule needed
-- Command–Query Separation — reflected in the existing read/write API split,
-  where one exists
+- Command–Query Separation — GraphQL's Query/Mutation type distinction enforces
+  this structurally; see Architecture > ChatModule for the concrete read/write
+  split
 - Favor Explicit Interfaces — already enforced via `any` ban / `unknown` narrowing
 - Law of Demeter, Tell Don't Ask — judgment calls, no current violation identified
 
@@ -402,9 +401,9 @@ Principle Conflict Protocol.
 ### Reliability
 - Input Validation, Fail Securely — covered by Never Do Group 3
 - Defensive Programming — the project validates once at the DTO boundary (Never Do
-  Group 3's `@Body() dto: RegisterDto` pattern) rather than re-checking at every
-  internal function call; adding redundant internal validation duplicates what
-  `class-validator` already guarantees by the time a payload reaches a service method
+  Group 3's DTO enforcement) rather than re-checking at every internal function
+  call; adding redundant internal validation duplicates what that boundary check
+  already guarantees by the time a payload reaches a service method
 - Robustness Principle (Postel's Law) — conflicts with strict input validation
   (Never Do Group 3's DTO enforcement); not negotiable — Group 3 is an already-settled
   security control, not a design preference, so this does not apply, full stop
