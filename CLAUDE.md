@@ -342,7 +342,10 @@ Principle Conflict Protocol.
   rules; kept merged rather than split into a separate entry to avoid two
   descriptions of the same module-boundary fact drifting apart over time
 - Incremental Development — reflected in Introduction Analysis
-- Continuous Improvement — reflected in Result Review; in-session only
+- Continuous Improvement — reflected in Result Review; scoped in-session only
+  because Result Review runs once per completed task, any leftover improvement
+  idea is captured only in that task's Change Summary Pending line, and this file
+  has no backlog/ticket mechanism to carry it across sessions
 
 ### Design
 - Separation of Concerns, Modularity, High Cohesion & Low Coupling — basis of
