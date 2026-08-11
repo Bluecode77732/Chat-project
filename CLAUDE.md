@@ -387,7 +387,9 @@ Principle Conflict Protocol.
   this structurally; see Architecture > ChatModule for the concrete read/write
   split
 - Favor Explicit Interfaces — already enforced via `any` ban / `unknown` narrowing
-- Law of Demeter, Tell Don't Ask — judgment calls, no current violation identified
+- Law of Demeter, Tell Don't Ask — judgment calls; checked for deep property-chain
+  calls in production service code and found none, so this is a confirmed absence,
+  not an unchecked assumption
 
 ### Maintainability
 - DRY, Fail Fast, Testability, Input Validation — covered by Testing conventions
