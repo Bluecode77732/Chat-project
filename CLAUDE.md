@@ -382,7 +382,7 @@ Principle Conflict Protocol.
 
 ### Object Interaction
 - Dependency Injection, Inversion of Control — already the framework's core
-  mechanism; no new rule needed
+  mechanism, not a project-level choice; same grounding as SOLID > DIP above
 - Command–Query Separation — GraphQL's Query/Mutation type distinction enforces
   this structurally; see Architecture > ChatModule for the concrete read/write
   split
