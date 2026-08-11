@@ -428,7 +428,10 @@ Principle Conflict Protocol.
   covered by Never Do Group 3 and Logging conventions
 - Principle of Least Privilege — already implemented via the existing numeric
   role/privilege-level comparison
-- Avoid Premature Optimization / Measure Before Optimizing — same principle, treat as one
+- Avoid Premature Optimization / Measure Before Optimizing — same principle, treat
+  as one; the one confirmed instance is negative evidence (absence is hard to prove
+  directly) — Never Do Group 2's pagination requirement exists because a demonstrated
+  failure (OOM) was found, not preemptively, which is the bar this project applies
 - Resource Efficiency — covered by pagination/N+1 examples
 - Minimize Attack Surface — reflected in the existing API-surface boundary rules
   and upload validation, where applicable
