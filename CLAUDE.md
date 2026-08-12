@@ -341,7 +341,11 @@ Principle Conflict Protocol.
 - Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct
   rules; kept merged rather than split into a separate entry to avoid two
   descriptions of the same module-boundary fact drifting apart over time
-- Incremental Development — reflected in Introduction Analysis
+- Incremental Development — reflected in Introduction Analysis; the actual gate is
+  "do not write excessive code during this phase" — Background/Purpose/Disadvantages
+  must be worked through before substantial code is written, not after; the broader
+  Introduction → Structure → Modification → Result Review sequence enforces the same
+  staged approach at each subsequent phase
 - Continuous Improvement — reflected in Result Review; scoped in-session only
   because Result Review runs once per completed task, any leftover improvement
   idea is captured only in that task's Change Summary Pending line, and this file
