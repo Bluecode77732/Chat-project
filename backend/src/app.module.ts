@@ -70,10 +70,10 @@ import { SentryModule } from '@sentry/nestjs/setup';
       // Configuration global adoption
       isGlobal: true,
       envFilePath:
-        process.env.NODE_ENV === 'production'
-          ? '.env.production'
-          : process.env.NODE_ENV === 'docker'
-            ? '.env.local'
+        process.env.RUNTIME_ENV === 'docker'
+          ? '.env.docker'
+          : process.env.NODE_ENV === 'production'
+            ? '.env.production'
             : '.env',
     }),
     SentryModule.forRoot(),

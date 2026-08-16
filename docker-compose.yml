@@ -13,20 +13,21 @@ services:
       postgres: 
         condition: service_healthy
     env_file:
-      - .env.local
+      - .env.docker
     ports:
       - "127.0.0.1:${PORT:-3000}:3000"
     restart: unless-stopped
     command: sh -c "cd backend && pnpm migration:run && node dist/main"
     environment:
-      NODE_ENV: docker
+      NODE_ENV: development
+      RUNTIME_ENV: docker
 
 
   postgres:
     image: postgres:18
     env_file:
-      - .env.local
-    # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are set directly in .env.local
+      - .env.docker
+    # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are set directly in .env.docker
     # and passed into the container via env_file — no host-env interpolation needed
     ports:
       - "127.0.0.1:5432:5432"
@@ -51,7 +52,7 @@ services:
   redis:
     image: redis:alpine
     env_file:
-      - .env.local
+      - .env.docker
     ports:
       - "127.0.0.1:6379:6379"
     restart: unless-stopped

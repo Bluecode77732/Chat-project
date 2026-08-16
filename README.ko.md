@@ -652,7 +652,7 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 #### 로컬 - docker-compose
 Docker를 통해 모든 서비스 실행
 
-- 프로젝트 루트에 `.env.local` 필요 (`backend/.env.example`에서 복사 후 조정 - `NODE_ENV=docker`)
+- 프로젝트 루트에 `.env.docker` 필요 (`backend/.env.example`에서 복사 후 조정 - `NODE_ENV=development`, `RUNTIME_ENV=docker`)
 
 - 모든 서비스 시작
 `docker compose up -d --build`

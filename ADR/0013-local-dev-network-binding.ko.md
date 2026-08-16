@@ -19,12 +19,15 @@ PostgreSQL에 들어와 데이터베이스를 지운 뒤 `readme_to_recover` 데
 
 - 모든 `docker-compose.yml` 포트 바인딩은 `0.0.0.0:PORT:PORT`가 아니라 `127.0.0.1:PORT:PORT`입니다
   (`docker-compose.yml:17-18, 31-32, 55-56` — backend, Postgres, Redis).
-- `backend/src/main.ts`는 맨몸으로 `pnpm start:dev`를 실행할 때(`NODE_ENV=development`)만 HTTP
-  리스너를 `127.0.0.1`에 바인딩합니다. 이는 그 특정 로컬 실행 경로만을 위한 별도의 방어
-  조치이지, 위 사고를 막은 요인이 아닙니다. `docker-compose`(`NODE_ENV=docker`)에서는 컨테이너가
-  Docker 네트워크에서 오는 연결을 받아야 하므로 `main.ts`는 내부적으로 일부러 `0.0.0.0`을
-  유지합니다. 즉 docker-compose 쪽 노출은 순전히 포트 매핑 변경만으로 막힌 것이지, 이 인프로세스
-  바인딩 덕분이 아닙니다(`main.ts:100-103`의 인라인 주석 참고).
+- `backend/src/main.ts`는 진짜 맨몸 로컬 개발일 때(`NODE_ENV=development`이고 `RUNTIME_ENV`가
+  설정되지 않았을 때)만 HTTP 리스너를 `127.0.0.1`에 바인딩합니다. 이는 그 특정 로컬 실행
+  경로만을 위한 별도의 방어 조치이지, 위 사고를 막은 요인이 아닙니다. `docker-compose`에서는
+  컨테이너가 Docker 네트워크에서 오는 연결을 받아야 하므로 `main.ts`는 내부적으로 일부러
+  `0.0.0.0`을 유지합니다. 즉 docker-compose 쪽 노출은 순전히 포트 매핑 변경만으로 막힌 것이지,
+  이 인프로세스 바인딩 덕분이 아닙니다(`main.ts:103-111`의 인라인 주석 참고). 이 바인딩 로직이
+  기대는 현재의 `NODE_ENV`/`RUNTIME_ENV` 분리는 [ADR 0022](0022-node-env-runtime-env-split.ko.md)를
+  참고하세요(이 ADR은 그 분리 이전에 작성되어 이제는 제거된 `NODE_ENV=docker` 값을 인용하고
+  있었습니다).
 - Redis는 프로덕션뿐 아니라 로컬 개발에서도 비밀번호(`requirepass`)를 요구합니다.
 - 비슷한 노출이 또 발생하면 대응 순서는 네트워크 봉쇄 → 자격 증명 교체 → 잔여물 정리입니다.
   이 사고 대응에서 실제로 따랐던 순서를 정식화한 CLAUDE.md의

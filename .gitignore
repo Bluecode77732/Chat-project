@@ -7,7 +7,7 @@
 /backend/node_modules
 /backend/coverage
 /backend/.env
-/backend/.env.local
+/backend/.env.docker
 /backend/.env.production
 
 # Logs
@@ -49,6 +49,7 @@ lerna-debug.log*
 .env.production
 .env.production.local
 .env.local
+.env.docker
 
 # Runtime data
 pids

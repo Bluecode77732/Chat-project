@@ -35,7 +35,7 @@ cp admin/.env.example admin/.env.local
 
 **Docker로 풀스택 실행** (backend 작업에 권장 — 운영 환경과 동일한 "마이그레이션 후 시작" 순서):
 ```bash
-docker compose up -d --build   # 프로젝트 루트에 .env.local이 필요합니다
+docker compose up -d --build   # 프로젝트 루트에 .env.docker가 필요합니다
 docker compose down -v         # 종료
 ```
 

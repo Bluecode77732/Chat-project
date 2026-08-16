@@ -36,7 +36,7 @@ cp admin/.env.example admin/.env.local
 **Full stack via Docker** (recommended for backend work — matches production's migrate-then-start
 sequence):
 ```bash
-docker compose up -d --build   # requires .env.local at the project root
+docker compose up -d --build   # requires .env.docker at the project root
 docker compose down -v         # tear down
 ```
 

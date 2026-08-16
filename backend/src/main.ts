@@ -100,10 +100,16 @@ async function bootstrap() {
     },
   });
 
-  // Only bare `pnpm start:dev` (NODE_ENV=development) is restricted to loopback.
-  // docker-compose sets NODE_ENV=docker and Railway's value is unconfirmed in this repo,
-  // so both must keep binding to 0.0.0.0 or the container/proxy can't reach the app.
-  const host = process.env.NODE_ENV === 'development' ? '127.0.0.1' : '0.0.0.0';
+  // Loopback-only applies solely to bare `pnpm start:dev` (NODE_ENV=development, RUNTIME_ENV
+  // unset/native) — truly local, non-containerized dev. docker-compose now also sets
+  // NODE_ENV=development (see ADR 0022) but additionally sets RUNTIME_ENV=docker, which keeps
+  // this branch on 0.0.0.0 so the container's mapped port stays reachable. Railway never sets
+  // RUNTIME_ENV, so its NODE_ENV=production path was already 0.0.0.0 and is unaffected.
+  const host =
+    process.env.NODE_ENV === 'development' &&
+    process.env.RUNTIME_ENV !== 'docker'
+      ? '127.0.0.1'
+      : '0.0.0.0';
   await app.listen(process.env.PORT ?? 3000, host);
   logger.info(`Server running on ${host}:${process.env.PORT ?? 3000}`);
 }

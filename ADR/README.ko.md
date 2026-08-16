@@ -82,6 +82,7 @@
 | [0019](0019-sentry-error-tracking.ko.md) | Sentry를 통한 backend 에러 트래킹 (5xx만) | Accepted |
 | [0020](0020-security-headers-and-auth-rate-limit.ko.md) | 보안 헤더 분리(Helmet은 backend / CSP는 frontend+admin)와 IP 기반 인증 레이트리밋 | Accepted |
 | [0021](0021-unified-message-delivery-channel.ko.md) | 사람·AI·모더레이션 시스템 메시지의 단일 전달 채널/형태 | Accepted |
+| [0022](0022-node-env-runtime-env-split.ko.md) | NODE_ENV(표준)와 RUNTIME_ENV(native\|docker) 분리 | Accepted |
 
 범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것이고, 0006–0007은
 소스 파일의 인라인 주석으로만 존재하던 코드 레벨 근거를 정식화한 것입니다. 0008, 0010, 0012,
@@ -101,4 +102,8 @@ user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 
 frontend/admin 커버리지는 여전히 보류 상태입니다. 0020과 0021은 모든 ADR을 현재 구현과 전면
 대조한 감사에서 나왔습니다. 0020은 README 한 줄로만 있던 보안 헤더/레이트리밋 설계를 정식화한
 것이고, 0021은 원래 AI 답장에만 국한됐던 CLAUDE.md 원칙을, 실제 구현(모더레이션 시스템
-메시지)이 두 번째로 생긴 지금 ADR로 승격한 것입니다.
+메시지)이 두 번째로 생긴 지금 ADR로 승격한 것입니다. 0022는 `.env`/`.env.local` 의미에 대한
+개발자 질문에서 시작되었고, 그 과정에서 비표준 값인 `NODE_ENV=docker`가 envFilePath 선택,
+`main.ts` 호스트 바인딩, Sentry/로그 동작을 암묵적으로 한데 묶고 있었다는 사실이 드러났습니다.
+이 값을 전용 변수 `RUNTIME_ENV`로 대체하고, 0013의 오래된 `NODE_ENV=docker` 인용을
+갱신했습니다.
