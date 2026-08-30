@@ -131,8 +131,8 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0
       '@nestjs/apollo':
-        specifier: ^13.2.3
-        version: 13.2.3(@apollo/server@5.5.0(graphql@16.14.0))(@as-integrations/express5@1.1.2(@apollo/server@5.5.0(graphql@16.14.0))(express@5.2.1))(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/graphql@13.2.3(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.14.0)(reflect-metadata@0.2.2))(graphql@16.14.0)
+        specifier: ^13.4.2
+        version: 13.4.2(@apollo/server@5.5.0(graphql@16.14.0))(@as-integrations/express5@1.1.2(@apollo/server@5.5.0(graphql@16.14.0))(express@5.2.1))(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/graphql@13.2.3(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.14.0)(reflect-metadata@0.2.2))(graphql@16.14.0)
       '@nestjs/common':
         specifier: ^11.1.19
         version: 11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -624,6 +624,10 @@ packages:
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/code-frame@7.29.7':
+    resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/compat-data@7.29.0':
     resolution: {integrity: sha512-T1NCJqT/j9+cn8fvkt7jtwbLBfLC/1y1c7NtCeXFRgzGTsafi68MRv8yzkYSapBnFA6L3U2VSc02ciDzoAJhJg==}
     engines: {node: '>=6.9.0'}
@@ -664,6 +668,10 @@ packages:
 
   '@babel/helper-validator-identifier@7.28.5':
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/helper-validator-identifier@7.29.7':
+    resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-validator-option@7.27.1':
@@ -1281,8 +1289,8 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@nestjs/apollo@13.2.3':
-    resolution: {integrity: sha512-dzayHaGSS6XUFHPj6YMb+ixsphZiwjdez3TWmL6wiRxBGTSc4uGkHNrz3qv7Qb5tq/4VwrqP7/qoti+XZsc0mA==}
+  '@nestjs/apollo@13.4.2':
+    resolution: {integrity: sha512-kkIC7ini4a3ApJpOByfd0uqDH9rM4ndrn3prDd7JZD1xl81Thd/ekz3g0UvMJmtvsuCYtS36In/zayNo8GuMTA==}
     peerDependencies:
       '@apollo/gateway': ^2.0.0
       '@apollo/server': ^5.0.0
@@ -4034,9 +4042,8 @@ packages:
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
 
-  lodash.omit@4.5.0:
-    resolution: {integrity: sha512-XeqSp49hNGmlkj2EJlfrQFIzQ6lXdNro9sddtQzcJY8QaoC2GO0DT7xaIokHeyM+mIT0mPMlPvkYzg2xCuHdZg==}
-    deprecated: This package is deprecated. Use destructuring assignment syntax instead.
+  lodash.omit@4.18.0:
+    resolution: {integrity: sha512-hZXIupXdHtocTnvIJ2aCd2vxKYtxex6gbiGuPvgBRnFQO9yu3AtmDAbVuCXcSsQx3INo/1g71OktlFFA/ES8Xg==}
 
   lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
@@ -5767,6 +5774,12 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
+  '@babel/code-frame@7.29.7':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.29.7
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
   '@babel/compat-data@7.29.0': {}
 
   '@babel/core@7.29.0':
@@ -5828,6 +5841,8 @@ snapshots:
   '@babel/helper-string-parser@7.27.1': {}
 
   '@babel/helper-validator-identifier@7.28.5': {}
+
+  '@babel/helper-validator-identifier@7.29.7': {}
 
   '@babel/helper-validator-option@7.27.1': {}
 
@@ -6545,7 +6560,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@nestjs/apollo@13.2.3(@apollo/server@5.5.0(graphql@16.14.0))(@as-integrations/express5@1.1.2(@apollo/server@5.5.0(graphql@16.14.0))(express@5.2.1))(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/graphql@13.2.3(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.14.0)(reflect-metadata@0.2.2))(graphql@16.14.0)':
+  '@nestjs/apollo@13.4.2(@apollo/server@5.5.0(graphql@16.14.0))(@as-integrations/express5@1.1.2(@apollo/server@5.5.0(graphql@16.14.0))(express@5.2.1))(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(@nestjs/graphql@13.2.3(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.14.0)(reflect-metadata@0.2.2))(graphql@16.14.0)':
     dependencies:
       '@apollo/server': 5.5.0(graphql@16.14.0)
       '@apollo/server-plugin-landing-page-graphql-playground': 4.0.1(@apollo/server@5.5.0(graphql@16.14.0))
@@ -6554,7 +6569,7 @@ snapshots:
       '@nestjs/graphql': 13.2.3(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)(class-transformer@0.5.1)(class-validator@0.14.3)(graphql@16.14.0)(reflect-metadata@0.2.2)
       graphql: 16.14.0
       iterall: 1.3.0
-      lodash.omit: 4.5.0
+      lodash.omit: 4.18.0
       tslib: 2.8.1
     optionalDependencies:
       '@as-integrations/express5': 1.1.2(@apollo/server@5.5.0(graphql@16.14.0))(express@5.2.1)
@@ -7095,7 +7110,7 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -9609,7 +9624,7 @@ snapshots:
 
   lodash.merge@4.6.2: {}
 
-  lodash.omit@4.5.0: {}
+  lodash.omit@4.18.0: {}
 
   lodash.once@4.1.1: {}
 
