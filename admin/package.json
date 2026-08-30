@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",
-    "axios": "^1.15.2",
+    "axios": "^1.18.1",
     "graphql": "^16.13.2",
     "jwt-decode": "^4.0.0",
     "react": "^19.2.5",
