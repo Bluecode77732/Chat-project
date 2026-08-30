@@ -64,7 +64,7 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "tsconfig-paths": "^4.2.0",
-    "typeorm": "^0.3.29",
+    "typeorm": "^1.1.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
