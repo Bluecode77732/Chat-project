@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Grounding (프로젝트 파악 우선)
+
+Before starting any task in this repository — even one that looks self-contained — first
+establish what this project actually is and what it builds, by inspecting real files rather
+than inferring from the task description, file names, or memory:
+1. Read the actual codebase and this file's own "Project Overview" and "Architecture" sections
+   (below) to determine what the project is about and what it builds — do not assume from a
+   directory name or a vague prior impression.
+2. From that reading, identify the app's concrete nature and characteristics: how it delivers
+   real-time behavior (see API Layer), which module owns which concern (see Backend Modules /
+   Data Flow for Sending a Message), and which existing conventions (see Architecture Decisions)
+   already govern the area the task touches.
+3. Only after that grounding, devise the most efficient implementation approach for the task —
+   one that reuses the patterns found in steps 1-2, per Hallucination Prevention rule 3 below,
+   rather than defaulting to a generic or unrelated approach.
+
+This precedes the per-change inspection in Hallucination Prevention immediately below: this step
+establishes what the whole application is; that section establishes what the specific change
+requires.
+
 ## Hallucination Prevention (환각 방지)
 
 Before making any change:
