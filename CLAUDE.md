@@ -147,6 +147,37 @@ After completing any implementation, apply the review perspective that matches w
 - Compliance scan: does the diff introduce any Never Do Group 1–3 pattern or violate an
   Architecture Decision? List what was checked.
 
+## Writing Style (문체)
+
+Applies to Markdown docs (this file, `README.md`, ADRs, `CONTRIBUTING.md`), code comments, commit
+messages, and the Change Summary below — anywhere content is written for a person to read rather
+than for the compiler.
+
+Write the way a teammate who knows this codebase would explain it out loud — plain, direct, and
+only as long as the point actually requires. Avoid the tells of generated text:
+
+```
+❌ "This ensures that the transaction is properly rolled back in the event of a failure,
+    thereby maintaining data integrity across the system."
+✅ "Rolls back on failure so the room and message stay in sync."
+
+❌ "Additionally, it is worth noting that this component also handles..."
+✅ "It also handles..."
+
+❌ Marketing adjectives — "robust", "seamless", "comprehensive", "powerful", "cutting-edge"
+✅ State what it does; let the reader decide whether that's robust
+
+❌ Restating what the diff/code already shows
+✅ Explain only the non-obvious — why, not what (same bar as the header comment in File
+   Creation Convention, and the WHY-only rule for code comments)
+
+❌ Emoji, exclamation points, or false enthusiasm ("Great!", "Now let's...") in docs or commits
+✅ A flat, factual statement of what changed and why
+```
+
+Goal: a commit message, doc edit, or code comment written this way shouldn't read as
+AI-generated — it should read like something a person on this team actually wrote.
+
 ## Change Summary
 
 After completing any task, always append a brief summary in this format:
