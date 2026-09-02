@@ -9,8 +9,8 @@ Accepted
 `ChatModule`은 이미 `ModerationModule`에 의존합니다. `sendMessage`는 `ModerationGuard`로
 뮤트/차단된 사용자를 걸러내고([0004](0004-graphql-socketio-api-layer-split.ko.md) 참고),
 `ChatResolver`는 각 메시지가 커밋된 뒤 `ModerationService.evaluateMessage()`를 호출합니다.
-여기서 `ModerationModule`까지 `ChatModule`을 임포트하면(예: 경고/뮤트/차단 알림을 룸에 발행하거나
-제재 시 소켓을 끊기 위해) NestJS 모듈 사이클이 생깁니다.
+여기서 `ModerationModule`까지 `ChatModule`을 임포트하면 NestJS 모듈 사이클이 생깁니다. 예를 들어
+경고/뮤트/차단 알림을 룸에 발행하거나 제재 시 소켓을 끊으려는 경우가 그렇습니다.
 
 ## 결정
 

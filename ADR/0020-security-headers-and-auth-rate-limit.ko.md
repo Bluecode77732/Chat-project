@@ -7,7 +7,7 @@ Accepted
 ## 배경
 
 세 배포 단위는 렌더링 표면이 완전히 다릅니다. `backend`는 HTML을 거의 서빙하지
-않고(REST/GraphQL은 JSON 전용, `/document`의 Swagger UI만 예외), 브라우저가 실제로 렌더링하는
+않습니다(REST/GraphQL은 JSON 전용, `/document`의 Swagger UI만 예외). 브라우저가 실제로 렌더링하는
 페이지는 `frontend`/`admin` 쪽입니다. `ChatEntity.message`를 통한 저장형 XSS(CLAUDE.md의
 [Render-Surface Sanitization](../CLAUDE.md#chat--caching) 참고)나 클릭재킹이 실제로 일어날 수
 있는 지점도 거기입니다. 별개로, `POST /auth/signin`과 `POST /auth/register`는 아직 인증된
@@ -28,10 +28,10 @@ Accepted
   Vercel `headers` 설정(`frontend/vercel.json`, `admin/vercel.json`)을 쓰는데, 실제 렌더링이
   일어나는 곳이 거기이기 때문입니다. 두 정책은 서로 다릅니다. `frontend`에는
   `style-src 'self' 'unsafe-inline'`이 있고 `admin`에는 없습니다. 두 앱 모두 같은 스타일링
-  스택(Tailwind, `package.json`으로 확인)을 쓰지만, React 인라인 `style={{...}}` prop을 쓰는
-  곳은 `frontend/src/pages/chat-page.tsx` 하나뿐이고(이건 인라인 `style` 속성으로 렌더링되는데,
-  CSP의 `style-src`는 `'unsafe-inline'`이나 nonce/hash 없이는 이를 막습니다), `admin`에는 그런
-  사용처가 전혀 없습니다. 즉 admin 쪽 정책이 더 엄격한 것은 명시적으로 기록된 결정이 아니라
+  스택을 쓰지만(Tailwind, `package.json`으로 확인), React 인라인 `style={{...}}` prop을 쓰는
+  곳은 `frontend/src/pages/chat-page.tsx` 하나뿐입니다. 이 prop은 인라인 `style` 속성으로
+  렌더링되는데, CSP의 `style-src`는 `'unsafe-inline'`이나 nonce/hash 없이는 이를 막습니다.
+  `admin`에는 그런 사용처가 전혀 없습니다. 즉 admin 쪽 정책이 더 엄격한 것은 명시적으로 기록된 결정이 아니라
   결과적으로 그렇게 된 것입니다.
 - `app.set('trust proxy', 1)`(`main.ts:29`)은 바로 앞 리버스 프록시(Railway) 딱 한 단계만
   신뢰합니다. 이 설정으로 `req.ip`가 Railway 프록시 자신의 주소 대신 실제 클라이언트 IP로
@@ -48,7 +48,7 @@ Accepted
     `/document`의 Swagger UI인데, 여기엔 어차피 정책을 무력화할 만큼의 인라인 스크립트 예외가
     필요하고, 이 헤더는 실제 렌더링이 일어나는 `frontend`/`admin`(다른 오리진)에 닿지 않습니다.
   - **인증 레이트리밋에 `@nestjs/throttler` 사용**: 배제했습니다. 가드 하나를 위해 런타임
-    의존성을 새로 들이는 셈인데, `RateLimitGuard`의 원자적 Lua `INCR`+`EXPIRE` 패턴(그리고
+    의존성을 새로 들이는 셈입니다. `RateLimitGuard`의 원자적 Lua `INCR`+`EXPIRE` 패턴(그리고
     Redis fail-closed 처리, [0016](0016-redis-unavailability-policy.ko.md) 참고)이 이미 있어
     그대로 재사용했습니다.
   - **`1` 대신 `trust proxy: true`**(전체 `X-Forwarded-For` 체인 신뢰): 배제했습니다.

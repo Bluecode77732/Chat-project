@@ -46,7 +46,7 @@
 - **`Accepted`** — 결정이 유효하며 코드가 그것을 반영하고 있습니다.
 - **`Superseded by NNNN`** — 이후의 ADR이 이 결정을 대체했습니다. **기존 ADR의 Decision을
   뒤집힌 내용으로 고쳐 쓰면 절대 안 됩니다.** 새 결정을 담은 새 ADR을 쓰고 거기서 옛 번호를
-  링크한 다음, 옛 기록에서는 Status 줄만 `Superseded by NNNN`으로 바꾸고 같은 링크를
+  링크합니다. 그다음 옛 기록에서는 Status 줄만 `Superseded by NNNN`으로 바꾸고 같은 링크를
   덧붙입니다. 대체된 파일의 나머지는 그대로 둡니다. 그 기록의 존재 이유가 "그 시점에 무엇을
   옳다고 믿었는지"를 담는 것인데, 그걸 고쳐 버리면 파일이 존재하는 이유인 역사 자체가
   사라지기 때문입니다.
@@ -84,14 +84,14 @@
 | [0021](0021-unified-message-delivery-channel.ko.md) | 사람·AI·모더레이션 시스템 메시지의 단일 전달 채널/형태 | Accepted |
 | [0022](0022-node-env-runtime-env-split.ko.md) | NODE_ENV(표준)와 RUNTIME_ENV(native\|docker) 분리 | Accepted |
 
-범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것이고, 0006–0007은
+범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것입니다. 0006–0007은
 소스 파일의 인라인 주석으로만 존재하던 코드 레벨 근거를 정식화한 것입니다. 0008, 0010, 0012,
-0013은 ARCHITECTURE.md나 README.md에만 문서화되어 있던 결정으로 범위를 넓힌 것이고,
+0013은 ARCHITECTURE.md나 README.md에만 문서화되어 있던 결정으로 범위를 넓힌 것입니다.
 0014–0015는 CLAUDE.md의 Project-Specific Principles에 이미 서술된 근거를 정식화한 것입니다.
 0009와 0011은 이번 작업 전에는 코드에도 기존 문서에도 기록이 없던 내용이라 개발자와의 새
 인터뷰가 필요했습니다 — admin 앱 분리의 동기, 그리고 Gemini 선택의 동기입니다. 0016은 기존
 ADR 세트 자체를 재검토하다 발견해 그 자리에서 결정·구현한 정책입니다. JWT 블랙리스트 체크,
-user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 에러 처리가 전혀 없었고,
+user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 에러 처리가 전혀 없었습니다.
 수정과 ADR 작성을 함께 진행했습니다(문서화 전용 작업이 아님). 0017은 같은 재검토에서 나온
 관련 발견 하나 — AuthModule, UserModule, ChatModule 사이의 부팅 순서 순환 의존성 — 를 다루며,
 심각도가 낮다고 판단해 리팩터링 대신 문서화만 진행했습니다. 0018은 backend 에러 로깅의
@@ -101,9 +101,9 @@ user_cache 읽기/쓰기, 뮤트 체크 3곳은 기존 RateLimitGuard와 달리 
 명시적으로 범위를 좁혀 backend 전용 에러 트래킹(Sentry)만 진행했습니다. 메트릭, 트레이싱,
 frontend/admin 커버리지는 여전히 보류 상태입니다. 0020과 0021은 모든 ADR을 현재 구현과 전면
 대조한 감사에서 나왔습니다. 0020은 README 한 줄로만 있던 보안 헤더/레이트리밋 설계를 정식화한
-것이고, 0021은 원래 AI 답장에만 국한됐던 CLAUDE.md 원칙을, 실제 구현(모더레이션 시스템
+것입니다. 0021은 원래 AI 답장에만 국한됐던 CLAUDE.md 원칙을, 실제 구현(모더레이션 시스템
 메시지)이 두 번째로 생긴 지금 ADR로 승격한 것입니다. 0022는 `.env`/`.env.local` 의미에 대한
-개발자 질문에서 시작되었고, 그 과정에서 비표준 값인 `NODE_ENV=docker`가 envFilePath 선택,
+개발자 질문에서 시작되었습니다. 그 과정에서 비표준 값인 `NODE_ENV=docker`가 envFilePath 선택,
 `main.ts` 호스트 바인딩, Sentry/로그 동작을 암묵적으로 한데 묶고 있었다는 사실이 드러났습니다.
 이 값을 전용 변수 `RUNTIME_ENV`로 대체하고, 0013의 오래된 `NODE_ENV=docker` 인용을
 갱신했습니다.

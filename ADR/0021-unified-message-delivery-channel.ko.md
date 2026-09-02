@@ -21,8 +21,8 @@ Accepted
 
 - 사람: `chat.resolver.ts:206-208`, `sendMessage` 리졸버 안에 인라인으로.
 - AI: `chat.resolver.ts:285-289`, 커밋 이후 `ChatResolver`가 `AiService.handleReply()`에
-  넘겨주는 `publishFn` 콜백을 통해([ADR 0007](0007-ai-reply-distributed-lock.ko.md)이 이
-  호출을 감싸는 룸 단위 락을 다루고, 이 ADR은 전달 형태만 다룹니다).
+  넘겨주는 `publishFn` 콜백을 통해 전달됩니다. [ADR 0007](0007-ai-reply-distributed-lock.ko.md)이
+  이 호출을 감싸는 룸 단위 락을 다루며, 이 ADR은 전달 형태만 다룹니다.
 - 모더레이션: `chat.resolver.ts:240-243`, `ModerationService.evaluateMessage()`에 넘겨주는
   동일한 `publishFn` 콜백을 통해. `ModerationService.sendSystemMessage()`(`moderation.service.ts:320-339`)가
   먼저 그 알림을 실제 `ChatEntity` 행으로 저장한 뒤(AI 메시지와 동일하게 시스템 유저 명의)

@@ -12,7 +12,7 @@ Accepted
 ## 결정
 
 - `backend`는 Railway에 배포합니다. `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을
-  빌드하고, 시작 시 `pnpm migration:run && node dist/main`을 실행하며, 실패 시 최대 3회까지
+  빌드하고 시작 시 `pnpm migration:run && node dist/main`을 실행합니다. 실패 시 최대 3회까지
   재시작합니다. `main` 브랜치 push 시 `.github/workflows/deploy.yml`의 `deploy` 잡이
   트리거합니다.
 - Railway는 `healthcheckPath = "/health"`로 배포 헬스를 판단합니다. liveness만 확인하고
@@ -25,7 +25,7 @@ Accepted
 - 고려했다가 배제한 대안:
   - **한 플랫폼에 전부**(세 배포 단위 모두 Vercel, 혹은 모두 Railway): 배제했습니다. Vercel의
     서버리스 모델은 Postgres/Redis에 영구 연결을 유지하는 장기 실행 Socket.IO 프로세스와 맞지
-    않고, Railway는 `frontend`/`admin`이 누리는 Vercel의 제로-설정 정적 사이트/프리뷰 배포
+    않습니다. Railway는 `frontend`/`admin`이 누리는 Vercel의 제로-설정 정적 사이트/프리뷰 배포
     편의를 제공하지 않습니다.
   - **셀프 호스팅 VPS**(모든 걸 돌리는 드롭릿 하나): 배제했습니다. OS 패치, TLS 인증서 관리,
     프로세스 감독, CI/CD 연결까지 전부 개발자가 직접 떠안아야 하는데, Railway/Vercel의 무료
@@ -41,9 +41,8 @@ Accepted
   [ADR 0019](0019-sentry-error-tracking.ko.md) 참고.)
 - `frontend`/`admin`을 하나가 아니라 두 개의 별도 Vercel 프로젝트로 운영하면 유지할 CORS
   표면도 두 배가 됩니다(`CORS_ORIGIN`이 설정되는 모든 곳에 두 오리진을 다 나열해야 합니다).
-  두 앱에 정말로 독립적인 배포 주기가 필요하고, admin/frontend 분리 자체가 의도된 보안 경계
-  결정이었기 때문에([0009](0009-admin-separate-app.ko.md) 참고) 받아들인 비용입니다.
-- `backend`를 Vercel로 옮기는 것(서버리스 모델은 Postgres/Redis 영구 연결을 유지하는 장기
-  실행 Socket.IO 프로세스와 맞지 않습니다)이나, 명시적 요청 없이 `frontend`/`admin`을
-  Railway로 옮기는 것은 절대 제안하지 않습니다. 현재 구조는 각 배포 단위의 실제 런타임 형태에
-  맞춰져 있습니다.
+  두 앱에 독립적인 배포 주기가 필요하고 admin/frontend 분리 자체가 의도된 보안 경계 결정이었기
+  때문에 받아들인 비용입니다([0009](0009-admin-separate-app.ko.md) 참고).
+- `backend`를 Vercel로 옮기거나, 명시적 요청 없이 `frontend`/`admin`을 Railway로 옮기는 것은
+  절대 제안하지 않습니다. 서버리스 모델은 Postgres/Redis 영구 연결을 유지하는 장기 실행
+  Socket.IO 프로세스와 맞지 않고, 현재 구조는 각 배포 단위의 실제 런타임 형태에 맞춰져 있습니다.

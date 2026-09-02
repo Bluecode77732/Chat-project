@@ -11,9 +11,9 @@ Accepted
 DB에 대체 경로가 없으며 차단은 별도 기록이 이미 있습니다. 반면 `user_cache`는 기존 DB 조회
 앞에 놓인 읽기 전용 캐시일 뿐입니다. 이번 작업 전에는 Redis 호출의 에러 처리가 일관되지
 않았고 대부분은 아예 없었습니다. `RateLimitGuard`만 Redis 에러를 명시적으로 잡아서 요청을
-거부했고(`rate-limit.guard.ts:70-82`), `ModerationService.isMuted()`와 `JwtStrategy.validate()`의
-Redis 읽기 두 곳은 에러 처리가 전혀 없어서, 예기치 못한 Redis 장애가 나면 예외가 그대로
-전파되어 `AllExceptionsFilter`를 거쳐 정책과 무관한, 문서화되지 않은 `500`으로 노출됐습니다.
+거부했습니다(`rate-limit.guard.ts:70-82`). `ModerationService.isMuted()`와 `JwtStrategy.validate()`의
+Redis 읽기 두 곳은 에러 처리가 전혀 없었습니다. 그래서 예기치 못한 Redis 장애가 나면 예외가
+그대로 전파되어 `AllExceptionsFilter`를 거쳐 정책과 무관한, 문서화되지 않은 `500`으로 노출됐습니다.
 결국 Redis 장애 시 실제 동작이 "어느 호출이 먼저 실패하느냐"에 따라 달라졌고, "Redis가 죽으면
 어떻게 되는가"에 대한 문서화된 단일한 답이 없었습니다.
 

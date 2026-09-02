@@ -15,12 +15,12 @@
 > English version: [README.md](README.md)
 
 # 실시간 채팅 애플리케이션
-- 개인 1:1 실시간 채팅 서비스로, 600개 이상의 커밋(2026-01 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증, 그리고 이후에는 실전 보안 인시던트와 행동 기반 모더레이션 시스템까지 다뤘습니다.
+- 개인 1:1 실시간 채팅 서비스입니다. 600개 이상의 커밋(2026-01 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증을 다뤘고, 이후 실전 보안 인시던트 대응과 행동 기반 모더레이션 시스템까지 추가했습니다.
 - 최소한의 인증 사용자 채팅 프로토타입으로 시작해, AI 챗봇 동반자, 별도 admin 패널, 행동 기반 모더레이션, 3개 서비스에 걸친 CI/CD를 갖춘 시스템으로 성장했습니다.
 
 
 ## 개요
-실시간 1:1 개인 채팅 서비스로, 6개월 이상(600개 이상의 커밋, [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
+실시간 1:1 개인 채팅 서비스입니다. 6개월 이상(600개 이상의 커밋, [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전했습니다.
 - 인증: Passport 전략 기반 JWT 인증 — refreshToken은 httpOnly 쿠키, accessToken은 메모리에만 보관
 - 채팅 관리: Socket.IO(연결 라이프사이클 전용) + GraphQL(메시지용 Mutation/Subscription), 트랜잭션 안전성을 갖춘 Redis 기반 세션/캐시
 - 모더레이션: 중복/도배 및 속도 기반 자동 스트라이크 탐지가 경고 → 뮤트 → 기간제/영구 밴으로 에스컬레이션, admin 복구 도구 제공
@@ -34,9 +34,9 @@
 
 ## 프로젝트 동기
 - 600개 이상의 커밋(2026-01-02 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
-- 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 이런 변경이 이론이 아니라 실제 운영 중인 시스템에서 어떤 비용을 요구하는지 체감하기 위함
-- Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 찾아 수정한 경험 포함
-- 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 사례로 남기고 넘어가지 않음
+- 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 실제 운영 중인 시스템에서 이런 변경에 어떤 비용이 드는지 체감하기 위함
+- Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 수정한 경험 포함
+- 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 기록으로 남김
 - KISS/YAGNI를 기본 원칙으로 유지하되 기능 데모 수준에서 멈추지 않음 — 행동 기반 모더레이션 파이프라인, 별도 admin 패널, 실제 서비스에 필요한 수준의 CI/CD(GitHub Actions + Railway/Vercel)까지 구축
 
 
@@ -385,7 +385,7 @@ Chat Project/                   ← 모노레포 루트
 
 ### Redis Pub/Sub
 - `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신합니다.
-- `PubSubService.publish()`는 발행 시점에 부수효과로 `SessionCacheService.cacheMessage()`를 호출해 메시지를 캐싱합니다 — 사람 메시지와 AI 메시지 모두 동일하게, 메시지 캐싱이 일어나는 **유일한** 지점입니다. 리졸버나 `AiService`가 직접 `cacheMessage()`를 호출하지 않습니다.
+- `PubSubService.publish()`는 발행 시점에 부수효과로 `SessionCacheService.cacheMessage()`를 호출해 메시지를 캐싱합니다. 사람 메시지와 AI 메시지 모두 이 지점에서만 캐싱되며, 리졸버나 `AiService`가 직접 `cacheMessage()`를 호출하지 않습니다.
 
 ### 엔티티 (TypeORM)
 ```
@@ -632,7 +632,7 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 
 
 ### 채팅
-`ChatGateway`(`backend/src/chat/chat.gateway.ts`)는 연결 라이프사이클만 처리합니다 — 채팅 메시지용 `@SubscribeMessage`가 없고, 아무것도 emit하지 않습니다. 채팅 메시지는 대신 GraphQL Mutation/Subscription으로 오갑니다([흐름](#흐름) 참고). 이렇게 분리된 이유는 원래 메시지를 Socket.IO로 직접 전송하다가, 메시지 저장에 트랜잭션 보장(`GqlTransactionInterceptor`)을 주기 위해 프로젝트 중반에 GraphQL로 마이그레이션했기 때문입니다 — 단순 소켓 핸들러로는 이 보장을 줄 수 없었습니다.
+`ChatGateway`(`backend/src/chat/chat.gateway.ts`)는 연결 라이프사이클만 처리합니다 — 채팅 메시지용 `@SubscribeMessage`가 없고, 아무것도 emit하지 않습니다. 채팅 메시지는 대신 GraphQL Mutation/Subscription으로 오갑니다([흐름](#흐름) 참고). 이렇게 분리된 이유는 마이그레이션 이력 때문입니다. 원래는 Socket.IO로 메시지를 직접 전송했지만, 메시지 저장에 트랜잭션 보장(`GqlTransactionInterceptor`)을 주기 위해 프로젝트 중반에 GraphQL로 옮겼습니다. 단순 소켓 핸들러로는 이 보장을 줄 수 없었습니다.
 
 **`handleConnection`** — 새 소켓마다:
 1. 핸드셰이크의 `authorization` 헤더에서 JWT를 파싱(`authService.parseBearerToken`)
@@ -785,7 +785,7 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 
 
 ### Admin 패널
-admin/superadmin 계정용 별도 React 앱(`admin/`)으로, 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고 자체 Vercel 프로젝트로 배포됩니다([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
+admin/superadmin 계정용 별도 React 앱(`admin/`)입니다. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 배포됩니다([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
 
 - **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 moderation 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
 - **Users** — 페이지네이션/정렬/검색 지원 목록; 모더레이션 상태(active/banned)로 필터. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림. 액션: 승격/강등(superadmin 전용), 강제 로그아웃, 수동 밴(선택적 사유, 영구 또는 기간제)/언밴, 삭제 — 자신보다 명확히 낮은 등급만 대상 가능하며 AI/moderation 시스템 계정은 절대 삭제 불가([역할](#역할) 불변식 참고)
@@ -794,7 +794,7 @@ admin/superadmin 계정용 별도 React 앱(`admin/`)으로, 로컬에서는 `ht
 
 
 ### Redis
-- Redis가 없다면 연결 상태(`socketId`, 온라인 상태)는 각 프로세스 자체 메모리에만 존재합니다 — 단일 인스턴스에서는 문제없지만, 확장되어 인스턴스가 여러 개가 되는 순간 다른 인스턴스에서는 전혀 보이지 않습니다. Redis는 이 메타데이터를 중앙에서 저장해 어떤 인스턴스에서든 사용자가 어디에 연결되어 있는지 조회할 수 있게 하며, 동시에 메시지 캐시와 pub/sub 브릿지 역할도 겸합니다(위 참고).
+- Redis가 없다면 연결 상태(`socketId`, 온라인 상태)는 각 프로세스 자체 메모리에만 존재합니다. 단일 인스턴스에서는 문제없지만, 인스턴스가 여러 개로 늘어나는 순간 다른 인스턴스에서는 전혀 보이지 않습니다. Redis는 이 메타데이터를 중앙에서 저장해 어떤 인스턴스에서든 사용자가 어디에 연결되어 있는지 조회할 수 있게 하며, 동시에 메시지 캐시와 pub/sub 브릿지 역할도 겸합니다(위 참고).
 
 #### 코드 비교 예시
 
@@ -991,16 +991,16 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 #### Migration Cascade Guard
 
-`migration-cascade-guard.spec.ts`는 정적 가드입니다(런타임 유닛 테스트가 아니라 마이그레이션
-소스에 대한 텍스트 스캔) — CASCADE가 도입된 시점 **이후**에 생성된 마이그레이션이 cascade에
+`migration-cascade-guard.spec.ts`는 정적 가드입니다 — 런타임 유닛 테스트가 아니라 마이그레이션
+소스에 대한 텍스트 스캔입니다. CASCADE가 도입된 시점 **이후**에 생성된 마이그레이션이 cascade에
 필수적인 FK를 잘못된 `ON DELETE` 액션으로 다시 추가하면 빌드를 실패시킵니다.
 
 **보호 대상.** `migration:generate`는 ManyToMany 조인 테이블 FK인
 `FK_501a0aef55632e3cf2894bda97f`(`room_entity_participants_user_entity`)를 조용히
-`ON DELETE NO ACTION`으로 재생성해, `UserService.remove`가 삭제된 유저의 방 참여 기록을
-정리하는 데 의존하는 `ON DELETE CASCADE`를 되돌려버립니다. 이 가드는 각 마이그레이션의
-`up()`만 스캔합니다 — `down()`이 이전 액션을 복원하는 것은 정당하므로 — 그리고 CASCADE가
-유지되어야 함을 요구합니다. 이전 마이그레이션(원래 `NO ACTION`을 설정한 것들)은 `since`
+`ON DELETE NO ACTION`으로 재생성합니다. 이 때문에 `UserService.remove`가 삭제된 유저의 방 참여
+기록을 정리하는 데 의존하는 `ON DELETE CASCADE`가 되돌아갑니다. 이 가드는 각 마이그레이션의
+`up()`만 스캔하고 CASCADE가 유지되도록 요구합니다 — `down()`이 이전 액션을 복원하는 것은
+정당하므로 스캔 대상에서 제외합니다. 이전 마이그레이션(원래 `NO ACTION`을 설정한 것들)은 `since`
 타임스탬프로 예외 처리되어, 최초 `InitialSchema`는 걸리지 않습니다.
 
 **왜 `pnpm test`에 얹혀있는가.** lint도 이제 blocking CI 단계이지만, 문법/스타일만 검사할 뿐
@@ -1012,10 +1012,10 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 | 로컬 `pnpm test`(dev 브랜치) | 가장 이른 포착 — 잘못된 마이그레이션이 생성되고 개발자가 테스트를 돌리는 순간 |
 | CI `test` job(main push/PR) | Blocking; `deploy`가 `needs: test`이므로 위반 시 Railway 프로덕션 배포가 막힘 |
 
-의도적으로 프로덕션에서는 실행하지 **않습니다**: 프로덕션 부팅 시점에는 이미 `migration:run`이
-라이브 DB에 해당 마이그레이션을 실행한 뒤이므로, 그 시점의 소스 스캔은 너무 늦습니다 — 데이터
-손상을 부팅 장애로 바꾸는 것밖에 안 됩니다. 올바른 포착 지점은 로컬 + CI입니다. 확장하려면
-spec의 `GUARDED_FKS` 배열에 항목을 추가하세요.
+의도적으로 프로덕션에서는 실행하지 **않습니다**. 프로덕션 부팅 시점에는 이미 `migration:run`이
+라이브 DB에 해당 마이그레이션을 실행한 뒤라, 그 시점의 소스 스캔은 너무 늦습니다. 데이터 손상을
+부팅 장애로 바꾸는 것밖에 되지 않습니다. 올바른 포착 지점은 로컬 + CI입니다. 확장하려면 spec의
+`GUARDED_FKS` 배열에 항목을 추가하세요.
 
 ### 배포
 #### 프론트엔드 - Vercel
@@ -1146,7 +1146,7 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 5. Windows 방화벽 프로파일 Public 전환 안내 (사용자 직접 수행)
 
 **AI가 수행하지 않은 것 — 프롬프트 인젝션 방지**
-`readme_to_recover.readme` 테이블 내용을 SQL 쿼리로 직접 읽지 않았습니다. 공격자가 DB에 AI 지시문을 심었을 경우, AI 도구가 그 내용을 컨텍스트에 로드하는 순간 의도치 않은 명령이 실행될 수 있기 때문입니다. AI는 테이블의 위치와 존재만 설명하고 내용 확인을 사용자에게 위임했으며, 사용자가 직접 확인한 결과 표준 비트코인 요구문으로 판단됐습니다.
+`readme_to_recover.readme` 테이블 내용을 SQL 쿼리로 직접 읽지 않았습니다. 공격자가 DB에 AI 지시문을 심었을 경우, AI 도구가 그 내용을 컨텍스트에 로드하는 순간 의도치 않은 명령이 실행될 수 있기 때문입니다. AI는 테이블의 위치와 존재만 설명하고 내용 확인을 사용자에게 위임했습니다. 사용자가 직접 확인한 결과 표준 비트코인 요구문으로 판단됐습니다.
 
 **대응 순서 — 봉쇄 우선**
 랜섬웨어 DB를 먼저 삭제하자는 판단도 있었지만, 접근 경로가 열린 상태에서 삭제해도 봇이 즉시 재생성 가능하므로 다음 순서를 지켰습니다:
@@ -1161,15 +1161,15 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 
 ### 라이브 브라우저 테스트 중 발견한 AI 응답 캐시 손상
 
-새로 추가한 AI 응답 재시도/폴백 기능을 라이브 브라우저 세션에서 수동 검증하던 중, 백엔드 재시작으로 소켓이 재연결되며 방의 메시지 기록을 캐시에서 다시 불러올 때 콘솔 에러(`CombinedGraphQLErrors: Invalid time value`)가 발생했습니다.
+새로 추가한 AI 응답 재시도/폴백 기능을 라이브 브라우저 세션에서 수동 검증하던 중 문제가 발생했습니다. 백엔드 재시작으로 소켓이 재연결되고 방의 메시지 기록을 캐시에서 다시 불러오는 과정에서, 콘솔에 `CombinedGraphQLErrors: Invalid time value` 에러가 떴습니다.
 
 **근본 원인**
 `AiService`가 자신의 응답을 직접 캐싱하고, `PubSubService`의 발행 시점 훅이 같은 응답을 한 번 더
 캐싱하고 있었습니다. 문제는 두 번째 캐싱에 넘어간 값이 `plainToClass`로 직렬화된 사본이라,
 `@Exclude()`가 붙은 `created` 필드가 이미 제거된 상태였다는 점입니다. 이 손상된 캐시 항목은
-이후 `getCachedMessages`를 거치며 `new Date(undefined)`(유효한 `Date` 인스턴스지만 내부적으로
-`NaN`)가 되었고, 캐시에서 읽은 `getMessages` 응답에 그 항목이 포함되는 순간 GraphQL의 기본
-`DateTime` 스칼라(`value.toISOString()`)가 크래시했습니다.
+이후 `getCachedMessages`를 거치며 `new Date(undefined)`가 되었습니다 — 유효한 `Date` 인스턴스지만
+내부적으로는 `NaN`입니다. 이 항목이 캐시에서 읽은 `getMessages` 응답에 포함되는 순간, GraphQL의
+기본 `DateTime` 스칼라(`value.toISOString()`)가 크래시했습니다.
 
 **AI가 수행한 것**
 1. `psql`로 DB의 `created` 컬럼을 직접 조회해 데이터 자체의 손상 여부를 배제
@@ -1180,7 +1180,7 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 6. 회귀 테스트 추가: `created` 필드가 없는 경우의 `getCachedMessages` 케이스, 그리고 신규 `pubsub.service.spec.ts`
 
 **교훈**
-- 라이브 브라우저 테스트가 단위 테스트로는 절대 못 잡는 서비스 간 버그를 드러냈습니다 — 기존 목(mock)들이 정확히 손상이 발생하던 계층(`PubSubService`의 발행-시-캐싱 부수효과)을 격리하고 있었기 때문입니다
+- 라이브 브라우저 테스트가 단위 테스트로는 절대 못 잡는 서비스 간 버그를 드러냈습니다. 기존 목(mock)들이 정확히 손상이 발생하던 계층(`PubSubService`의 발행-시-캐싱 부수효과)을 격리하고 있었기 때문입니다
 - 의심되는 커밋에 `git show --stat`을 실행하는 것으로 "불완전한 리팩터링의 누락"인지 "의도된 설계"인지 추측 없이 객관적으로 확인할 수 있습니다
 
 

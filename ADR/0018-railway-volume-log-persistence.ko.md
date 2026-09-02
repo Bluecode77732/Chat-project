@@ -15,8 +15,8 @@ Accepted
 없었습니다.
 
 같은 파일에는 `const isVercel = process.env.VERCEL === '1'`로 `File` transport를 조건부로 끄는
-분기도 있었는데, 실제 배포 환경에서는 죽은 코드임이 확인됐습니다. `VERCEL`은 저장소 어디에도
-달리 등장하지 않고, `railway.toml`은 이 분기보다 약 3주 먼저 존재했으며,
+분기도 있었습니다. 실제 배포 환경에서는 죽은 코드임이 확인됐습니다. `VERCEL`은 저장소 어디에도
+달리 등장하지 않습니다. `railway.toml`은 이 분기보다 약 3주 먼저 존재했습니다.
 [0010](0010-railway-vercel-deployment.ko.md)이 이미 backend를 Railway 전용으로 명시합니다.
 Railway는 `process.env.VERCEL`을 설정하지 않으므로 운영 환경에서 `!isVercel`은 항상
 `true`였습니다.
@@ -40,7 +40,7 @@ Railway는 `process.env.VERCEL`을 설정하지 않으므로 운영 환경에서
   해석된 `logDir`을 가리킵니다(`backend/src/base/logger/logger.ts:50,61`).
 - 고려했다가 배제한 대안:
   - **외부 로그 저장 서비스**(예: Better Stack): 배제했습니다. 새 npm 의존성, 새 외부 계정,
-    로그 내용의 제3자 전송이 추가되는데, Railway 자체 인프라가 이미 같은 문제에 대한 1차적인
+    로그 내용의 제3자 전송이 추가됩니다. Railway 자체 인프라가 이미 같은 문제에 대한 1차적인
     지속성 수단을 제공합니다.
   - **기존 `MailModule`을 이용한 5xx 메일 알림**: 알림 문제만 풀 뿐 보존 문제는 풀지
     못합니다. 재배포 후 사고 이전의 로그 이력을 되돌아볼 수 없다는 원래의 목적을 충족하지

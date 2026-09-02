@@ -21,7 +21,7 @@ Accepted
   수행한 관리자입니다.
 - `ModerationService`: `'USER_MUTED'`(`moderation.service.ts:253-258`), `'USER_BANNED'`
   (`moderation.service.ts:287-292`), `'USER_UNBAN'`(`moderation.service.ts:189`) — `actorId`는
-  `getSystemUserId()`입니다. 사람 관리자가 아니라 자동화된 제재이기 때문인데, 감사 로그는
+  `getSystemUserId()`입니다. 사람 관리자가 아니라 자동화된 제재이기 때문입니다. 감사 로그는
   `actorId`를 null로 두거나 항목을 생략하는 대신 시스템 계정에 귀속시킵니다.
 - `AuditLogService.countByTarget(userId, 'USER_BANNED')`(`moderation.service.ts:272-275`)는
   `applyBan`이 같은 사용자에 대한 재차 차단을 영구 차단으로 격상할지 판단할 때 다시

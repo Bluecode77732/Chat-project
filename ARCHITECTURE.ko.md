@@ -97,8 +97,8 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
   (`AuthModule → UserModule → ChatModule → AuthModule`, `forwardRef` 하나로 해소 —
   [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) 참고). 그러니 여기서 걱정하는 것은
   "NestJS가 두 번째 순환을 못 다룬다"가 아닙니다(`forwardRef`로 되긴 됩니다). 문제는 순환이 하나
-  더 생기면 모듈 그래프를 이해하기가 실질적으로 더 어려워지고 리팩터링에도 더 취약해지는데,
-  이미 `AiService`로 검증된 콜백 패턴에 비해 그럴 이득이 없다는 것입니다.
+  더 생기면 모듈 그래프를 이해하기가 실질적으로 더 어려워지고 리팩터링에도 더 취약해진다는
+  것입니다. 게다가 이미 `AiService`로 검증된 콜백 패턴에 비해 얻는 이득도 없습니다.
 
 **`AuditLogModule`이 `UserModule`/`ModerationModule`과 그 밖의 모든 것 사이에 있는 이유**: 권한 액션(역할 변경, 강제 로그아웃, 삭제)과 자동 제재(뮤트, 밴, 언밴) 모두 winston 로그 스트림과는 별개로 `AuditLogService.log()`를 통해 조회 가능한 기록으로 남습니다. `ModerationService`는 자동으로 기록되는 항목의 행위자를 null이 아니라 `getSystemUserId()`로 지정합니다. [ADR 0015](ADR/0015-audit-trail-privileged-actions.md)로 정식화되어 있습니다.
 
@@ -113,7 +113,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
   코드 주석 근거).
 - **`helmet`** (`main.ts:37`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의
   표준 보안 HTTP 응답 헤더를 설정합니다. CSP는 의도적으로 꺼져 있습니다. 이 백엔드는 HTML을 거의
-  서빙하지 않고(REST/GraphQL 응답은 전부 JSON), 백엔드가 설정하는 CSP 헤더가 실제로 적용될
+  서빙하지 않습니다(REST/GraphQL 응답은 전부 JSON). 백엔드가 설정하는 CSP 헤더가 실제로 적용될
   페이지는 Swagger UI(`/document`) 하나뿐인데, Swagger의 인라인 부트스트랩 스크립트는 CSP를 켜면
   별도 예외가 필요합니다. 실제 XSS 관련 렌더링 표면은 `frontend`/`admin`의 React 페이지이고,
   이들은 별도 Vercel 배포로 서빙되므로 이 백엔드의 CSP 헤더는 그쪽에 아무 영향을 주지 않습니다.
@@ -124,9 +124,9 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
   `style={{ fontFamily: ... }}` 인라인 스타일이 6곳 있어(사용자 입력이 아닌 하드코딩된 값)
   `style-src`에 `'unsafe-inline'`을 포함했지만, `admin`은 인라인 스타일이 없어 엄격하게
   유지했습니다. 폰트는 자체 호스팅(`frontend/public/fonts/*.woff2`)이라 외부 폰트 CDN이 필요
-  없고, `img-src`는 base64 프로필 이미지를 위해 `data:`를 허용하며, `connect-src`는 프로덕션
-  백엔드 오리진을 HTTPS(양쪽) + WSS(`frontend`만 — GraphQL 구독 + Socket.IO용, `admin`은 실시간
-  의존성 없음)로 화이트리스트합니다.
+  없습니다. `img-src`는 base64 프로필 이미지를 위해 `data:`를 허용합니다. `connect-src`는
+  프로덕션 백엔드 오리진을 HTTPS(양쪽) + WSS(`frontend`만 — GraphQL 구독 + Socket.IO용, `admin`은
+  실시간 의존성 없음)로 화이트리스트합니다.
   전체 내용(위의 Helmet 포함)은 [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) 참고.
 - **전역 `ValidationPipe`** (`main.ts:45-54`) — `whitelist: true` + `forbidNonWhitelisted: true`
   (대상 DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO
@@ -146,9 +146,9 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 `AllExceptionsFilter`(`backend/src/base/filter/all-exceptions.filter.ts`)는 HTTP와 GraphQL을 모두
 커버하는 단일 전역 필터로 등록되어 있습니다(`app.useGlobalFilters(new AllExceptionsFilter())`,
 `main.ts:38`). 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기합니다.
-`HttpException`이 아닌 에러는 기본적으로 `500`/`INTERNAL_SERVER_ERROR`로 처리하되, `body-parser`의
-"entity.too.large" 에러만은 구조적으로 감지해서(`body-parser`가 일반 `Error`를 던지므로
-`instanceof HttpException`으로는 구분되지 않음) `413 PAYLOAD_TOO_LARGE`로 재매핑합니다. 운영
+`HttpException`이 아닌 에러는 기본적으로 `500`/`INTERNAL_SERVER_ERROR`로 처리합니다. 다만
+`body-parser`의 "entity.too.large" 에러만은 구조적으로 감지해서(`body-parser`가 일반 `Error`를
+던지므로 `instanceof HttpException`으로는 구분되지 않음) `413 PAYLOAD_TOO_LARGE`로 재매핑합니다. 운영
 환경(`NODE_ENV === 'production'`)에서는 HTTP JSON 바디와 GraphQL 에러의 `extensions` 양쪽 모두에서
 스택 트레이스가 빠집니다. CLAUDE.md의 Never Do Group 3 "Stack trace in error response" 규칙의 실제
 구현체입니다.
@@ -156,7 +156,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 - **`>= 500`일 때 Sentry로 캡처** (`all-exceptions.filter.ts:56-58`): `logger.error`/`logger.warn`을
   가르는 것과 동일한 상태 체크가 `Sentry.captureException(exception, { extra: { stack, isGraphQL } })`
   호출도 게이트합니다. 선택적 통합입니다. `instrument.ts`(`main.ts`의 말 그대로 첫 줄에서,
-  `NestFactory`보다 먼저 import됨)는 `SENTRY_DSN`이 설정된 경우에만 `Sentry.init()`을 호출하고,
+  `NestFactory`보다 먼저 import됨)는 `SENTRY_DSN`이 설정된 경우에만 `Sentry.init()`을 호출합니다.
   설정되어 있지 않으면 `captureException`이 안전한 no-op이라 로컬 개발/CI에는 Sentry 계정이 전혀
   필요 없습니다. `instrument.ts`의 `beforeSend` 훅은 이벤트가 프로세스를 떠나기 전에
   `password`/`token`/`secret` 이름의 필드를 재귀적으로 지웁니다. Sentry는 winston 로그와 달리
@@ -183,7 +183,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
 | Socket.IO `handleConnection` | JWT 파싱 → `moderationService.isUserBanned()` 확인 | `chat.gateway.ts` — HTTP/GraphQL에서 `jwt.strategy`가 적용하는 것과 동일한 밴 게이트로, 유효한 토큰이라도 소켓 연결로는 밴을 우회할 수 없음 |
 | GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:309-326` |
-| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준입니다(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한, Redis 에러 시 fail-closed(거부)합니다 — [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이며, (위의 Helmet/CSP 분리와 함께) [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md)으로 정식화되어 있습니다 |
+| REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준입니다(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한하고, Redis 에러 시 fail-closed(거부)합니다. [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이고, (위의 Helmet/CSP 분리와 함께) [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md)으로 정식화되어 있습니다 |
 
 **`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작합니다** — 이 표에서 유일하게 그런
 경로입니다. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP
@@ -206,7 +206,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
   `RateLimitGuard`(`rate-limit.guard.ts`)는 Redis에 Lua 스크립트(`INCR` + 조건부 `EXPIRE`)를
   실행합니다. 저렴한 체크를 앞에 두면 이미 밴된 유저가 엔드포인트를 두드려도 더 비싼 속도 제한
   연산까지는 도달하지 않습니다. 순서를 뒤집으면 밴된 유저의 재시도 폭주가 어차피 거부될 요청에
-  Redis 자원을 쓰게 되고, 이미 밴된 계정에 `recordVelocityViolation`으로 불필요한 추가
+  Redis 자원을 쓰게 됩니다. 게다가 이미 밴된 계정에 `recordVelocityViolation`으로 불필요한 추가
   스트라이크가 쌓일 수도 있습니다.
 
 ## 데이터 흐름
@@ -220,7 +220,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 
 `pubSub.publish()`는 `graphql-redis-subscriptions`를 그냥 호출하는 것이 아닙니다. `PubSubService`
 (`backend/src/graphql/pubsub.service.ts`)는 `graphql-redis-subscriptions`의 `RedisPubSub`를
-상속(extends)하고 `publish()`를 오버라이드해서, 트리거가 `receiveMessage :{roomId}` 패턴과 일치할
+상속(extends)하고 `publish()`를 오버라이드합니다. 트리거가 `receiveMessage :{roomId}` 패턴과 일치할
 때마다 방 단위 최근 메시지 캐시(`SessionCacheService.cacheMessage()`, Redis 리스트
 `room_messages:{roomId}`, 최대 15개, TTL `MESSAGE_CACHE_TTL_SEC`)에도 씁니다. 사람이 보낸
 메시지든 AI 응답이든 모더레이션 시스템 메시지든, 이 채널로 전달되는 모든 메시지는 발행되는 김에
@@ -240,7 +240,7 @@ AI 응답과 동일한 트리거 패턴). 경고/뮤트/밴 알림용 시스템 
   실행되는 `setImmediate` 블록 안에 있습니다(`chat.resolver.ts:206`의 발행이 모더레이션 블록보다
   먼저 시작됩니다). 즉 위반 메시지 자체는 전달 전에 차단되는 일이 없고, 뮤트/밴이 발동된 *이후*
   에 보낸 메시지만 막힙니다. 모더레이션 평가가 `sendMessage`에 왕복 시간을 더하지 않도록 의도한
-  지연 시간 트레이드오프이지 실수가 아니지만, 스트라이크를 유발한 그 메시지에 대해서는
+  지연 시간 트레이드오프이지 실수가 아닙니다. 다만 스트라이크를 유발한 그 메시지에 대해서는
   모더레이션이 사전 예방이 아니라 전달 후 사후 대응이라는 뜻이기도 합니다.
 
 ## 배포 토폴로지
@@ -278,7 +278,7 @@ flowchart LR
   전체 내용은 [ADR 0013](ADR/0013-local-dev-network-binding.md) 참고.
 
 - **백엔드 / Railway**: `railway.toml`이 `backend/Dockerfile`(멀티스테이지)을 빌드하고, 동일한
-  마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작하고,
+  마이그레이션 후 시작 커맨드를 실행하며, 실패 시 최대 3회 재시작합니다. 그 다음
   `healthcheckPath = "/health"`(`HealthModule`의 liveness 엔드포인트, `healthcheckTimeout = 30`)를
   폴링해 새 컨테이너가 실제로 떴는지 확인한 뒤 트래픽을 넘깁니다. 배포는
   `.github/workflows/deploy.yml`의 `deploy` job이 `main` 브랜치 push에서만 트리거하며, 이제 그
@@ -306,7 +306,11 @@ flowchart LR
   GitHub push로 바로 배포되는 편의성 때문입니다.
 
   - **비용/위험:** 플랫폼이 둘로 나뉘어 있어 로그·메트릭이 대시보드 두 곳에 흩어집니다(관측성
-    분산). (Railway 쪽 로그 지속성은 이 위험이 다루는 플랫폼 간 분산보다 좁은, 단일 플랫폼 내부의 별개 문제라 [ADR 0018](ADR/0018-railway-volume-log-persistence.ko.md)에서 따로 다룹니다. backend 에러 트래킹은 이 분산 위에 얹힌 세 번째 대시보드인 Sentry입니다 — [ADR 0019](ADR/0019-sentry-error-tracking.ko.md) 참고.) `frontend`/`admin`을 (하나가 아니라) 별도의 Vercel 프로젝트 두 개로 두면 유지해야 할
+    분산). Railway 쪽 로그 지속성은 이 위험이 다루는 플랫폼 간 분산보다 좁은, 단일 플랫폼 내부의
+    별개 문제라 [ADR 0018](ADR/0018-railway-volume-log-persistence.ko.md)에서 따로 다룹니다.
+    backend 에러 트래킹은 이 분산 위에 얹힌 세 번째 대시보드인 Sentry입니다 —
+    [ADR 0019](ADR/0019-sentry-error-tracking.ko.md) 참고. `frontend`/`admin`을 (하나가 아니라)
+    별도의 Vercel 프로젝트 두 개로 두면 유지해야 할
     CORS 표면도 두 배가 됩니다(`CORS_ORIGIN`을 설정하는 모든 곳에서 두 origin을 다 나열해야
     합니다). 두 앱이 실제로 독립적인 배포 주기를 가져야 하기 때문에 받아들인 대가입니다
     ([ADR 0005](ADR/0005-cors-multi-origin-policy.md) 참고).
@@ -316,7 +320,7 @@ flowchart LR
 - **Railway Volume을 통한 로그 영속화**: Railway의 컨테이너 파일시스템은 휘발성이라, 재배포할
   때마다 `error.logs.log`가 지워져 사고 이후 조사에 쓸모가 없었습니다. `logger.ts`는 이제
   `RAILWAY_VOLUME_MOUNT_PATH`(볼륨이 붙으면 자동 주입됨)를 읽고, 없으면 로컬 `./logs` 디렉터리로
-  폴백해 Railway 밖에서의 동작은 그대로입니다. Railway에는 볼륨의 config-as-code 표현이 없어서
+  폴백합니다. 그래서 Railway 밖에서의 동작은 그대로입니다. Railway에는 볼륨의 config-as-code 표현이 없어서
   볼륨 자체는 저장소 밖에서(대시보드/CLI로) 프로비저닝해야 합니다. 이 단계를 빠뜨린 새 환경은
   요란하게 실패하는 대신 조용히 휘발성 로그로 되돌아갑니다.
   [ADR 0018](ADR/0018-railway-volume-log-persistence.md) 참고.
@@ -387,13 +391,13 @@ flowchart LR
     단계입니다.
 
   - **위험:** TTL을 빠뜨리면 메모리가 무한정 늘어날 위험이
-    있고([해결된 이상 항목](#해결된-이상-항목) 참고), `ioredis` 외에 두 번째 Redis 클라이언트를
+    있습니다([해결된 이상 항목](#해결된-이상-항목) 참고). `ioredis` 외에 두 번째 Redis 클라이언트를
     같이 두면 어느 쪽이 진짜인지 모호해집니다. 실제로 이번 정비 전에 그런 일이 사고로 한 번
     일어났습니다. 전체 내용은 [ADR 0002](ADR/0002-redis-cache-conventions.md) 참고.
 
   - **장애 시 정책:** JWT 블랙리스트 체크, `user_cache` 읽기/쓰기, 뮤트 체크 3곳은 원래 에러
     처리가 전혀 없었습니다. 예기치 못한 Redis 장애가 잡히지 않고 전파되어 문서화 안 된 `500`으로
-    노출됐고, 이는 `RateLimitGuard`의 의도적인 fail-closed 처리와 일관되지 않았습니다. 수정 후
+    노출됐습니다. 이는 `RateLimitGuard`의 의도적인 fail-closed 처리와 일관되지 않았습니다. 수정 후
     [ADR 0016](ADR/0016-redis-unavailability-policy.md)로 정식화했습니다. DB 폴백이 없는 보안
     체크는 명시적으로 fail-closed, 같은 메서드 안에 이미 DB 폴백이 있는 `user_cache`는 캐시
     미스로 저하됩니다.

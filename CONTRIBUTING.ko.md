@@ -4,8 +4,8 @@
 체크리스트를 다룹니다. README의 빠른 시작은 앱을 로컬에서 실행하는 방법까지만 다루고, 변경사항을
 제출하는 워크플로우는 다루지 않습니다. 코드 수준의 깊은 컨벤션(Never Do 규칙, 테스트 패턴,
 트랜잭션 경계)은 CLAUDE.md에 이미 상세히 문서화되어 있습니다. 이 문서는 그 내용을 다시 쓰지
-않고, 새 기여자가 PR을 열 수 있는 지점까지 데려다주는 진입로 역할만 하며, 그 이후는 CLAUDE.md로
-안내합니다.
+않습니다. 새 기여자가 PR을 열 수 있는 지점까지 데려다주는 진입로 역할만 하고, 그 이후는
+CLAUDE.md로 안내합니다.
 
 ## 사전 준비물
 
@@ -139,7 +139,7 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   동일한 설정(`src/test/setup.ts`, 동일 버전의 devDependency)을 씁니다. `frontend/` 스위트는
   admin의 기존 3개 파일(axios/protected-route/auth.store — frontend의 더 단순한, role 없는
   인증 모델에 맞게 조정)을 포팅하고, `session-guard.ts`용 테스트를 새로 추가했습니다.
-  in-flight 리프레시 중복 방지와 탭 간 계정 충돌 감지 로직인데, 두 앱 모두 테스트가 없었지만
+  in-flight 리프레시 중복 방지와 탭 간 계정 충돌 감지 로직입니다. 두 앱 모두 테스트가 없었지만,
   인증 코드에서 레이스 컨디션에 가장 민감한 부분입니다(CLAUDE.md의 Session Guard 절 참고).
 - `backend/test/app.e2e-spec.ts`는 `Test.createTestingModule({ imports: [AppModule] })` +
   `createNestApplication()` + `app.init()`으로 앱을 만들며, `main.ts`의 `bootstrap()`을 전혀
@@ -156,8 +156,8 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   테스트도 없습니다. [ADR 0019](ADR/0019-sentry-error-tracking.ko.md)의 backend 전용 Sentry
   연동과 함께 의도적으로 미뤄둔 것입니다 — 그 결정에서 backend 에러 트래킹이 우선순위가 더
   높은 절반이었습니다. 나중에 착수할 때는 `@sentry/react`를 추가하고(backend의
-  `@sentry/nestjs` 설정을 그대로 본떠서) 두 앱의 `main.tsx`에 최상위 에러 바운더리를 두는
-  한편, `errorLink`에서 현재 조용히 지나가는 non-auth 분기(`frontend/src/api/apollo.ts`,
+  `@sentry/nestjs` 설정을 그대로 본떠서) 두 앱의 `main.tsx`에 최상위 에러 바운더리를 두세요.
+  동시에 `errorLink`에서 현재 조용히 지나가는 non-auth 분기(`frontend/src/api/apollo.ts`,
   `admin/src/api/apollo.ts`)도 함께 보고하도록 연결하세요.
 
 ## 이슈 리포트

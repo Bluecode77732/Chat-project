@@ -6,9 +6,9 @@ Accepted
 
 ## 배경
 
-프론트엔드 배포가 두 개(`frontend/` 채팅 클라이언트, `admin/` 관리 대시보드)이고 각각 자기
-오리진에서 실행되는데, 둘 다 httpOnly `refreshToken` 쿠키를 크로스 오리진으로 보내야 합니다.
-그러려면 `credentials: true`와 정확한 오리진 허용 목록이 필요합니다. `origin: '*'`는 자격 증명이
+프론트엔드 배포가 두 개(`frontend/` 채팅 클라이언트, `admin/` 관리 대시보드) 있고, 각각 자기
+오리진에서 실행됩니다. 둘 다 httpOnly `refreshToken` 쿠키를 크로스 오리진으로 보내야 하므로
+`credentials: true`와 정확한 오리진 허용 목록이 필요합니다. `origin: '*'`는 자격 증명이
 포함된 요청과 애초에 호환되지 않으며, 이 프로젝트에서는 어떤 상황에서도 Never Do입니다.
 
 ## 결정

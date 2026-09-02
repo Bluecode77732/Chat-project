@@ -20,7 +20,7 @@ Accepted
 각 엣지는 단방향이고, 세 모듈 중 어느 쌍도 서로를 되받아 import하지 않습니다. 그래서
 `ModerationModule`이 `ChatModule` 직접 import 대신 콜백 주입으로 일부러 피했던 상호/양방향
 결합([ADR 0006](0006-moderation-one-directional-dependency.ko.md) 참고)과는 성격이 다릅니다.
-이것은 서로 다른 3개 도메인에 걸친 방향성 있는 체인(`Auth → User → Chat → Auth`)이고, 각
+이것은 서로 다른 3개 도메인에 걸친 방향성 있는 체인입니다(`Auth → User → Chat → Auth`). 각
 엣지에는 다음 모듈에 의존할 독립적이고 정당한 이유가 있습니다. 다만 한 엣지에 `forwardRef`가
 없으면 NestJS는 부팅 시점에 모듈 그래프를 풀지 못합니다. `AuthModule`을 만들려면 `UserModule`이,
 `UserModule`을 만들려면 `ChatModule`이, `ChatModule`을 만들려면 다시 `AuthModule`이 필요해서
@@ -46,11 +46,11 @@ Accepted
   `ChatResolver`가 메시지 처리 시점에 `ModerationService`를 호출하면서 같은 호출 안에서
   콜백을 넘길 수 있기 때문입니다. 그런데 `forceLogout`/`remove`는 `UserController`(평범한
   REST 관리자 액션)에서 호출되어 콜백을 실어 나를 호출 시점 컨텍스트가 없습니다. 이 엣지를
-  없애려면 이 코드베이스에 아직 없는 이벤트 이미터 패턴을 새로 들여와야 하는데, 이는 국소적
+  없애려면 이 코드베이스에 아직 없는 이벤트 이미터 패턴을 새로 들여와야 합니다. 이는 국소적
   리팩터링이 아니라 아키텍처 변경입니다.
 
-심각도가 낮고(런타임 버그도, 보안 문제도, 데이터 정합성 문제도 아닌 부팅 순서 메커니즘 —
-Never Do Group 1~3 어디에도 해당하지 않음), 가장 비싼 엣지를 없애는 비용이 크기 때문에
+심각도가 낮습니다. 런타임 버그도, 보안 문제도, 데이터 정합성 문제도 아닌 부팅 순서 메커니즘이라
+Never Do Group 1~3 어디에도 해당하지 않습니다. 가장 비싼 엣지를 없애는 비용도 크기 때문에,
 리팩터링은 하지 않았습니다. 이 순환은 현재 상태 그대로 받아들입니다.
 
 ## 결과
