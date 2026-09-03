@@ -4,7 +4,6 @@ import { Socket } from 'socket.io-client';
 import { rejectSessionConflict } from '../auth/session-guard';
 
 const createSocket = () => {
-    // `io` connection to `@WebSocketGateway()` in 'chat.gateway'.
     const newSocket = io(import.meta.env.VITE_API_URL, {
         autoConnect: false,
         forceNew: true,
@@ -13,8 +12,8 @@ const createSocket = () => {
         },
     });
 
-    // Backend kicks this socket when the same account signs in elsewhere —
-    // tear down locally right away instead of waiting on the next refresh.
+    // 같은 계정이 다른 곳에서 로그인하면 백엔드가 이 소켓을 끊음 —
+    // 다음 refresh를 기다리지 않고 로컬에서 바로 정리.
     newSocket.on('forceLogout', () => {
         rejectSessionConflict();
     });
@@ -22,11 +21,10 @@ const createSocket = () => {
     return newSocket;
 };
 
-// `createSocket()` for Issuing of new socket via renewal of token.
-// Using same `socket` instance on any component for global share of it.
 export let socket: Socket = createSocket();
 
-// `reconnectSocket()` reconnection of socket in renewal of access token.
+// Socket.IO는 살아있는 연결에서 auth 헤더를 교체할 수 없어서, 재연결은
+// connect()를 다시 호출하는 게 아니라 이 인스턴스를 버리고 새로 만드는 것을 뜻함.
 export const reconnectSocket = () => {
     socket.disconnect();
     socket = createSocket();

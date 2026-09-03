@@ -5,7 +5,7 @@ export class FixUserDeleteCascade1749700000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // chat_entity.participantId: NO ACTION → SET NULL
-    // Allows deleting a user while keeping their messages (participant becomes NULL)
+    // 유저를 삭제해도 메시지는 남도록 함 (participant가 NULL이 됨)
     await queryRunner.query(
       `ALTER TABLE "chat_entity" DROP CONSTRAINT "FK_07b3b276973a05b736ac9e63c2e"`,
     );
@@ -14,7 +14,7 @@ export class FixUserDeleteCascade1749700000000 implements MigrationInterface {
     );
 
     // room_entity_participants_user_entity.userEntityId: NO ACTION → CASCADE
-    // Removes the user's room membership rows automatically on user delete
+    // 유저 삭제 시 해당 유저의 room 참여 행을 자동으로 제거
     await queryRunner.query(
       `ALTER TABLE "room_entity_participants_user_entity" DROP CONSTRAINT "FK_501a0aef55632e3cf2894bda97f"`,
     );
@@ -23,7 +23,7 @@ export class FixUserDeleteCascade1749700000000 implements MigrationInterface {
     );
 
     // chat_entity.roomId: NO ACTION → CASCADE
-    // When an orphaned room (0 participants) is deleted, its chats are deleted automatically
+    // 참여자가 0명이 된 room이 삭제되면 그 room의 chat도 자동으로 함께 삭제됨
     await queryRunner.query(
       `ALTER TABLE "chat_entity" DROP CONSTRAINT "FK_332f2ca9c6dfe6e472f26c41cb3"`,
     );

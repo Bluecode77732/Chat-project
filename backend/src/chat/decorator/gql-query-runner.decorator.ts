@@ -1,7 +1,7 @@
-// Purpose: exposes the QueryRunner opened by GqlTransactionInterceptor to a resolver parameter.
-// Usage: imported by ChatResolver.sendMessage(); paired 1:1 with GqlTransactionInterceptor.
-// Rationale: GraphQL has no request-object equivalent resolvers can read directly, so the
-// interceptor and this decorator share state via GqlExecutionContext's context.req.
+// 목적: GqlTransactionInterceptor가 연 QueryRunner를 resolver 파라미터로 노출.
+// 사용처: ChatResolver.sendMessage()에서 import; GqlTransactionInterceptor와 1:1로 짝을 이룸.
+// 근거: GraphQL에는 resolver가 직접 읽을 수 있는 request 객체 동등물이 없어서,
+// interceptor와 이 decorator가 GqlExecutionContext의 context.req를 통해 상태를 공유.
 
 import {
   createParamDecorator,

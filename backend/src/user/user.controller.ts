@@ -50,8 +50,8 @@ export class UserController {
     private readonly moderationService: ModerationService,
   ) {}
 
-  // Numeric privilege-level check (mirrors RBACguard) — admin and superadmin
-  // must both be able to act on other accounts, not just an exact role match.
+  // 숫자 권한 레벨 체크(RBACguard와 동일한 방식) — admin, superadmin 모두
+  // 정확한 역할 일치가 아니라 다른 계정에 대한 조작이 가능해야 함.
   private canActOnOthers(role?: UserRole): boolean {
     return (role ?? UserRole.user) >= UserRole.admin;
   }

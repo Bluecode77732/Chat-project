@@ -23,9 +23,9 @@ describe('session-guard', () => {
     beforeEach(() => {
         useAuthStore.getState().clearTokens();
         clearSessionUser();
-        // jsdom's Location object doesn't allow redefining individual own properties
-        // (replace throws "Cannot redefine property" even with configurable: true) -- replace
-        // window.location wholesale with a plain mock instead.
+        // jsdom의 Location 객체는 개별 own property 재정의를 허용하지 않음
+        // (configurable: true여도 replace가 "Cannot redefine property"를 던짐) --
+        // window.location 전체를 plain mock으로 교체.
         replaceSpy = vi.fn();
         Object.defineProperty(window, 'location', {
             configurable: true,

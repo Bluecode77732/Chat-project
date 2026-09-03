@@ -1,8 +1,8 @@
-// Purpose: initializes the Sentry SDK before any other application code loads, per Sentry's
-//   documented requirement that instrumentation must be set up before other modules are required.
-// Usage: imported as the literal first line of main.ts; no other file should import this.
-// Rationale: Sentry.init() must run before NestFactory/AppModule pull in the rest of the app, or
-//   its auto-instrumentation patches won't be applied before those modules are first loaded.
+// 목적: 다른 애플리케이션 코드가 로드되기 전에 Sentry SDK를 초기화 — instrumentation은
+//   다른 모듈이 require되기 전에 설정되어야 한다는 Sentry의 공식 요구사항을 따름.
+// 사용처: main.ts의 첫 줄로 import됨; 다른 파일에서는 이 파일을 import하면 안 됨.
+// 근거: Sentry.init()은 NestFactory/AppModule이 나머지 앱을 끌어오기 전에 실행되어야
+//   함 — 그렇지 않으면 해당 모듈들이 처음 로드될 때 auto-instrumentation 패치가 적용되지 않음.
 
 import * as Sentry from '@sentry/nestjs';
 
@@ -24,13 +24,13 @@ function scrub(value: unknown): unknown {
   return value;
 }
 
-// Optional integration, same shape as MailModule (backend/src/mail/mail.service.ts): no-ops
-// cleanly when SENTRY_DSN is unset, so local dev/CI never needs a Sentry account.
+// MailModule(backend/src/mail/mail.service.ts)과 동일한 형태의 선택적 통합 — SENTRY_DSN이
+// 없으면 깔끔하게 no-op되므로 로컬 dev/CI에서는 Sentry 계정이 필요 없음.
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV,
-    // Error tracking only — performance/tracing is out of scope for this integration.
+    // 에러 트래킹 전용 — 성능/트레이싱은 이 통합의 범위 밖.
     tracesSampleRate: 0,
     beforeSend(event) {
       if (event.request?.data) {

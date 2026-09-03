@@ -17,8 +17,8 @@ import { ModerationService } from 'src/moderation/moderation.service';
 
 @WebSocketGateway({
   cors: {
-    // process.env.CORS_ORIGIN is undefined at decoration time (before ConfigModule loads).
-    // Using a callback defers evaluation to connection time, when the value is available.
+    // process.env.CORS_ORIGIN은 데코레이터 적용 시점(ConfigModule 로드 전)엔 undefined —
+    // 콜백을 사용해 값이 준비되는 연결 시점까지 평가를 지연.
     origin: (
       origin: string,
       callback: (err: Error | null, allow: boolean) => void,
@@ -65,11 +65,10 @@ export class ChatGateway
     this.chatService.setServer(server);
   }
 
-  // OnModuleDestroy runs before dispose() closes the Socket.IO server, so quitting
-  // here would race @socket.io/redis-adapter's own unsubscribe commands on server
-  // close (confirmed by reading the installed socket.io/@nestjs/core source).
-  // OnApplicationShutdown runs after dispose(), so the adapter's server-close
-  // cleanup has already fired before these clients are quit.
+  // OnModuleDestroy는 dispose()가 Socket.IO 서버를 닫기 전에 실행되므로, 여기서 quit()하면
+  // 서버 종료 시 @socket.io/redis-adapter 자체의 unsubscribe 커맨드와 경합함(설치된
+  // socket.io/@nestjs/core 소스 확인으로 검증). OnApplicationShutdown은 dispose() 이후
+  // 실행되므로, 이 클라이언트들을 quit()할 때는 이미 adapter의 서버 종료 cleanup이 끝난 상태.
   async onApplicationShutdown() {
     try {
       await Promise.all([this.pubClient?.quit(), this.subClient?.quit()]);
@@ -82,20 +81,17 @@ export class ChatGateway
 
   async handleConnection(client: Socket) {
     try {
-      // Bearer ir3j9rkdokaods
       const rawToken = client.handshake.headers?.authorization;
-      // const rawToken = client.handshake.headers?.authorization || client.handshake.auth?.token || client.handshake.query?.token;
 
-      // Bearer token payload
       const payload = await this.authService.parseBearerToken(
         String(rawToken),
         false,
       );
 
       if (payload) {
-        // Ban gate (socket level): the handshake uses a still-valid JWT, so reject a banned
-        // user here just as jwt.strategy does for HTTP/GraphQL. No client.data.user is set and
-        // registerClient is never called, so handleDisconnect stays symmetric (nothing to clean up).
+        // Ban 게이트(소켓 레벨): handshake는 여전히 유효한 JWT를 사용하므로, jwt.strategy가
+        // HTTP/GraphQL에서 하듯 여기서도 banned user를 거부. client.data.user를 설정하지 않고
+        // registerClient도 호출하지 않아 handleDisconnect가 대칭 유지(정리할 것이 없음).
         if (await this.moderationService.isUserBanned(payload.sub)) {
           logger.warn(
             `WebSocket connection rejected (banned user=${payload.sub})`,
@@ -104,14 +100,11 @@ export class ChatGateway
           return;
         }
 
-        // Put bearer token into data.user to be extracted by
-        // socket.data is typed as any by socket.io; we narrow it to the shape we control
+        // socket.data는 socket.io에서 any로 타입 지정됨 — 우리가 제어하는 형태로 narrowing.
         (client.data as { user?: Payload }).user = payload;
 
-        // Remember the specific client with a certain key
         await this.chatService.registerClient(payload.sub, client);
 
-        // Connect user into a room
         await this.chatService.joinRooms(payload, client);
       } else {
         client.disconnect();
@@ -126,7 +119,7 @@ export class ChatGateway
   }
 
   async handleDisconnect(client: Socket) {
-    // socket.data is typed as any by socket.io; we narrow it to the shape we set in handleConnection
+    // socket.data는 socket.io에서 any로 타입 지정됨 — handleConnection에서 설정한 형태로 narrowing.
     const participant = (client.data as { user?: Payload }).user;
 
     if (participant) {

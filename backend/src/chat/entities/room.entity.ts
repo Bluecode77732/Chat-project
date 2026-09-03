@@ -14,12 +14,10 @@ export class RoomEntity extends EntityBase {
   @PrimaryGeneratedColumn()
   id?: number;
 
-  // Participants in many rooms
   @ManyToMany(() => UserEntity, (user) => user.rooms)
   @JoinTable()
   participants?: UserEntity[];
 
-  // Chats in the rooms
   @OneToMany(() => ChatEntity, (room) => room.room)
   chats?: ChatEntity[];
 }

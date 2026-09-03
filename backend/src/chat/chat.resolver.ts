@@ -50,7 +50,7 @@ export class ChatResolver {
 
   @Query(() => PaginatedAdminRooms)
   @RBAC(UserRole.admin)
-  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
+  // 순서가 중요: GraphQLAuthGuard가 req.user를 채우고, GraphQLRBACGuard가 이를 읽음.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async getAllRooms(
     @Args('page', { type: () => Int, nullable: true, defaultValue: 1 })
@@ -77,7 +77,7 @@ export class ChatResolver {
 
   @Mutation(() => Boolean)
   @RBAC(UserRole.admin)
-  // Order is load-bearing: GraphQLAuthGuard populates req.user; GraphQLRBACGuard reads it.
+  // 순서가 중요: GraphQLAuthGuard가 req.user를 채우고, GraphQLRBACGuard가 이를 읽음.
   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
   async deleteRoom(
     @Args('roomId', { type: () => Int }) roomId: number,
@@ -181,10 +181,11 @@ export class ChatResolver {
     return msgs.map((m) => ({ ...m, createdAt: m.created }));
   }
 
-  // Non-idempotent: a client retry after timeout produces a duplicate ChatEntity; RateLimitGuard reduces but does not prevent this.
+  // 비멱등적(non-idempotent): 타임아웃 후 클라이언트 재시도는 중복 ChatEntity를 생성 —
+  // RateLimitGuard가 줄여줄 뿐 막지는 못함.
   @Mutation(() => MessageType)
-  // Order is load-bearing: GraphQLAuthGuard populates req.user; ModerationGuard gates muted/banned
-  // users before RateLimitGuard spends its velocity budget.
+  // 순서가 중요: GraphQLAuthGuard가 req.user를 채우고, RateLimitGuard가 velocity budget을
+  // 소비하기 전에 ModerationGuard가 muted/banned 사용자를 걸러냄.
   @UseGuards(GraphQLAuthGuard, ModerationGuard, RateLimitGuard)
   @UseInterceptors(GqlTransactionInterceptor)
   async sendMessage(
@@ -207,9 +208,9 @@ export class ChatResolver {
       receiveMessage: savedMessage,
     });
 
-    // Notify both participants' sockets about the room only after the transaction
-    // commits — emitting earlier let a recipient's immediate subscribe attempt see
-    // an uncommitted room and get rejected by isRoomParticipant's access check.
+    // 트랜잭션 커밋 후에만 두 참여자의 소켓에 room을 알림 — 더 일찍 emit하면 recipient의
+    // 즉각적인 subscribe 시도가 커밋되지 않은 room을 보고 isRoomParticipant의 접근 체크에서
+    // 거부당할 수 있음.
     if (roomId) {
       setImmediate(() => {
         void (async () => {
@@ -227,9 +228,9 @@ export class ChatResolver {
       });
     }
 
-    // Moderation: evaluate the just-sent message for duplicate/flood behavior after commit.
-    // Runs post-commit (like the AI trigger) so the message is durable and counted, and so any
-    // warning/mute/ban escalation adds no latency to the sendMessage response.
+    // 모더레이션: 커밋 후 방금 보낸 메시지를 중복/flood 행위 여부로 평가.
+    // (AI 트리거와 마찬가지로) 커밋 이후 실행되므로 메시지가 영속화되고 카운트되며,
+    // warning/mute/ban 에스컬레이션이 sendMessage 응답에 지연을 더하지 않음.
     if (roomId) {
       setImmediate(() => {
         void (async () => {
@@ -261,9 +262,9 @@ export class ChatResolver {
       });
     }
 
-    // Trigger AI reply asynchronously after transaction commits.
-    // GqlTransactionInterceptor commits after this resolver returns, so the trigger
-    // awaits ctx.req.transactionCommitted before touching data that depends on the commit.
+    // 트랜잭션 커밋 후 비동기로 AI 응답을 트리거.
+    // GqlTransactionInterceptor는 이 resolver가 반환된 후 커밋하므로, 커밋에 의존하는
+    // 데이터를 건드리기 전에 트리거는 ctx.req.transactionCommitted를 기다림.
     if (roomId && recipientId === this.aiService.getAiUserId()) {
       const personalityToSet = input.aiPersonality ?? null;
       setImmediate(() => {

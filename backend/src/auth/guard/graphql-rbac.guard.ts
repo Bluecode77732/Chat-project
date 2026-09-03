@@ -1,11 +1,10 @@
-// Purpose: role-based access control for GraphQL resolvers, mirroring RBACguard's
-//   logic but reading the request from GqlExecutionContext instead of the HTTP-only
-//   context RBACguard expects.
-// Usage: pair with GraphQLAuthGuard via @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
-//   on any resolver field decorated with @RBAC(UserRole.<level>).
-// Rationale: RBACguard's context.switchToHttp().getRequest() does not resolve under
-//   GraphQL's execution context; replaces GraphQLAdminGuard, whose inheritance from
-//   GraphQLAuthGuard strengthened canActivate's precondition (an LSP violation).
+// 목적: GraphQL 리졸버용 역할 기반 접근 제어 — RBACguard와 동일한 로직이지만
+//   RBACguard가 기대하는 HTTP 전용 컨텍스트 대신 GqlExecutionContext에서 요청을 읽음.
+// 사용처: @RBAC(UserRole.<level>)이 붙은 리졸버 필드에서
+//   @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)로 GraphQLAuthGuard와 함께 사용.
+// 근거: RBACguard의 context.switchToHttp().getRequest()는 GraphQL 실행 컨텍스트에서
+//   동작하지 않음; GraphQLAuthGuard를 상속해 canActivate의 전제조건을 강화했던
+//   (LSP 위반) GraphQLAdminGuard를 대체.
 
 import {
   CanActivate,
@@ -24,23 +23,18 @@ import { logger } from 'src/base/logger/logger';
 export class GraphQLRBACGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
-  // It activates when request is allowed
   canActivate(context: ExecutionContext): boolean {
-    // Get Role metadata from resolver handler using reflector
     const role = this.reflector.get<UserRole>(RBAC, context.getHandler());
 
-    // Check if the retrieved role has validated enum values as UserRole
     if (!Object.values(UserRole).includes(role)) {
       return true;
     }
 
-    // Switch context to GraphQL and extract the request.
     const ctx = GqlExecutionContext.create(context);
     const user = ctx.getContext<{
       req?: { user?: { sub?: number; id?: number; role?: UserRole } };
     }>().req?.user;
 
-    // If a user does not exist in request, deny access.
     if (!user) {
       logger.warn(
         `RBAC denied (GraphQL): no authenticated user (required role=${role})`,
@@ -48,7 +42,7 @@ export class GraphQLRBACGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    // UserRole enum values are already numeric (user=0, admin=1, superadmin=2).
+    // UserRole enum 값은 이미 숫자(user=0, admin=1, superadmin=2).
     const allowed = (user.role ?? UserRole.user) >= role;
     if (!allowed) {
       logger.warn(

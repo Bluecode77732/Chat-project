@@ -70,7 +70,6 @@ export class UserService {
       }
     }
 
-    // Hashing user password
     const hash = await bcrypt.hash(
       password,
       this.configService.getOrThrow<number>('HASH_ROUNDS'),
@@ -112,8 +111,8 @@ export class UserService {
     take: number;
   }> {
     const statusFilter = status ? { status } : {};
-    // humanOnly excludes the two seeded non-human accounts: the AI companion (isAI:true)
-    // and the moderation system account (isAI:false, so caught by email exclusion instead).
+    // humanOnly는 시딩된 비인간 계정 둘을 제외함: AI 컴패니언(isAI:true)과
+    // 모더레이션 시스템 계정(isAI:false라 대신 이메일 제외로 걸러짐).
     const humanFilter = humanOnly ? { isAI: false } : {};
     const systemEmailExclusion = humanOnly
       ? { email: Not(SYSTEM_USER_EMAIL) }
@@ -122,9 +121,9 @@ export class UserService {
     const where = search
       ? [
           {
-            // And() is needed only here: this branch already sets `email` for the search
-            // match, and a plain spread would let systemEmailExclusion's `email` key
-            // silently overwrite it (same collision the audit-log date range hit).
+            // And()가 필요한 건 여기뿐 — 이 분기는 이미 검색 매치용 `email`을 설정하는데,
+            // 단순 spread면 systemEmailExclusion의 `email` 키가 이를 조용히 덮어씀
+            // (audit-log 날짜 범위에서 겪은 것과 같은 충돌).
             email: humanOnly
               ? And(ILike(`%${search}%`), Not(SYSTEM_USER_EMAIL))
               : ILike(`%${search}%`),
@@ -180,17 +179,14 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    // Bring password from DTO
     const { password } = updateUserDto;
 
-    // Find the user by id
     const user = await this.userRepository.findOne({
       where: {
         id,
       },
     });
 
-    // Checking the user
     if (!user) {
       throw new NotFoundException('No User Found.');
     }
@@ -204,19 +200,15 @@ export class UserService {
       }
     }
 
-    // Password verify
     if (password) {
-      // Password
       const hash = await bcrypt.hash(
         password,
         this.configService.getOrThrow<number>('HASH_ROUNDS'),
       );
 
-      // Apply hash to password
       updateUserDto.password = hash;
     }
 
-    // Update
     await this.userRepository.update(
       { id },
       {
@@ -229,7 +221,6 @@ export class UserService {
     await this.redis.del(`user_cache:${id}`);
     logger.info(`User '${user.id}' is updated`);
 
-    // Returning result to client
     return await this.userRepository.findOne({
       where: {
         id,
@@ -253,7 +244,7 @@ export class UserService {
 
         const previousRole = target.role ?? UserRole.user;
 
-        // 마지막 superadmin 강등 방지
+        // 마지막 superadmin은 강등 불가 — 강등되면 superadmin이 0명이 되어 DB 접근 없이는 복구 불가.
         if (
           previousRole === UserRole.superadmin &&
           role !== UserRole.superadmin
@@ -266,7 +257,7 @@ export class UserService {
           }
         }
 
-        // admin 수 상한 (superadmin은 별도 카운트)
+        // 상한선은 admin에만 적용 — superadmin은 상한이 없고 여기서 카운트하지 않음.
         if (role === UserRole.admin) {
           const adminCount = await manager.count(UserEntity, {
             where: { role: UserRole.admin },
@@ -333,19 +324,17 @@ export class UserService {
     rawToken?: string,
     skipPasswordCheck = false,
   ) {
-    // ① 존재 확인
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User Not Found.');
     }
 
-    // ①-2 시스템 계정(AI 답장/moderation 경고·밴 메시지 발신용) 삭제 방지 —
+    // 시스템 계정(AI 답장/moderation 경고·밴 메시지 발신용) 삭제 방지 —
     // 삭제되면 해당 기능이 통째로 깨짐. 둘 다 실제 로그인 경로가 없어 본인 요청으로는 도달 불가.
     if (user.isAI || user.email === SYSTEM_USER_EMAIL) {
       throw new BadRequestException('Cannot delete a system-managed account.');
     }
 
-    // ② 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
     if (!skipPasswordCheck) {
       if (!password) throw new BadRequestException('Password is required.');
       const valid = await bcrypt.compare(password, String(user.password));
@@ -354,7 +343,7 @@ export class UserService {
       }
     }
 
-    // ③ 삭제 전: 이 유저가 속한 방 목록 수집 (고아 방 감지용)
+    // 고아 방 감지용으로 미리 수집
     const myRooms = await this.roomRepository
       .createQueryBuilder('room')
       .innerJoin('room.participants', 'me', 'me.id = :id', { id })
@@ -364,11 +353,11 @@ export class UserService {
       .map((r) => r.id)
       .filter((roomId): roomId is number => roomId !== undefined);
 
-    // ④ 소켓 강제 종료용 socketId 조회 (세션 삭제 전)
+    // 소켓 강제 종료용 socketId 조회 (세션 삭제 전)
     const sessionData = await this.sessionCacheService.getUserStatus(id);
     const socketId = sessionData?.socketId;
 
-    // ⑤+⑥ DB 삭제 (단일 트랜잭션)
+    // DB 삭제 (단일 트랜잭션)
     //    CASCADE: room_participants 행 자동 제거
     //    SET NULL: chat_entity.participantId = NULL (메시지 익명 보존)
     const orphanedRoomIds: number[] = [];
@@ -397,11 +386,9 @@ export class UserService {
       );
     }
 
-    // ⑦ Redis 세션 정리
     await this.sessionCacheService.sethUserOffline(id);
     await this.redis.del(`user:${id}`);
 
-    // ⑧ 현재 액세스 토큰 블랙리스트 등록
     if (rawToken) {
       const token = rawToken.replace(/^Bearer\s+/i, '');
       const ttl = this.configService.get<number>(
@@ -411,7 +398,6 @@ export class UserService {
       await this.redis.set(`blacklist:${token}`, '1', 'EX', ttl);
     }
 
-    // ⑨ 소켓 강제 종료
     if (socketId) {
       this.chatService.disconnectSocket(socketId);
     }

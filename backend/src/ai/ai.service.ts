@@ -31,7 +31,6 @@ export type AiReplyCallbacks = {
   publishFn: (msg: ChatEntity) => Promise<void>;
 };
 
-// Gemini content format
 type GeminiContent = {
   role: 'user' | 'model';
   parts: { text: string }[];
@@ -90,7 +89,7 @@ export class AiService implements OnModuleInit {
           isAI: true,
         });
       } catch {
-        // Race condition on multi-instance startup — another instance already created it
+        // 멀티 인스턴스 시작 시 경쟁 상태 — 다른 인스턴스가 이미 생성함
       }
       aiUser = await this.userRepository.findOneByOrFail({
         email: AI_USER_EMAIL,
@@ -234,7 +233,7 @@ export class AiService implements OnModuleInit {
 
     return messages.reverse().map(
       (m): GeminiContent => ({
-        // Gemini uses 'model' for AI responses, not 'assistant'
+        // Gemini는 AI 응답에 'assistant'가 아닌 'model' 사용
         role: m.participant?.isAI ? 'model' : 'user',
         parts: [{ text: m.message ?? '' }],
       }),

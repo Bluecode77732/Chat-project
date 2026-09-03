@@ -1,31 +1,31 @@
-// Purpose: fails `pnpm test` if a migration at/after the CASCADE was established re-adds a
-//   cascade-critical FK with the wrong ON DELETE action — guards the documented
-//   room_participants CASCADE trap (CLAUDE.md § Database, "Generated-migration review").
-// Usage: run automatically by Jest; no direct import. Add a new entry to GUARDED_FKS below
-//   when another cascade FK becomes subject to the same generated-diff revert.
-// Rationale: `migration:generate` silently re-emits FK_501a0aef... as NO ACTION, reverting
-//   the CASCADE UserService.remove depends on; the ESLint step is non-blocking (`|| true`),
-//   so this text-level gate rides the already-blocking test suite instead.
+// 목적: CASCADE가 설정된 시점 이후의 마이그레이션이 cascade-critical FK를 잘못된
+//   ON DELETE 액션으로 재생성하면 `pnpm test`가 실패하도록 함 — 문서화된
+//   room_participants CASCADE 함정을 방지 (CLAUDE.md § Database, "Generated-migration review").
+// 사용처: Jest가 자동 실행; 직접 import 없음. 다른 cascade FK가 같은
+//   generated-diff revert 문제를 겪게 되면 아래 GUARDED_FKS에 항목을 추가.
+// 근거: `migration:generate`가 FK_501a0aef...를 조용히 NO ACTION으로 재생성해서
+//   UserService.remove가 의존하는 CASCADE를 되돌려버림; ESLint 단계는 non-blocking
+//   (`|| true`)이라 이 텍스트 레벨 가드가 이미 blocking인 테스트 스위트에 얹혀서 동작.
 
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 interface GuardedFk {
-  // TypeORM-generated constraint name.
+  // TypeORM이 생성한 constraint 이름.
   constraint: string;
-  // The ON DELETE action every up() from `since` onward must preserve.
+  // `since` 이후의 모든 up()이 유지해야 하는 ON DELETE 액션.
   requiredAction: string;
-  // Migration timestamp at which this action became the invariant. Earlier migrations
-  // (which set the original NO ACTION) are exempt — the trap is a *later* revert.
+  // 이 액션이 불변조건이 된 마이그레이션 타임스탬프. 이전 마이그레이션(원래
+  // NO ACTION을 설정한 것들)은 예외 — 함정은 *나중의* revert임.
   since: number;
 }
 
-// M2M join-table onDelete is ignored by migration:generate, so FK_501 is the recurring
-// offender. Extend this list if a new cascade FK becomes subject to the same revert.
+// M2M join-table의 onDelete는 migration:generate가 무시하기 때문에 FK_501이 반복적으로
+// 문제를 일으킴. 같은 revert 문제를 겪는 새 cascade FK가 생기면 이 목록을 확장.
 const GUARDED_FKS: GuardedFk[] = [
   {
-    // room_entity_participants_user_entity.userEntityId — CASCADE since
-    // FixUserDeleteCascade1749700000000; UserService.remove relies on it.
+    // room_entity_participants_user_entity.userEntityId — CASCADE는
+    // FixUserDeleteCascade1749700000000부터; UserService.remove가 이에 의존.
     constraint: 'FK_501a0aef55632e3cf2894bda97f',
     requiredAction: 'ON DELETE CASCADE',
     since: 1749700000000,
@@ -44,7 +44,7 @@ describe('migration FK cascade guard', () => {
 
     const source = readFileSync(join(migrationsDir, file), 'utf8');
 
-    // Scan only up() — down() legitimately restores the prior ON DELETE action.
+    // up()만 스캔 — down()은 이전 ON DELETE 액션을 복원하는 게 정상 동작.
     const upStart = source.search(/async up\s*\(/);
     if (upStart === -1) return; // not a migration file
     const downStart = source.search(/async down\s*\(/);

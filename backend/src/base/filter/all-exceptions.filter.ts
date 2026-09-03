@@ -17,9 +17,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const isGraphQL = host.getType<'http' | 'ws' | 'graphql'>() === 'graphql';
 
-    // body-parser throws a plain Error (not an HttpException) when the request
-    // body exceeds the configured limit — surface it as a clean 413 instead of
-    // letting it fall through to a generic "Internal server error".
+    // body-parser는 요청 body가 설정된 제한을 초과하면 HttpException이 아닌 일반 Error를
+    // 던짐 — 일반적인 "Internal server error"로 흘러가지 않도록 깔끔한 413으로 변환.
     const isPayloadTooLarge =
       !(exception instanceof HttpException) &&
       typeof exception === 'object' &&

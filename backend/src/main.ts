@@ -12,33 +12,31 @@ import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    // Direct import of logger
-    // It catches all bootstrap and failure errors when starting, which occurs before app.module.
+    // 나중에 주입하지 않고 여기서 바로 넘김 — AppModule 자체 provider가 생기기 전의
+    // bootstrap 실패도 로깅되도록.
     logger: WinstonModule.createLogger(logger),
   });
 
-  // Without this, OnModuleDestroy hooks (PubSubService, SessionCacheService,
-  // ChatGateway) never run on SIGTERM/SIGINT — Redis connections would be
-  // dropped abruptly on every deploy instead of closed gracefully.
+  // 이거 없으면 OnModuleDestroy 훅(PubSubService, SessionCacheService,
+  // ChatGateway)이 SIGTERM/SIGINT에서 실행되지 않음 — 배포할 때마다 Redis
+  // 연결이 정상 종료되지 않고 강제로 끊김.
   app.enableShutdownHooks();
 
-  // Railway sits in front of the app as a reverse proxy — without this, req.ip
-  // resolves to the proxy's own address for every request, collapsing
-  // AuthRateLimitGuard's per-client IP buckets into one shared bucket.
-  // '1' trusts exactly the immediate hop rather than the full X-Forwarded-For chain.
+  // Railway가 리버스 프록시로 앞단에 있음 — 이거 없으면 모든 요청의 req.ip가 프록시
+  // 자체 주소로 잡혀서 AuthRateLimitGuard의 클라이언트별 IP 버킷이 하나로 합쳐짐.
+  // '1'은 X-Forwarded-For 체인 전체가 아니라 바로 앞 hop 하나만 신뢰.
   app.set('trust proxy', 1);
 
-  // Use pipes in class-validator and class-transformer libraries
   app.use(cookieParser());
-  // CSP omitted: this backend serves ~no HTML (REST/GraphQL are JSON-only), so a
-  // CSP header here would only ever protect Swagger UI (/document), which needs
-  // its own exception for inline scripts anyway. The actual XSS-relevant surface
-  // (frontend/admin's rendered pages) is a separate origin this header can't reach.
+  // CSP는 생략: 이 백엔드는 HTML을 거의 서빙하지 않음(REST/GraphQL은 JSON 전용)이라
+  // 여기 CSP 헤더는 어차피 inline script 예외가 필요한 Swagger UI(/document)만
+  // 보호하게 됨. 실제 XSS 위험 표면(frontend/admin의 렌더링 페이지)은 별도
+  // origin이라 이 헤더가 닿지도 않음.
   app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Default Express body limit (100kb) is far smaller than a base64-encoded
-  // profile image (~2.8MB at the 2MB raw-image cap) — raise it accordingly.
+  // Express 기본 body limit(100kb)은 base64 인코딩된 프로필 이미지(원본 2MB 상한
+  // 기준 약 2.8MB)보다 훨씬 작음 — 그만큼 올려줌.
   app.useBodyParser('json', { limit: '3mb' });
   app.useBodyParser('urlencoded', { extended: true, limit: '3mb' });
 
@@ -53,16 +51,12 @@ async function bootstrap() {
     }),
   );
 
-  // Implementing CORS
   app.enableCors({
-    // Front Origin Allowance — comma-separated list, since the main frontend and the
-    // admin dashboard run as separate deployments on different origins.
+    // 콤마로 구분: 메인 frontend와 admin 대시보드가 서로 다른 origin의
+    // 별도 배포이기 때문.
     origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()),
-    // Cookie Authorization In Header Allowance
     credentials: true,
-    // Allowance Method
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    // Allowance Header
     allowedHeaders: [
       'Content-Type',
       'Authorization',
@@ -70,7 +64,6 @@ async function bootstrap() {
     ],
   });
 
-  // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Chat API')
     .setDescription(
@@ -82,11 +75,11 @@ async function bootstrap() {
       ].join('\n'),
     )
     .setVersion('1.0')
-    // Basic auth: register/signin carry email:password in the Authorization header.
+    // Basic auth: register/signin은 Authorization 헤더에 email:password를 실어보냄.
     .addBasicAuth()
-    // Bearer auth: protected endpoints expect the JWT access token.
+    // Bearer auth: 보호된 엔드포인트는 JWT access token을 기대함.
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
-    // Cookie auth: token/refreshaccess reads the httpOnly refreshToken cookie.
+    // Cookie auth: token/refreshaccess는 httpOnly refreshToken 쿠키를 읽음.
     .addCookieAuth('refreshToken')
     .addTag('Authentication API', 'Register, sign in/out and token refresh')
     .addTag('User API', 'User CRUD, role management and force-logout')
@@ -100,11 +93,12 @@ async function bootstrap() {
     },
   });
 
-  // Loopback-only applies solely to bare `pnpm start:dev` (NODE_ENV=development, RUNTIME_ENV
-  // unset/native) — truly local, non-containerized dev. docker-compose now also sets
-  // NODE_ENV=development (see ADR 0022) but additionally sets RUNTIME_ENV=docker, which keeps
-  // this branch on 0.0.0.0 so the container's mapped port stays reachable. Railway never sets
-  // RUNTIME_ENV, so its NODE_ENV=production path was already 0.0.0.0 and is unaffected.
+  // Loopback 전용은 순수 `pnpm start:dev`(NODE_ENV=development, RUNTIME_ENV
+  // unset/native)에만 적용 — 컨테이너 없는 순수 로컬 dev. docker-compose도 이제
+  // NODE_ENV=development를 설정하지만(ADR 0022 참고) 추가로 RUNTIME_ENV=docker를
+  // 설정하므로 이 분기는 0.0.0.0으로 유지되어 컨테이너의 매핑된 포트가 계속 열려있음.
+  // Railway는 RUNTIME_ENV를 설정하지 않으므로 NODE_ENV=production 경로는 원래도
+  // 0.0.0.0이라 영향 없음.
   const host =
     process.env.NODE_ENV === 'development' &&
     process.env.RUNTIME_ENV !== 'docker'

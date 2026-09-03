@@ -1,7 +1,6 @@
-//* Mutation publishes correctly, but the subscription isn't receiving it. */
-//* The `PubSub` instance in the mutation is different from the subscription's `PubSub` instance. */
-//* Using a module-level const pubSub = new PubSub() which creates separate instances per import. */
-//* Implementing `PubSub` module-level will send mutation data over subscription. */
+// 모든 resolver가 하나의 인스턴스를 공유하도록 injectable singleton으로 구현 — 모듈 레벨에서
+// `new PubSub()`를 쓰면 서로 다른 import 그래프마다 중복 생성되어, mutation과 subscription이
+// 각각 다른 인스턴스로 갈라지고 결국 subscriber가 publish를 못 받는 문제가 생김.
 
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -57,7 +56,7 @@ export class PubSubService extends RedisPubSub implements OnModuleDestroy {
     super({ publisher, subscriber });
   }
 
-  // RedisPubSub.close() quits both the publisher and subscriber ioredis clients.
+  // RedisPubSub.close()는 publisher와 subscriber ioredis 클라이언트를 모두 종료시킴.
   async onModuleDestroy() {
     try {
       await this.close();

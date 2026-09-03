@@ -153,6 +153,11 @@ Applies to Markdown docs (this file, `README.md`, ADRs, `CONTRIBUTING.md`), code
 messages, and the Change Summary below — anywhere content is written for a person to read rather
 than for the compiler.
 
+Language: code comments and commit messages are written in Korean (한글), matching this
+project's established comment convention and the app's own Korean UI text. Markdown docs
+follow the existing EN/KO `.ko.md` pairing (see ADR/README.md). This file's own prose stays
+in English.
+
 Write the way a teammate who knows this codebase would explain it out loud — plain, direct, and
 only as long as the point actually requires. Avoid the tells of generated text:
 
@@ -200,14 +205,17 @@ templates, or other non-code files. Those are exempt from this section.
 
 When creating a new file (not when editing an existing one), add a short header
 comment above the imports stating:
-- Purpose: why this file exists (the gap it fills)
-- Usage: who/what is expected to import or call into it
-- Rationale: why it was added now, or why an existing file could not absorb this
+- 목적 (Purpose): why this file exists (the gap it fills)
+- 사용처 (Usage): who/what is expected to import or call into it
+- 근거 (Rationale): why it was added now, or why an existing file could not absorb this
+
+The comment itself is written in Korean (see Writing Style above) — the labels below are for
+this instruction file only.
 
 ```typescript
-// Purpose: isolates Redis lock acquisition for per-room AI replies.
-// Usage: imported by AiService.handleReply(); not intended for direct use elsewhere.
-// Rationale: lock logic was inline in ai.service.ts and untestable in isolation.
+// 목적: room 단위 AI 답장 처리에서 Redis 락 획득 로직을 분리.
+// 사용처: AiService.handleReply()에서 import — 다른 곳에서 직접 사용하지 않음.
+// 근거: 락 로직이 ai.service.ts에 인라인으로 있어 단위 테스트가 불가능했음.
 
 import ...
 ```

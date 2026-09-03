@@ -18,9 +18,7 @@ export class ChatService {
     this.server = server;
   }
 
-  // TypeORM repositories for Room and User with DataSource
   constructor(
-    // Injecting TypeORM dependencies for repository
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
 
@@ -30,26 +28,22 @@ export class ChatService {
     @InjectRepository(ChatEntity)
     private readonly chatRepository: Repository<ChatEntity>,
 
-    // Injecting redisService to replace current in-memory storage Socket instance
     private readonly redisService: SessionCacheService,
   ) {}
 
-  // Connect Socket
   async registerClient(participantId: number, client: Socket) {
     const previous = await this.redisService.getUserStatus(participantId);
 
-    // Record the new socket as current BEFORE kicking the old one — the kick
-    // triggers the old socket's disconnect handler asynchronously, and that
-    // handler's own "is this still the current session" guard (in
-    // `removeClient`) would race against this write if it ran first,
-    // clobbering the new session's online status back to offline.
+    // 이전 소켓을 kick하기 전에 새 소켓을 현재 세션으로 먼저 기록 — kick은 이전 소켓의
+    // disconnect 핸들러를 비동기로 트리거하는데, 그 핸들러의 "여전히 현재 세션인지" 확인하는
+    // 자체 가드(`removeClient`)가 먼저 실행되면 이 write와 경합해 새 세션의 online 상태를
+    // 다시 offline으로 덮어씀.
     await this.redisService.sethUserOnline(participantId, client.id);
     logger.info(`User ${participantId} has connected`);
 
     if (previous?.socketId && previous.socketId !== client.id) {
-      // Logging in elsewhere (e.g. another browser) takes over this user's
-      // single active connection — notify the superseded socket so its
-      // frontend shows "logged in elsewhere" instead of silently dropping.
+      // 다른 곳(예: 다른 브라우저)에서 로그인하면 이 사용자의 단일 활성 연결을 가로챔 —
+      // 대체된 소켓에 알려 프런트엔드가 조용히 끊기는 대신 "다른 곳에서 로그인됨"을 표시하도록 함.
       this.kickPreviousSession(previous.socketId);
     }
   }
@@ -61,11 +55,10 @@ export class ChatService {
     previousSocket.disconnect(true);
   }
 
-  // Disconnect Socket
   async removeClient(participantId: number, socketId: string) {
     const current = await this.redisService.getUserStatus(participantId);
     if (current?.socketId !== socketId) {
-      // A newer session already replaced this one — don't clobber its online status.
+      // 더 최신 세션이 이미 이걸 대체함 — 그 online 상태를 덮어쓰지 않음.
       return;
     }
 
@@ -73,8 +66,6 @@ export class ChatService {
     logger.info(`User ${participantId} has disconnected`);
   }
 
-  // Makes the user join all chat rooms they are already a member of
-  // Called right after successful authentication during socket connection
   async joinRooms(user: { sub: number }, client: Socket) {
     const rooms = await this.roomRepository
       .createQueryBuilder('room_Entity')
@@ -87,7 +78,7 @@ export class ChatService {
         },
       )
       .getMany();
-    // Join each room by its string ID (Socket.IO room names are strings)
+    // 각 room을 문자열 ID로 join(Socket.IO room 이름은 문자열)
     for (const room of rooms) {
       if (!room?.id) {
         throw new WsException('Cannot Find Room');
@@ -100,9 +91,8 @@ export class ChatService {
     logger.info(`User ${user.sub} has registered`);
   }
 
-  // Looks for an existing private chat room between exactly two users
-  // Uses sorted IDs to ensure consistent lookup (avoids duplicate rooms)
-  // returns existing RoomEntity or null
+  // 정렬된 ID로 sender/recipient 구분과 무관하게 조회를 일관되게 유지 —
+  // 같은 쌍에 대해 중복 room 생성을 방지.
   async findRoom(user1: number, user2: number, manager: EntityManager) {
     if (!user1 || !user2) {
       return null;
@@ -124,8 +114,6 @@ export class ChatService {
     return room;
   }
 
-  // Creates a new private chat room between two users
-  // Saves both participants in the many-to-many relation
   async createRoom(
     user1: UserEntity,
     user2: UserEntity,
@@ -145,9 +133,8 @@ export class ChatService {
     return saved;
   }
 
-  // Find existing room between sender and recipient => or create new one.
-  // Does not notify participants — the caller must do so only after its
-  // enclosing transaction commits (see notifyRoomParticipants below).
+  // 참여자에게 알리지 않음 — 이는 이 메서드를 감싸는 트랜잭션이 커밋된 후에만
+  // 이뤄져야 함(아래 notifyRoomParticipants 참고).
   async getOrCreateRoom(
     sender: UserEntity,
     recipientId: number,
@@ -162,7 +149,6 @@ export class ChatService {
       return room;
     }
 
-    // Find recipient by user ID
     const recipient = await this.userRepository.findOneBy({
       id: recipientId,
     });
@@ -171,19 +157,15 @@ export class ChatService {
       throw new WsException('Cannot Find Recipient');
     }
 
-    // Create new room
     const created = await this.createRoom(sender, recipient, manager);
 
     logger.info(`User ${sender.id}, ${recipient.id} created a room`);
     return created;
   }
 
-  // Notifies each online participant's socket about a room (existing or newly
-  // created) and joins their current socket to it.
-  // Must only be called after the transaction that found/created the room has
-  // committed: emitting 'CreateRoom' earlier let a recipient's immediate
-  // subscribe attempt race the commit and get rejected by isRoomParticipant's
-  // access check, permanently losing live updates for that room.
+  // room을 조회/생성한 트랜잭션이 커밋된 후에만 호출해야 함: 더 일찍 'CreateRoom'을
+  // emit하면 recipient의 즉각적인 subscribe 시도가 커밋과 경합해 isRoomParticipant의
+  // 접근 체크에서 거부당하고, 해당 room의 실시간 업데이트를 영구히 놓치게 됨.
   async notifyRoomParticipants(
     roomId: number,
     participantIds: number[],
@@ -197,23 +179,16 @@ export class ChatService {
     }
   }
 
-  // Main message sending flow (called from gateway on 'sendMessage' event)
-  // - Runs inside transaction
-  // - Finds or creates room
-  // - Saves message
-  // - Broadcasts to room (others see it) + emits back to sender
   async sendMessage(
     payload: { sub: number },
     { message, recipientId }: CreateChatDto,
     manager: EntityManager,
   ) {
     try {
-      // Todo: Find a client
       const sender = await this.userRepository.findOneByOrFail({
         id: payload.sub,
       });
 
-      // Check if client exist
       if (!sender?.id) {
         throw new WsException('Cannot Find Sender');
       }
@@ -222,14 +197,10 @@ export class ChatService {
         throw new WsException('Recipient ID is required and must be a number');
       }
 
-      // Todo: Get and create a chat room : transactional
       const room = await this.getOrCreateRoom(sender, recipientId, manager);
 
-      // Check if room exist
       if (!room?.id) throw new WsException('Cannot Find Room');
 
-      // Todo: Save message in the chat database permanently
-      //* As the internet is disconnected, using transaction is a bright solution for undo the transferring data.
       const messageSchema = Object.assign(
         await manager.save(ChatEntity, {
           participant: sender,

@@ -21,21 +21,19 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      // Receiving `req` into `validate()`.
       passReqToCallback: true,
       secretOrKey: configService.getOrThrow('ACCESS_TOKEN_SECRET'),
     });
   }
 
-  // Exclude `password` via `Omit<>` generic type.
   async validate(
     req: Request,
     payload: Payload,
   ): Promise<Omit<UserEntity, 'password'>> {
     const token = req.headers.authorization?.split(' ')[1];
 
-    // Blacklist is a security check with no DB fallback — fail closed on Redis
-    // errors rather than let an uncaught exception surface as an opaque 500.
+    // 블랙리스트는 DB fallback 없는 보안 체크 — 처리되지 않은 예외로 불명확한 500이
+    // 노출되지 않도록 Redis 에러 시 fail closed.
     let isBlackListed: string | null;
     try {
       isBlackListed = await this.redis.get(`blacklist:${token}`);
@@ -58,8 +56,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
 
     let resolved: Omit<UserEntity, 'password'> | null = null;
 
-    // user_cache is a read-through cache in front of the DB lookup below — a Redis
-    // error here is treated the same as a cache miss, not a fatal auth failure.
+    // user_cache는 아래 DB 조회 앞단의 read-through 캐시 — 여기서 Redis 에러는
+    // 치명적 인증 실패가 아니라 캐시 미스와 동일하게 처리.
     let cached: string | null = null;
     try {
       cached = await this.redis.get(`user_cache:${payload.sub}`);
@@ -103,8 +101,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
       resolved = rest;
     }
 
-    // Ban gate (auth level): a banned user cannot authenticate, so a still-valid token/session
-    // can't be used to bypass the ban. The cache is invalidated on ban, so this reads fresh state.
+    // Ban 게이트(인증 레벨): banned user는 인증 자체가 불가 — 여전히 유효한 token/session으로
+    // ban을 우회할 수 없음. ban 시 캐시가 무효화되므로 항상 최신 상태를 읽음.
     if (isEffectivelyBanned(resolved)) {
       logger.warn(`[user=${payload.sub}] Banned user auth attempt blocked`);
       throw new UnauthorizedException('Your account has been suspended.');

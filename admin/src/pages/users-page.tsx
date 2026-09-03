@@ -18,8 +18,8 @@ interface UserPage {
     take: number;
 }
 
-// Fields returned by GET /user/:id that are not in the list response.
-// status/bannedUntil come from the moderation layer; password is @Excluded by the interceptor.
+// GET /user/:id 응답 중 목록 응답에는 없는 필드.
+// status/bannedUntil은 moderation 레이어에서 옴; password는 interceptor가 @Excluded 처리.
 interface UserDetail {
     status?: string;
     bannedUntil?: string | null;
@@ -62,26 +62,23 @@ function UsersPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
 
-    // selectedUser: the row that was clicked to open the detail panel.
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    // panelDetail: extra fields fetched from GET /user/:id (status, bannedUntil).
-    // null while the fetch is in-flight; {} (empty) when done (success or error).
+    // panelDetail: fetch 진행 중엔 null; 완료되면(성공/실패 무관) {} (빈 객체).
     const [panelDetail, setPanelDetail] = useState<UserDetail | null>(null);
-    // panelLogs: recent 5 audit log entries involving the selected user.
     const [panelLogs, setPanelLogs] = useState<AuditLogEntry[]>([]);
-    // panelRefreshKey: incrementing this re-triggers the panel fetch without changing selectedUser.
-    // Used by unban() to reload moderation state after clearing a ban.
+    // panelRefreshKey: 증가시키면 selectedUser 변경 없이 panel fetch를 재실행.
+    // unban()이 ban 해제 후 moderation 상태를 다시 불러올 때 사용.
     const [panelRefreshKey, setPanelRefreshKey] = useState(0);
-    // Derived — avoids synchronous setState inside the effect body.
+    // 파생값 — effect 본문 안에서의 동기 setState를 피함.
     const panelLoading = selectedUser !== null && panelDetail === null;
 
     const navigate = useNavigate();
     const myRole = useAuthStore((s) => s.role);
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
-    // setLoading(true) is intentionally NOT in this effect body to satisfy react-hooks/set-state-in-effect.
-    // Each trigger (changePage, toggleSort, handleSearch debounce, refresh) sets loading=true
-    // in its own event handler or timer callback before updating the dependency.
+    // setLoading(true)를 이 effect 본문에 두지 않는 건 의도적 — react-hooks/set-state-in-effect 규칙 때문.
+    // 각 트리거(changePage, toggleSort, handleSearch debounce, refresh)가 dependency를
+    // 갱신하기 전에 자신의 이벤트 핸들러나 타이머 콜백에서 loading=true를 설정.
     useEffect(() => {
         let cancelled = false;
         api.get('/user', { params: { page, take: 20, sort, sortBy, search: debouncedSearch || undefined, status: statusFilter || undefined } })
@@ -90,9 +87,9 @@ function UsersPage() {
         return () => { cancelled = true; };
     }, [page, sort, sortBy, debouncedSearch, statusFilter, refreshKey]);
 
-    // Fetch panel data when a user row is selected or panelRefreshKey changes (e.g. after unban).
-    // GET /user/:id for moderation state; GET /audit-log?userId for recent logs.
-    // All setState calls are inside async callbacks — avoids react-hooks/set-state-in-effect.
+    // 사용자 행 선택 시 또는 panelRefreshKey 변경 시(예: unban 후) panel 데이터를 fetch.
+    // moderation 상태는 GET /user/:id, 최근 로그는 GET /audit-log?userId.
+    // 모든 setState 호출은 async 콜백 안에 있음 — react-hooks/set-state-in-effect 회피.
     useEffect(() => {
         if (!selectedUser) return;
         let cancelled = false;
@@ -106,12 +103,12 @@ function UsersPage() {
                 setPanelLogs((logsRes.data as { data: AuditLogEntry[] }).data);
             })
             .catch(() => {
-                // Panel is supplemental — mark done (non-null) so panelLoading clears.
+                // panel은 부가 정보 — panelLoading이 풀리도록 done 상태(non-null)로 표시.
                 if (!cancelled) setPanelDetail({});
             });
         return () => { cancelled = true; };
-    // panelRefreshKey is intentional: unban() increments it to reload moderation state
-    // without changing selectedUser, so the panel re-fetches in place.
+    // panelRefreshKey는 의도적: unban()이 이를 증가시켜 selectedUser 변경 없이
+    // moderation 상태를 다시 불러옴 — panel이 제자리에서 re-fetch됨.
     }, [selectedUser, panelRefreshKey]);
 
     const refresh = () => { setLoading(true); setRefreshKey((k) => k + 1); };
@@ -122,8 +119,8 @@ function UsersPage() {
         setPage(1);
     };
 
-    // openPanel: resets panel data in the event handler (not in an effect) so the
-    // useEffect body only calls setState in async callbacks — satisfies react-hooks/set-state-in-effect.
+    // openPanel: panel 데이터를 effect가 아닌 이벤트 핸들러에서 리셋 — useEffect 본문은
+    // async 콜백에서만 setState를 호출하도록 해서 react-hooks/set-state-in-effect 충족.
     const openPanel = (u: User) => {
         setSelectedUser(u);
         setPanelDetail(null);
@@ -134,14 +131,14 @@ function UsersPage() {
         setSearch(value);
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
-            setLoading(true);  // timer callback — not inside a useEffect body
+            setLoading(true);  // 타이머 콜백 — useEffect 본문 안이 아님
             setDebouncedSearch(value);
             setPage(1);
         }, 300);
     };
 
     const toggleSort = (field: 'id' | 'role' | 'created') => {
-        setLoading(true);  // event handler — not inside a useEffect body
+        setLoading(true);  // 이벤트 핸들러 — useEffect 본문 안이 아님
         if (sortBy === field) {
             setSort((s) => (s === 'DESC' ? 'ASC' : 'DESC'));
         } else {
@@ -152,7 +149,7 @@ function UsersPage() {
     };
 
     const changePage = (next: number) => {
-        setLoading(true);  // event handler — not inside a useEffect body
+        setLoading(true);  // 이벤트 핸들러 — useEffect 본문 안이 아님
         setPage(next);
     };
 
@@ -169,9 +166,9 @@ function UsersPage() {
         }
     };
 
-    // unban: clears ban/mute/strikes via POST /user/:id/unban.
-    // Resets panel data in the handler (not in an effect) and increments panelRefreshKey
-    // to re-trigger the panel fetch — shows updated status without closing the panel.
+    // unban: POST /user/:id/unban으로 ban/mute/strike를 해제.
+    // panel 데이터를 (effect가 아닌) 핸들러에서 리셋하고 panelRefreshKey를 증가시켜
+    // panel fetch를 재실행 — panel을 닫지 않고 갱신된 상태를 보여줌.
     const unban = async (userId: number) => {
         try {
             await api.post(`/user/${userId}/unban`);
@@ -184,8 +181,8 @@ function UsersPage() {
         }
     };
 
-    // ban: manual admin ban via POST /user/:id/ban, independent of the automatic strike system.
-    // Prompts for an optional reason; Cancel aborts entirely (null), OK with empty input still bans.
+    // ban: 자동 strike 시스템과 별개로, POST /user/:id/ban을 통한 수동 admin ban.
+    // 선택적 사유를 prompt로 받음; Cancel은 전체 취소(null), 빈 입력으로 OK해도 ban은 진행.
     const ban = async (userId: number) => {
         const reason = prompt('Reason for ban (optional):');
         if (reason === null) return;
@@ -225,7 +222,7 @@ function UsersPage() {
         try {
             await api.post('/auth/signOut');
         } catch {
-            // best effort
+            // best effort — 실패해도 무시
         } finally {
             clearTokens();
             navigate('/');
@@ -324,7 +321,6 @@ function UsersPage() {
                             </thead>
                             <tbody>
                                 {users.map((u) => (
-                                    // Clicking the row opens the detail panel; action buttons stop propagation.
                                     <tr
                                         key={u.id}
                                         data-testid={`user-row-${u.id}`}
@@ -401,9 +397,8 @@ function UsersPage() {
                 )}
             </div>
 
-            {/* User detail panel — slides in from the right when a row is clicked.
-                Uses data already in the row plus GET /user/:id for moderation state
-                and GET /audit-log?userId for the 5 most recent privileged-action entries. */}
+            {/* 행에 이미 있는 데이터에 더해 GET /user/:id로 moderation 상태를,
+                GET /audit-log?userId로 최근 5건의 권한 작업 기록을 가져옴. */}
             {selectedUser && (
                 <div
                     className="fixed inset-0 z-40"
@@ -469,7 +464,6 @@ function UsersPage() {
                                             <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString()}</span>
                                         </div>
                                     )}
-                                    {/* Unban: shown only when the user is currently banned and the actor outranks them. */}
                                     {panelDetail?.status === 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button
@@ -481,7 +475,6 @@ function UsersPage() {
                                             </button>
                                         </div>
                                     )}
-                                    {/* Ban: shown only when the user is not already banned and the actor outranks them. */}
                                     {panelDetail?.status !== 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button

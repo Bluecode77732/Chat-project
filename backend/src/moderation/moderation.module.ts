@@ -1,7 +1,7 @@
-// Purpose: packages the behavioral-moderation concern (ModerationService + ModerationGuard) as one module.
-// Usage: imported by ChatModule (guard + velocity hook + evaluateMessage) and UserModule (admin unban); registered in AppModule.
-// Rationale: encapsulates moderation and — via callback injection in ModerationService — depends only on data/Redis/audit,
-//   never on ChatModule, so the ChatModule <-> ModerationModule cycle is avoided (one-directional dependency).
+// 목적: 행동 기반 모더레이션 관심사(ModerationService + ModerationGuard)를 하나의 모듈로 묶음.
+// 사용처: ChatModule(가드 + velocity 훅 + evaluateMessage)과 UserModule(admin unban)에서 임포트; AppModule에 등록.
+// 근거: 모더레이션을 캡슐화하고 — ModerationService의 콜백 주입을 통해 — data/Redis/audit에만 의존,
+//   ChatModule에는 의존하지 않아 ChatModule <-> ModerationModule 순환을 피함(단방향 의존).
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';

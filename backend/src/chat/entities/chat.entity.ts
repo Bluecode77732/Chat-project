@@ -17,7 +17,6 @@ export class ChatEntity extends EntityBase {
   })
   participant?: UserEntity | null;
 
-  // Rooms in a chat
   @ManyToOne(() => RoomEntity, (room) => room.chats, {
     nullable: true,
     onDelete: 'CASCADE',

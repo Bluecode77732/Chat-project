@@ -95,9 +95,9 @@ function ChatPage() {
     const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
     const [isInitialSelect, setIsInitialSelect] = useState(true);
     const [aiPersonalityInfo, setAiPersonalityInfo] = useState<{ personality: string | null; canChange: boolean } | null>(null);
-    // true only when user explicitly clicks AI Chat (not on page load)
+    // 사용자가 AI Chat을 명시적으로 클릭했을 때만 true (페이지 로드 시엔 false)
     const shouldCheckPersonalityRef = useRef(false);
-    // smart scroll: true when user is near the bottom
+    // smart scroll: 하단 근처에 있을 때 true
     const isAtBottomRef = useRef(true);
     const bannerRef = useRef<HTMLDivElement>(null);
     const [canScrollBannerLeft, setCanScrollBannerLeft] = useState(false);
@@ -111,9 +111,9 @@ function ChatPage() {
     useSubscription<SubscriptionData>(RECEIVE_MESSAGE, {
         variables: { roomId: currentRoomId },
         skip: !currentRoomId,
-        // onData is Apollo's recommended replacement for useEffect(..., [subData]) here:
-        // it fires once per delivered message (not re-fired on every re-render), avoiding
-        // the cascading-render setState-in-effect pattern flagged by react-hooks lint.
+        // onData는 여기서 useEffect(..., [subData])를 대체하는 Apollo 권장 방식 —
+        // 메시지가 전달될 때마다 한 번씩만 실행되고(재렌더링마다 재실행 안 됨),
+        // react-hooks lint가 지적하는 cascading-render setState-in-effect 패턴을 피함.
         onData: ({ data }) => {
             const receiveMessage = data.data?.receiveMessage;
             if (!receiveMessage) return;
@@ -161,7 +161,7 @@ function ChatPage() {
         (aiUserId !== null && id === aiUserId) ? 'AI'
             : (systemUserId !== null && id === systemUserId) ? 'SYS'
                 : displayName(id).slice(0, 2);
-    // iMessage-style tail: a small same-color blob plus a page-background-color mask curving part of it away.
+    // iMessage 스타일 꼬리: 같은 색 작은 덩어리 + 페이지 배경색 마스크로 일부를 깎아냄.
     const bubbleTailClass = (isMine: boolean) =>
         isMine
             ? "before:content-[''] before:absolute before:bottom-[-2px] before:right-[-7px] before:w-[15px] before:h-[15px] before:bg-blue-100 before:rounded-bl-[15px] after:content-[''] after:absolute after:bottom-[-2px] after:right-[-10px] after:w-[10px] after:h-[15px] after:bg-white after:rounded-bl-[10px]"
@@ -185,11 +185,11 @@ function ChatPage() {
         return () => document.removeEventListener('keydown', handleSlashFocus);
     }, [showPersonalitySelector]);
 
-    // Auto-grow the message textarea with its content, capped by max-h-32 (matches the CSS cap).
-    // Measuring requires a transient height:auto, but applying the result in the same tick gives the
-    // browser no "previous" frame to transition from — it just jumps. Restoring prevHeight and forcing
-    // a reflow (reading offsetHeight) commits that state before we write the new height, so the
-    // browser actually has two distinct values to animate between.
+    // 메시지 textarea를 내용에 맞춰 자동 확장, max-h-32로 상한(CSS 상한과 일치).
+    // 측정하려면 일시적으로 height:auto가 필요한데, 같은 tick에 결과를 바로 적용하면
+    // 브라우저가 전환할 "이전" 프레임이 없어 그냥 점프해버림. prevHeight를 복원하고
+    // reflow를 강제(offsetHeight 읽기)해서 새 height를 쓰기 전에 그 상태를 커밋 —
+    // 그래야 브라우저가 애니메이션할 두 개의 서로 다른 값을 갖게 됨.
     useEffect(() => {
         const textarea = messageInputRef.current;
         if (!textarea) return;
@@ -201,9 +201,9 @@ function ChatPage() {
         textarea.style.height = next;
     }, [input]);
 
-    // Reset room-scoped state synchronously during render when recipientId changes,
-    // instead of via setState calls in the effect body (react-hooks/set-state-in-effect) —
-    // see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+    // recipientId 변경 시 room 범위 상태를 effect 본문의 setState(react-hooks/set-state-in-effect)
+    // 대신 렌더링 중에 동기적으로 리셋 —
+    // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes 참고
     if (recipientId !== prevRecipientId) {
         setPrevRecipientId(recipientId);
         setCurrentRoomId(null);
@@ -217,9 +217,8 @@ function ChatPage() {
         fetchRoom({ variables: { recipientId } }).then(({ data }) => {
             if (data?.getRoom) {
                 setCurrentRoomId(data.getRoom);
-                // keep ref alive so the personality effect can use it
+                // personality effect가 사용할 수 있도록 ref를 유지
             } else if (shouldCheckPersonalityRef.current && aiUserId && recipientId === aiUserId && !pendingPersonality) {
-                // no room yet → show selector (only when user explicitly clicked)
                 setIsInitialSelect(true);
                 setShowPersonalitySelector(true);
                 shouldCheckPersonalityRef.current = false;
@@ -229,13 +228,12 @@ function ChatPage() {
         }).catch(console.error);
     }, [recipientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Load personality info when an existing AI room is opened
+    // 기존 AI room을 열었을 때 personality 정보를 로드
     useEffect(() => {
         if (!currentRoomId || !aiUserId || recipientId !== aiUserId) return;
         fetchAiPersonalityInfo({ variables: { roomId: currentRoomId } }).then(({ data }) => {
             if (data?.getAiPersonalityInfo) {
                 setAiPersonalityInfo(data.getAiPersonalityInfo);
-                // show selector if no personality set and user explicitly clicked
                 if (!data.getAiPersonalityInfo.personality && shouldCheckPersonalityRef.current) {
                     setIsInitialSelect(true);
                     setShowPersonalitySelector(true);
@@ -260,13 +258,13 @@ function ChatPage() {
         if (incoming.length < 15) setHasMore(false);
 
         if (cursor) {
-            // Prepend older messages, avoid duplicates
+            // 이전 메시지를 앞에 붙임, 중복 방지
             setMessages(prev => {
                 const existingIds = new Set(prev.map(m => m.id).filter(Boolean));
                 return [...incoming.filter(m => !existingIds.has(m.id)), ...prev];
             });
         } else {
-            // Initial load: replace state, keep any locally added messages not yet in DB
+            // 최초 로드: 상태를 교체하되, 아직 DB에 없는 로컬 추가 메시지는 유지
             setMessages(prev => {
                 const historyIds = new Set(incoming.map(m => m.id));
                 const localOnly = prev.filter(m => !m.id || !historyIds.has(m.id));
@@ -275,8 +273,8 @@ function ChatPage() {
         }
     }, [fetchMessages]);
 
-    // Reset pagination/loading state synchronously during render when currentRoomId
-    // changes, instead of via setState calls in the effect body (react-hooks/set-state-in-effect)
+    // currentRoomId 변경 시 pagination/loading 상태를 effect 본문의 setState
+    // (react-hooks/set-state-in-effect) 대신 렌더링 중에 동기적으로 리셋
     if (currentRoomId !== prevLoadedRoomId) {
         setPrevLoadedRoomId(currentRoomId);
         if (currentRoomId) {
@@ -285,7 +283,7 @@ function ChatPage() {
         }
     }
 
-    // Load message history when room is first known
+    // room이 처음 확인됐을 때 메시지 히스토리를 로드
     useEffect(() => {
         if (!currentRoomId) return;
         isAtBottomRef.current = true;
@@ -295,13 +293,13 @@ function ChatPage() {
             .finally(() => setMessagesLoading(false));
     }, [currentRoomId, loadMessages]);
 
-    // Auto-scroll to bottom on new messages — only when already near bottom
+    // 새 메시지 도착 시 하단으로 자동 스크롤 — 이미 하단 근처일 때만
     useEffect(() => {
         if (!scrollRef.current || messages.length === 0 || !isAtBottomRef.current) return;
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, [messages]);
 
-    // Scroll handler: track bottom proximity + load older messages at top
+    // 스크롤 핸들러: 하단 근접 여부 추적 + 상단 도달 시 이전 메시지 로드
     const handleScroll = useCallback(() => {
         if (!scrollRef.current) return;
         const el = scrollRef.current;
@@ -313,7 +311,7 @@ function ChatPage() {
         }
     }, [currentRoomId, hasMore, messages, loadMessages]);
 
-    // Reload messages on socket reconnect (network drop recovery)
+    // 소켓 재연결 시 메시지 다시 로드 (네트워크 끊김 복구)
     useEffect(() => {
         if (!currentRoomId) return;
         const handleConnect = () => loadMessages(currentRoomId);
@@ -321,7 +319,7 @@ function ChatPage() {
         return () => { socket.off('connect', handleConnect); };
     }, [currentRoomId, loadMessages]);
 
-    // Auto-scroll banner to selected user badge
+    // 선택된 사용자 배지로 배너를 자동 스크롤
     useEffect(() => {
         if (!recipientId || !bannerRef.current) return;
         const target = bannerRef.current.querySelector(`[data-userid="${recipientId}"]`) as HTMLElement | null;
@@ -331,7 +329,7 @@ function ChatPage() {
         container.scrollTo({ left: centerOffset, behavior: 'smooth' });
     }, [recipientId]);
 
-    // Cleanup banner scroll timers on unmount
+    // unmount 시 배너 스크롤 타이머 정리
     useEffect(() => {
         return () => {
             if (holdTimerRef.current !== null) clearTimeout(holdTimerRef.current);
@@ -351,9 +349,9 @@ function ChatPage() {
 
         socket.on('connect_error', (err) => {
             console.error('Socket has failed to connect: ', err.message);
-            // Refresh first: if the refresh token is also expired, refreshAccessTokenSafely()
-            // triggers rejectSession() (logout) internally, so we must not blindly retry the
-            // same stale token forever.
+            // 먼저 refresh 시도: refresh token까지 만료됐다면 refreshAccessTokenSafely()가
+            // 내부적으로 rejectSession()(로그아웃)을 트리거하므로, 같은 stale 토큰으로
+            // 무한 재시도하면 안 됨.
             refreshAccessTokenSafely().then((accessToken) => {
                 if (!accessToken) return;
                 setTimeout(() => reconnectSocket(), 3000);
@@ -367,7 +365,7 @@ function ChatPage() {
         };
     }, [accessToken]);
 
-    // Rate-limit modal countdown: ticks down once per second, auto-closes at 0
+    // rate-limit 모달 카운트다운: 초당 한 번씩 감소, 0이 되면 자동으로 닫힘
     useEffect(() => {
         if (rateLimitSecondsLeft === null) return;
         const timer = window.setTimeout(() => {
@@ -399,8 +397,8 @@ function ChatPage() {
                 setRateLimitSecondsLeft(RATE_LIMIT_WINDOW_SECONDS);
                 return;
             }
-            // Moderation block (temporary mute / defense-in-depth ban) — surface a notice
-            // instead of failing silently. A hard ban is separately handled at the auth layer.
+            // moderation 차단(일시 mute / defense-in-depth ban) — 조용히 실패시키지 않고
+            // 알림을 표시. 완전한 ban은 auth 레이어에서 별도로 처리됨.
             if (CombinedGraphQLErrors.is(err) &&
                 err.errors.some(e => e.extensions?.['code'] === 'FORBIDDEN')) {
                 setModerationNotice('메시지 전송이 일시적으로 제한되었습니다.');
@@ -415,7 +413,7 @@ function ChatPage() {
         if (!currentRoomId && newRoomId) {
             setCurrentRoomId(newRoomId);
             refetchRooms();
-            // Personality is now stored in DB — clear pending
+            // 이제 personality가 DB에 저장됐으므로 pending 값 클리어
             if (isAiChat) setPendingPersonality(null);
         }
 
@@ -492,7 +490,7 @@ function ChatPage() {
         setCanScrollBannerRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
     }, []);
 
-    // Re-measure whenever the banner's content (and therefore its scrollWidth) can change.
+    // 배너 콘텐츠(그리고 그로 인한 scrollWidth)가 바뀔 수 있을 때마다 다시 측정.
     useEffect(() => {
         updateBannerScrollState();
     }, [updateBannerScrollState, onlineData, allUsersData, userSearchQuery, recipientId, nicknamesData]);
@@ -508,8 +506,8 @@ function ChatPage() {
         return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Local calendar day the message was actually sent on — used to show one
-    // date divider per day, independent of the per-message time already shown.
+    // 메시지가 실제로 전송된 로컬 달력 날짜 — 이미 표시 중인 메시지별 시간과
+    // 별개로, 하루에 한 번 날짜 구분선을 보여주는 데 사용.
     const dateKey = (iso?: string) => (iso ? new Date(iso).toDateString() : null);
     const formatDate = (iso?: string) => {
         if (!iso) return '';
@@ -521,7 +519,7 @@ function ChatPage() {
         try {
             await api.post('/auth/signOut');
         } catch {
-            // token already expired — still clear local state and cookie
+            // 토큰이 이미 만료됐어도 로컬 상태와 쿠키는 그대로 정리
         }
         socket.disconnect();
         clearTokens();
@@ -575,7 +573,7 @@ function ChatPage() {
                         const query = userSearchQuery.trim().toLowerCase();
                         return (
                             <>
-                                {/* Online users (including Me) */}
+                                {/* 온라인 사용자 (본인 포함) */}
                                 {onlineData?.getOnlineUser
                                     ?.filter((id: number) => id !== aiUserId)
                                     .filter((id: number) => id === userId || !query || displayName(id).toLowerCase().includes(query))
@@ -597,7 +595,7 @@ function ChatPage() {
                                             {id === userId ? `Me (${displayName(id)})` : id === recipientId ? `✓ ${displayName(id)}` : displayName(id)}
                                         </span>
                                     ))}
-                                {/* Offline users — all registered users not currently online */}
+                                {/* 오프라인 사용자 — 현재 온라인이 아닌 모든 등록 사용자 */}
                                 {allUsersData?.getAllUsers
                                     ?.filter((id) => id !== aiUserId && !onlineIds.has(id))
                                     .filter((id) => !query || displayName(id).toLowerCase().includes(query))
@@ -617,7 +615,7 @@ function ChatPage() {
                                             {id === recipientId ? `✓ ${displayName(id)} (offline)` : `${displayName(id)} (offline)`}
                                         </span>
                                     ))}
-                                {/* AI Chat */}
+                                {/* AI 채팅 */}
                                 {aiUserId && (
                                     <span
                                         data-userid={aiUserId}
@@ -631,7 +629,7 @@ function ChatPage() {
                                         {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
                                     </span>
                                 )}
-                                {/* Personality change button */}
+                                {/* 성격 변경 버튼 */}
                                 {recipientId === aiUserId && currentRoomId && (
                                     <button
                                         onClick={() => { setIsInitialSelect(false); setShowPersonalitySelector(true); }}
@@ -715,7 +713,7 @@ function ChatPage() {
                     const profileImage = isAi ? null : profileImageById.get(group[0].userId);
                     const showDateDivider = dateKey(group[0].createdAt) !== dateKey(allGroups[gi - 1]?.[0]?.createdAt);
 
-                    // System moderation notices render centered, not as a participant bubble.
+                    // 시스템 moderation 알림은 참여자 말풍선이 아니라 중앙 정렬로 렌더링.
                     if (isSystem) {
                         return (
                             <Fragment key={group[0].id ?? gi}>
