@@ -158,6 +158,14 @@ project's established comment convention and the app's own Korean UI text. Markd
 follow the existing EN/KO `.ko.md` pairing (see ADR/README.md). This file's own prose stays
 in English.
 
+Register (Korean only): sentence-final endings use the terse nominalized form — `-함/임/음`
+— not the polite `-합니다/습니다/입니다` form. E.g. "발전했습니다" → "발전함",
+"제공합니다" → "제공함", "~서비스입니다" → "~서비스임", "있습니다" → "있음",
+"필요합니다" → "필요함". A direct instruction to the reader (setup steps, contribution
+guides) stays a natural imperative (`-하세요`/`-할 것`) instead of being forced into `-함`.
+Quoted material (a direct quote, a verbatim commit message, existing code-comment text) is
+never rewritten to match — quote it as-is.
+
 Write the way a teammate who knows this codebase would explain it out loud — plain, direct, and
 only as long as the point actually requires. Avoid the tells of generated text:
 
