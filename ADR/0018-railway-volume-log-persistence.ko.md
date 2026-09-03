@@ -35,9 +35,9 @@ Railway는 `process.env.VERCEL`을 설정하지 않으므로 운영 환경에서
 - `logger.ts`는 마운트 경로를 `RAILWAY_VOLUME_MOUNT_PATH`(볼륨이 연결되면 컨테이너 시작 시
   Railway가 자동 주입)에서 읽고, 값이 없으면(로컬 개발, CI, 볼륨이 연결되지 않은 Railway
   서비스) 기존의 `join(process.cwd(), 'logs')`로 폴백함. 그래서 Railway 밖에서의 동작은
-  변하지 않음(`backend/src/base/logger/logger.ts:26-28`).
+  변하지 않음(`backend/src/base/logger/logger.ts:11-13`).
 - 죽은 `isVercel` 분기는 제거함. 두 `File` transport 모두 이제 조건 없이 생성되며,
-  해석된 `logDir`을 가리킴(`backend/src/base/logger/logger.ts:50,61`).
+  해석된 `logDir`을 가리킴(`backend/src/base/logger/logger.ts:35,46`).
 - 고려했다가 배제한 대안:
   - **외부 로그 저장 서비스**(예: Better Stack): 배제함. 새 npm 의존성, 새 외부 계정,
     로그 내용의 제3자 전송이 추가됨. Railway 자체 인프라가 이미 같은 문제에 대한 1차적인

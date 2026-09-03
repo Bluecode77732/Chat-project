@@ -687,7 +687,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
-  (`user.service.ts:296,323,419`) — as a separate, queryable entity.
+  (`user.service.ts:284,314,405`) — as a separate, queryable entity.
 - Rationale: privileged actions need an attributable record independent of the
   application logs (which rotate/are unstructured); this already exists but isn't
   named as a requirement anywhere in this file.
@@ -761,7 +761,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **Config-Driven Extension over Branching**
 - Breakdown: a concrete instance of SOLID > OCP. `AiService` selects personality
   behavior via `SYSTEM_PROMPTS: Record<AiPersonality, string>`
-  (`ai/constants/system-prompts.ts:9`) — `AiService.handleReply()`
+  (`backend/src/ai/constants/system-prompts.ts:9`) — `AiService.handleReply()`
   (`ai.service.ts:139`, `SYSTEM_PROMPTS[personality]`) looks up the prompt by key
   and never branches on which personality it is.
 - Rationale: keeping "which case" as data (a map) rather than control flow
@@ -838,7 +838,7 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
+- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:281`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
 - Unavailability policy: security checks backed only by Redis (e.g. mute state, token blacklist) must fail closed explicitly (catch, log, deny) — never let an unguarded Redis call surface as an uncaught, undocumented `500`. A Redis read that already has a DB fallback in the same method (e.g. `user_cache`) should instead be treated as a cache miss and fall through to that DB path. See [ADR 0016](ADR/0016-redis-unavailability-policy.md).
 - **Never suggest**: node-redis (ioredis is unified across codebase)

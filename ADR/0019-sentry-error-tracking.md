@@ -33,7 +33,7 @@ philosophy in [ADR 0010](0010-railway-vercel-deployment.md).
   (`backend/src/mail/mail.service.ts:12-24`).
   - `environment: process.env.NODE_ENV`, not `ENV` (`instrument.ts:32`) -- `ENV` is `.required()`
     in the Joi schema but has zero consumers anywhere in `backend/src`; `NODE_ENV` is what actually
-    drives dev/prod behavior throughout (`logger.ts:20`, `all-exceptions.filter.ts:15`, `main.ts`).
+    drives dev/prod behavior throughout (`logger.ts:6`, `all-exceptions.filter.ts:15`, `main.ts`).
   - `sendDefaultPii` is never set (`instrument.ts`) -- a real, since-patched CVE
     (GHSA-6465-jgvq-jhgp, SDK 10.11.0-10.26.0) leaked `Authorization`/`Cookie` headers through that
     flag. `@sentry/nestjs` is pinned `^10.66.0`, well above the fixed floor of `10.27.0`.
