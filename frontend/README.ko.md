@@ -1,75 +1,33 @@
 > English version: [README.md](README.md)
 
-# React + TypeScript + Vite
+# Frontend
 
-이 템플릿은 Vite에서 HMR과 몇 가지 ESLint 규칙을 갖춘 React를 최소 구성으로 띄워줌.
+실시간 채팅 앱의 React + TypeScript + Vite 클라이언트. 채팅 UI만 담당 — 관리자 대시보드는
+[`admin/`](../admin)에 별도로 있음.
 
-현재 공식 플러그인 두 가지를 사용할 수 있음:
+스택 세부사항, 아키텍처, 데이터 흐름은
+[루트 README](../README.md#frontend)와 [ARCHITECTURE.md](../ARCHITECTURE.md) 참고.
+환경 변수는 [`.env.example`](.env.example)에 인라인으로 문서화돼 있음.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) — [Oxc](https://oxc.rs) 사용
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) — [SWC](https://swc.rs/) 사용
+## 개발 실행
 
-## React Compiler
+env 템플릿을 복사하고 백엔드가 다른 곳에서 돈다면 값을 조정한 뒤 dev 서버 실행
+(백엔드가 먼저 떠 있어야 함 — [루트 README Quick Start](../README.md#quick-start) 참고):
 
-React Compiler는 dev/build 성능에 미치는 영향 때문에 이 템플릿에 기본 활성화돼 있지 않음. 추가하려면 [이 문서](https://react.dev/learn/react-compiler/installation) 참고.
-
-## ESLint 설정 확장
-
-프로덕션 애플리케이션을 개발 중이라면, 타입 인식 lint 규칙을 켜도록 설정을 업데이트하길 권장함:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+cp .env.example .env.local
+pnpm install
+pnpm dev
 ```
 
-[eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x)와 [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom)도 설치하면 React 전용 lint 규칙을 쓸 수 있음:
+→ http://localhost:5173
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 명령어
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+pnpm dev      # Vite dev 서버 (5173 포트)
+pnpm build    # 프로덕션 빌드
+pnpm lint     # ESLint
+pnpm test     # Vitest 단위 테스트
+pnpm e2e      # Playwright e2e
 ```
