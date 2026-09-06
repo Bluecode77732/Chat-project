@@ -15,7 +15,7 @@ Accepted
   캐스케이드 정리 경로(`user.service.ts:416`)에서 `chatService.disconnectSocket()`을 호출함.
 - **`ChatModule → AuthModule`**: `ChatGateway.handleConnection()`이 WebSocket 핸드셰이크 인증을
   위해 `authService.parseBearerToken()`을 호출함. 이 경로는 표준 HTTP Guard 파이프라인을
-  타지 않음(`chat.gateway.ts:10,47,90`).
+  타지 않음(`chat.gateway.ts:10,47,87`).
 
 각 엣지는 단방향이고, 세 모듈 중 어느 쌍도 서로를 되받아 import하지 않음. 그래서
 `ModerationModule`이 `ChatModule` 직접 import 대신 콜백 주입으로 일부러 피했던 상호/양방향

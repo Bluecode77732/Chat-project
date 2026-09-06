@@ -153,7 +153,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 스택 트레이스가 빠짐. CLAUDE.md의 Never Do Group 3 "Stack trace in error response" 규칙의 실제
 구현체임.
 
-- **`>= 500`일 때 Sentry로 캡처** (`all-exceptions.filter.ts:56-58`): `logger.error`/`logger.warn`을
+- **`>= 500`일 때 Sentry로 캡처** (`all-exceptions.filter.ts:55-57`): `logger.error`/`logger.warn`을
   가르는 것과 동일한 상태 체크가 `Sentry.captureException(exception, { extra: { stack, isGraphQL } })`
   호출도 게이트함. 선택적 통합임. `instrument.ts`(`main.ts`의 말 그대로 첫 줄에서,
   `NestFactory`보다 먼저 import됨)는 `SENTRY_DSN`이 설정된 경우에만 `Sentry.init()`을 호출함.
@@ -187,7 +187,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 
 **`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작함** — 이 표에서 유일하게 그런
 경로임. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP
-요청이 없음. 그래서 GraphQL `context()` 함수(`app.module.ts:106-126`)가 `graphql-ws`의
+요청이 없음. 그래서 GraphQL `context()` 함수(`app.module.ts:110-130`)가 `graphql-ws`의
 `connectionParams`(`onConnect`에서 캡처되어 `extra`로 전달됨)로부터 synthetic한
 `req.headers.authorization`을 만들어냄. 이것이 실제 메시지 *전달* 쪽 가드임.
 `sendMessage`의 가드 체인(위)은 쓰기 쪽만 막고, 모든 구독자는 구독 시점에 인증과 룸 멤버십을
@@ -195,7 +195,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 재확인되지 않음(체크는 `receiveMessage` 호출 시점에 한 번만 실행되고, 전달되는 메시지마다
 실행되지 않음).
 
-**세션 충돌 시 축출 순서는 의도적임**: `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 현재 세션으로 먼저 기록한 *다음에* 이전 세션을 축출함(`kickPreviousSession()`, `chat.service.ts:57-62`). 먼저 기록하는 이유는, 축출당하는 소켓 자신의 `disconnect` 핸들러가 새 세션의 온라인 상태를 도로 오프라인으로 덮어쓰는 경합을 피하기 위해서임. [ADR 0014](ADR/0014-single-active-session.md) 참고.
+**세션 충돌 시 축출 순서는 의도적임**: `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 현재 세션으로 먼저 기록한 *다음에* 이전 세션을 축출함(`kickPreviousSession()`, `chat.service.ts:55-60`). 먼저 기록하는 이유는, 축출당하는 소켓 자신의 `disconnect` 핸들러가 새 세션의 온라인 상태를 도로 오프라인으로 덮어쓰는 경합을 피하기 위해서임. [ADR 0014](ADR/0014-single-active-session.md) 참고.
 
 `ModerationGuard`(`moderation.guard.ts`) 자체는 밴/뮤트 상태만 확인하도록 의도적으로 얇게
 설계되어 있음(SRP). 스트라이크 누적과 실제 제재 side effect는 모두 `ModerationService`에

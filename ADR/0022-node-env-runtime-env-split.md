@@ -9,7 +9,7 @@ Accepted
 `NODE_ENV` previously carried a non-standard third value, `'docker'`, alongside the standard
 `development`/`production` (`test` was implicitly supported by Jest's default behavior but never
 set by docker-compose). This overloaded a single variable with three unrelated questions at once:
-`envFilePath` selection (`app.module.ts:72-77`, which `.env*` file to load), HTTP host binding
+`envFilePath` selection (`app.module.ts:71-76`, which `.env*` file to load), HTTP host binding
 (`main.ts:103-111`, `127.0.0.1` vs `0.0.0.0`), and deployment-stage signaling for Sentry's
 `environment` tag (`instrument.ts:32`), Winston's log level (`logger.ts:18-20`, `debug` unless
 production), and stack-trace exposure in error responses (`all-exceptions.filter.ts:15`,
@@ -45,7 +45,7 @@ carefully to confirm it.
 - A new var, `RUNTIME_ENV` (`native` | `docker`), answers only "is this process running inside the
   docker-compose local stack." Unset/absent means `native` — this covers bare `pnpm start:dev` /
   `start:prod` and Railway production, since Railway never sets it.
-- `envFilePath` selection (`app.module.ts:72-77`) now keys on `RUNTIME_ENV` first:
+- `envFilePath` selection (`app.module.ts:71-76`) now keys on `RUNTIME_ENV` first:
   `RUNTIME_ENV === 'docker'` → `.env.docker`; else `NODE_ENV === 'production'` → `.env.production`;
   else → `.env`. This decouples "which env file" from NODE_ENV's former docker hack.
 - Host binding (`main.ts:103-111`) restricts to `127.0.0.1` only when `NODE_ENV === 'development'

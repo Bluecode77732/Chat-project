@@ -49,11 +49,11 @@ Accepted
   - `backend/src/main.ts:1`이 `./instrument`를 `NestFactory`보다 먼저, 파일 맨 첫 줄에서
     import함. Sentry 문서상 이 순서는 필수임. 자동 계측이 패치하는 모듈들이
     `Sentry.init()` 실행 시점에 아직 로드되지 않은 상태여야 하기 때문임.
-- `backend/src/app.module.ts:73`이 `imports`에 `SentryModule.forRoot()`를
-  추가하고(`@sentry/nestjs/setup`에서 가져옴), `:62`가 Joi 스키마에
+- `backend/src/app.module.ts:78`이 `imports`에 `SentryModule.forRoot()`를
+  추가하고(`@sentry/nestjs/setup`에서 가져옴), `:67`이 Joi 스키마에
   `SENTRY_DSN: Joi.string().optional()`을 추가함. 같은 스키마에 이미 있던 `SMTP_HOST`
   선례를 그대로 따른 것임.
-- `backend/src/base/filter/all-exceptions.filter.ts:56-58`이 수동
+- `backend/src/base/filter/all-exceptions.filter.ts:55-57`이 수동
   `Sentry.captureException(exception, { extra: { stack, isGraphQL } })` 호출 하나를 추가하며,
   `Number(status) >= 500` 조건으로 가드됨. 필터가 `:51`에서 `logger[level]`을 위해 이미
   계산해둔 것과 같은 조건임.

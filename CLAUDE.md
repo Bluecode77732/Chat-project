@@ -625,7 +625,7 @@ one of these is violated, follow Principle Conflict Protocol.
 **External SDK Clients Injected via Factory**
 - Breakdown: a concrete instance of SOLID > DIP. Three external clients are
   registered behind `useFactory` providers reading from `ConfigService` —
-  TypeORM's connection (`app.module.ts:81`), the Gemini `GoogleGenAI` client as
+  TypeORM's connection (`app.module.ts:80`), the Gemini `GoogleGenAI` client as
   `GENAI_CLIENT` (`ai.module.ts:26`), and the `ioredis` client
   (`redis.module.ts:13`). Consuming services receive the instance via
   constructor injection and never call `new GoogleGenAI()` / `new Redis()`
@@ -649,7 +649,7 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:55-60`), which emits a
   `forceLogout` event and disconnects the previous socket when a new connection registers for
   the same user.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
@@ -861,10 +861,10 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
 ### CORS
-- `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
+- `CORS_ORIGIN` (`backend/src/app.module.ts:38`, `Joi.string().pattern(/\S/).required()` — the
   pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
   empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
-  into an array in `backend/src/main.ts:60` before being passed to `app.enableCors({ origin })`
+  into an array in `backend/src/main.ts:58` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value

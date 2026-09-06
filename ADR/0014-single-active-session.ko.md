@@ -16,10 +16,10 @@ Accepted
 
 `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`는 새 소켓을 먼저
 현재 세션으로 기록하고, 같은 사용자에 대해 이전에 다른 소켓이 등록되어 있었다면 그다음에
-`kickPreviousSession()`(`chat.service.ts:57-62`)을 호출함. 이 함수는 대체된 소켓에
+`kickPreviousSession()`(`chat.service.ts:55-60`)을 호출함. 이 함수는 대체된 소켓에
 `forceLogout` 이벤트를 emit하고 연결을 끊음. "먼저 기록하고 나중에 축출"하는 순서는
 의도된 것임. 반대로 새 세션을 기록하기 전에 이전 소켓을 먼저 끊으면, 이전 소켓의
-disconnect 핸들러(`removeClient`, `chat.service.ts:65-69`)가 새 세션의 온라인 상태를 도로
+disconnect 핸들러(`removeClient`, `chat.service.ts:64-68`)가 새 세션의 온라인 상태를 도로
 오프라인으로 덮어쓰는 레이스가 생김(`chat.service.ts:41-46`의 인라인 주석 참고).
 - 고려했다가 배제한 대안:
   - **사용자당 여러 동시 세션 허용, 축출 없음**: 배경 절에서 서술한 기존 문제 그 자체라 실행

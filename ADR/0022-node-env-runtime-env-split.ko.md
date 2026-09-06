@@ -9,7 +9,7 @@ Accepted
 `NODE_ENV`는 표준값 `development`/`production` 외에 비표준 세 번째 값 `'docker'`를 함께
 가지고 있었음(`test`는 Jest의 기본 동작으로 암묵적으로 지원됐지만 docker-compose가 설정한
 적은 없음). 이는 서로 무관한 세 질문을 변수 하나에 동시에 담고 있었던 것임.
-첫째, `envFilePath` 선택(`app.module.ts:72-77`, 어떤 `.env*` 파일을 읽을지)임.
+첫째, `envFilePath` 선택(`app.module.ts:71-76`, 어떤 `.env*` 파일을 읽을지)임.
 둘째, HTTP 호스트 바인딩(`main.ts:103-111`, `127.0.0.1` vs `0.0.0.0`)임.
 셋째, Sentry `environment` 태그(`instrument.ts:32`), Winston 로그 레벨
 (`logger.ts:18-20`, production이 아니면 `debug`), 에러 응답의 스택트레이스 노출
@@ -45,7 +45,7 @@ Accepted
 - 새 변수 `RUNTIME_ENV`(`native` | `docker`)는 "이 프로세스가 docker-compose 로컬 스택 안에서
   실행 중인가"만 답함. 값이 없으면 `native`로 간주하며, 이는 맨몸 `pnpm start:dev`/
   `start:prod`와 Railway 운영 환경 모두를 포함함(Railway는 이 값을 설정하지 않음).
-- `envFilePath` 선택(`app.module.ts:72-77`)은 이제 `RUNTIME_ENV`를 먼저 봄:
+- `envFilePath` 선택(`app.module.ts:71-76`)은 이제 `RUNTIME_ENV`를 먼저 봄:
   `RUNTIME_ENV === 'docker'` → `.env.docker`; 아니면 `NODE_ENV === 'production'` →
   `.env.production`; 아니면 → `.env`. "어떤 파일이냐"가 NODE_ENV의 기존 docker 편법에서
   분리됨.

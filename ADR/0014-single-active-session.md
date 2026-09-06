@@ -16,10 +16,10 @@ or a room broadcast could reach a stale socket the user no longer considers acti
 
 `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records the new socket as
 the current session first, then — if a different socket was previously registered for the same user —
-calls `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a `forceLogout` event to the
+calls `kickPreviousSession()` (`chat.service.ts:55-60`), which emits a `forceLogout` event to the
 superseded socket and disconnects it. The write-then-kick order is deliberate: recording the new
 session before kicking the old one avoids a race where the old socket's own disconnect handler
-(`removeClient`, `chat.service.ts:65-69`) could otherwise clobber the new session's online status back
+(`removeClient`, `chat.service.ts:64-68`) could otherwise clobber the new session's online status back
 to offline (`chat.service.ts:41-46`, inline comment).
 - Alternatives considered and rejected:
   - **Allow multiple concurrent sessions per user, no eviction**: this is the pre-existing problem
