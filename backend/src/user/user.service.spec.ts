@@ -142,7 +142,7 @@ describe('UserService', () => {
     userService = module.get<UserService>(UserService);
   });
 
-  // Clears the mock.calls and mock.instances properties of all mocks.
+  // 모든 mock의 mock.calls, mock.instances 속성을 초기화함
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -327,7 +327,6 @@ describe('UserService', () => {
       const hashed = genSalt;
 
       const result = {
-        // id: userId,
         email: email,
         password: hashed,
         role: 0,
@@ -335,11 +334,10 @@ describe('UserService', () => {
 
       jest.spyOn(mockConfigService, 'getOrThrow').mockReturnValue(genSalt);
 
-      // Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
-      // jest.spyOn(bcrypt, 'hash').mockImplementation(() => Promise.resolve(hashed));
+      // jest-mock@30 + Node 24 환경 제약으로 bcrypt는 jest.spyOn으로 테스트 불가 — mock 직접 대입함
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
 
-      // Inserting `null` does explicitly include the 'failed search'.
+      // null은 기존 유저가 없음을 의미함 — 이메일 중복 없이 신규 가입으로 처리됨
       jest
         .spyOn(mockUserRepository, 'findOne')
         .mockResolvedValueOnce(null)
@@ -384,8 +382,8 @@ describe('UserService', () => {
 
       jest
         .spyOn(mockUserRepository, 'findOne')
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce({ id: 2, nickname: 'Taken' }); // nickname check
+        .mockResolvedValueOnce(null) // 이메일 조회
+        .mockResolvedValueOnce({ id: 2, nickname: 'Taken' }); // 닉네임 조회
 
       await expect(userService.create(createUserDto)).rejects.toThrow(
         new BadRequestException('Nickname already in use.'),
@@ -450,7 +448,6 @@ describe('UserService', () => {
       });
       expect(bcrypt.hash).toHaveBeenCalledWith(user.password, hashed);
       expect(mockRedisClient.del).toHaveBeenCalledWith(`user_cache:${userId}`);
-      // (bcrypt.hash as jest.Mock).mockResolvedValue(hashed);
       expect(mockUserRepository.update).toHaveBeenCalledWith(
         { id: 1 },
         {
@@ -580,7 +577,7 @@ describe('UserService', () => {
         ...target,
         role: UserRole.superadmin,
       });
-      mockManager.count.mockResolvedValueOnce(1); // only one superadmin left
+      mockManager.count.mockResolvedValueOnce(1); // 남은 superadmin이 1명뿐
 
       await expect(
         userService.updateRole(actorId, targetId, UserRole.admin),
@@ -595,7 +592,7 @@ describe('UserService', () => {
         ...target,
         role: UserRole.superadmin,
       });
-      mockManager.count.mockResolvedValueOnce(2); // another superadmin remains
+      mockManager.count.mockResolvedValueOnce(2); // superadmin이 한 명 더 남아있음
 
       const result = await userService.updateRole(
         actorId,
@@ -613,7 +610,7 @@ describe('UserService', () => {
 
     it('blocks promoting to admin once the admin count limit is reached.', async () => {
       mockManager.findOne.mockResolvedValueOnce(target);
-      mockManager.count.mockResolvedValueOnce(5); // admin count check
+      mockManager.count.mockResolvedValueOnce(5); // admin 인원수 조회
       mockConfigService.get.mockReturnValueOnce(5); // MAX_ADMIN_COUNT
 
       await expect(
@@ -726,7 +723,7 @@ describe('UserService', () => {
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockRoomQueryBuilder.getMany.mockResolvedValueOnce([{ id: 10 }]);
-      mockManagerQB.getCount.mockResolvedValueOnce(0); // room 10 becomes orphaned
+      mockManagerQB.getCount.mockResolvedValueOnce(0); // room 10이 orphan 상태가 됨
       mockSessionCacheService.getUserStatus.mockResolvedValueOnce({
         socketId: 'socket-1',
       });
@@ -744,24 +741,24 @@ describe('UserService', () => {
         user.password,
       );
       expect(mockManager.delete).toHaveBeenCalledWith(UserEntity, userId);
-      // orphaned room 10 cleaned up inside transaction
+      // orphan이 된 room 10을 트랜잭션 내부에서 함께 정리함
       expect(mockManager.delete).toHaveBeenCalledWith(RoomEntity, 10);
       expect(mockRedisClient.del).toHaveBeenCalledWith('room_messages:10');
-      // session cleanup
+      // 세션 정리
       expect(mockSessionCacheService.sethUserOffline).toHaveBeenCalledWith(
         userId,
       );
       expect(mockRedisClient.del).toHaveBeenCalledWith(`user:${userId}`);
-      // token blacklist
+      // 토큰 블랙리스트
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         'blacklist:token-abc',
         '1',
         'EX',
         900,
       );
-      // socket force-disconnect
+      // 소켓 강제 연결 종료
       expect(mockChatService.disconnectSocket).toHaveBeenCalledWith('socket-1');
-      // audit log
+      // 감사 로그
       expect(mockAuditLogService.log).toHaveBeenCalledWith(
         userId,
         userId,
@@ -771,7 +768,7 @@ describe('UserService', () => {
     });
 
     it('should allow an admin to delete another user without a password.', async () => {
-      const actorId = 2; // admin
+      const actorId = 2; // 관리자
       jest.spyOn(mockUserRepository, 'findOne').mockResolvedValue(user);
 
       const result = await userService.remove(
@@ -779,7 +776,7 @@ describe('UserService', () => {
         userId,
         undefined,
         undefined,
-        true, // skipPasswordCheck
+        true, // skipPasswordCheck(비밀번호 검증 생략)
       );
 
       expect(bcrypt.compare).not.toHaveBeenCalled();

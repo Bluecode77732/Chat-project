@@ -102,6 +102,7 @@ function AccountPage() {
         setError(null);
         try {
             await api.delete(`/user/${userId}`, { data: { password } });
+            // 소켓 해제 → 토큰 정리 → 로그인 화면
             socket.disconnect();
             clearTokens();
             clearSessionUser();

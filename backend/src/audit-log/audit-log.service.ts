@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+// FindOptionsWhere: userId 필터가 사용하는 OR 배열 형태의 where 절 타입 지정에 필요.
 import {
   And,
   FindOptionsWhere,

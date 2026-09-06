@@ -51,12 +51,16 @@ async function bootstrap() {
     }),
   );
 
+  // CORS 구현
   app.enableCors({
     // 콤마로 구분: 메인 frontend와 admin 대시보드가 서로 다른 origin의
     // 별도 배포이기 때문.
     origin: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()),
+    // 쿠키를 통한 인증 허용
     credentials: true,
+    // 허용 메서드
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    // 허용 헤더
     allowedHeaders: [
       'Content-Type',
       'Authorization',
@@ -64,6 +68,7 @@ async function bootstrap() {
     ],
   });
 
+  // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('Chat API')
     .setDescription(

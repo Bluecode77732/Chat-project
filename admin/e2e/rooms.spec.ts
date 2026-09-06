@@ -1,7 +1,7 @@
-// Purpose: e2e coverage for admin's room deletion action.
-// Usage: run via `pnpm e2e` in admin/; requires backend on :3000 with Postgres/Redis
-// reachable, and a seeded superadmin account (see e2e/.env.example).
-// Rationale: rooms-page.tsx had zero coverage of this irreversible action.
+// 목적: admin의 방 삭제 액션에 대한 e2e 커버리지.
+// 사용처: admin/에서 `pnpm e2e`로 실행 — :3000 백엔드와 연결 가능한 Postgres/Redis,
+// 시딩된 superadmin 계정 필요(e2e/.env.example 참고).
+// 근거: rooms-page.tsx의 이 되돌릴 수 없는 액션에 커버리지가 전혀 없었음.
 
 import { test, expect } from '@playwright/test';
 import { loginAsSuperadmin, registerTargetUser, createRoomBetween } from './helpers';
@@ -18,16 +18,16 @@ test('Rooms table shows Created column and sort indicator switches between Room 
     const roomIdBtn = page.getByRole('columnheader').filter({ hasText: 'Room ID' }).getByRole('button');
     const createdBtn = page.getByRole('columnheader').filter({ hasText: 'Created' }).getByRole('button');
 
-    // Default: Room ID is bold
+    // 기본값: Room ID가 bold임
     await expect(roomIdBtn).toHaveClass(/font-bold/);
     await expect(createdBtn).not.toHaveClass(/font-bold/);
 
-    // Switch to Created sort
+    // Created 정렬로 전환
     await createdBtn.click();
     await expect(createdBtn).toHaveClass(/font-bold/);
     await expect(roomIdBtn).not.toHaveClass(/font-bold/);
 
-    // Room row Created cell contains a date value
+    // 방 행의 Created 셀에 날짜 값이 들어있음
     const cells = page.getByTestId(`room-row-${roomId}`).locator('td');
     await expect(cells.nth(2)).toHaveText(/\d/);
 });

@@ -17,5 +17,5 @@ export class UserType extends BaseType {
   profileImage?: string;
 
   @Field(() => String, { nullable: true })
-  role?: UserRole;
+  role?: UserRole; // UserRole을 GraphQL enum으로 쓴다면 Enum 타입을 써도 됨
 }

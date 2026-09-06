@@ -32,9 +32,9 @@ existing error log durable across redeploys."
 - `logger.ts` reads the mount path from `RAILWAY_VOLUME_MOUNT_PATH` (auto-injected by Railway once
   a volume is attached, at container start), falling back to the previous
   `join(process.cwd(), 'logs')` when unset -- local dev, CI, or a Railway service with no volume
-  attached -- so behavior off Railway is unchanged (`backend/src/base/logger/logger.ts:11-13`).
+  attached -- so behavior off Railway is unchanged (`backend/src/base/logger/logger.ts:25-27`).
 - Removed the dead `isVercel` branch; both `File` transports now construct unconditionally,
-  pointed at the resolved `logDir` (`backend/src/base/logger/logger.ts:35,46`).
+  pointed at the resolved `logDir` (`backend/src/base/logger/logger.ts:49,60`).
 - Alternatives considered and rejected:
   - **External log-drain service** (e.g. Better Stack): rejected to avoid a new npm dependency, a
     new external account, and third-party transmission of log content, when Railway's own infra

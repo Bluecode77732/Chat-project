@@ -458,7 +458,7 @@ describe('AiService', () => {
         participant: { id: 1, isAI: false },
       } as ChatEntity;
 
-      // buildHistory orders DESC then reverses, so mock returns newest-first
+      // buildHistory는 DESC 정렬 후 reverse하므로 mock은 최신순으로 반환함
       const qb = buildMockQueryBuilder([userMsg, aiMessage]);
       mockChatRepository.createQueryBuilder.mockReturnValue(qb);
       (

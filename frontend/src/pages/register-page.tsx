@@ -11,6 +11,7 @@ interface RegisterForm {
 };
 
 function RegisterPage() {
+    // `useForm`(react-hook-form)이 입력값을 추적, 검증, 제출함.
     const { register, handleSubmit, getValues, formState: { errors } } = useForm<RegisterForm>();
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -23,6 +24,7 @@ function RegisterPage() {
 
             // 닉네임(있다면)은 body에 — email/password는 Basic auth 헤더에 유지.
             await api.post('/auth/Register', { nickname: data.nickname || undefined }, {
+                // 헤더로 인증
                 headers: { Authorization: `Basic ${credential}` },
             });
 
@@ -43,6 +45,7 @@ function RegisterPage() {
         <div className='flex items-center justify-center h-screen'>
             <div className='flex flex-col gap-4 w-80'>
                 <h1 className='text-2xl font-bold'>Sign In</h1>
+                {/* `register`가 값을 수집 */}
                 <input {...register('email', {
                     required: 'Please Enter Your Email',
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
@@ -51,6 +54,7 @@ function RegisterPage() {
                     data-testid='register-email-input'
                     className='border p-2 rounded'>
                 </input>
+                {/* 로그인 실패 에러 */}
                 {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
                 <input {...register('password', {
                     required: "Please Enter Your Password",
@@ -83,6 +87,7 @@ function RegisterPage() {
                 {errors.nickname && <span className='text-red-500 text-sm'>{errors.nickname.message}</span>}
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
                 {success && <span className='text-green-500 text-sm'>Registration Successful! Redirecting...</span>}
+                {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
                 <button onClick={handleSubmit(onSubmit)}
                     data-testid='register-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>

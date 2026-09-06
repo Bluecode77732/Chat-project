@@ -23,18 +23,23 @@ import { logger } from 'src/base/logger/logger';
 export class GraphQLRBACGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
+  // 요청이 허용될 때 활성화됨
   canActivate(context: ExecutionContext): boolean {
+    // reflector로 리졸버 핸들러에서 Role 메타데이터를 가져옴
     const role = this.reflector.get<UserRole>(RBAC, context.getHandler());
 
+    // 가져온 role이 UserRole enum에 유효한 값인지 확인
     if (!Object.values(UserRole).includes(role)) {
       return true;
     }
 
+    // 컨텍스트를 GraphQL로 전환해 요청을 추출.
     const ctx = GqlExecutionContext.create(context);
     const user = ctx.getContext<{
       req?: { user?: { sub?: number; id?: number; role?: UserRole } };
     }>().req?.user;
 
+    // 요청에 사용자가 없으면 접근을 거부.
     if (!user) {
       logger.warn(
         `RBAC denied (GraphQL): no authenticated user (required role=${role})`,

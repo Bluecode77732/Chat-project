@@ -21,7 +21,7 @@ describe('ChatService', () => {
   let redisService: SessionCacheService;
 
   beforeEach(async () => {
-    //* Mock instances
+    //* mock 인스턴스
     mockManager = {
       createQueryBuilder: jest.fn(),
       create: jest.fn(),
@@ -35,7 +35,7 @@ describe('ChatService', () => {
       to: jest.fn().mockReturnThis(),
     } as Partial<Socket>;
 
-    //* Import modules for mocking
+    //* mock을 위한 모듈 import
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ChatService,
@@ -89,12 +89,12 @@ describe('ChatService', () => {
     redisService = module.get(SessionCacheService);
   });
 
-  //* Basic service initialization test
+  //* 기본 서비스 초기화 테스트
   it('should be defined', () => {
     expect(chatService).toBeDefined();
   });
 
-  //* Clear each mocks after testing execution
+  //* 테스트 실행 후 각 mock 초기화
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -229,7 +229,7 @@ describe('ChatService', () => {
 
       await chatService.joinRooms(mockUser, mockSocket as Socket);
 
-      //* join should not be called
+      //* join이 호출되지 않아야 함
       expect(mockSocket.join).not.toHaveBeenCalled();
     });
   });
@@ -310,7 +310,7 @@ describe('ChatService', () => {
         role: 0,
       } as UserEntity;
 
-      // WsException returned with promise in service
+      // service에서 promise로 WsException을 반환함
       await expect(
         chatService.createRoom(user1, user2, mockManager as EntityManager),
       ).rejects.toThrow(WsException);
@@ -319,7 +319,7 @@ describe('ChatService', () => {
 
   describe('getOrCreateRoom', () => {
     it('should get a created room', async () => {
-      //* the mock family
+      //* mock 세트
       const mockSender = {
         id: 1,
         email: 'user1@gmail.com',
@@ -411,7 +411,7 @@ describe('ChatService', () => {
       jest.spyOn(chatService, 'findRoom').mockResolvedValue(null);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(null);
 
-      // WsException returned with promise in service
+      // service에서 promise로 WsException을 반환함
       await expect(
         chatService.getOrCreateRoom(
           mockSender,
@@ -659,7 +659,7 @@ describe('ChatService', () => {
         participant: mockSender,
         room: mockRooms,
       };
-      //* Mock all dependencies
+      //* 모든 의존성 mock 처리
       jest
         .spyOn(userRepository, 'findOneByOrFail')
         .mockResolvedValue(mockSender);
@@ -670,14 +670,14 @@ describe('ChatService', () => {
         .mockResolvedValueOnce({ socketId: '1', status: 'online' })
         .mockResolvedValueOnce({ socketId: '2', status: 'online' });
 
-      //* Mock creating a room
+      //* room 생성 mock 처리
       await chatService.getOrCreateRoom(
         mockSender,
         mockRecipient,
         mockManager as EntityManager,
       );
 
-      //* Final result
+      //* 최종 결과
       const result = await chatService.sendMessage(
         mockPayload,
         mockCreateChatDto,
@@ -790,7 +790,7 @@ describe('ChatService', () => {
         .mockResolvedValue(mockSender);
       jest.spyOn(userRepository, 'findOneBy').mockResolvedValue(mockRecipient);
 
-      // 'WsException' returned with promise in service
+      // service에서 promise로 'WsException'을 반환함
       await expect(
         chatService.sendMessage(
           payload,

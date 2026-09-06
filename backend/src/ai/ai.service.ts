@@ -31,6 +31,7 @@ export type AiReplyCallbacks = {
   publishFn: (msg: ChatEntity) => Promise<void>;
 };
 
+// Gemini 콘텐츠 형식
 type GeminiContent = {
   role: 'user' | 'model';
   parts: { text: string }[];

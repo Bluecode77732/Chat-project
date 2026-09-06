@@ -21,11 +21,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt-auth-guard') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      // `validate()`에 `req`를 전달받음.
       passReqToCallback: true,
       secretOrKey: configService.getOrThrow('ACCESS_TOKEN_SECRET'),
     });
   }
 
+  // `Omit<>` 제네릭 타입으로 `password`를 제외.
   async validate(
     req: Request,
     payload: Payload,

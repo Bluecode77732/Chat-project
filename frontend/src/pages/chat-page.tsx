@@ -219,6 +219,7 @@ function ChatPage() {
                 setCurrentRoomId(data.getRoom);
                 // personality effect가 사용할 수 있도록 ref를 유지
             } else if (shouldCheckPersonalityRef.current && aiUserId && recipientId === aiUserId && !pendingPersonality) {
+                // 아직 room 없음 → selector 표시 (사용자가 명시적으로 클릭했을 때만)
                 setIsInitialSelect(true);
                 setShowPersonalitySelector(true);
                 shouldCheckPersonalityRef.current = false;
@@ -234,6 +235,7 @@ function ChatPage() {
         fetchAiPersonalityInfo({ variables: { roomId: currentRoomId } }).then(({ data }) => {
             if (data?.getAiPersonalityInfo) {
                 setAiPersonalityInfo(data.getAiPersonalityInfo);
+                // personality가 설정되지 않았고 사용자가 명시적으로 클릭했다면 selector 표시
                 if (!data.getAiPersonalityInfo.personality && shouldCheckPersonalityRef.current) {
                     setIsInitialSelect(true);
                     setShowPersonalitySelector(true);

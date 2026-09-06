@@ -1,3 +1,17 @@
+// Winston npm 로그 레벨(숫자가 낮을수록 우선순위가 높음)
+/**
+ * error   (0)
+ * warn    (1)
+ * info    (2)
+ * http    (3)
+ * verbose (4)
+ * debug   (5)
+ * silly   (6)
+ *
+ * LOG_LEVEL 환경 변수가 기본값을 덮어씀.
+ * 기본값: 개발 환경에서는 'debug', 운영 환경에서는 'info'.
+ */
+
 import * as winston from 'winston';
 import { join } from 'node:path';
 

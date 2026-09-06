@@ -62,9 +62,12 @@ function UsersPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [actionMsg, setActionMsg] = useState('');
 
+    // selectedUser: 상세 패널을 열기 위해 클릭된 행.
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    // panelDetail: fetch 진행 중엔 null; 완료되면(성공/실패 무관) {} (빈 객체).
+    // panelDetail: GET /user/:id로 가져오는, 목록 응답엔 없는 필드(status, bannedUntil).
+    // fetch 진행 중엔 null; 완료되면(성공/실패 무관) {} (빈 객체).
     const [panelDetail, setPanelDetail] = useState<UserDetail | null>(null);
+    // panelLogs: 선택된 사용자와 관련된 최근 5개의 audit log 항목.
     const [panelLogs, setPanelLogs] = useState<AuditLogEntry[]>([]);
     // panelRefreshKey: 증가시키면 selectedUser 변경 없이 panel fetch를 재실행.
     // unban()이 ban 해제 후 moderation 상태를 다시 불러올 때 사용.
@@ -321,6 +324,7 @@ function UsersPage() {
                             </thead>
                             <tbody>
                                 {users.map((u) => (
+                                    // 행을 클릭하면 상세 패널이 열림; action 버튼은 propagation을 막음.
                                     <tr
                                         key={u.id}
                                         data-testid={`user-row-${u.id}`}
@@ -397,7 +401,8 @@ function UsersPage() {
                 )}
             </div>
 
-            {/* 행에 이미 있는 데이터에 더해 GET /user/:id로 moderation 상태를,
+            {/* User 상세 패널 — 행을 클릭하면 오른쪽에서 슬라이드인됨.
+                행에 이미 있는 데이터에 더해 GET /user/:id로 moderation 상태를,
                 GET /audit-log?userId로 최근 5건의 권한 작업 기록을 가져옴. */}
             {selectedUser && (
                 <div
@@ -464,6 +469,7 @@ function UsersPage() {
                                             <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString()}</span>
                                         </div>
                                     )}
+                                    {/* Unban: 사용자가 현재 ban 상태이고 actor의 권한이 더 높을 때만 표시. */}
                                     {panelDetail?.status === 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button
@@ -475,6 +481,7 @@ function UsersPage() {
                                             </button>
                                         </div>
                                     )}
+                                    {/* Ban: 사용자가 아직 ban되지 않았고 actor의 권한이 더 높을 때만 표시. */}
                                     {panelDetail?.status !== 'banned' && myRole !== null && myRole > selectedUser.role && (
                                         <div className="pt-1">
                                             <button

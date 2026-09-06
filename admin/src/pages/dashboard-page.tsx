@@ -31,11 +31,14 @@ function DashboardPage() {
     );
     const roomTotal = roomData?.getAllRooms.total ?? null;
 
+    // onlineUsers: 현재 연결된 사용자 ID들; 개수를 stat card로 표시.
     const { data: onlineData } = useQuery<{ getOnlineUser: number[] }>(GET_ONLINE_USER, {
         pollInterval: 15000,
     });
     const onlineCount = onlineData?.getOnlineUser.length ?? null;
 
+    // nicknameById: 최근 로그 테이블에서 actorId를 해석하는 데 사용.
+    // 닉네임이 없는 사용자는 "User {id}"로 대체 표시.
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(
         GET_USER_NICKNAMES,
         { pollInterval: 60000 },

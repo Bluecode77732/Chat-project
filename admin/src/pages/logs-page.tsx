@@ -60,6 +60,7 @@ function LogsPage() {
         setPage(1);
     };
 
+    // changeUser: 새 필터가 처음부터 시작하도록 page를 1로 리셋.
     const changeUser = (value: string) => {
         setLoading(true);
         setUserId(value ? Number(value) : undefined);
@@ -157,6 +158,8 @@ function LogsPage() {
                     </select>
 
                     <label className="text-sm text-gray-600">User</label>
+                    {/* User 드롭다운: 알려진 모든 사용자를 닉네임으로 표시.
+                        userId를 백엔드로 보내면 actorId 또는 targetId가 일치하는 로그를 반환. */}
                     <select
                         value={userId ?? ''}
                         onChange={(e) => changeUser(e.target.value)}

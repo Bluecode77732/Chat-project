@@ -37,6 +37,7 @@ function RoomsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
     const [actionMsg, setActionMsg] = useState('');
+    // selectedRoom: 상세 패널을 열기 위해 클릭된 행.
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
@@ -215,7 +216,8 @@ function RoomsPage() {
             </div>
         </div>
 
-            {/* getAllRooms + nicknameById로 이미 가져온 데이터를 재사용 — 추가 API 호출 없음. */}
+            {/* Room 상세 패널 — 행을 클릭하면 오른쪽에서 슬라이드인됨.
+                getAllRooms + nicknameById로 이미 가져온 데이터를 재사용 — 추가 API 호출 없음. */}
             {selectedRoom && (
                 <div
                     className="fixed inset-0 z-40"

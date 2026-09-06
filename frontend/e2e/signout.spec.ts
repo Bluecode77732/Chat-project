@@ -1,7 +1,7 @@
-// Purpose: golden-path e2e verifying sign-out clears the session and re-locks the protected route.
-// Usage: run via `pnpm e2e` in frontend/; requires backend on :3000 with Postgres/Redis reachable.
-// Rationale: signOut touches the token store, socket connection, and refreshToken cookie together;
-// no existing test confirms they actually stay in sync end to end.
+// 목적: 로그아웃이 세션을 지우고 보호된 라우트를 다시 잠그는지 검증하는 골든패스 e2e.
+// 사용처: frontend/에서 `pnpm e2e`로 실행 — 백엔드가 :3000에서 Postgres/Redis에 연결된 채로 떠 있어야 함.
+// 근거: signOut은 토큰 스토어, 소켓 연결, refreshToken 쿠키를 동시에 건드리는데
+// 이들이 실제로 동기화되는지 end-to-end로 확인한 테스트가 없었음.
 
 import { test, expect } from '@playwright/test';
 import { registerAndSignIn } from './helpers';
@@ -13,9 +13,8 @@ test('user can sign out and is returned to the sign-in page', async ({ page }) =
     await expect(page).toHaveURL('/');
     await expect(page.getByTestId('signin-email-input')).toBeVisible();
 
-    // Protected route must not be reachable after sign-out. The refresh cookie was
-    // cleared server-side too, so this bounces through session-guard's expired-session
-    // path (`/?reason=expired`) rather than landing on a bare '/'.
+    // 로그아웃 후 보호된 라우트는 접근 불가해야 함. refresh 쿠키도 서버에서 지워졌으므로
+    // 단순 '/'가 아니라 session-guard의 만료 세션 경로(`/?reason=expired`)로 튕겨나감.
     await page.goto('/chat');
     await expect(page).toHaveURL(/\/(\?.*)?$/);
     await expect(page.getByTestId('signin-email-input')).toBeVisible();

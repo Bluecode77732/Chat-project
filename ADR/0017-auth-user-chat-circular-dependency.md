@@ -13,7 +13,7 @@ Three independent, single-direction dependencies happen to chain into a closed l
   `AuthService` itself does not depend on `UserService` — it reads `UserEntity` via its own injected
   repository.
 - **`UserModule → ChatModule`**: `UserService` calls `chatService.disconnectSocket()` from `forceLogout`
-  (`user.service.ts:43,308`) and from the cascade-cleanup path in `remove` (`user.service.ts:402`).
+  (`user.service.ts:43,320`) and from the cascade-cleanup path in `remove` (`user.service.ts:416`).
 - **`ChatModule → AuthModule`**: `ChatGateway.handleConnection()` calls `authService.parseBearerToken()`
   to authenticate the WebSocket handshake, which doesn't go through the standard HTTP Guard pipeline
   (`chat.gateway.ts:10,47,90`).

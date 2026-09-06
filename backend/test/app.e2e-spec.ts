@@ -20,9 +20,9 @@ describe('App boot smoke test (e2e)', () => {
     await app.close();
   });
 
-  // No DB/Redis seed data required — this only confirms the full app boots and
-  // routes dispatch to the right controller/guard chain. Each case below was
-  // picked specifically because it short-circuits before any DB/Redis access.
+  // DB/Redis 시드 데이터 없이 앱 전체가 부팅되고 라우팅이 올바른 컨트롤러/가드
+  // 체인으로 이어지는지만 확인함 — 아래 케이스는 전부 DB/Redis 접근 전에
+  // short-circuit되는 것만 골랐음.
   it('/auth/token/refreshaccess (POST) without a refresh cookie returns 401', () => {
     return request(app.getHttpServer())
       .post('/auth/token/refreshaccess')

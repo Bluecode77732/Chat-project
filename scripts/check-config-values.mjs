@@ -1,13 +1,13 @@
-// Purpose: verifies MODERATION_DEFAULTS values (single source of truth in
-//   moderation.constants.ts) stay in sync across the three other places that
-//   mirror them: CLAUDE.md, backend/.env.example, and README.md/README.ko.md's
-//   Moderation section -- exactly the four locations README's own blockquote
-//   names and asks a human to keep in sync by hand.
-// Usage: `pnpm check:config` (root script).
-// Rationale: an ARCHITECTURE.md sustainability review found this exact
-//   four-location mirror had no verification, unlike file:line citations which
-//   check-adr-integrity.mjs already covers -- this script targets the "did the
-//   quoted VALUE actually get re-synced" gap that script does not.
+// 목적: MODERATION_DEFAULTS 값(단일 진실 공급원은 moderation.constants.ts)이
+//   이를 미러링하는 나머지 세 곳 -- CLAUDE.md, backend/.env.example,
+//   README.md/README.ko.md의 Moderation 섹션 -- 과 동기화 상태인지 검증함.
+//   README 자신의 blockquote가 명시하며 사람이 수동으로 맞춰 달라고 요청하는
+//   정확히 그 네 곳임.
+// 사용처: `pnpm check:config` (루트 스크립트).
+// 근거: ARCHITECTURE.md 지속가능성 리뷰에서 이 4곳 미러링에 아무 검증도 없다는
+//   걸 발견함, file:line 인용은 이미 check-adr-integrity.mjs가 커버하는 것과
+//   달리 -- 이 스크립트는 그 스크립트가 다루지 않는 "인용된 '값' 자체가 실제로
+//   재동기화됐는가" 공백을 노림.
 
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -33,7 +33,7 @@ function read(relPath) {
   return readFileSync(resolve(repoRoot, relPath), 'utf8');
 }
 
-// tsKey (as it appears in MODERATION_DEFAULTS) -> the env var name it backs
+// tsKey (MODERATION_DEFAULTS에 나오는 그대로) -> 그게 대응하는 env var 이름
 const FIELD_MAP = {
   strikeWindowSec: 'MODERATION_STRIKE_WINDOW_SEC',
   warnThreshold: 'MODERATION_WARN_THRESHOLD',
@@ -45,7 +45,7 @@ const FIELD_MAP = {
   dupThreshold: 'MODERATION_DUP_THRESHOLD',
 };
 
-// ---- 1. Source of truth: MODERATION_DEFAULTS in moderation.constants.ts ----
+// ---- 1. 진실 공급원: moderation.constants.ts의 MODERATION_DEFAULTS ----
 const constantsPath = 'backend/src/moderation/constants/moderation.constants.ts';
 const constantsText = read(constantsPath);
 const truth = {};
@@ -63,7 +63,7 @@ if (Object.keys(truth).length === 0) {
   process.exit(1);
 }
 
-// ---- 2. backend/.env.example: NAME=value ----
+// ---- 2. backend/.env.example: NAME=값 ----
 const envExamplePath = 'backend/.env.example';
 const envExampleText = read(envExamplePath);
 for (const envName of Object.values(FIELD_MAP)) {
@@ -79,7 +79,7 @@ for (const envName of Object.values(FIELD_MAP)) {
   }
 }
 
-// ---- 3. CLAUDE.md: `NAME` (value) ----
+// ---- 3. CLAUDE.md: `NAME` (값) ----
 const claudeMdPath = 'CLAUDE.md';
 const claudeMdText = read(claudeMdPath);
 for (const envName of Object.values(FIELD_MAP)) {
@@ -95,12 +95,11 @@ for (const envName of Object.values(FIELD_MAP)) {
   }
 }
 
-// ---- 4. README.md / README.ko.md: values embedded in narrative prose, in
-// human units (hours/minutes/days/count) rather than raw seconds. Each
-// pattern below is tied to the CURRENT wording of the Moderation section; if
-// that prose is reworded, the pattern stops matching and this check WARNS
-// "could not locate" instead of silently passing on stale data -- it never
-// assumes a non-match means "still correct".
+// ---- 4. README.md / README.ko.md: 나레이티브 프로즈에 원시 초 단위가 아닌
+// 사람이 읽는 단위(시간/분/일/횟수)로 박혀 있는 값. 아래 각 패턴은 Moderation
+// 섹션의 "현재" 문구에 맞춰져 있음; 그 프로즈가 다시 쓰이면 패턴이 더 이상
+// 매치되지 않고 이 체크는 "위치를 못 찾음" 경고를 내지, stale된 데이터를 조용히
+// 통과시키지 않음 -- 매치 실패를 "여전히 맞음"으로 절대 간주하지 않음.
 function checkReadmeProse(path, patterns) {
   const text = read(path);
   for (const { env, re, unit, group = 1 } of patterns) {

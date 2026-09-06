@@ -33,7 +33,7 @@ Accepted
   (`backend/src/mail/mail.service.ts:12-24`)과 같은 선택적 통합 구조임.
   - `environment: process.env.NODE_ENV`이며 `ENV`가 아님(`instrument.ts:32`). `ENV`는 Joi
     스키마에서 `.required()`지만 `backend/src` 어디에도 실제 소비자가 없고, dev/prod 동작을
-    실제로 좌우하는 것은 `NODE_ENV`임(`logger.ts:6`, `all-exceptions.filter.ts:15`,
+    실제로 좌우하는 것은 `NODE_ENV`임(`logger.ts:20`, `all-exceptions.filter.ts:15`,
     `main.ts`).
   - `sendDefaultPii`는 절대 설정하지 않음(`instrument.ts`). 실제로 존재했고 이미 패치된
     CVE(GHSA-6465-jgvq-jhgp, SDK 10.11.0-10.26.0)가 이 플래그를 통해 `Authorization`/`Cookie`

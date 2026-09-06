@@ -83,6 +83,7 @@ export class ChatGateway
     try {
       const rawToken = client.handshake.headers?.authorization;
 
+      // Bearer token의 payload
       const payload = await this.authService.parseBearerToken(
         String(rawToken),
         false,
@@ -103,8 +104,10 @@ export class ChatGateway
         // socket.data는 socket.io에서 any로 타입 지정됨 — 우리가 제어하는 형태로 narrowing.
         (client.data as { user?: Payload }).user = payload;
 
+        // 특정 key로 이 client를 기억
         await this.chatService.registerClient(payload.sub, client);
 
+        // 사용자를 room에 연결
         await this.chatService.joinRooms(payload, client);
       } else {
         client.disconnect();

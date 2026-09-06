@@ -1,8 +1,8 @@
 version: 2
 updates:
-  # pnpm workspace: a single entry at the root covers backend/, frontend/, and
-  # admin/ via the shared pnpm-lock.yaml -- Dependabot resolves all workspace
-  # packages from there, no per-package entry needed.
+  # pnpm workspace: 루트의 항목 하나로 backend/, frontend/, admin/을 공유
+  # pnpm-lock.yaml을 통해 전부 커버함 -- Dependabot이 여기서 모든 워크스페이스
+  # 패키지를 해석하므로 패키지별 항목이 필요 없음.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

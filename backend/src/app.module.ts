@@ -22,6 +22,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         ENV: Joi.string().valid('dev', 'prod').required(),
+        // DB_TYPE으로 잘못된 DB 종류 연결을 방지
         DB_TYPE: Joi.string().valid('postgres').required(),
         DB_HOST: Joi.string().required(),
         DB_PORT: Joi.number().required(),
@@ -65,6 +66,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
         // Sentry 에러 트래킹 — 선택값; 비어있으면 captureException이 아무 동작도 하지 않음
         SENTRY_DSN: Joi.string().optional(),
       }),
+      // 설정을 전역으로 적용
       isGlobal: true,
       envFilePath:
         process.env.RUNTIME_ENV === 'docker'
@@ -88,8 +90,10 @@ import { SentryModule } from '@sentry/nestjs/setup';
         migrations: ['dist/migrations/*.js'],
         autoLoadEntities: true,
       }),
+      // IOC 컨테이너에 어떤 의존성을 주입할지 알려줌
       inject: [ConfigService],
     }),
+    // forRoot() 정적 메서드로 GraphQL을 설정함
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),

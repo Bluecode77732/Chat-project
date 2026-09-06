@@ -70,6 +70,7 @@ export class UserService {
       }
     }
 
+    // 비밀번호 해싱
     const hash = await bcrypt.hash(
       password,
       this.configService.getOrThrow<number>('HASH_ROUNDS'),
@@ -179,14 +180,17 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
+    // DTO에서 password 추출
     const { password } = updateUserDto;
 
+    // id로 유저 조회
     const user = await this.userRepository.findOne({
       where: {
         id,
       },
     });
 
+    // 유저 존재 확인
     if (!user) {
       throw new NotFoundException('No User Found.');
     }
@@ -200,15 +204,19 @@ export class UserService {
       }
     }
 
+    // 비밀번호 검증
     if (password) {
+      // 비밀번호
       const hash = await bcrypt.hash(
         password,
         this.configService.getOrThrow<number>('HASH_ROUNDS'),
       );
 
+      // 해시를 비밀번호에 적용
       updateUserDto.password = hash;
     }
 
+    // 업데이트
     await this.userRepository.update(
       { id },
       {
@@ -221,6 +229,7 @@ export class UserService {
     await this.redis.del(`user_cache:${id}`);
     logger.info(`User '${user.id}' is updated`);
 
+    // 클라이언트에 결과 반환
     return await this.userRepository.findOne({
       where: {
         id,
@@ -324,6 +333,7 @@ export class UserService {
     rawToken?: string,
     skipPasswordCheck = false,
   ) {
+    // 존재 확인
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User Not Found.');
@@ -335,6 +345,7 @@ export class UserService {
       throw new BadRequestException('Cannot delete a system-managed account.');
     }
 
+    // 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
     if (!skipPasswordCheck) {
       if (!password) throw new BadRequestException('Password is required.');
       const valid = await bcrypt.compare(password, String(user.password));
@@ -386,9 +397,11 @@ export class UserService {
       );
     }
 
+    // Redis 세션 정리
     await this.sessionCacheService.sethUserOffline(id);
     await this.redis.del(`user:${id}`);
 
+    // 현재 액세스 토큰 블랙리스트 등록
     if (rawToken) {
       const token = rawToken.replace(/^Bearer\s+/i, '');
       const ttl = this.configService.get<number>(
@@ -398,6 +411,7 @@ export class UserService {
       await this.redis.set(`blacklist:${token}`, '1', 'EX', ttl);
     }
 
+    // 소켓 강제 종료
     if (socketId) {
       this.chatService.disconnectSocket(socketId);
     }

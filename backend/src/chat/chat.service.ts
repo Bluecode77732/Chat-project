@@ -18,7 +18,9 @@ export class ChatService {
     this.server = server;
   }
 
+  // DataSource와 함께 Room, User의 TypeORM repository
   constructor(
+    // TypeORM 의존성을 repository로 주입
     @InjectRepository(RoomEntity)
     private readonly roomRepository: Repository<RoomEntity>,
 
@@ -28,9 +30,11 @@ export class ChatService {
     @InjectRepository(ChatEntity)
     private readonly chatRepository: Repository<ChatEntity>,
 
+    // 기존 in-memory Socket 인스턴스 저장을 대체하기 위해 redisService 주입
     private readonly redisService: SessionCacheService,
   ) {}
 
+  // 소켓 연결
   async registerClient(participantId: number, client: Socket) {
     const previous = await this.redisService.getUserStatus(participantId);
 
@@ -55,6 +59,7 @@ export class ChatService {
     previousSocket.disconnect(true);
   }
 
+  // 소켓 연결 해제
   async removeClient(participantId: number, socketId: string) {
     const current = await this.redisService.getUserStatus(participantId);
     if (current?.socketId !== socketId) {
@@ -66,6 +71,8 @@ export class ChatService {
     logger.info(`User ${participantId} has disconnected`);
   }
 
+  // 사용자가 이미 속한 모든 채팅방에 join시킴
+  // 소켓 연결 시 인증 성공 직후 호출됨
   async joinRooms(user: { sub: number }, client: Socket) {
     const rooms = await this.roomRepository
       .createQueryBuilder('room_Entity')
@@ -91,8 +98,10 @@ export class ChatService {
     logger.info(`User ${user.sub} has registered`);
   }
 
+  // 정확히 두 사용자 사이의 기존 1:1 채팅방을 조회
   // 정렬된 ID로 sender/recipient 구분과 무관하게 조회를 일관되게 유지 —
   // 같은 쌍에 대해 중복 room 생성을 방지.
+  // 기존 RoomEntity 또는 null을 반환
   async findRoom(user1: number, user2: number, manager: EntityManager) {
     if (!user1 || !user2) {
       return null;
@@ -114,6 +123,8 @@ export class ChatService {
     return room;
   }
 
+  // 두 사용자 사이에 새 1:1 채팅방을 생성
+  // 두 참여자를 다대다 관계에 저장
   async createRoom(
     user1: UserEntity,
     user2: UserEntity,
@@ -133,6 +144,7 @@ export class ChatService {
     return saved;
   }
 
+  // sender와 recipient 사이의 기존 room을 찾거나 없으면 새로 생성
   // 참여자에게 알리지 않음 — 이는 이 메서드를 감싸는 트랜잭션이 커밋된 후에만
   // 이뤄져야 함(아래 notifyRoomParticipants 참고).
   async getOrCreateRoom(
@@ -149,6 +161,7 @@ export class ChatService {
       return room;
     }
 
+    // 사용자 ID로 recipient 조회
     const recipient = await this.userRepository.findOneBy({
       id: recipientId,
     });
@@ -157,12 +170,15 @@ export class ChatService {
       throw new WsException('Cannot Find Recipient');
     }
 
+    // 새 room 생성
     const created = await this.createRoom(sender, recipient, manager);
 
     logger.info(`User ${sender.id}, ${recipient.id} created a room`);
     return created;
   }
 
+  // room(기존 또는 새로 생성된)에 대해 온라인 상태인 각 참여자의 소켓에 알리고
+  // 현재 소켓을 해당 room에 join시킴.
   // room을 조회/생성한 트랜잭션이 커밋된 후에만 호출해야 함: 더 일찍 'CreateRoom'을
   // emit하면 recipient의 즉각적인 subscribe 시도가 커밋과 경합해 isRoomParticipant의
   // 접근 체크에서 거부당하고, 해당 room의 실시간 업데이트를 영구히 놓치게 됨.
@@ -189,6 +205,7 @@ export class ChatService {
         id: payload.sub,
       });
 
+      // client 존재 여부 확인
       if (!sender?.id) {
         throw new WsException('Cannot Find Sender');
       }
@@ -199,6 +216,7 @@ export class ChatService {
 
       const room = await this.getOrCreateRoom(sender, recipientId, manager);
 
+      // room 존재 여부 확인
       if (!room?.id) throw new WsException('Cannot Find Room');
 
       const messageSchema = Object.assign(

@@ -22,6 +22,7 @@ type JwtPayload = Payload & { iat: number; exp: number };
 @Injectable()
 export class AuthService {
   constructor(
+    // DB에서 사용할 User Entity의 TypeORM 리포지토리를 주입.
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly configService: ConfigService,
@@ -38,22 +39,28 @@ export class AuthService {
 
     const basicToken = rawToken.split(' ');
 
+    // 2. 분리된 토큰 길이가 `[Basic token]` 형태인 2가 아니면 파싱 방식이 잘못된 것이므로 `BadRequestException`을 던짐.
     if (basicToken.length !== 2) {
       logger.warn('Bad Token Format: invalid token segment count');
       throw new BadRequestException('Bad Token Format.');
     }
 
+    // 3. 분리된 rawToken에서 basic과 token을 다시 한번 추출해 정리.
     const [basic, token] = basicToken;
 
+    // 4. 토큰을 검증.
     if (basic.toLowerCase() !== 'basic') {
       logger.warn('Bad Token Format: missing Basic prefix');
       throw new BadRequestException('Bad Token Format.');
     }
 
+    // 5. HTTP 헤더에서 추출한 raw token을 디코딩해 읽을 수 있는 값으로 변환.
     const decoded = Buffer.from(token, 'base64').toString('utf-8');
 
+    // 6. 디코딩된 토큰을 email과 password로 분리.
     const tokenSplit = decoded.split(':');
 
+    // 7. 토큰에 basic이 포함되어 있는지 검증.
     if (!(tokenSplit.length == 2)) {
       logger.warn(
         'Bad Token Format: decoded token missing email:password structure',
@@ -61,10 +68,12 @@ export class AuthService {
       throw new BadRequestException('Bad Token Format.');
     }
 
+    // 8. 클라이언트에 반환할 email과 password를 추출.
     const [email, password] = tokenSplit;
 
     logger.debug(`User '${email}' parsed a basic token`);
 
+    // 9. 결과를 반환.
     return {
       email,
       password,
@@ -72,14 +81,17 @@ export class AuthService {
   }
 
   async register(rawToken: string, nickname?: string) {
+    // basic token에서 email과 password를 추출
     const { email, password } = this.parseBasicToken(rawToken);
 
+    // email로 사용자를 조회
     const user = await this.userRepository.findOne({
       where: {
         email,
       },
     });
 
+    // 사용자가 이미 존재하는지 확인
     if (user) {
       logger.warn(`Registration attempt for already-existing email: ${email}`);
       throw new BadRequestException('User Already Exist.');
@@ -94,11 +106,13 @@ export class AuthService {
       }
     }
 
+    // bcrypt로 지정된 해싱 라운드만큼 비밀번호를 해싱
     const hash = await bcrypt.hash(
       password,
       this.configService.getOrThrow<number>('HASH_ROUNDS'),
     );
 
+    // TypeORM으로 사용자 email과 해싱된 password를 저장
     await this.userRepository.save({
       email,
       password: hash,
@@ -108,6 +122,7 @@ export class AuthService {
 
     logger.info(`User '${email}' is registered`);
 
+    // TypeORM으로 클라이언트에 반환할 사용자 email을 조회
     return await this.userRepository.findOne({
       where: {
         email,
@@ -147,6 +162,7 @@ export class AuthService {
     user: { id: number | undefined; role: UserRole | undefined },
     isRefreshToken: boolean,
   ) {
+    // 사용자 접근 검증용 토큰 발급을 위해 refreshToken과 accessToken을 가져옴.
     const refreshToken = this.configService.getOrThrow<string>(
       'REFRESH_TOKEN_SECRET',
     );
@@ -169,6 +185,7 @@ export class AuthService {
 
     logger.debug(`User '${user.id}' issued refresh and access tokens`);
 
+    // Node.js는 싱글 스레드라 동기 처리 시 이벤트 루프가 블로킹되므로, JWT 토큰을 비동기로 생성해 다른 요청 처리량을 높임.
     return await this.jwtService.signAsync(
       {
         sub: user.id,
@@ -249,8 +266,10 @@ export class AuthService {
   }
 
   async signIn(rawToken: string) {
+    // email과 password를 추출
     const { email, password } = this.parseBasicToken(rawToken);
 
+    // email과 password를 인증
     const user = await this.validateUser(email, password);
 
     logger.info(`User '${email}' signed in. Say Hi.`);
@@ -290,11 +309,14 @@ export class AuthService {
   }
 
   async signOut(rawToken: string) {
+    // bearer token을 가져옴
     const payload = await this.parseBearerToken(rawToken, false);
 
+    // bearer token의 TTL(Time-To-Live)
     const ttl = payload.exp - Math.floor(Date.now() / 1000);
 
     if (ttl > 0) {
+      // 블랙리스트 처리
       await this.redis.set(
         `blacklist:${rawToken.split(' ')[1]}`,
         '1',

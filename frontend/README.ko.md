@@ -1,21 +1,21 @@
-> 한국어 버전: [README.ko.md](README.ko.md)
+> English version: [README.md](README.md)
 
 # React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+이 템플릿은 Vite에서 HMR과 몇 가지 ESLint 규칙을 갖춘 React를 최소 구성으로 띄워줌.
 
-Currently, two official plugins are available:
+현재 공식 플러그인 두 가지를 사용할 수 있음:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) — [Oxc](https://oxc.rs) 사용
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) — [SWC](https://swc.rs/) 사용
 
 ## React Compiler
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React Compiler는 dev/build 성능에 미치는 영향 때문에 이 템플릿에 기본 활성화돼 있지 않음. 추가하려면 [이 문서](https://react.dev/learn/react-compiler/installation) 참고.
 
-## Expanding the ESLint configuration
+## ESLint 설정 확장
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+프로덕션 애플리케이션을 개발 중이라면, 타입 인식 lint 규칙을 켜도록 설정을 업데이트하길 권장함:
 
 ```js
 export default defineConfig([
@@ -45,7 +45,7 @@ export default defineConfig([
 ])
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+[eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x)와 [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom)도 설치하면 React 전용 lint 규칙을 쓸 수 있음:
 
 ```js
 // eslint.config.js

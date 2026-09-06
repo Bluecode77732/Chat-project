@@ -14,12 +14,12 @@ describe('AuthService', () => {
   let userRepository: Repository<UserEntity>;
   let jwtService: JwtService;
 
-  // Mocking
+  // mock 처리
   const mockUserEntity: UserEntity = {
     id: 1,
     email: 'test@gmail.com',
     password: 'Test123Password',
-    role: 0, //Signed In
+    role: 0, // 일반 회원
     chats: [],
     rooms: [],
   };
@@ -44,7 +44,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
-    // Testing basic mocks
+    // 기본 mock 테스트
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -75,13 +75,13 @@ describe('AuthService', () => {
   });
 
   afterEach(() => {
-    // Clear all mocks before each test
+    // 매 테스트 전 모든 mock 초기화
     jest.clearAllMocks();
   });
 
   describe('parseBasicToken', () => {
     it('should parse valid basic token', () => {
-      // Create base64 encoded token => email:password
+      // email:password를 base64로 인코딩한 토큰 생성
       const token = Buffer.from('test@gmail.com:Test123Password').toString(
         'base64',
       );
@@ -118,18 +118,13 @@ describe('AuthService', () => {
   describe('parseBearerToken', () => {
     it('should parse a bearer token', async () => {
       const rawToken = 'Bearer Token';
-      // const payload = { type: 'access' };
 
-      // jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(payload);
       jest
         .spyOn(jwtService, 'verifyAsync')
         .mockResolvedValue({ type: 'access' });
       jest.spyOn(mockConfigService, 'getOrThrow').mockResolvedValue('secret');
 
-      // const result = await authService.parseBearerToken(rawToken, false);
       await authService.parseBearerToken(rawToken, false);
-
-      // expect(result).toEqual(payload);
     });
 
     it('should throw BadRequestException for invalid token format', async () => {
@@ -233,7 +228,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    // Base64 authentication decoded format => email:password => convert into base64 readable string
+    // Base64 인증 디코딩 포맷 => email:password => base64로 변환
     const token = Buffer.from('test@gmail.com:Test123Password').toString(
       'base64',
     );
@@ -243,26 +238,26 @@ describe('AuthService', () => {
     const password = 'Test123Password';
     const hashedPassword = 'HashedPassword';
 
-    //* Since jest.spyOn cannot test out `bcrypt` as jest-mock@30 + Node 24 is restricted environment.
+    //* jest-mock@30 + Node 24 환경 제약으로 bcrypt는 jest.spyOn으로 테스트 불가 — mock 직접 대입함
     beforeEach(() => {
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
     });
 
     it('should register a new user', async () => {
-      // Mocking user's findOne to resolve value
+      // user의 findOne이 값을 resolve하도록 mock 처리
       mockUserRepository.findOne
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           email: 'test@gmail.com',
           password: hashedPassword,
         });
-      // Mocking user's save to resolve value
+      // user의 save가 값을 resolve하도록 mock 처리
       mockUserRepository.save.mockResolvedValueOnce({
         email: 'test@gmail.com',
         password: 'Test123Password',
       });
-      // Mocking ConfigService's getOrThrow to return value
+      // ConfigService의 getOrThrow가 값을 반환하도록 mock 처리
       mockConfigService.getOrThrow.mockReturnValue(hashRounds);
 
       (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
@@ -284,14 +279,14 @@ describe('AuthService', () => {
         new BadRequestException('User Already Exist.'),
       );
 
-      // Testing that save wasn't called
+      // save가 호출되지 않았는지 확인
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });
 
     it('should throw `BadRequestException` when nickname already in use', async () => {
       mockUserRepository.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(mockUserEntity); // nickname check
+        .mockResolvedValueOnce(null) // 이메일 조회
+        .mockResolvedValueOnce(mockUserEntity); // 닉네임 조회
 
       await expect(
         authService.register(BasicToken, 'TakenNickname'),
@@ -302,8 +297,8 @@ describe('AuthService', () => {
 
     it('should save the nickname when registering with one', async () => {
       mockUserRepository.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(null) // nickname check
+        .mockResolvedValueOnce(null) // 이메일 조회
+        .mockResolvedValueOnce(null) // 닉네임 조회
         .mockResolvedValueOnce({
           email: 'test@gmail.com',
           password: hashedPassword,
@@ -389,7 +384,7 @@ describe('AuthService', () => {
     it('should issue an refresh token', async () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, true);
 
-      // Jwt decoded payload
+      // JWT 디코딩된 payload
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         {
@@ -401,7 +396,7 @@ describe('AuthService', () => {
         },
         { secret: 10, expiresIn: 10 },
       );
-      // The newly issued refresh token becomes this user's only valid session
+      // 새로 발급된 refresh token이 이 유저의 유일한 유효 세션이 됨
       expect(mockRedis.set).toHaveBeenCalledWith(
         'auth:session:1',
         expect.any(String),
@@ -414,7 +409,7 @@ describe('AuthService', () => {
     it('should issue an access token', async () => {
       const result = await authService.issueToken({ id: 1, role: 0 }, false);
 
-      // Jwt decoded payloads
+      // JWT 디코딩된 payload들
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(jwtService.signAsync)).toHaveBeenCalledWith(
         { sub: user.id, role: 0, type: 'access' },
