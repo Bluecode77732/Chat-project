@@ -1,6 +1,6 @@
 # 로드맵
 
-## 빌드 타임라인 (2026-01 ~ 2026-07)
+## 빌드 타임라인 (2026-01 ~ 2026-09)
 
 이 프로젝트가 실제로 어떤 과정을 거쳐 지금에 이르렀는지를, 기억이 아니라 `git log`를 근거로
 재구성한 단계임. 날짜는 각 단계를 대표하는 커밋이 들어간 시점임. 여러 단계가 깔끔하게
@@ -27,7 +27,9 @@ gantt
     행동 기반 모더레이션 시스템                       :done, 2026-07-11, 1d
     문서 정비                                     :done, 2026-07-15, 6d
     보안 및 관측 가능성 강화                          :done, 2026-07-18, 2d
-    문서 정합성 CI 강제                             :active, 2026-07-18, 3d
+    문서 정합성 CI 강제                             :done, 2026-07-18, 3d
+    CLAUDE.md 원칙 근거화                          :done, 2026-08-08, 10d
+    한글 문서/코멘트 컨벤션                          :active, 2026-09-03, 4d
 ```
 
 1. **기반 구축** (2026-01-02 ~ 2026-01-21) — 첫 커밋: "Built user, auth, chat entities, relations,
@@ -112,6 +114,35 @@ gantt
     며칠 만에 이미 낡아버린 것들이 있었음(`5759009`은 CLAUDE.md 자체의 그런 인용 4건을 고침).
     산문으로 적힌 관례는 움직이는 코드베이스를 견디지 못함. 정확성 주장을 기계 검사 대상으로
     만들지 않으면 조용히 썩고, 그것은 애초에 인용이 없는 것보다 나쁨.
+
+12. **CLAUDE.md 원칙 근거화** (2026-08-08 ~ 2026-08-17) — CLAUDE.md Engineering Principles
+    섹션의 모든 항목(SOLID, DIP/IoC, OCP, LSP, Unix Philosophy, Design by Contract, Safe
+    Defaults, Avoid Premature Optimization, Robustness Principle, Defensive Programming 등)을
+    이 코드베이스에 이미 있는 구체적인 사례에 연결하거나, 채택하지 않았다고 명시적으로
+    표시함. 미해결로 남아있던 Principle Conflict Protocol 사례 2건도 함께 정리함. 그 외:
+    `NODE_ENV`에서 `RUNTIME_ENV`를 분리함([ADR 0022](ADR/0022-node-env-runtime-env-split.ko.md))
+    — `envFilePath`/호스트 바인딩 판단에 필요한 "docker-compose 내부"와 "그냥 `pnpm
+    start:dev`"를 `NODE_ENV` 하나로는 구분할 수 없었음.
+    *이유:* 근거 사례 없이 이름만 나열된 원칙은, 11번 단계가 코드 인용에 대해 잡으려던 것과
+    똑같은 종류의 검증 불가능한 주장임. "SOLID"나 "Design by Contract"라는 이름을 되풀이하는
+    것만으로는 프로젝트 고유 컨벤션이 되지 않음 — 이 코드베이스의 무엇이 실제로 그 원칙을
+    따르는지, 혹은 왜 따르지 않는지를 가리켜야 함.
+
+13. **한글 문서/코멘트 컨벤션** (2026-09-03 ~ 2026-09-06) — CLAUDE.md에 Writing Style 섹션이
+    추가되어, 코드 코멘트와 커밋 메시지를 한글로, `-습니다`체나 AI 어투 필러가 아니라 terse한
+    명사형(`-함/임/음`)으로 쓰도록 정함. 모노레포 전체에 적용함 — 모든 backend
+    서비스/가드/DTO/엔티티, frontend와 admin 소스, 유닛테스트 spec, Playwright e2e 스위트,
+    빌드/인프라 스크립트(`scripts/*.mjs`, GitHub Actions, Dockerfile, docker-compose),
+    `.env.example` 파일까지. 실제 WHY를 담은 코멘트는 번역하고, 순수 WHAT 설명/필러는
+    제거함(단, 죽은 코드나 이미 정정된 실수를 설명하던 코멘트는 복원 대상에서 제외). `.ko.md`
+    문서 28개도 같은 terse 문체로 전환함. `CHANGELOG.md`/`.ko.md`는 `check:changelog`가
+    잡아낸 미기록 커밋 26건을 채워넣음. 이 단계의 코멘트 줄 수 변화로 ADR/CLAUDE.md/
+    ARCHITECTURE.md의 `file:line` 인용 여러 곳이 밀렸는데, `check:adr`의 심볼 매칭으로는
+    자동으로 못 잡는 것들이라 전수 수동 재대조로 찾아 고침.
+    *이유:* 1인 개발 프로젝트이고 개발자가 한국어 화자이며 앱 UI도 이미 한글임. 코드
+    코멘트가 영어로 (그것도 초기 개발 단계의 튜토리얼식 보일러플레이트가 많이 남은 채로)
+    기본값인 것은 UI 언어와도, CLAUDE.md의 나머지 부분이 이미 요구하던 terse WHY 전용
+    기준과도 맞지 않았음.
 
 ## 예정 (Planned)
 

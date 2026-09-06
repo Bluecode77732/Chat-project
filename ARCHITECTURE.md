@@ -360,7 +360,7 @@ Stacks section doesn't state.
 
   - **Cost:** every new message-delivery use case must go through the single existing
     `PubSubService.publish()` channel rather than adding a parallel path — this split itself took ~5
-    months to fully land (see [ROADMAP's Build Timeline](ROADMAP.md#build-timeline-2026-01--2026-07)).
+    months to fully land (see [ROADMAP's Build Timeline](ROADMAP.md#build-timeline-2026-01--2026-09)).
 
   - **Risk:** Redis Pub/Sub delivers at-most-once — a subscriber disconnected at publish time misses
     the message permanently. See [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md) for the

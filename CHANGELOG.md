@@ -9,6 +9,12 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-09-06
+
+- Fix: ADR/CLAUDE.md/ARCHITECTURE.md의 오래된 줄 번호 인용 갱신 (2차)
+- Docs: CHANGELOG 동기화, 커밋 컨벤션에 한글 규칙 명시, 디버그 스크립트 제거
+- Docs: 나머지 코멘트 한글화 및 삭제됐던 필러 코멘트 복원
+
 ## 2026-09-04
 
 - Fix: ADR/CLAUDE.md의 오래된 줄 번호 인용 갱신
