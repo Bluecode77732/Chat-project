@@ -63,6 +63,9 @@ cd admin && pnpm dev           # Vite 개발 서버, :5174
 
 `Fix:` `Feat:` `Add:` `Docs:` `Refactor:` `Test:` `Chore:` `Harden:` `Remove:` `Style:` `Logging:` `CI:`
 
+설명 부분은 이 프로젝트의 코드 코멘트 컨벤션과 동일하게 한글로 씀(CLAUDE.md Writing Style
+참고) — 접두어만 영어로 유지함.
+
 참고: 이 컨벤션이 프로젝트 전체 히스토리에서 **일관되게** 지켜진 것은 아님(오래된 커밋은
 대소문자나 접두어 어휘가 꽤 제각각임). `CHANGELOG.md`는 이를 미화하지 않고 있는 그대로
 반영함. 새로 작성하는 커밋은 위 목록을 따라주세요.

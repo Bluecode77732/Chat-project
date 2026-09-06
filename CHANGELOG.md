@@ -9,8 +9,58 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-09-04
+
+- Fix: ADR/CLAUDE.md의 오래된 줄 번호 인용 갱신
+- Docs: Writing Style에 한글 문장 어미 규칙(~함/임) 명시
+- Docs: 한글 문서 28개를 ~함/임체로 전환
+- Docs: 코드 코멘트를 한글로 번역하고 톤 정리
+
+## 2026-09-03
+
+- Docs: tighten Korean doc prose per new Writing Style convention
+- Docs: add Writing Style guidance for docs, comments, and commits
+- Docs: add Project Grounding directive above Hallucination Prevention
+
+## 2026-08-17
+
+- Refactor: split NODE_ENV (standard) from RUNTIME_ENV (native|docker)
+
+## 2026-08-12
+
+- Docs: ground Incremental Development in Introduction Analysis's actual gate
+- Docs: explain why Continuous Improvement is scoped in-session only
+
+## 2026-08-11
+
+- Docs: mark Law of Demeter as a verified absence, not an unchecked claim
+- Docs: cross-reference DI/IoC to the already-grounded SOLID > DIP entry
+- Docs: ground Avoid Premature Optimization in Never Do Group 2's pagination bar
+- Docs: strip inline code/class names from meta Engineering Principles entries
+
+## 2026-08-10
+
+- Docs: ground Abstraction's Scope Discipline tension in an existing local principle
+- Docs: keep meta Design by Contract pointer domain-neutral
+- Docs: ground Design by Contract rejection in AI reply non-determinism
+- Docs: promote Safe Defaults grounding to a Project-Specific Principle
+
+## 2026-08-09
+
+- Docs: promote DIP grounding to a Project-Specific Principle
+- Docs: promote OCP grounding to a Project-Specific Principle
+- Docs: ground Unix Philosophy/Orthogonality in the same evidence SRP already cites
+
+## 2026-08-08
+
+- Docs: link meta LSP entry forward to its already-resolved local instance
+- Docs: ground Robustness Principle rejection in Never Do Group 3
+- Docs: ground Defensive Programming's Reliability entry in Never Do Group 3
+- Docs: resolve two silently-preresolved Principle Conflict Protocol cases in CLAUDE.md
+
 ## 2026-07-23
 
+- Fix: make auth rate limit env-configurable so CI e2e can relax it
 - Chore: gitignore admin playwright test-results artifacts
 - Fix: tolerate absent merge commits in check:changelog
 

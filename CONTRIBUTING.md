@@ -64,6 +64,9 @@ description. Going forward, use one of:
 
 `Fix:` `Feat:` `Add:` `Docs:` `Refactor:` `Test:` `Chore:` `Harden:` `Remove:` `Style:` `Logging:` `CI:`
 
+The description itself is written in Korean, matching this project's code-comment convention (see
+CLAUDE.md's Writing Style) — only the prefix stays English.
+
 Note: this convention has **not** been applied consistently across the project's full history (casing
 and prefix vocabulary vary a lot in older commits) — `CHANGELOG.md` reflects that history literally
 rather than pretending otherwise. New commits should follow the list above.
