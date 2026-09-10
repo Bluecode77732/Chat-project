@@ -88,6 +88,143 @@ Before implementing anything non-trivial, ask the one question that applies:
 
 Ask one focused question rather than a list. Do not proceed on assumptions when intent is ambiguous.
 
+## AI Development Workflow (AI 개발 워크플로우)
+
+A process layer for organizing work across a task — stages, scaled by task size, with
+Review kept independent from Implementation. Where this conflicts with a technical rule
+elsewhere in this file (Never Do Groups, Scope Discipline, Architecture Decisions), the
+technical rule governs — this section never overrides them.
+
+### Development Lifecycle (개발 생명주기)
+
+The stage vocabulary the rest of this section uses. Not every task runs every stage — see
+Task-Scale Protocol for what applies when.
+
+1. **Requirement** — confirm what's being asked and what "done" means before touching code.
+2. **Impact** — identify which files/modules the change touches, including anything on the
+   Scope Discipline high-blast-radius list.
+3. **Research** — confirm existing patterns, APIs, and constraints in the actual codebase
+   (Hallucination Prevention).
+4. **Design** — decide the concrete approach: structure, data flow, fit with the existing
+   architecture (Analysis Protocol > Structure Analysis).
+5. **Implementation** — write the change, following existing conventions and Never Do rules
+   (Analysis Protocol > Modification Analysis).
+6. **Testing** — run the relevant suite and add or adjust tests for the change (Key
+   Conventions > Testing).
+7. **Review** — an independent check of the actual diff against the requirement, Never Do
+   rules, and Architecture Decisions — never a self-assessment by the Implementation
+   session (see Session Separation below).
+8. **Fix** — address what Review flagged, scoped to those findings only.
+9. **Regression** — re-verify unrelated existing functionality still works after Fix.
+10. **Release** — prepare and execute the deploy (CI/CD).
+11. **Production Verification** — confirm the deployed behavior matches intent, not just
+    the test suite.
+12. **Retrospective** — note what worked or didn't about the process, not the code.
+13. **Knowledge Capture** — record any newly discovered pattern, invariant, or gotcha
+    somewhere durable (this file, an ADR) so it isn't rediscovered from scratch.
+
+### Task-Scale Protocol (작업 규모별 프로토콜)
+
+Judge task scale first, then run the matching stage set — not the full lifecycle every
+time. If scale is ambiguous, default to Medium and state which scale was picked and why,
+rather than asking unless the ambiguity itself is the blocker.
+
+- **Small** — typos, one-line fixes, isolated small bugs: `Implement → Test`
+- **Medium** — a typical feature addition or fix: `Requirement → Research → Design →
+  Implement → Test → Review → Regression`
+- **Large** — architecture changes, DB migrations, core functionality:
+  `Requirement → Impact → Research → Design`
+  `Security / Performance Review`
+  `Implement → Test → Review → Fix → Regression`
+  `Release → Production Verification`
+  `Retrospective → Knowledge Capture`
+
+Anything already gated by Scope Discipline (a high-blast-radius file, a schema/migration
+change, a new dependency) is at least Large regardless of how small the diff looks.
+
+### Session Separation (세션 분리 원칙)
+
+For Medium and Large tasks, keep judgment, execution, and verification in different
+sessions rather than one session performing all of them:
+
+- Requirement / Research / Design — judgment and analysis
+- Implementation — execution
+- Testing — verification
+- Review — independent check
+- Debug — root-cause analysis
+- Release — deploy and rollback review
+
+Implementation and Review matter most to keep separate: Review inspects the actual code
+and diff, never the Implementation session's own account of what it did. In practice, run
+Review as a separate Agent invocation (or the `code-review` skill) rather than having the
+same context that wrote the change also grade it.
+
+### Roles (역할 정의)
+
+One-line definition per role — use when a task calls for it, not as a mandatory checklist.
+
+- **Requirement Validation** — confirms what's being asked and what "done" means.
+- **Architect** — decides overall structure and how it fits the existing system.
+- **Research** — confirms existing code, patterns, and constraints before design.
+- **Impact Analysis** — identifies affected files/modules, flags high-blast-radius ones.
+- **Design** — lays out the concrete plan: structure, data flow.
+- **Implementation** — writes the change.
+- **Testing** — runs and/or writes tests, confirms they pass.
+- **Security Review** — checks the diff against Never Do Group 3 and Architecture
+  Decisions > Auth, Cache, CORS.
+- **Performance Review** — checks for N+1 queries, missing pagination, unbounded loops
+  (Never Do Groups 1–2).
+- **Compatibility Review** — checks the change doesn't break existing API/schema consumers.
+- **Migration Review** — checks migration safety, `down()` correctness, cascade behavior
+  (Architecture Decisions > Database).
+- **Observability Review** — checks logging/error-tracking coverage without overclaiming
+  what isn't in place (Engineering Principles > Collaboration & Quality > Observability).
+- **Code Review** — checks the diff for correctness, reuse, simplification, independent of
+  Implementation.
+- **Debugging** — investigates root cause before proposing a fix.
+- **Release Planning** — plans the deploy sequence and rollback path.
+- **Production Verification** — confirms deployed behavior matches intent.
+- **Retrospective** — reviews what worked or didn't in the process.
+- **Knowledge Capture** — records new patterns/invariants somewhere durable.
+
+### Common Development Principles (공통 개발 원칙)
+
+Mostly already stated elsewhere in this file — listed here as the standing baseline for
+every stage above, not a new rule set:
+
+- Follow existing code and project patterns first (Hallucination Prevention).
+- Minimize change scope; don't make unrelated changes (Scope Discipline).
+- Treat regression in existing functionality as a standing concern on every change, not
+  just a post-hoc Result Review checklist item.
+- When a problem is found, identify the root cause before applying a fix.
+- Review judges the actual code and diff, never the implementer's stated intent (Session
+  Separation above).
+- Run tests wherever possible before claiming success (Hallucination Prevention).
+- Summarize what changed and why on completion (Change Summary).
+
+### Session Operating Principles (세션 운영 원칙)
+
+Each session stays in its assigned role and doesn't redundantly redo another role's work.
+Preferred order:
+
+`Research / Design → Implementation → Testing → Independent Review → Fix → Regression`
+
+On Large tasks, independent role-sessions (e.g. Security Review and Performance Review)
+can run in parallel once Implementation is done, as long as Review still inspects the
+actual diff rather than another session's summary of it.
+
+### Deliverable Quality Bar (결과물 품질 기준)
+
+A task isn't done because code was written. It's done when:
+
+- The requirement is met
+- Existing functionality is preserved (no regression)
+- Tests pass
+- Key edge cases were considered
+- Security and performance were reviewed where the change touches Never Do Groups 1–3
+- A migration/rollback plan exists where relevant (Large tasks touching the DB)
+- Code and docs stay consistent
+
 ## Analysis Protocol (분석)
 
 ### Introduction Analysis (도입)
