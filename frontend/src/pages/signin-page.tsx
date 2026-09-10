@@ -12,7 +12,7 @@ interface SignInForm {
 };
 
 function SignInPage() {
-    // The `useForm`, a react-hook-form, tracks, validates, and submits the input value.
+    // `useForm`(react-hook-form)이 입력값을 추적, 검증, 제출함.
     const { register, handleSubmit, formState: { errors } } = useForm<SignInForm>();
     const { setTokens } = useAuthStore();
     const [error, setError] = useState<string | null>(null);
@@ -23,28 +23,28 @@ function SignInPage() {
 
     const onSubmit = async (data: SignInForm) => {
         try {
-            // The `btoa` encodes email and password as Base64 based format, same as `register()` and `singIn()` in backend authentication.
+            // 백엔드 signIn()이 기대하는 Basic-auth 디코딩 형식과 일치해야 함.
             const credential = btoa(`${data.email}:${data.password}`);
-            
-            // A request method for a basic token, null for no body
+
+            // 기본 토큰을 위한 요청 메서드, body 없을 땐 null
             const res = await api.post('/auth/signin', null, {
-                // Authenticate by headers
+                // 헤더로 인증
                 headers: { Authorization: `Basic ${credential}` },
             });
-            
-            // Extract userId through JWT decode to identify the User ID
+
+            // JWT 디코드로 User ID를 식별하기 위해 userId를 추출
             const decoded = jwtDecode<{ sub: number }>(res.data.accessToken);
 
-            // Saving respond token in Zustand
+            // 응답받은 토큰을 Zustand에 저장
             setTokens(res.data.accessToken, decoded.sub);
-            // Establish this tab's baseline identity for cross-tab session checks
+            // cross-tab 세션 체크를 위해 이 탭의 기준 계정을 설정
             recordSessionUser(decoded.sub);
-            // Move to the chat page
+            // 채팅 페이지로 이동
             navigate('/chat');
         } catch (err: unknown) {
-            // Rate-limited (429) attempts get the server's actual message; anything
-            // else (wrong credentials, etc.) keeps the existing generic message rather
-            // than surfacing the backend's less user-friendly "Invalid User." text.
+            // rate limit(429)에 걸린 경우 서버의 실제 메시지를 그대로 사용; 그 외
+            // (잘못된 인증 정보 등)는 백엔드의 사용자 친화적이지 않은 "Invalid User."
+            // 텍스트 대신 기존의 일반 메시지를 유지.
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 429) {
                 const message = (err as { response?: { data?: { message?: string } } })
@@ -70,7 +70,7 @@ function SignInPage() {
                         로그인 세션이 만료되어 로그아웃되었습니다. 다시 로그인해주세요.
                     </span>
                 )}
-                {/* `register` collects the value */}
+                {/* `register`가 값을 수집 */}
                 <input {...register('email', {
                     required: 'Please Enter Your Email',
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
@@ -79,7 +79,7 @@ function SignInPage() {
                     data-testid='signin-email-input'
                     className='border p-2 rounded'>
                 </input>
-                {/* Sign in failure error */}
+                {/* 로그인 실패 에러 */}
                 {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
                 <input {...register('password', {
@@ -92,7 +92,7 @@ function SignInPage() {
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
-                {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
+                {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
                 <button onClick={handleSubmit(onSubmit)}
                     data-testid='signin-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>

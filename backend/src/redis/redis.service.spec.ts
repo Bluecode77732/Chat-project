@@ -76,7 +76,7 @@ describe('SessionCacheService', () => {
     };
 
     beforeEach(() => {
-      // Prevent a real 5-minute interval from being scheduled during tests (open-handle leak).
+      // 테스트 중 실제 5분 interval이 예약되지 않도록 막음 (open-handle leak 방지)
       setIntervalSpy = jest
         .spyOn(global, 'setInterval')
         .mockReturnValue(999 as unknown as ReturnType<typeof setInterval>);

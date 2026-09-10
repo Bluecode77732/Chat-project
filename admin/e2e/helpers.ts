@@ -1,7 +1,7 @@
-// Purpose: shared login and test-fixture helpers for admin e2e specs.
-// Usage: imported by admin/e2e/*.spec.ts only.
-// Rationale: no in-app flow creates a superadmin account or a target regular user
-// to act on — these fixtures must come from outside the UI under test.
+// 목적: admin e2e 스펙 전반에서 쓰는 로그인 및 테스트 픽스처 헬퍼.
+// 사용처: admin/e2e/*.spec.ts 전용으로 import됨.
+// 근거: superadmin 계정이나 대상 일반 유저를 만드는 인앱 플로우가 없어
+// 테스트 대상 UI 밖에서 픽스처를 만들어야 함.
 
 import { type APIRequestContext, type Page, expect } from '@playwright/test';
 
@@ -19,8 +19,8 @@ export async function loginAsSuperadmin(page: Page): Promise<void> {
     await page.getByTestId('login-email-input').fill(email);
     await page.getByTestId('login-password-input').fill(password);
     await page.getByTestId('login-submit-button').click();
-    // Login now lands on the dashboard (added after this helper was first written) —
-    // every existing caller assumes it ends up on /users, so navigate there too.
+    // 로그인 후 대시보드로 이동함(이 헬퍼 작성 이후 추가된 동작) — 기존 호출부는
+    // 전부 /users 도착을 전제하므로 여기서 이어서 이동시킴.
     await expect(page).toHaveURL('/dashboard');
     await page.getByTestId('nav-users').click();
     await expect(page).toHaveURL('/users');
@@ -59,9 +59,8 @@ async function signInViaApi(
     return body.accessToken;
 }
 
-// Registers a plain (role: user) account directly against the backend REST API —
-// admin has no registration UI of its own, and this is fixture setup, not the
-// thing under test.
+// admin에는 자체 회원가입 UI가 없고 이건 테스트 대상이 아닌 픽스처 설정이므로
+// 백엔드 REST API로 직접 일반(user) 계정을 등록함.
 export async function registerTargetUser(
     request: APIRequestContext,
     label: string,
@@ -86,9 +85,8 @@ export async function registerTargetUser(
     return { id: decodeUserId(accessToken), email, password, nickname };
 }
 
-// Creates a room + first message between two fixture users via the sendMessage
-// GraphQL mutation, authenticated as `sender` — seeds a deletable room for
-// rooms.spec.ts without going through any UI.
+// 방을 만드는 인앱 플로우가 없어 sendMessage GraphQL mutation으로 `sender` 인증 하에
+// 방 + 첫 메시지를 직접 만들어 rooms.spec.ts용 삭제 가능한 방을 시딩함.
 export async function createRoomBetween(
     request: APIRequestContext,
     sender: TargetUser,

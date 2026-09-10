@@ -16,16 +16,12 @@ interface CachedMessageEntry {
   participant: Record<string, unknown>;
 }
 
-/**
- ** This Redis service replaces the in-memory(temporal store) `clientConnection` Map
- ** with Redis storage so user data persists across server restarts so it can prevent losing of data.
- ** The data is persistent between multiple servers for horizontal scaling in expansion of server.
- */
+// Redis 기반 세션 캐시로, 기존 인메모리 `clientConnection` Map을 대체 — 재시작에도 살아남고
+// 수평 확장된 인스턴스 간에 공유됨.
 
-// Background safety net for `online_users`, not the primary correctness path (that
-// remains the sadd/srem pair in sethUserOnline/sethUserOffline). 5 minutes bounds the
-// worst-case ghost-user visibility window to a small fraction of SESSION_TTL_SEC
-// (default 86400s) without competing with the primary mechanism.
+// `online_users`를 위한 백그라운드 안전망일 뿐, 주 정확성 경로는 아님(그건 여전히
+// sethUserOnline/sethUserOffline의 sadd/srem 쌍). 5분이라는 값은 주 메커니즘과 경합하지 않으면서
+// 최악의 경우 ghost 유저 노출 시간을 SESSION_TTL_SEC(기본 86400초)의 작은 일부로 제한함.
 export const RECONCILE_INTERVAL_MS = 5 * 60 * 1000;
 const RECONCILE_SCAN_BATCH_SIZE = 100;
 
@@ -40,9 +36,9 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    // Reconciles against user:{id} (which already carries a TTL) instead of blindly
-    // wiping online_users — REDIS_CLIENT is shared across horizontally-scaled instances,
-    // so an unconditional DEL here would erase other instances' still-connected users.
+    // online_users를 무조건 지우는 대신 (이미 TTL을 가진) user:{id}와 대조해서 정리함 —
+    // REDIS_CLIENT는 수평 확장된 인스턴스 간에 공유되므로, 여기서 무조건 DEL하면
+    // 다른 인스턴스에 여전히 연결된 유저까지 지워버림.
     await this.reconcileOnlineUsers();
 
     this.reconcileIntervalHandle = setInterval(() => {
@@ -55,9 +51,9 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
     }, RECONCILE_INTERVAL_MS);
   }
 
-  // REDIS_CLIENT is a Global module-scoped singleton shared by several other
-  // services (ai/auth/user/rate-limit guard) — quitting it once here on shutdown
-  // is sufficient since they all hold a reference to the same connection.
+  // REDIS_CLIENT는 여러 다른 서비스(ai/auth/user/rate-limit guard)가 공유하는
+  // 전역 모듈 스코프 싱글턴 — 다들 같은 커넥션 참조를 들고 있으므로 종료 시
+  // 여기서 한 번만 quit하면 충분함.
   async onModuleDestroy() {
     if (this.reconcileIntervalHandle) {
       clearInterval(this.reconcileIntervalHandle);
@@ -73,10 +69,10 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // Sweeps online_users via SSCAN (cursor-based, never SMEMBERS here — avoiding an
-  // all-at-once blocking read at scale is the point) and removes members whose
-  // user:{id} hash no longer exists, i.e. stale/ghost entries left behind by an
-  // ungraceful process crash that skipped sethUserOffline's srem.
+  // SSCAN(커서 기반, 여기서 SMEMBERS는 절대 안 씀 — 규모가 커졌을 때 한 번에
+  // 블로킹 읽는 걸 피하는 게 핵심)으로 online_users를 순회하며, user:{id} 해시가
+  // 더 이상 존재하지 않는 멤버(즉 sethUserOffline의 srem을 거치지 못하고 비정상
+  // 종료된 프로세스가 남긴 stale/ghost 엔트리)를 제거.
   private async reconcileOnlineUsers(): Promise<void> {
     try {
       let cursor = '0';
@@ -99,8 +95,8 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // For one SSCAN page: pipelines an EXISTS user:{id} check per id, then batches a
-  // single srem for whichever don't exist.
+  // SSCAN 한 페이지 기준: id마다 EXISTS user:{id} 체크를 파이프라인으로 묶고,
+  // 존재하지 않는 것들만 모아 srem 한 번으로 처리.
   private async removeStaleMembers(userIds: string[]): Promise<void> {
     const pipeline = this.redis.pipeline();
     for (const id of userIds) {
@@ -136,7 +132,7 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
   async sethUserOnline(userId: number, socketId: string) {
     const key = `user:${userId}`;
     const ttl = this.configService.get<number>('SESSION_TTL_SEC', 86400);
-    // MULTI/EXEC: hset, expire, sadd execute atomically — prevents a TTL-less key if the server crashes between commands
+    // MULTI/EXEC: hset, expire, sadd가 원자적으로 실행됨 — 커맨드 사이에 서버가 죽어도 TTL 없는 키가 남지 않도록 함
     await this.redis
       .multi()
       .hset(key, 'socketId', socketId, 'status', 'online')
@@ -200,7 +196,7 @@ export class SessionCacheService implements OnModuleInit, OnModuleDestroy {
   ): Promise<CachedMessageEntry[] | null> {
     const entries = await this.redis.lrange(`room_messages:${roomId}`, 0, 14);
     if (!entries.length) return null;
-    // lpush stores newest at index 0; reverse to return oldest-first (matches DB order)
+    // lpush는 최신 항목을 index 0에 저장 — DB 순서(오래된 순)에 맞추기 위해 reverse
     return entries
       .flatMap((e) => {
         try {

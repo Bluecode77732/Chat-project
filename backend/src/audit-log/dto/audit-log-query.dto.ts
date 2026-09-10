@@ -16,8 +16,8 @@ export class AuditLogQueryDto {
   @IsIn(AUDIT_ACTIONS)
   action?: string;
 
-  // Filters logs where the user was actor OR target — covers "what did this user do"
-  // and "what was done to this user" in a single query param.
+  // actor 또는 target이 해당 사용자인 로그를 필터링 — 쿼리 파라미터 하나로
+  // '이 사용자가 한 일'과 '이 사용자에게 일어난 일'을 모두 커버.
   @ApiPropertyOptional({
     description: 'Filter logs where actorId OR targetId equals this user ID',
   })

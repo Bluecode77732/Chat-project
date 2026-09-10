@@ -92,7 +92,7 @@ describe('AuditLogService', () => {
       expect(result).toEqual({ data: [], total: 5, page: 3, take: 10 });
     });
 
-    // userId filter passes an OR-array so logs where the user was actor OR target are returned.
+    // userId 필터는 OR-array로 처리되어 actor 또는 target으로 남긴 로그를 모두 반환함
     it('passes an OR-array where clause when userId is provided.', async () => {
       mockAuditLogRepository.findAndCount.mockResolvedValue([[], 3]);
 
@@ -106,7 +106,7 @@ describe('AuditLogService', () => {
       });
     });
 
-    // When both userId and action are supplied both branches of the OR carry the action filter.
+    // userId와 action이 함께 주어지면 OR 양쪽 분기 모두에 action 필터가 적용됨
     it('combines userId OR-array with action filter when both are supplied.', async () => {
       mockAuditLogRepository.findAndCount.mockResolvedValue([[], 1]);
 

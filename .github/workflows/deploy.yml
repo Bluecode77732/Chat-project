@@ -17,8 +17,8 @@ jobs:
       run:
         shell: bash
     steps:
-      # fetch-depth: 0 -- check:changelog compares CHANGELOG.md against the full
-      # `git log`; the default shallow clone would leave it nothing to compare.
+      # fetch-depth: 0 -- check:changelog이 CHANGELOG.md를 전체 `git log`와
+      # 대조함; 기본 얕은 클론이면 대조할 대상이 없어짐.
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -88,8 +88,8 @@ jobs:
       MESSAGE_CACHE_TTL_SEC: 300
       CORS_ORIGIN: http://localhost:5173
       GEMINI_API_KEY: ci-placeholder-not-called-in-e2e
-      # The serial e2e specs register/sign in >10 times from one IP inside the
-      # 60s window — relax the auth rate limit here, production keeps 10.
+      # 순차 실행되는 e2e 스펙이 60초 윈도우 내에 한 IP에서 10회 넘게 회원가입/로그인함
+      # -- 여기서만 auth rate limit을 완화함, 프로덕션은 10 유지.
       AUTH_RATE_LIMIT_MAX_ATTEMPTS: 10000
       VITE_API_URL: http://localhost:3000
       VITE_WS_URL: ws://localhost:3000
@@ -143,10 +143,9 @@ jobs:
   admin-e2e:
     needs: test
     runs-on: ubuntu-latest
-    # Not yet blocking: this job has never completed a real run in GitHub Actions
-    # (checked via the Actions API on 2026-07-17 -- zero runs on record, unlike
-    # e2e which has one confirmed success). Revert to blocking once it has at
-    # least one confirmed successful run.
+    # 아직 blocking 아님: 이 job은 GitHub Actions에서 실제로 완료된 적이 없음
+    # (2026-07-17 Actions API로 확인 -- 기록상 실행 0건, e2e는 성공 사례 1건 확인됨과
+    # 대조적). 확인된 성공 실행이 최소 1건 나오면 blocking으로 되돌릴 것.
     continue-on-error: true
     services:
       postgres:
@@ -188,14 +187,14 @@ jobs:
       USER_CACHE_TTL_SEC: 300
       SESSION_TTL_SEC: 86400
       MESSAGE_CACHE_TTL_SEC: 300
-      # Admin runs on a different origin (:5174) than the main frontend (:5173).
+      # admin은 메인 프론트엔드(:5173)와 다른 origin(:5174)에서 실행됨.
       CORS_ORIGIN: http://localhost:5174
       GEMINI_API_KEY: ci-placeholder-not-called-in-e2e
-      # Same rationale as the e2e job: don't let serial CI auth bursts trip the guard.
+      # e2e job과 같은 이유: 순차 실행되는 CI auth 폭주가 가드에 걸리지 않게 함.
       AUTH_RATE_LIMIT_MAX_ATTEMPTS: 10000
       VITE_API_URL: http://localhost:3000
-      # No in-app flow can create a superadmin — this DB is fresh and thrown away
-      # after the job, so a fixed CI-only credential (not a real secret) is fine.
+      # superadmin을 만드는 인앱 플로우가 없음 -- 이 DB는 job 종료 후 폐기되는
+      # 임시 DB라 고정된 CI 전용 자격증명(실제 비밀값 아님)을 써도 안전함.
       E2E_SUPERADMIN_EMAIL: e2e-superadmin@ci.local
       E2E_SUPERADMIN_PASSWORD: ci-superadmin-pw-e2e
     steps:

@@ -1,4 +1,4 @@
-# compiled output
+# 빌드 산출물
 /dist
 /node_modules
 # .node_modules
@@ -7,10 +7,10 @@
 /backend/node_modules
 /backend/coverage
 /backend/.env
-/backend/.env.local
+/backend/.env.docker
 /backend/.env.production
 
-# Logs
+# 로그
 logs
 *.log
 npm-debug.log*
@@ -22,11 +22,11 @@ lerna-debug.log*
 # OS
 .DS_Store
 
-# Tests
+# 테스트
 /coverage
 /.nyc_output
 
-# IDEs and editors
+# IDE/에디터
 /.idea
 .project
 .classpath
@@ -42,25 +42,26 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
+# dotenv 환경 변수 파일
 .env
 .env.development.local
 .env.test.local
 .env.production
 .env.production.local
 .env.local
+.env.docker
 
-# Runtime data
+# 런타임 데이터
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
+# 진단 리포트 (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# Playwright MCP verification artifacts
+# Playwright MCP 검증 산출물
 /.playwright-mcp/
 
-# Claude Code local settings (machine-specific paths and permissions)
+# Claude Code 로컬 설정 (머신별 경로/권한)
 .claude/settings.local.json

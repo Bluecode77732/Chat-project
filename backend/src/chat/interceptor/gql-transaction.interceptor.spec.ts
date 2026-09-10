@@ -105,7 +105,7 @@ describe('GqlTransactionInterceptor', () => {
         return value;
       });
 
-      // Flush pending microtasks without advancing wall-clock time or using fake timers.
+      // fake timer 없이 wall-clock을 진행시키지 않고 대기 중인 microtask만 flush함
       await new Promise((resolve) => setImmediate(resolve));
 
       expect(settled).toBe(false);
@@ -135,7 +135,7 @@ describe('GqlTransactionInterceptor', () => {
         committedSignalFired = true;
       });
 
-      // Flush pending microtasks without resolving the commit yet.
+      // commit은 아직 resolve하지 않은 채 대기 중인 microtask만 flush함
       await new Promise((resolve) => setImmediate(resolve));
       expect(committedSignalFired).toBe(false);
 

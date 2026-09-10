@@ -6,74 +6,74 @@ services:
       context: .
       dockerfile: ./backend/Dockerfile
       target: production
-    # Can omit `depends_on:` since it doesn't have any using DB.
+    # postgres/redis가 healthy 상태가 될 때까지 대기 -- migration이 DB 준비 전에
+    # 실행되는 걸 방지.
     depends_on:
       redis: 
         condition: service_healthy
       postgres: 
         condition: service_healthy
     env_file:
-      - .env.local
+      - .env.docker
     ports:
       - "127.0.0.1:${PORT:-3000}:3000"
     restart: unless-stopped
     command: sh -c "cd backend && pnpm migration:run && node dist/main"
     environment:
-      NODE_ENV: docker
+      NODE_ENV: development
+      RUNTIME_ENV: docker
 
 
   postgres:
     image: postgres:18
     env_file:
-      - .env.local
-    # POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are set directly in .env.local
-    # and passed into the container via env_file — no host-env interpolation needed
+      - .env.docker
+    # POSTGRES_USER/PASSWORD/DB는 .env.docker에 직접 설정돼 env_file로 컨테이너에
+    # 전달됨 -- 호스트 env 보간 불필요
     ports:
       - "127.0.0.1:5432:5432"
     restart: unless-stopped
     volumes:
-      # postgres 18+ images use a version-specific PGDATA (/var/lib/postgresql/<major>/docker)
-      # and recommend mounting the parent dir so it survives major-version upgrades.
+      # postgres 18+이미지는 버전별 PGDATA(/var/lib/postgresql/<major>/docker)를 쓰고
+      # 메이저 버전 업그레이드에도 살아남도록 상위 디렉터리 마운트를 권장함.
       - postgres:/var/lib/postgresql
     healthcheck:
-      # Server health check command
+      # 서버 헬스체크 명령
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      # How often start in
+      # 얼마나 자주 시작하는지
       interval: 5s
-      # Take a break for how long 
+      # 얼마나 오래 기다리는지
       timeout: 5s
-      # try for Nth time(s)
+      # 몇 번째 시도까지
       retries: 10
-      # Start in
+      # 시작 유예 시간
       start_period: 5s
 
 
   redis:
     image: redis:alpine
     env_file:
-      - .env.local
+      - .env.docker
     ports:
       - "127.0.0.1:6379:6379"
     restart: unless-stopped
     command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
-      # Despite when server crash or down, this data location path connects data with Docker container to preserve data persistently.
+      # 컨테이너 재시작/다운에도 데이터 유지를 위해 볼륨 마운트.
       - redis:/data
     healthcheck:
-      # Server health check command
+      # 서버 헬스체크 명령
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping"]
-      # How often start in
+      # 얼마나 자주 시작하는지
       interval: 5s
-      # Take a break for how long 
+      # 얼마나 오래 기다리는지
       timeout: 5s
-      # try for Nth time(s)
+      # 몇 번째 시도까지
       retries: 10
-      # Start in
+      # 시작 유예 시간
       start_period: 5s
 
 
 volumes:
   postgres:
-  # Do not synchronize the node_modules folder, by without writing the colon, 
-  # for developing upon cleaner environment, not to sync with un-utilizable Operating Systems.
   redis:

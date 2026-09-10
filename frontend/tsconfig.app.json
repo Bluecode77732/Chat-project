@@ -1,41 +1,41 @@
 {
   "compilerOptions": {
-    // JS latest conversion standard
+    // 컴파일 대상 JS 버전
     "target": "ES2020",
-    // Defining of class fields to behave as JS standard
+    // 클래스 필드를 JS 표준 방식대로 정의
     "useDefineForClassFields": true,
-    // Usable inner API type definition
+    // 사용 가능한 내장 API 타입 정의
     "lib": [
-      "ES2020", // Latest JS API
-      "DOM", // document, window browser API
-      "DOM.Iterable" // NodeList iterable use
+      "ES2020", // 최신 JS API
+      "DOM", // document, window 등 브라우저 API
+      "DOM.Iterable" // NodeList 등 이터러블 사용
     ],
-    // Latest version of ES Module(import/export)
+    // ES Module(import/export) 최신 버전 사용
     "module": "ESNext",
-    // node_modules skips type check
+    // node_modules 타입 체크 생략
     "skipLibCheck": true,
-    // Vite/Webpack style module resolute
+    // Vite/Webpack 방식 모듈 해석
     "moduleResolution": "bundler",
-    // .ts/.tsx extender import allowance
+    // .ts/.tsx 확장자 포함 import 허용
     "allowImportingTsExtensions": true,
-    // json import allowance
+    // json import 허용
     "resolveJsonModule": true,
-    // Force File Unit Independent Compile (Vite/esbuild Compatibility)
+    // 파일 단위 독립 컴파일 강제 (Vite/esbuild 호환)
     "isolatedModules": true,
-    // JS No Emit (Vite takes charge)
+    // JS 출력 안 함 (번들링은 Vite가 담당)
     "noEmit": true,
-    // React 17+ JSX Use Conversion Method
+    // React 17+ JSX 변환 방식 사용
     "jsx": "react-jsx",
-    // String Type Check
+    // 엄격한 타입 체크
     "strict": true,
-    // Cause Errors for Unused Local Variables
+    // 사용하지 않는 지역 변수 에러 처리
     "noUnusedLocals": true,
-    // Cause Errors for Unused Parameters
+    // 사용하지 않는 매개변수 에러 처리
     "noUnusedParameters": true,
-    // Prevent missing 'Break' in switch statement for potential mistakes
+    // switch문에서 실수로 'break'를 빠뜨리는 것을 방지
     "noFallthroughCasesInSwitch": true
   },
-  // TypeScript Validation Specified Folder
+  // TypeScript 검사 대상 폴더
   "include": [
     "src",
     "src/vite-env.d.ts"

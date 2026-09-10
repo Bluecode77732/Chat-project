@@ -16,7 +16,7 @@ Three independent, single-direction dependencies happen to chain into a closed l
   (`user.service.ts:43,320`) and from the cascade-cleanup path in `remove` (`user.service.ts:416`).
 - **`ChatModule → AuthModule`**: `ChatGateway.handleConnection()` calls `authService.parseBearerToken()`
   to authenticate the WebSocket handshake, which doesn't go through the standard HTTP Guard pipeline
-  (`chat.gateway.ts:10,47,90`).
+  (`chat.gateway.ts:10,47,87`).
 
 Each edge is one-directional — no pair of these three modules imports the other back — so this is not
 a mutual/bidirectional coupling like the one `ModerationModule` deliberately avoided by using callback

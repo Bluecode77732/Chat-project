@@ -42,7 +42,7 @@ describe('ModerationService', () => {
     findOne: jest.fn().mockResolvedValue({ id: 10 }),
   };
 
-  // cfg() reads via get(key, default) — return the default so thresholds are warn 3 / mute 5 / ban 7.
+  // cfg()는 get(key, default)로 읽으므로 default를 그대로 반환 — 임계값은 warn 3 / mute 5 / ban 7로 고정됨
   const mockConfigService = {
     get: jest.fn((_key: string, def: number) => def),
     getOrThrow: jest.fn().mockReturnValue(10),
@@ -89,7 +89,7 @@ describe('ModerationService', () => {
     }).compile();
 
     service = module.get<ModerationService>(ModerationService);
-    // Seed consumes a one-time system-user lookup; every later lookup (applyBan) sees the target user.
+    // seed가 system-user 조회를 한 번 소비하므로, 이후 조회(applyBan)는 모두 target user를 보게 됨
     mockUserRepository.findOne
       .mockResolvedValueOnce(systemUser)
       .mockResolvedValue({
@@ -161,16 +161,16 @@ describe('ModerationService', () => {
 
   describe('evaluateMessage escalation', () => {
     it('duplicate below flood threshold → no strike', async () => {
-      mockRedis.eval.mockResolvedValueOnce(2); // dup count < 3
+      mockRedis.eval.mockResolvedValueOnce(2); // dup count < 3 (flood 아님)
       await service.evaluateMessage(42, 'hi', callbacks());
-      // only the dup counter eval ran; no strike eval
+      // dup 카운터 eval만 실행됨 — strike eval은 실행되지 않음
       expect(mockRedis.eval).toHaveBeenCalledTimes(1);
     });
 
     it('flood → strike reaching warn threshold posts a warning message', async () => {
       mockRedis.eval
-        .mockResolvedValueOnce(3) // dup >= 3 → flood
-        .mockResolvedValueOnce(3); // strike == warnThreshold
+        .mockResolvedValueOnce(3) // dup >= 3 → flood 판정
+        .mockResolvedValueOnce(3); // strike == warnThreshold(경고 임계값)
       const ctx = callbacks();
       await service.evaluateMessage(42, 'spam', ctx);
       expect(ctx.publishFn).toHaveBeenCalledTimes(1);
@@ -247,23 +247,23 @@ describe('ModerationService', () => {
   });
 
   describe('escalation boundaries (exact-match invariants)', () => {
-    // Lock escalate()'s comparison operators: warn/mute use === (fire once, at the exact
-    // count); ban uses >=. A refactor changing === to >= would re-fire mute/warn on every
-    // later strike — the between-threshold tests below fail if that regression is introduced.
+    // escalate()의 비교 연산자를 고정: warn/mute는 ===(정확히 그 카운트에서 한 번만 발동),
+    // ban은 >=. ===를 >=로 바꾸면 이후 모든 strike에서 mute/warn이 재발동하게 되므로,
+    // 아래 임계값 사이 구간 테스트들이 그 회귀를 잡아냄
     it('strike between warn and mute (4) fires nothing', async () => {
       mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(4);
       const ctx = callbacks();
       await service.evaluateMessage(42, 'spam', ctx);
-      expect(ctx.publishFn).not.toHaveBeenCalled(); // no warn/mute notice
-      expect(mockRedis.set).not.toHaveBeenCalled(); // no mute key set
-      expect(mockUserRepository.update).not.toHaveBeenCalled(); // no ban
+      expect(ctx.publishFn).not.toHaveBeenCalled(); // warn/mute 알림 없음
+      expect(mockRedis.set).not.toHaveBeenCalled(); // mute 키 설정 없음
+      expect(mockUserRepository.update).not.toHaveBeenCalled(); // ban 없음
     });
 
     it('strike between mute and ban (6) does not re-fire mute or ban', async () => {
       mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(6);
       const ctx = callbacks();
       await service.evaluateMessage(42, 'spam', ctx);
-      // mute would re-fire here if the threshold check were >= instead of ===
+      // 임계값 비교가 ===가 아니라 >=였다면 여기서 mute가 재발동했을 것
       expect(mockRedis.set).not.toHaveBeenCalled();
       expect(mockUserRepository.update).not.toHaveBeenCalled();
       expect(ctx.publishFn).not.toHaveBeenCalled();
@@ -291,8 +291,8 @@ describe('ModerationService', () => {
 
   describe('recordVelocityViolation', () => {
     it('accrues a strike once per burst window', async () => {
-      mockRedis.set.mockResolvedValueOnce('OK'); // NX marker acquired
-      mockRedis.eval.mockResolvedValueOnce(1); // strike count
+      mockRedis.set.mockResolvedValueOnce('OK'); // NX 마커 획득
+      mockRedis.eval.mockResolvedValueOnce(1); // strike count(누적 횟수)
       await service.recordVelocityViolation(42);
       expect(mockRedis.eval).toHaveBeenCalledWith(
         expect.any(String),
@@ -303,7 +303,7 @@ describe('ModerationService', () => {
     });
 
     it('skips when the burst window is already marked', async () => {
-      mockRedis.set.mockResolvedValueOnce(null); // NX marker not acquired
+      mockRedis.set.mockResolvedValueOnce(null); // NX 마커 획득 실패
       await service.recordVelocityViolation(42);
       expect(mockRedis.eval).not.toHaveBeenCalled();
     });
@@ -402,8 +402,8 @@ describe('ModerationService', () => {
 
   describe('velocity-path escalation (no callbacks)', () => {
     it('applies a mute at the mute threshold with no room notice', async () => {
-      mockRedis.set.mockResolvedValueOnce('OK'); // velMark acquired
-      mockRedis.eval.mockResolvedValueOnce(5); // strike == mute threshold
+      mockRedis.set.mockResolvedValueOnce('OK'); // velMark 획득
+      mockRedis.eval.mockResolvedValueOnce(5); // strike == mute threshold(뮤트 임계값)
       await service.recordVelocityViolation(42);
       expect(mockRedis.set).toHaveBeenCalledWith(
         'moderation:mute:42',
@@ -428,7 +428,7 @@ describe('ModerationService', () => {
 
     it('does not warn on the velocity path even at the warn threshold', async () => {
       mockRedis.set.mockResolvedValueOnce('OK');
-      mockRedis.eval.mockResolvedValueOnce(3); // strike == warn threshold, no ctx
+      mockRedis.eval.mockResolvedValueOnce(3); // strike == warn threshold(경고 임계값), ctx 없음
       await service.recordVelocityViolation(42);
       expect(mockChatRepository.save).not.toHaveBeenCalled();
     });
@@ -436,7 +436,7 @@ describe('ModerationService', () => {
     it('skips the ban when the target user no longer exists', async () => {
       mockRedis.set.mockResolvedValueOnce('OK');
       mockRedis.eval.mockResolvedValueOnce(7);
-      mockUserRepository.findOne.mockResolvedValueOnce(null); // applyBan lookup misses
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // applyBan 조회가 실패함
       await service.recordVelocityViolation(42);
       expect(mockUserRepository.update).not.toHaveBeenCalled();
     });
@@ -467,11 +467,11 @@ describe('ModerationService', () => {
       await expect(
         service.evaluateMessage(42, 'spam', ctx),
       ).resolves.toBeUndefined();
-      expect(mockUserRepository.update).toHaveBeenCalled(); // ban still applied
+      expect(mockUserRepository.update).toHaveBeenCalled(); // ban은 그대로 적용됨
     });
 
     it('a failing publish during a warning is swallowed', async () => {
-      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // warn
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // 경고
       const ctx = {
         ...callbacks(),
         publishFn: jest.fn().mockRejectedValue(new Error('pubsub down')),
@@ -482,7 +482,7 @@ describe('ModerationService', () => {
     });
 
     it('a warning is skipped when the room no longer exists', async () => {
-      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // warn
+      mockRedis.eval.mockResolvedValueOnce(3).mockResolvedValueOnce(3); // 경고
       mockRoomRepository.findOne.mockResolvedValueOnce(null);
       await service.evaluateMessage(42, 'spam', callbacks());
       expect(mockChatRepository.save).not.toHaveBeenCalled();
@@ -491,7 +491,7 @@ describe('ModerationService', () => {
 
   describe('seedSystemUser create path', () => {
     it('creates the system account when it does not exist yet', async () => {
-      mockUserRepository.findOne.mockResolvedValueOnce(null); // seed lookup misses
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // seed 조회가 실패함
       await service.onModuleInit();
       expect(mockUserRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ email: SYSTEM_USER_EMAIL }),

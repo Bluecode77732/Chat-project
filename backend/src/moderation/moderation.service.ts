@@ -1,10 +1,10 @@
-// Purpose: owns behavioral abuse detection (duplicate/flood + velocity strikes), strike accrual,
-//   escalation (warn -> mute -> timed ban -> permanent ban), enforcement, the system-account seed,
-//   and system-message dispatch. All stateful, side-effecting moderation logic lives here.
-// Usage: called by ChatResolver (evaluateMessage, getSystemUserId), RateLimitGuard
-//   (recordVelocityViolation), ModerationGuard (isBanned/isMuted), and UserController (unban).
-// Rationale: enforcement carries side effects (DB writes, audit, cache invalidation, socket eviction),
-//   so it belongs in a service, not the thin ModerationGuard — chat coupling is avoided via injected callbacks.
+// 목적: 행동 기반 어뷰징 탐지(중복/도배 + velocity 스트라이크), 스트라이크 누적,
+//   에스컬레이션(경고 -> 음소거 -> 기간 밴 -> 영구 밴), 제재 집행, 시스템 계정 시딩,
+//   시스템 메시지 발송을 담당. 상태를 갖는 부수효과성 모더레이션 로직은 전부 여기에 있음.
+// 사용처: ChatResolver(evaluateMessage, getSystemUserId), RateLimitGuard
+//   (recordVelocityViolation), ModerationGuard(isBanned/isMuted), UserController(unban)에서 호출.
+// 근거: 제재 집행은 부수효과(DB 쓰기, 감사 로그, 캐시 무효화, 소켓 강제 종료)를 동반하므로
+//   얇은 ModerationGuard가 아니라 서비스에 있어야 함 — chat과의 결합은 주입된 콜백으로 회피.
 
 import {
   BadRequestException,
@@ -34,8 +34,8 @@ import {
   moderationKeys,
 } from './constants/moderation.constants';
 
-// Chat-side effects the service needs at enforcement time, injected by the caller (ChatResolver)
-// so ModerationModule never depends on ChatModule — mirrors AiService.handleReply(publishFn).
+// 제재 집행 시점에 서비스가 필요로 하는 chat 측 부수효과 — 호출자(ChatResolver)가 주입해줌으로써
+// ModerationModule이 ChatModule에 의존하지 않게 함 — AiService.handleReply(publishFn)과 동일한 패턴.
 export type ModerationCallbacks = {
   roomId: number;
   publishFn: (msg: ChatEntity) => Promise<void>;
@@ -75,14 +75,14 @@ export class ModerationService implements OnModuleInit {
     return this.systemUser.id;
   }
 
-  // ---- Gate helpers (read by ModerationGuard) ----
+  // ---- 게이트 헬퍼 (ModerationGuard가 사용) ----
 
-  // Effective ban = banned status AND (permanent OR the timed window has not elapsed).
+  // 실질적 밴 = banned 상태 AND (영구 OR 기간 밴 창이 아직 안 지남).
   isBanned(user: Pick<UserEntity, 'status' | 'bannedUntil'>): boolean {
     return isEffectivelyBanned(user);
   }
 
-  // DB-backed ban check for callers that only hold a userId (e.g. the socket handleConnection gate).
+  // userId만 가진 호출자를 위한 DB 기반 밴 체크(예: 소켓 handleConnection 게이트).
   async isUserBanned(userId: number): Promise<boolean> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -91,8 +91,8 @@ export class ModerationService implements OnModuleInit {
     return user ? isEffectivelyBanned(user) : false;
   }
 
-  // Mute state is Redis-only (no DB fallback) — a Redis error fails closed (treated
-  // as muted) rather than propagating uncaught through ModerationGuard as a 500.
+  // 음소거 상태는 Redis에만 있음(DB 폴백 없음) — Redis 에러 시 fail-closed
+  // (음소거된 것으로 간주)하며, ModerationGuard를 통해 처리되지 않은 500으로 전파하지 않음.
   async isMuted(userId: number): Promise<boolean> {
     try {
       return (await this.redis.exists(moderationKeys.mute(userId))) === 1;
@@ -105,10 +105,10 @@ export class ModerationService implements OnModuleInit {
     }
   }
 
-  // ---- Detection entry points ----
+  // ---- 탐지 엔트리 포인트 ----
 
-  // Called post-commit by ChatResolver with the sent message. A duplicate/flood accrues a strike;
-  // escalation may then warn/mute/ban with the injected chat callbacks.
+  // 커밋 이후 ChatResolver가 전송된 메시지와 함께 호출. 중복/도배면 스트라이크 누적;
+  // 이후 에스컬레이션이 주입된 chat 콜백으로 경고/음소거/밴을 수행할 수 있음.
   async evaluateMessage(
     userId: number,
     message: string,
@@ -124,9 +124,9 @@ export class ModerationService implements OnModuleInit {
     }
   }
 
-  // Called by RateLimitGuard when its velocity limit trips. No chat callbacks on this path:
-  // strike + mute/ban state apply, but no room notice / immediate socket eviction (eviction
-  // is handled by the jwt.strategy / handleConnection ban gate on the next request).
+  // RateLimitGuard의 velocity 제한이 걸렸을 때 호출됨. 이 경로에는 chat 콜백이 없음:
+  // 스트라이크 + 음소거/밴 상태는 적용되지만, 방 알림 / 즉시 소켓 강제 종료는 없음(강제 종료는
+  // 다음 요청에서 jwt.strategy / handleConnection의 밴 게이트가 처리).
   async recordVelocityViolation(userId: number): Promise<void> {
     try {
       const marked = await this.redis.set(
@@ -136,7 +136,7 @@ export class ModerationService implements OnModuleInit {
         VELOCITY_MARK_TTL_SEC,
         'NX',
       );
-      if (!marked) return; // this burst window already counted
+      if (!marked) return; // 이 버스트 윈도우는 이미 카운트됨
       logger.debug(
         `[user=${userId}] Velocity violation marked, accruing strike`,
       );
@@ -146,11 +146,11 @@ export class ModerationService implements OnModuleInit {
     }
   }
 
-  // ---- Admin recovery ----
+  // ---- 관리자 복구 ----
 
-  // Manual ban, independent of the automatic strike system (e.g. a report from another channel).
-  // Unlike applyBan, this always audits — an admin action needs a trail even if the target was
-  // already banned, since the reason/duration may differ from the prior entry.
+  // 자동 스트라이크 시스템과 무관한 수동 밴(예: 다른 채널로 들어온 신고). applyBan과 달리
+  // 이건 항상 감사 로그를 남김 — 대상이 이미 밴 상태여도 사유/기간이 이전 기록과 다를 수 있으므로
+  // 관리자 행동에는 흔적이 필요.
   async ban(
     actorId: number,
     userId: number,
@@ -174,7 +174,7 @@ export class ModerationService implements OnModuleInit {
     );
   }
 
-  // Reverse all moderation state for a false-positive: clears ban, strikes, mute, and the auth cache.
+  // 오탐(false-positive)에 대해 모더레이션 상태 전체를 되돌림: 밴, 스트라이크, 음소거, 인증 캐시를 초기화.
   async unban(actorId: number, userId: number): Promise<void> {
     await this.userRepository.update(
       { id: userId },
@@ -190,7 +190,7 @@ export class ModerationService implements OnModuleInit {
     logger.info(`[actor=${actorId}, user=${userId}] Unban applied`);
   }
 
-  // ---- Internal: detection ----
+  // ---- 내부: 탐지 ----
 
   private async isFlood(userId: number, message: string): Promise<boolean> {
     const normalized = message.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -240,7 +240,7 @@ export class ModerationService implements OnModuleInit {
     }
   }
 
-  // ---- Internal: enforcement ----
+  // ---- 내부: 제재 집행 ----
 
   private async applyMute(userId: number): Promise<void> {
     const cfg = this.cfg();
@@ -265,7 +265,7 @@ export class ModerationService implements OnModuleInit {
   ): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return;
-    // Already effectively banned — don't re-audit or downgrade a permanent ban to timed.
+    // 이미 실질적으로 밴 상태 — 재감사하거나 영구 밴을 기간 밴으로 낮추지 않음.
     if (this.isBanned(user)) return;
 
     const cfg = this.cfg();
@@ -273,7 +273,7 @@ export class ModerationService implements OnModuleInit {
       userId,
       'USER_BANNED',
     );
-    const permanent = priorBans >= 1; // repeat offender -> permanent
+    const permanent = priorBans >= 1; // 재범 -> 영구
     const bannedUntil = permanent
       ? null
       : new Date(Date.now() + cfg.banDurationSec * 1000);
@@ -282,7 +282,7 @@ export class ModerationService implements OnModuleInit {
       { id: userId },
       { status: ModerationStatus.banned, bannedUntil },
     );
-    // Invalidate the auth cache so jwt.strategy re-reads the banned status next request.
+    // 인증 캐시 무효화 — jwt.strategy가 다음 요청에서 밴 상태를 다시 읽도록.
     await this.redis.del(`user_cache:${userId}`);
     await this.auditLogService.log(
       this.getSystemUserId(),
@@ -307,7 +307,7 @@ export class ModerationService implements OnModuleInit {
     }
   }
 
-  // ---- Internal: system message + seed ----
+  // ---- 내부: 시스템 메시지 + 시딩 ----
 
   private async notify(ctx: ModerationCallbacks, text: string): Promise<void> {
     try {
@@ -354,7 +354,7 @@ export class ModerationService implements OnModuleInit {
           role: UserRole.user,
         });
       } catch {
-        // Race on multi-instance startup — another instance created it first.
+        // 멀티 인스턴스 기동 시 레이스 — 다른 인스턴스가 먼저 생성함.
       }
       systemUser = await this.userRepository.findOneByOrFail({
         email: SYSTEM_USER_EMAIL,
@@ -364,7 +364,7 @@ export class ModerationService implements OnModuleInit {
     logger.info(`Moderation system user ready: id=${this.systemUser.id}`);
   }
 
-  // ---- Internal: helpers ----
+  // ---- 내부: 헬퍼 ----
 
   private cfg() {
     const c = this.configService;
@@ -404,8 +404,8 @@ export class ModerationService implements OnModuleInit {
     };
   }
 
-  // Atomic INCR + first-write EXPIRE, matching RateLimitGuard — avoids a permanent key if the
-  // process dies between the two commands.
+  // 원자적 INCR + 최초 쓰기 시 EXPIRE, RateLimitGuard와 동일한 패턴 — 두 명령 사이에 프로세스가
+  // 죽어도 영구 키가 남지 않도록 함.
   private async incrWithTtl(key: string, ttlSec: number): Promise<number> {
     const luaScript = `
       local count = redis.call('INCR', KEYS[1])

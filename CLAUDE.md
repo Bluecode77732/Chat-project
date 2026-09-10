@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Grounding (프로젝트 파악 우선)
+
+Before starting any task in this repository — even one that looks self-contained — first
+establish what this project actually is and what it builds, by inspecting real files rather
+than inferring from the task description, file names, or memory:
+1. Read the actual codebase and this file's own "Project Overview" and "Architecture" sections
+   (below) to determine what the project is about and what it builds — do not assume from a
+   directory name or a vague prior impression.
+2. From that reading, identify the app's concrete nature and characteristics: how it delivers
+   real-time behavior (see API Layer), which module owns which concern (see Backend Modules /
+   Data Flow for Sending a Message), and which existing conventions (see Architecture Decisions)
+   already govern the area the task touches.
+3. Only after that grounding, devise the most efficient implementation approach for the task —
+   one that reuses the patterns found in steps 1-2, per Hallucination Prevention rule 3 below,
+   rather than defaulting to a generic or unrelated approach.
+
+This precedes the per-change inspection in Hallucination Prevention immediately below: this step
+establishes what the whole application is; that section establishes what the specific change
+requires.
+
 ## Hallucination Prevention (환각 방지)
 
 Before making any change:
@@ -68,6 +88,143 @@ Before implementing anything non-trivial, ask the one question that applies:
 
 Ask one focused question rather than a list. Do not proceed on assumptions when intent is ambiguous.
 
+## AI Development Workflow (AI 개발 워크플로우)
+
+A process layer for organizing work across a task — stages, scaled by task size, with
+Review kept independent from Implementation. Where this conflicts with a technical rule
+elsewhere in this file (Never Do Groups, Scope Discipline, Architecture Decisions), the
+technical rule governs — this section never overrides them.
+
+### Development Lifecycle (개발 생명주기)
+
+The stage vocabulary the rest of this section uses. Not every task runs every stage — see
+Task-Scale Protocol for what applies when.
+
+1. **Requirement** — confirm what's being asked and what "done" means before touching code.
+2. **Impact** — identify which files/modules the change touches, including anything on the
+   Scope Discipline high-blast-radius list.
+3. **Research** — confirm existing patterns, APIs, and constraints in the actual codebase
+   (Hallucination Prevention).
+4. **Design** — decide the concrete approach: structure, data flow, fit with the existing
+   architecture (Analysis Protocol > Structure Analysis).
+5. **Implementation** — write the change, following existing conventions and Never Do rules
+   (Analysis Protocol > Modification Analysis).
+6. **Testing** — run the relevant suite and add or adjust tests for the change (Key
+   Conventions > Testing).
+7. **Review** — an independent check of the actual diff against the requirement, Never Do
+   rules, and Architecture Decisions — never a self-assessment by the Implementation
+   session (see Session Separation below).
+8. **Fix** — address what Review flagged, scoped to those findings only.
+9. **Regression** — re-verify unrelated existing functionality still works after Fix.
+10. **Release** — prepare and execute the deploy (CI/CD).
+11. **Production Verification** — confirm the deployed behavior matches intent, not just
+    the test suite.
+12. **Retrospective** — note what worked or didn't about the process, not the code.
+13. **Knowledge Capture** — record any newly discovered pattern, invariant, or gotcha
+    somewhere durable (this file, an ADR) so it isn't rediscovered from scratch.
+
+### Task-Scale Protocol (작업 규모별 프로토콜)
+
+Judge task scale first, then run the matching stage set — not the full lifecycle every
+time. If scale is ambiguous, default to Medium and state which scale was picked and why,
+rather than asking unless the ambiguity itself is the blocker.
+
+- **Small** — typos, one-line fixes, isolated small bugs: `Implement → Test`
+- **Medium** — a typical feature addition or fix: `Requirement → Research → Design →
+  Implement → Test → Review → Regression`
+- **Large** — architecture changes, DB migrations, core functionality:
+  `Requirement → Impact → Research → Design`
+  `Security / Performance Review`
+  `Implement → Test → Review → Fix → Regression`
+  `Release → Production Verification`
+  `Retrospective → Knowledge Capture`
+
+Anything already gated by Scope Discipline (a high-blast-radius file, a schema/migration
+change, a new dependency) is at least Large regardless of how small the diff looks.
+
+### Session Separation (세션 분리 원칙)
+
+For Medium and Large tasks, keep judgment, execution, and verification in different
+sessions rather than one session performing all of them:
+
+- Requirement / Research / Design — judgment and analysis
+- Implementation — execution
+- Testing — verification
+- Review — independent check
+- Debug — root-cause analysis
+- Release — deploy and rollback review
+
+Implementation and Review matter most to keep separate: Review inspects the actual code
+and diff, never the Implementation session's own account of what it did. In practice, run
+Review as a separate Agent invocation (or the `code-review` skill) rather than having the
+same context that wrote the change also grade it.
+
+### Roles (역할 정의)
+
+One-line definition per role — use when a task calls for it, not as a mandatory checklist.
+
+- **Requirement Validation** — confirms what's being asked and what "done" means.
+- **Architect** — decides overall structure and how it fits the existing system.
+- **Research** — confirms existing code, patterns, and constraints before design.
+- **Impact Analysis** — identifies affected files/modules, flags high-blast-radius ones.
+- **Design** — lays out the concrete plan: structure, data flow.
+- **Implementation** — writes the change.
+- **Testing** — runs and/or writes tests, confirms they pass.
+- **Security Review** — checks the diff against Never Do Group 3 and Architecture
+  Decisions > Auth, Cache, CORS.
+- **Performance Review** — checks for N+1 queries, missing pagination, unbounded loops
+  (Never Do Groups 1–2).
+- **Compatibility Review** — checks the change doesn't break existing API/schema consumers.
+- **Migration Review** — checks migration safety, `down()` correctness, cascade behavior
+  (Architecture Decisions > Database).
+- **Observability Review** — checks logging/error-tracking coverage without overclaiming
+  what isn't in place (Engineering Principles > Collaboration & Quality > Observability).
+- **Code Review** — checks the diff for correctness, reuse, simplification, independent of
+  Implementation.
+- **Debugging** — investigates root cause before proposing a fix.
+- **Release Planning** — plans the deploy sequence and rollback path.
+- **Production Verification** — confirms deployed behavior matches intent.
+- **Retrospective** — reviews what worked or didn't in the process.
+- **Knowledge Capture** — records new patterns/invariants somewhere durable.
+
+### Common Development Principles (공통 개발 원칙)
+
+Mostly already stated elsewhere in this file — listed here as the standing baseline for
+every stage above, not a new rule set:
+
+- Follow existing code and project patterns first (Hallucination Prevention).
+- Minimize change scope; don't make unrelated changes (Scope Discipline).
+- Treat regression in existing functionality as a standing concern on every change, not
+  just a post-hoc Result Review checklist item.
+- When a problem is found, identify the root cause before applying a fix.
+- Review judges the actual code and diff, never the implementer's stated intent (Session
+  Separation above).
+- Run tests wherever possible before claiming success (Hallucination Prevention).
+- Summarize what changed and why on completion (Change Summary).
+
+### Session Operating Principles (세션 운영 원칙)
+
+Each session stays in its assigned role and doesn't redundantly redo another role's work.
+Preferred order:
+
+`Research / Design → Implementation → Testing → Independent Review → Fix → Regression`
+
+On Large tasks, independent role-sessions (e.g. Security Review and Performance Review)
+can run in parallel once Implementation is done, as long as Review still inspects the
+actual diff rather than another session's summary of it.
+
+### Deliverable Quality Bar (결과물 품질 기준)
+
+A task isn't done because code was written. It's done when:
+
+- The requirement is met
+- Existing functionality is preserved (no regression)
+- Tests pass
+- Key edge cases were considered
+- Security and performance were reviewed where the change touches Never Do Groups 1–3
+- A migration/rollback plan exists where relevant (Large tasks touching the DB)
+- Code and docs stay consistent
+
 ## Analysis Protocol (분석)
 
 ### Introduction Analysis (도입)
@@ -127,6 +284,50 @@ After completing any implementation, apply the review perspective that matches w
 - Compliance scan: does the diff introduce any Never Do Group 1–3 pattern or violate an
   Architecture Decision? List what was checked.
 
+## Writing Style (문체)
+
+Applies to Markdown docs (this file, `README.md`, ADRs, `CONTRIBUTING.md`), code comments, commit
+messages, and the Change Summary below — anywhere content is written for a person to read rather
+than for the compiler.
+
+Language: code comments and commit messages are written in Korean (한글), matching this
+project's established comment convention and the app's own Korean UI text. Markdown docs
+follow the existing EN/KO `.ko.md` pairing (see ADR/README.md). This file's own prose stays
+in English.
+
+Register (Korean only): sentence-final endings use the terse nominalized form — `-함/임/음`
+— not the polite `-합니다/습니다/입니다` form. E.g. "발전했습니다" → "발전함",
+"제공합니다" → "제공함", "~서비스입니다" → "~서비스임", "있습니다" → "있음",
+"필요합니다" → "필요함". A direct instruction to the reader (setup steps, contribution
+guides) stays a natural imperative (`-하세요`/`-할 것`) instead of being forced into `-함`.
+Quoted material (a direct quote, a verbatim commit message, existing code-comment text) is
+never rewritten to match — quote it as-is.
+
+Write the way a teammate who knows this codebase would explain it out loud — plain, direct, and
+only as long as the point actually requires. Avoid the tells of generated text:
+
+```
+❌ "This ensures that the transaction is properly rolled back in the event of a failure,
+    thereby maintaining data integrity across the system."
+✅ "Rolls back on failure so the room and message stay in sync."
+
+❌ "Additionally, it is worth noting that this component also handles..."
+✅ "It also handles..."
+
+❌ Marketing adjectives — "robust", "seamless", "comprehensive", "powerful", "cutting-edge"
+✅ State what it does; let the reader decide whether that's robust
+
+❌ Restating what the diff/code already shows
+✅ Explain only the non-obvious — why, not what (same bar as the header comment in File
+   Creation Convention, and the WHY-only rule for code comments)
+
+❌ Emoji, exclamation points, or false enthusiasm ("Great!", "Now let's...") in docs or commits
+✅ A flat, factual statement of what changed and why
+```
+
+Goal: a commit message, doc edit, or code comment written this way shouldn't read as
+AI-generated — it should read like something a person on this team actually wrote.
+
 ## Change Summary
 
 After completing any task, always append a brief summary in this format:
@@ -149,14 +350,17 @@ templates, or other non-code files. Those are exempt from this section.
 
 When creating a new file (not when editing an existing one), add a short header
 comment above the imports stating:
-- Purpose: why this file exists (the gap it fills)
-- Usage: who/what is expected to import or call into it
-- Rationale: why it was added now, or why an existing file could not absorb this
+- 목적 (Purpose): why this file exists (the gap it fills)
+- 사용처 (Usage): who/what is expected to import or call into it
+- 근거 (Rationale): why it was added now, or why an existing file could not absorb this
+
+The comment itself is written in Korean (see Writing Style above) — the labels below are for
+this instruction file only.
 
 ```typescript
-// Purpose: isolates Redis lock acquisition for per-room AI replies.
-// Usage: imported by AiService.handleReply(); not intended for direct use elsewhere.
-// Rationale: lock logic was inline in ai.service.ts and untestable in isolation.
+// 목적: room 단위 AI 답장 처리에서 Redis 락 획득 로직을 분리.
+// 사용처: AiService.handleReply()에서 import — 다른 곳에서 직접 사용하지 않음.
+// 근거: 락 로직이 ai.service.ts에 인라인으로 있어 단위 테스트가 불가능했음.
 
 import ...
 ```
@@ -335,11 +539,21 @@ Principle Conflict Protocol.
 - Principle of Least Astonishment — covered by "reuse existing patterns only"
 - Convention over Configuration — favor the project's existing framework and
   validation conventions over introducing custom configuration
-- Pragmatism over Perfection — conflicts with Never Do's zero-tolerance rules;
-  routed through Principle Conflict Protocol — does not excuse a violation by default
-- Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct rules
-- Incremental Development — reflected in Introduction Analysis
-- Continuous Improvement — reflected in Result Review; in-session only
+- Pragmatism over Perfection — applies to design/architecture judgment calls only
+  (e.g., not over-building for a hypothetical future need); never applies to Never Do
+  Group 1-3, which admit no exception regardless of time pressure
+- Unix Philosophy, Orthogonality — treated as restatements of SRP/SoC, not distinct
+  rules; kept merged rather than split into a separate entry to avoid two
+  descriptions of the same module-boundary fact drifting apart over time
+- Incremental Development — reflected in Introduction Analysis; the actual gate is
+  "do not write excessive code during this phase" — Background/Purpose/Disadvantages
+  must be worked through before substantial code is written, not after; the broader
+  Introduction → Structure → Modification → Result Review sequence enforces the same
+  staged approach at each subsequent phase
+- Continuous Improvement — reflected in Result Review; scoped in-session only
+  because Result Review runs once per completed task, any leftover improvement
+  idea is captured only in that task's Change Summary Pending line, and this file
+  has no backlog/ticket mechanism to carry it across sessions
 
 ### Design
 - Separation of Concerns, Modularity, High Cohesion & Low Coupling — basis of
@@ -348,8 +562,11 @@ Principle Conflict Protocol.
   (see Architecture Decisions)
 - Composition over Inheritance — prefer composition via dependency injection over
   building new class hierarchies; see SOLID > LSP below for a known counter-example
-- Abstraction — conflicts with "no new abstractions unless asked"; routed through
-  Principle Conflict Protocol
+- Abstraction — conflicts with "no new abstractions unless asked"; the bar for a
+  justified abstraction is demonstrated in Project-Specific Principles > Module &
+  Guard Architecture > Transaction Boundary per Mutation, where the existing
+  abstraction was introduced to prevent a real Never Do Group 2 failure, not a
+  hypothetical one
 - Layered Architecture, Dependency Direction — reflected in the existing layering
   between request handling, business logic, and data access
 - Feature Isolation — may conflict with an existing single-file-per-concern
@@ -362,46 +579,57 @@ Principle Conflict Protocol.
 ### SOLID
 - SRP — basis of the project's module/service boundaries
 - OCP — extend via new classes/strategies, don't modify existing logic in place
-  to add a new case
-- DIP — favor constructor injection over direct instantiation
+  to add a new case; concrete instance in Project-Specific Principles > Chat &
+  Caching > Config-Driven Extension over Branching
+- DIP — favor constructor injection over direct instantiation; concrete instance
+  in Project-Specific Principles > Module & Guard Architecture > External SDK
+  Clients Injected via Factory
 - LSP — watch for subclasses that strengthen a parent method's precondition
   (rejecting cases the parent would accept) — prefer composition over inheritance
-  when adding a stricter variant of existing behavior. Routed through Principle
-  Conflict Protocol when an existing pattern already does this
+  when adding a stricter variant of existing behavior. Already found and fixed once
+  — see Project-Specific Principles > Module & Guard Architecture > Guard Composition
+  over Guard Inheritance for the concrete violation and its resolution
 - ISP — no confirmed violation; do not introduce an interface layer until one is found
 
 ### Object Interaction
 - Dependency Injection, Inversion of Control — already the framework's core
-  mechanism; no new rule needed
-- Command–Query Separation — reflected in the existing read/write API split,
-  where one exists
+  mechanism, not a project-level choice; same grounding as SOLID > DIP above
+- Command–Query Separation — GraphQL's Query/Mutation type distinction enforces
+  this structurally; see Architecture > ChatModule for the concrete read/write
+  split
 - Favor Explicit Interfaces — already enforced via `any` ban / `unknown` narrowing
-- Law of Demeter, Tell Don't Ask — judgment calls, no current violation identified
+- Law of Demeter, Tell Don't Ask — judgment calls; checked for deep property-chain
+  calls in production service code and found none, so this is a confirmed absence,
+  not an unchecked assumption
 
 ### Maintainability
 - DRY, Fail Fast, Testability, Input Validation — covered by Testing conventions
   and Never Do Groups 1-3
 - Idempotence — check whether retry/duplicate-submission behavior is documented
   for write operations; flag gaps rather than assuming idempotency
-- Immutability — may conflict with an existing intentionally-mutable shared
-  instance; routed through Principle Conflict Protocol — default is to leave as-is
 - Self-Documenting Code, Readability over Cleverness, Keep Functions Small,
   Minimize Cognitive Load — judgment calls
 - Refactor Continuously — see Boy Scout Rule above
 
 ### Reliability
 - Input Validation, Fail Securely — covered by Never Do Group 3
-- Defensive Programming — conflicts with boundary-only validation stance; routed
-  through Principle Conflict Protocol — boundary-only wins by default
-- Robustness Principle (Postel's Law) — conflicts with strict input validation and
-  is a known security anti-pattern for parsing untrusted input; do not apply
+- Defensive Programming — the project validates once at the DTO boundary (Never Do
+  Group 3's DTO enforcement) rather than re-checking at every internal function
+  call; adding redundant internal validation duplicates what that boundary check
+  already guarantees by the time a payload reaches a service method
+- Robustness Principle (Postel's Law) — conflicts with strict input validation
+  (Never Do Group 3's DTO enforcement); not negotiable — Group 3 is an already-settled
+  security control, not a design preference, so this does not apply, full stop
 - Graceful Degradation — reflected in existing client-side auth-refresh/retry
   handling, where one exists
 - Error Transparency — conflicts with the existing practice of stripping internal
   error details from client-facing responses in production; transparency applies
   to internal logs only, never client responses
-- Design by Contract, Deterministic Behavior — judgment calls, not adopted
-- Safe Defaults — duplicate of Secure by Default below
+- Design by Contract, Deterministic Behavior — concrete instance in Project-Specific
+  Principles > Chat & Caching > Non-Deterministic External Call, Bounded by a
+  Fixed Fallback
+- Safe Defaults — concrete instance in Project-Specific Principles > Privilege &
+  Audit (Security) > Fail-Closed Secrets, No Fallback Defaults
 - Retry Limits — advisory: external API calls (Gemini) must cap retry attempts and apply
   backoff; unbounded retry converts a transient failure into sustained cost and load.
   New retry paths must declare an attempt ceiling and delay strategy.
@@ -413,7 +641,10 @@ Principle Conflict Protocol.
   covered by Never Do Group 3 and Logging conventions
 - Principle of Least Privilege — already implemented via the existing numeric
   role/privilege-level comparison
-- Avoid Premature Optimization / Measure Before Optimizing — same principle, treat as one
+- Avoid Premature Optimization / Measure Before Optimizing — same principle, treat
+  as one; the one confirmed instance is negative evidence (absence is hard to prove
+  directly) — Never Do Group 2's pagination requirement exists because a demonstrated
+  failure (OOM) was found, not preemptively, which is the bar this project applies
 - Resource Efficiency — covered by pagination/N+1 examples
 - Minimize Attack Surface — reflected in the existing API-surface boundary rules
   and upload validation, where applicable
@@ -528,6 +759,21 @@ one of these is violated, follow Principle Conflict Protocol.
   defining file — excluding its own spec file — imports it. If not, keep it inline. If
   yes, place it under `{module}/interface/`.
 
+**External SDK Clients Injected via Factory**
+- Breakdown: a concrete instance of SOLID > DIP. Three external clients are
+  registered behind `useFactory` providers reading from `ConfigService` —
+  TypeORM's connection (`app.module.ts:80`), the Gemini `GoogleGenAI` client as
+  `GENAI_CLIENT` (`ai.module.ts:26`), and the `ioredis` client
+  (`redis.module.ts:13`). Consuming services receive the instance via
+  constructor injection and never call `new GoogleGenAI()` / `new Redis()`
+  directly.
+- Rationale: this is what lets tests override the provider (`ai.service.spec.ts:100`,
+  `provide: 'GENAI_CLIENT'`) instead of needing a module-level `jest.mock()` of
+  the third-party SDK.
+- Goal: any new external SDK client (a new third-party API, cache, or queue
+  client) is registered via `useFactory` behind a DI token, not instantiated
+  inline in a service constructor.
+
 ### Auth & Session
 
 **Single Refresh Authority**
@@ -540,13 +786,29 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:57-62`), which emits a
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:55-60`), which emits a
   `forceLogout` event and disconnects the previous socket when a new connection registers for
   the same user.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
   conflicting real-time state.
 - Goal: any new per-user real-time registration (not just the existing socket path)
   must check for and evict a prior registration, not assume one connection per user.
+
+**Sanctioned Mutable Module State**
+- Breakdown: a concrete instance of Maintainability > Immutability. Two frontend
+  module-level bindings are deliberately mutable and reassigned at runtime:
+  `pendingRefresh` (`frontend/src/auth/session-guard.ts:78`, reassigned to coalesce
+  concurrent refresh calls into one in-flight request) and `socket`
+  (`frontend/src/socket/socket.ts`, reassigned by `reconnectSocket()` after a token
+  refresh). Both patterns are mirrored in `admin/src/auth/session-guard.ts`.
+- Rationale: `pendingRefresh` must be reassignable for the single-in-flight-refresh
+  coalescing that Single Refresh Authority depends on; `socket` must be reassignable
+  because a Socket.IO client instance can't have its auth handshake swapped in
+  place — reconnecting means constructing a new instance.
+- Goal: these two bindings are the only sanctioned exceptions to immutability at
+  module scope; a new mutable module-level binding requires the same kind of
+  concrete justification (a specific coordination problem an immutable alternative
+  can't solve), not just convenience.
 
 ### Privilege & Audit (Security)
 
@@ -562,12 +824,26 @@ one of these is violated, follow Principle Conflict Protocol.
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
-  (`user.service.ts:296,323,419`) — as a separate, queryable entity.
+  (`user.service.ts:293,323,419`) — as a separate, queryable entity.
 - Rationale: privileged actions need an attributable record independent of the
   application logs (which rotate/are unstructured); this already exists but isn't
   named as a requirement anywhere in this file.
 - Goal: any new privileged action (role change, force logout, deletion, ban, etc.)
   calls `AuditLogService.log()` — do not add a privileged mutation without an audit entry.
+
+**Fail-Closed Secrets, No Fallback Defaults**
+- Breakdown: a concrete instance of Safe Defaults / Secure by Default. In
+  `app.module.ts`'s Joi schema, every security-sensitive var (`DB_PASSWORD`,
+  `HASH_ROUNDS`, `REFRESH_TOKEN_SECRET`, `ACCESS_TOKEN_SECRET`, `GEMINI_API_KEY`,
+  `CORS_ORIGIN`) is `.required()` with no fallback value; only non-security
+  tuning knobs (`MAX_ADMIN_COUNT`, `MODERATION_*`, `AUTH_RATE_LIMIT_*`, `SMTP_*`,
+  `SENTRY_DSN`) are `.optional()`.
+- Rationale: "safe default" here specifically means no default at all for
+  anything security-relevant — the app fails to boot rather than silently
+  running with a weak or empty secret.
+- Goal: any new env var touching auth, secrets, or access control is
+  `.required()` with no fallback constant; only genuinely optional tuning
+  values get `.optional()`.
 
 ### Chat & Caching
 
@@ -618,6 +894,33 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: any new per-room (or per-resource) background operation that must not run
   concurrently for the same key follows this same acquire-with-NX/TTL,
   release-in-finally pattern — do not introduce an unguarded concurrent write path.
+
+**Config-Driven Extension over Branching**
+- Breakdown: a concrete instance of SOLID > OCP. `AiService` selects personality
+  behavior via `SYSTEM_PROMPTS: Record<AiPersonality, string>`
+  (`backend/src/ai/constants/system-prompts.ts:9`) — `AiService.handleReply()`
+  (`ai.service.ts:139`, `SYSTEM_PROMPTS[personality]`) looks up the prompt by key
+  and never branches on which personality it is.
+- Rationale: keeping "which case" as data (a map) rather than control flow
+  (if/switch) means adding a new personality never touches tested generation
+  logic, only adds a map entry.
+- Goal: any new personality, or similarly-shaped "one of several known variants"
+  extension point, follows this map pattern — do not add a branch to existing
+  logic to special-case a new value.
+
+**Non-Deterministic External Call, Bounded by a Fixed Fallback**
+- Breakdown: a concrete instance of Design by Contract / Deterministic Behavior (not
+  adopted for this path). `AiService.handleReply()`'s Gemini call (`ai.service.ts:144-151`)
+  sets `maxOutputTokens` but no `temperature`/`topP` override, so replies are
+  non-deterministic by construction; `generateWithRetry()` (`:206`) retries on 429/5xx
+  but a retried call can return different text than the failed attempt.
+- Rationale: formal pre/post-condition contracts don't fit an inherently
+  non-deterministic external call. The only guarantee actually honored is the
+  fallback: on exhausted retries, a fixed string (`AI_REPLY_FAILURE_MESSAGE`, `:27-28`)
+  is returned instead of propagating the error or retrying indefinitely.
+- Goal: any new AI-generated content path should not assume repeatable output between
+  calls (e.g. don't write a test asserting exact AI reply text) — the only deterministic
+  contract to rely on is the fixed fallback string on exhausted retries.
 
 ### Incident Response
 
@@ -695,10 +998,10 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
 ### CORS
-- `CORS_ORIGIN` (`backend/src/app.module.ts:37`, `Joi.string().pattern(/\S/).required()` — the
+- `CORS_ORIGIN` (`backend/src/app.module.ts:38`, `Joi.string().pattern(/\S/).required()` — the
   pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
   empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
-  into an array in `backend/src/main.ts:60` before being passed to `app.enableCors({ origin })`
+  into an array in `backend/src/main.ts:58` before being passed to `app.enableCors({ origin })`
 - Two known consumers must both be listed: the main `frontend/` (default `:5173`) and the
   separate `admin/` dashboard (default `:5174`, deployed to its own Vercel project) — see
   `backend/.env.example:36` for the local-dev example value

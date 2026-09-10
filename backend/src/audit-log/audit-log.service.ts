@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-// FindOptionsWhere: needed to type the OR-array where clause used by the userId filter.
+// FindOptionsWhere: userId 필터가 사용하는 OR 배열 형태의 where 절 타입 지정에 필요.
 import {
   And,
   FindOptionsWhere,
@@ -20,8 +20,8 @@ export interface PaginatedAuditLog {
   take: number;
 }
 
-// Flat safety cap for CSV export — audit logs are low-volume (privileged actions only),
-// so this bound is simpler than cursor-based streaming and is expected to rarely trigger.
+// CSV 내보내기용 고정 안전 상한 — 감사 로그는 저용량(권한 작업만 해당)이라
+// 커서 기반 스트리밍보다 이 방식이 단순하며, 실제로 걸릴 일은 거의 없음.
 const AUDIT_LOG_EXPORT_MAX_ROWS = 10_000;
 
 type AuditLogFilter = Pick<
@@ -53,21 +53,20 @@ export class AuditLogService {
     );
   }
 
-  // How many times this action was already recorded against a target — used by
-  // ModerationService to decide a repeat ban should be permanent rather than timed.
+  // 이 액션이 대상에 대해 이미 몇 번 기록됐는지 — ModerationService가 재차 밴 시
+  // 영구 처분할지 판단하는 데 사용.
   async countByTarget(targetId: number, action: string): Promise<number> {
     return this.auditLogRepository.count({ where: { targetId, action } });
   }
 
-  // Shared filter-building logic for findAll (paginated list) and exportCsv (flat CSV) —
-  // same action/date-range/userId semantics for both, so the two views never diverge.
+  // findAll(페이지네이션 목록)과 exportCsv(플랫 CSV)가 공유하는 필터 생성 로직 —
+  // action/날짜범위/userId 의미가 동일해 두 뷰가 어긋나지 않음.
   private buildWhere(
     query: AuditLogFilter,
   ): FindOptionsWhere<AuditLogEntity> | FindOptionsWhere<AuditLogEntity>[] {
     const actionFilter = query.action ? { action: query.action } : {};
 
-    // Date range: build a created filter using And/MoreThanOrEqual/LessThanOrEqual
-    // so both from and to can be applied to the same field simultaneously.
+    // And()로 같은 필드의 두 경계를 결합 — 따로 대입하면 뒤의 값이 앞의 값을 덮어씀.
     const dateFilter: FindOptionsWhere<AuditLogEntity> = {};
     if (query.from && query.to) {
       dateFilter.created = And(
@@ -80,9 +79,9 @@ export class AuditLogService {
       dateFilter.created = LessThanOrEqual(new Date(query.to));
     }
 
-    // userId filter: returns logs where the user was either the actor (performed the action)
-    // or the target (was acted upon). TypeORM WHERE array = OR; each element also carries
-    // the action filter so both branches respect the action dropdown simultaneously.
+    // userId 필터: 해당 사용자가 actor(행위자)이거나 target(대상)인 로그를 반환.
+    // TypeORM WHERE 배열은 OR 의미이며, 각 항목에 action 필터도 함께 포함해
+    // 두 분기 모두 action 드롭다운을 동시에 반영.
     if (query.userId !== undefined) {
       return [
         { actorId: query.userId, ...actionFilter, ...dateFilter },

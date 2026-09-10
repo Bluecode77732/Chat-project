@@ -1,4 +1,4 @@
-# Logs
+# 로그
 logs
 *.log
 npm-debug.log*
@@ -13,7 +13,7 @@ dist-ssr
 *.local
 *.tsbuildinfo
 
-# dotenv environment variable files
+# dotenv 환경 변수 파일
 .env
 .env.development.local
 .env.test.local
@@ -21,7 +21,7 @@ dist-ssr
 .env.production.local
 .env.local
 
-# Editor directories and files
+# 에디터 디렉터리/파일
 .vscode/*
 !.vscode/extensions.json
 .idea

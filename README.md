@@ -675,7 +675,7 @@ See [Deployment → Public - Railway](#public---railway) for the CI/CD flow that
 #### Local - docker-compose
 Running all of services through Docker
 
-- Requires `.env.local` at the project root (copy from `backend/.env.example` and adjust — `NODE_ENV=docker`)
+- Requires `.env.docker` at the project root (copy from `backend/.env.example` and adjust — `NODE_ENV=development`, `RUNTIME_ENV=docker`)
 
 - Start all of services
 `docker compose up -d --build`

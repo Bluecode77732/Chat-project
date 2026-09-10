@@ -1,11 +1,12 @@
-// Purpose: verifies CHANGELOG.md/.ko.md list every commit in `git log`, grouped
-//   under the right date heading -- the two drifted 70 commits apart before
-//   anyone noticed, because CHANGELOG.md was written once and never touched
-//   again while check:adr only ever verified its .ko pair and heading parity.
-// Usage: `pnpm check:changelog` (root script); wired into deploy.yml's test job.
-// Rationale: check-adr-integrity.mjs already lists CHANGELOG.md in `rootPairs`,
-//   but a stale EN file and an equally stale KO file pass its parity check
-//   happily -- nothing compared either against the actual commit history.
+// 목적: CHANGELOG.md/.ko.md가 `git log`의 모든 커밋을 올바른 날짜 헤딩 아래
+//   나열하는지 검증함 -- 이 둘은 아무도 눈치채기 전에 70개 커밋만큼 벌어졌는데,
+//   CHANGELOG.md가 한 번 작성된 뒤 다시 손대지 않은 반면 check:adr은 .ko 짝과
+//   헤딩 패리티만 검증했기 때문임.
+// 사용처: `pnpm check:changelog` (루트 스크립트); deploy.yml의 test job에
+//   연결됨.
+// 근거: check-adr-integrity.mjs가 이미 CHANGELOG.md를 `rootPairs`에 포함하지만,
+//   오래된 EN 파일과 그만큼 오래된 KO 파일은 그 패리티 체크를 무난히 통과함 --
+//   실제 커밋 이력과 대조하는 건 아무것도 없었음.
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -25,18 +26,18 @@ function git(...args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
 }
 
-// A shallow clone (actions/checkout's default fetch-depth: 1) would make this
-// script "pass" against a single commit, silently turning the gate into a
-// no-op. Hard-fail instead so a workflow regression is visible.
+// 얕은 클론(actions/checkout 기본값 fetch-depth: 1)이면 커밋 하나만 놓고
+// "통과"해 게이트가 조용히 무력화됨. 워크플로 회귀가 눈에 띄도록 그 대신 즉시
+// fail함.
 if (git('rev-parse', '--is-shallow-repository').trim() === 'true') {
   fail('git', 'shallow clone -- this check needs full history (set fetch-depth: 0 on actions/checkout)');
   console.error('\nAborted before comparing.');
   process.exit(1);
 }
 
-// Commit subjects can contain literal CR characters (three early commits do),
-// which would split one commit across several output lines. Delimit records
-// with NUL and strip CR rather than relying on one-commit-per-line.
+// 커밋 제목에 리터럴 CR 문자가 섞일 수 있음(초기 커밋 3개가 그러함), 그러면
+// 한 커밋이 여러 출력 줄로 쪼개짐. "한 줄 = 한 커밋" 가정 대신 NUL로 레코드를
+// 구분하고 CR을 제거함.
 const rawLog = git('log', '--format=%ad|%s%x00', '--date=short');
 const commits = rawLog
   .split('\0')
@@ -47,18 +48,18 @@ const commits = rawLog
     return { date: chunk.slice(0, idx), subject: chunk.slice(idx + 1).trim() };
   });
 
-// On `pull_request` runs, actions/checkout builds a synthetic merge commit
-// ("Merge <sha> into <sha>") that exists only for the CI run and can never be
-// in the changelog. Drop it outright.
+// `pull_request` 실행에서는 actions/checkout이 그 CI 실행에만 존재하는 합성 머지
+// 커밋("Merge <sha> into <sha>")을 만드는데, 이건 절대 체인지로그에 있을 수 없음.
+// 무조건 제외함.
 const SYNTHETIC_MERGE = /^Merge [0-9a-f]{40} into [0-9a-f]{40}$/;
 const realCommits = commits.filter((c) => !SYNTHETIC_MERGE.test(c.subject));
 
-// Real merge commits are tolerated when absent, not excluded: GitHub's PR
-// merges ("Merge pull request #N from ...") exist only on main, while this
-// changelog is maintained on dev -- a PR/push-to-main checkout sees them but a
-// dev checkout never does (surfaced by PR #12's CI failing on #11's merge
-// commit). Merge commits that *are* recorded (dev's own historical merges)
-// still match normally, so every existing entry stays verified.
+// 실제 머지 커밋은 없어도 되는 걸로 취급하지, 제외하는 게 아님: GitHub의 PR
+// 머지("Merge pull request #N from ...")는 main에만 존재하는 반면 이 체인지로그는
+// dev에서 관리됨 -- PR/push-to-main 체크아웃은 이걸 보지만 dev 체크아웃은 절대 안
+// 봄(PR #12가 #11의 머지 커밋 때문에 CI에서 실패한 걸로 드러남). 실제로 기록된
+// 머지 커밋(dev 자체의 과거 머지)은 여전히 정상 매칭되므로 기존 엔트리는 전부
+// 그대로 검증됨.
 const TOLERATED_MERGE = /^Merge (pull request #\d+ from |branch |remote-tracking branch )/;
 
 function parseChangelog(relPath) {
@@ -91,20 +92,19 @@ function checkFile(relPath) {
     }
   }
 
-  // Group git commits by date, preserving git's newest-first order.
+  // git 커밋을 날짜별로 묶되 git의 최신순 순서는 유지함.
   const gitByDate = new Map();
   for (const { date, subject } of realCommits) {
     if (!gitByDate.has(date)) gitByDate.set(date, []);
     gitByDate.get(date).push(subject);
   }
 
-  // The commit that updates the changelog cannot list its own subject, so the
-  // newest commit is allowed to be absent. Anything older than that is real
-  // drift: once one more commit lands on top, the tolerance no longer covers
-  // the unrecorded one and this check fails. Skip tolerated merges when
-  // picking it: on a PR/push-to-main checkout the newest commit is the merge
-  // commit itself, and the tolerance must still cover the newest work commit
-  // underneath it.
+  // 체인지로그를 갱신하는 커밋 자신은 자기 제목을 나열할 수 없으므로 가장 최신
+  // 커밋은 없어도 허용함. 그보다 오래된 건 전부 진짜 드리프트임: 커밋이 하나 더
+  // 쌓이면 이 허용 범위가 기록 안 된 커밋을 더 이상 덮지 못해 체크가 fail함.
+  // 최신 커밋을 고를 때는 허용 대상 머지 커밋을 건너뜀: PR/push-to-main
+  // 체크아웃에서는 최신 커밋이 머지 커밋 자체라서, 허용 범위가 그 바로 아래
+  // 실제 작업 커밋을 계속 커버해야 하기 때문.
   const newest = realCommits.find((c) => !TOLERATED_MERGE.test(c.subject));
   let toleratedNewest = false;
 

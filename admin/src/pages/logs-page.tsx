@@ -29,8 +29,8 @@ function LogsPage() {
     const [action, setAction] = useState('');
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState<'DESC' | 'ASC'>('DESC');
-    // userId filter: selects logs where the chosen user was actor OR target.
-    // Resolved from the nicknameById map so the dropdown shows names, not raw IDs.
+    // userId 필터: 선택한 사용자가 actor 또는 target인 로그를 선택.
+    // nicknameById 맵을 통해 해석해서 드롭다운에 원시 ID 대신 이름을 표시.
     const [userId, setUserId] = useState<number | undefined>(undefined);
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
@@ -60,7 +60,7 @@ function LogsPage() {
         setPage(1);
     };
 
-    // changeUser: resets to page 1 so the new filter starts from the beginning.
+    // changeUser: 새 필터가 처음부터 시작하도록 page를 1로 리셋.
     const changeUser = (value: string) => {
         setLoading(true);
         setUserId(value ? Number(value) : undefined);
@@ -90,8 +90,8 @@ function LogsPage() {
         setPage(newPage);
     };
 
-    // exportCsv: downloads the currently-applied filters as a CSV file (no pagination —
-    // capped server-side). Mirrors the on-screen filter state exactly.
+    // exportCsv: 현재 적용된 필터를 CSV 파일로 다운로드 (pagination 없음 —
+    // 서버 측에서 상한 적용). 화면상의 필터 상태를 그대로 반영.
     const exportCsv = async () => {
         setExportError('');
         try {
@@ -113,7 +113,7 @@ function LogsPage() {
     };
 
     const signOut = async () => {
-        try { await api.post('/auth/signOut'); } catch { /* best effort */ }
+        try { await api.post('/auth/signOut'); } catch { /* best effort — 실패해도 무시 */ }
         clearTokens();
         navigate('/');
     };
@@ -158,8 +158,8 @@ function LogsPage() {
                     </select>
 
                     <label className="text-sm text-gray-600">User</label>
-                    {/* User dropdown: shows all known users by nickname.
-                        Sends userId to backend which returns logs where actorId OR targetId matches. */}
+                    {/* User 드롭다운: 알려진 모든 사용자를 닉네임으로 표시.
+                        userId를 백엔드로 보내면 actorId 또는 targetId가 일치하는 로그를 반환. */}
                     <select
                         value={userId ?? ''}
                         onChange={(e) => changeUser(e.target.value)}

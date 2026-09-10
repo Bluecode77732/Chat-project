@@ -19,7 +19,7 @@ export class CreateChatDto {
   @IsNumber()
   recipientId?: number;
 
-  // An admin can join in many rooms, while a user join individually.
+  // admin은 여러 room에 join 가능; 일반 user는 한 번에 하나만.
   @ApiProperty({
     description: 'A room where user can join in',
     example: 'Join in a room',

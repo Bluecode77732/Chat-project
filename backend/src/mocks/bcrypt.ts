@@ -1,4 +1,4 @@
-//* Mocking the 'bcrypt' modules to test
+// bcrypt 모듈을 테스트용으로 모킹함
 
 const bcrypt = {
   hash: jest.fn(),

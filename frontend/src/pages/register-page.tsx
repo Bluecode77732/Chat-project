@@ -11,7 +11,7 @@ interface RegisterForm {
 };
 
 function RegisterPage() {
-    // The `useForm`, a react-hook-form, tracks, validates, and submits the input value.
+    // `useForm`(react-hook-form)이 입력값을 추적, 검증, 제출함.
     const { register, handleSubmit, getValues, formState: { errors } } = useForm<RegisterForm>();
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -19,19 +19,17 @@ function RegisterPage() {
 
     const onSubmit = async (data: RegisterForm) => {
         try {
-            // The `btoa` encodes email and password as Base64 based format, same as `register()` and `singIn()` in backend authentication.
+            // 백엔드 register()가 기대하는 Basic-auth 디코딩 형식과 일치해야 함.
             const credential = btoa(`${data.email}:${data.password}`);
 
-            // Nickname (if any) goes in the body — email/password stay in the Basic auth header.
+            // 닉네임(있다면)은 body에 — email/password는 Basic auth 헤더에 유지.
             await api.post('/auth/Register', { nickname: data.nickname || undefined }, {
-                // Authenticate by headers
+                // 헤더로 인증
                 headers: { Authorization: `Basic ${credential}` },
             });
 
             setSuccess(true);
             setTimeout(() => navigate('/'), 1500);
-            // Move to the chat page
-            // navigate('/chat');
         } catch (err: unknown) {
             const message =
                 (err as { response?: { data?: { message?: string | string[] } } })
@@ -47,7 +45,7 @@ function RegisterPage() {
         <div className='flex items-center justify-center h-screen'>
             <div className='flex flex-col gap-4 w-80'>
                 <h1 className='text-2xl font-bold'>Sign In</h1>
-                {/* `register` collects the value */}
+                {/* `register`가 값을 수집 */}
                 <input {...register('email', {
                     required: 'Please Enter Your Email',
                     pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
@@ -56,9 +54,8 @@ function RegisterPage() {
                     data-testid='register-email-input'
                     className='border p-2 rounded'>
                 </input>
-                {/* Sign in failure error */}
+                {/* 로그인 실패 에러 */}
                 {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
-                {/* {error && <span className='text-red-500 text-sm'>{error}</span>} */}
                 <input {...register('password', {
                     required: "Please Enter Your Password",
                     minLength: { value: 8, message: "Password cannot be less than 8 words string" },
@@ -90,7 +87,7 @@ function RegisterPage() {
                 {errors.nickname && <span className='text-red-500 text-sm'>{errors.nickname.message}</span>}
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
                 {success && <span className='text-green-500 text-sm'>Registration Successful! Redirecting...</span>}
-                {/* `handleSubmit(onSubmit)` blocks when failed to validate */}
+                {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
                 <button onClick={handleSubmit(onSubmit)}
                     data-testid='register-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>

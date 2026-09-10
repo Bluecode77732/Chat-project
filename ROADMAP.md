@@ -1,6 +1,6 @@
 # Roadmap
 
-## Build Timeline (2026-01 ~ 2026-07)
+## Build Timeline (2026-01 ~ 2026-09)
 
 How this project actually got here — phases reconstructed from `git log`, not
 recollection. Dates are when each phase's defining commit landed; several phases overlap rather than
@@ -27,7 +27,9 @@ gantt
     Behavioral moderation system                  :done, 2026-07-11, 1d
     Documentation overhaul                        :done, 2026-07-15, 6d
     Security & observability hardening            :done, 2026-07-18, 2d
-    Doc-integrity CI enforcement                  :active, 2026-07-18, 3d
+    Doc-integrity CI enforcement                  :done, 2026-07-18, 3d
+    CLAUDE.md principle grounding                 :done, 2026-08-08, 10d
+    Korean-language docs/comments convention      :active, 2026-09-03, 4d
 ```
 
 1. **Foundation** (2026-01-02 ~ 2026-01-21) — first commit: "Built user, auth, chat entities,
@@ -112,6 +114,36 @@ gantt
     already stale within days of being written (`5759009` fixed 4 such citations in CLAUDE.md
     itself). Prose conventions don't survive a moving codebase — the accuracy claims had to become
     machine-checked or they would rot silently, which is worse than having no citation at all.
+
+12. **CLAUDE.md principle grounding** (2026-08-08 ~ 2026-08-17) — every entry in CLAUDE.md's
+    Engineering Principles section (SOLID, DIP/IoC, OCP, LSP, Unix Philosophy, Design by Contract,
+    Safe Defaults, Avoid Premature Optimization, Robustness Principle, Defensive Programming, and
+    others) was tied to a concrete, already-existing instance in this codebase or explicitly marked
+    "not adopted," resolving two Principle Conflict Protocol cases that had been left unresolved.
+    Also: `RUNTIME_ENV` split from `NODE_ENV` ([ADR 0022](ADR/0022-node-env-runtime-env-split.md)) —
+    `NODE_ENV` alone couldn't distinguish "inside docker-compose" from "bare `pnpm start:dev`" for
+    `envFilePath`/host-binding decisions.
+    *Why:* a principle listed without a grounded local example is exactly the kind of
+    unverifiable claim phase 11 was built to catch for code citations — restating "SOLID" or
+    "Design by Contract" by name isn't a project-specific convention until it points at what in
+    *this* codebase actually follows it, or explains why it doesn't.
+
+13. **Korean-language docs/comments convention** (2026-09-03 ~ 2026-09-06) — CLAUDE.md gained a
+    Writing Style section requiring code comments and commit messages in Korean, in the terse
+    nominalized `-함/임/음` register rather than polite `-습니다` prose or AI-toned filler. Applied
+    across the whole monorepo: every backend service/guard/DTO/entity, frontend and admin source,
+    unit-test specs, Playwright e2e suites, build/infra scripts (`scripts/*.mjs`, GitHub Actions,
+    Dockerfile, docker-compose), and `.env.example` files — translating genuine WHY comments and
+    removing pure WHAT-narration/filler (but not comments describing dead code or since-corrected
+    mistakes). All 28 `.ko.md` docs converted to the same terse register. `CHANGELOG.md`/`.ko.md`
+    backfilled with 26 commits `check:changelog` had caught as unrecorded. Comment-line churn from
+    this phase shifted several `file:line` citations in ADRs/CLAUDE.md/ARCHITECTURE.md that
+    `check:adr`'s symbol-matching couldn't catch automatically — found via full manual re-audit and
+    corrected.
+    *Why:* this is a solo project with a Korean-speaking maintainer and an already-Korean app UI;
+    code comments defaulting to English (much of it leftover tutorial-style boilerplate from early
+    development) didn't match either the UI language or the terse WHY-only bar the rest of CLAUDE.md
+    already enforced.
 
 ## Planned
 

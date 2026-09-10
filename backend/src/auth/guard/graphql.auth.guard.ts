@@ -19,9 +19,9 @@ export class GraphQLAuthGuard extends AuthGuard('jwt-auth-guard') {
     return ctx.req;
   }
 
-  // See JwtAuthGuard.handleRequest — GraphQLAuthGuard extends the same
-  // `AuthGuard('jwt-auth-guard')` mixin independently, so it needs its own override
-  // to log expired-token failures on the GraphQL path too.
+  // JwtAuthGuard.handleRequest 참고 — GraphQLAuthGuard도 동일한
+  // `AuthGuard('jwt-auth-guard')` 믹스인을 독립적으로 상속하므로, GraphQL 경로에서도
+  // 토큰 만료 실패를 로깅하려면 자체 오버라이드가 필요.
   handleRequest<TUser = any>(
     err: any,
     user: any,

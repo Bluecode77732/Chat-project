@@ -118,14 +118,14 @@ request.
 
 **`receiveMessage` runs over `graphql-ws`, not HTTP** — the only guard chain in this table that does.
 `GraphQLAuthGuard` reads `ctx.req.headers.authorization`, but a subscription has no HTTP request; the
-GraphQL `context()` function (`app.module.ts:106-126`) builds a synthetic `req.headers.authorization`
+GraphQL `context()` function (`app.module.ts:110-130`) builds a synthetic `req.headers.authorization`
 from `graphql-ws`'s `connectionParams`, captured during `onConnect` and threaded through as `extra`.
 This is the actual message-*delivery* guard — `sendMessage`'s guard chain (above) only gates the write
 side; every subscriber independently re-proves both authentication and room membership on subscribe,
 so a token revoked or a room left after subscribing isn't re-checked mid-stream (the check runs once,
 at `receiveMessage` call time, not per delivered message).
 
-**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:57-62`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md).
+**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:55-60`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md).
 
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.
@@ -192,7 +192,7 @@ filters. Non-`HttpException` errors default to `500`/`INTERNAL_SERVER_ERROR`, ex
 error's `extensions` — this is the concrete implementation behind CLAUDE.md's Never Do Group 3 "Stack
 trace in error response" rule.
 
-- **Sentry capture on `>= 500`** (`all-exceptions.filter.ts:56-58`): the same status check that
+- **Sentry capture on `>= 500`** (`all-exceptions.filter.ts:55-57`): the same status check that
   decides `logger.error` vs `logger.warn` also gates a `Sentry.captureException(exception, { extra: {
   stack, isGraphQL } })` call. Optional integration — `instrument.ts` (imported as the literal first
   line of `main.ts`, before `NestFactory`) only calls `Sentry.init()` when `SENTRY_DSN` is set;
@@ -360,7 +360,7 @@ Stacks section doesn't state.
 
   - **Cost:** every new message-delivery use case must go through the single existing
     `PubSubService.publish()` channel rather than adding a parallel path — this split itself took ~5
-    months to fully land (see [ROADMAP's Build Timeline](ROADMAP.md#build-timeline-2026-01--2026-07)).
+    months to fully land (see [ROADMAP's Build Timeline](ROADMAP.md#build-timeline-2026-01--2026-09)).
 
   - **Risk:** Redis Pub/Sub delivers at-most-once — a subscriber disconnected at publish time misses
     the message permanently. See [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md) for the

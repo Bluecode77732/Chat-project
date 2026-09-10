@@ -37,7 +37,7 @@ function RoomsPage() {
     const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
     const [actionMsg, setActionMsg] = useState('');
-    // selectedRoom: the row that was clicked to open the detail panel.
+    // selectedRoom: 상세 패널을 열기 위해 클릭된 행.
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const navigate = useNavigate();
     const clearTokens = useAuthStore((s) => s.clearTokens);
@@ -82,7 +82,7 @@ function RoomsPage() {
         try {
             await api.post('/auth/signOut');
         } catch {
-            // best effort
+            // best effort — 실패해도 무시
         } finally {
             clearTokens();
             navigate('/');
@@ -216,8 +216,8 @@ function RoomsPage() {
             </div>
         </div>
 
-            {/* Room detail panel — slides in from the right when a row is clicked.
-                Uses data from the getAllRooms response + nicknameById — no extra API call needed. */}
+            {/* Room 상세 패널 — 행을 클릭하면 오른쪽에서 슬라이드인됨.
+                getAllRooms + nicknameById로 이미 가져온 데이터를 재사용 — 추가 API 호출 없음. */}
             {selectedRoom && (
                 <div
                     className="fixed inset-0 z-40"

@@ -110,7 +110,7 @@ export class AuthController {
       try {
         await this.authService.signOut(rawToken);
       } catch (err) {
-        // Token expired or invalid — cookie still gets cleared
+        // 토큰 만료 또는 무효 — 쿠키는 그래도 삭제됨
         logger.debug(
           `signOut token error (expected if expired): ${(err as Error).message}`,
         );

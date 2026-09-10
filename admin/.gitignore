@@ -2,10 +2,10 @@ node_modules
 dist
 *.tsbuildinfo
 
-# playwright artifacts
+# playwright 산출물
 test-results/
 
-# dotenv environment variable files
+# dotenv 환경 변수 파일
 .env
 .env.development.local
 .env.test.local

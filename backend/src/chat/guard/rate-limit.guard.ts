@@ -42,8 +42,8 @@ export class RateLimitGuard implements CanActivate {
       }
 
       const key = `rate_limit:${userId}`;
-      // Lua script ensures INCR and EXPIRE execute atomically —
-      // prevents a permanent key if the server crashes between the two commands
+      // Lua 스크립트로 INCR과 EXPIRE를 원자적으로 실행 —
+      // 두 명령 사이에 서버가 크래시해도 영구 key가 남지 않도록 방지
       const luaScript = `
         local count = redis.call('INCR', KEYS[1])
         if count == 1 then
@@ -55,8 +55,8 @@ export class RateLimitGuard implements CanActivate {
 
       if (count > 10) {
         logger.warn(`[user=${userId}] Rate limit exceeded (count=${count})`);
-        // Feed the velocity violation into the moderation strike ladder. Self-guarded and
-        // idempotent per 15s window (NX marker), so it never blocks the rate-limit decision.
+        // velocity 위반을 moderation strike ladder에 반영. 15초 윈도우당 자체 가드 +
+        // 멱등(NX marker)이라 rate-limit 판정을 절대 막지 않음.
         await this.moderationService.recordVelocityViolation(userId);
         if (isWs) throw new WsException('Rate limit exceeded');
         throw new HttpException(
@@ -68,11 +68,11 @@ export class RateLimitGuard implements CanActivate {
       logger.debug(`${userId} left message count: '${10 - count}'`);
       return true;
     } catch (err) {
-      // Re-throw intentional guard exceptions so NestJS propagates the correct status
+      // 의도된 guard 예외는 그대로 재던져서 NestJS가 올바른 status를 전파하도록 함
       if (err instanceof WsException || err instanceof HttpException) {
         throw err;
       }
-      // Unexpected errors (e.g. Redis down) → fail-closed
+      // 예상치 못한 에러(예: Redis 다운) → fail-closed
       const errMessage = err instanceof Error ? err.message : String(err);
       const errStack = err instanceof Error ? (err.stack ?? '') : '';
       logger.error(

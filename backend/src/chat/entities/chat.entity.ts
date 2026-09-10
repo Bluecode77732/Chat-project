@@ -17,7 +17,7 @@ export class ChatEntity extends EntityBase {
   })
   participant?: UserEntity | null;
 
-  // Rooms in a chat
+  // 이 채팅이 속한 방
   @ManyToOne(() => RoomEntity, (room) => room.chats, {
     nullable: true,
     onDelete: 'CASCADE',

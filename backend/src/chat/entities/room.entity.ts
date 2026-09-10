@@ -14,12 +14,12 @@ export class RoomEntity extends EntityBase {
   @PrimaryGeneratedColumn()
   id?: number;
 
-  // Participants in many rooms
+  // 이 방의 참여자들
   @ManyToMany(() => UserEntity, (user) => user.rooms)
   @JoinTable()
   participants?: UserEntity[];
 
-  // Chats in the rooms
+  // 이 방에 속한 채팅들
   @OneToMany(() => ChatEntity, (room) => room.room)
   chats?: ChatEntity[];
 }

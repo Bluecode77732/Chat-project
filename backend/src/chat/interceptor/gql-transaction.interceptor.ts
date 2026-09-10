@@ -1,9 +1,9 @@
-// Purpose: opens/commits/rolls back/releases a QueryRunner around a GraphQL mutation,
-// mirroring the connect->commit/rollback->release lifecycle for the GraphQL execution path.
-// Usage: applied via @UseInterceptors(GqlTransactionInterceptor); pairs with
-// GqlQueryRunnerDecorator, which reads the QueryRunner this interceptor attaches to context.req.
-// Rationale: GqlExecutionContext.create() is required instead of ctx.switchToHttp() because
-// GraphQL requests don't expose the transaction-bearing request object through the HTTP context.
+// 목적: GraphQL 뮤테이션을 감싸 QueryRunner를 열고 커밋/롤백/해제함 —
+// GraphQL 실행 경로에서 connect->commit/rollback->release 생명주기를 그대로 따라감.
+// 사용처: @UseInterceptors(GqlTransactionInterceptor)로 적용; 이 인터셉터가
+// context.req에 붙인 QueryRunner를 읽는 GqlQueryRunnerDecorator와 짝을 이룸.
+// 근거: GraphQL 요청은 HTTP 컨텍스트로 트랜잭션이 실린 요청 객체를 노출하지 않으므로
+// ctx.switchToHttp() 대신 GqlExecutionContext.create()가 필요함.
 
 import {
   CallHandler,

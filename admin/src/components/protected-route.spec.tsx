@@ -57,8 +57,8 @@ describe('ProtectedRoute', () => {
     });
 
     it('refreshes the token on mount when none is stored, then renders for an admin.', async () => {
-        // refreshAccessTokenSafely's real implementation sets the store as a side effect;
-        // the mock must replicate that since ProtectedRoute no longer touches the store itself.
+        // refreshAccessTokenSafely의 실제 구현은 store를 side effect로 설정함;
+        // ProtectedRoute가 더 이상 store를 직접 건드리지 않으므로 mock도 이를 재현해야 함.
         (refreshAccessTokenSafely as ReturnType<typeof vi.fn>).mockImplementation(async () => {
             useAuthStore.getState().setTokens('new-token', 5, 1);
             return 'new-token';

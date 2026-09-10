@@ -22,7 +22,7 @@ type JwtPayload = Payload & { iat: number; exp: number };
 @Injectable()
 export class AuthService {
   constructor(
-    // Inject the TypeORM repository for User Entity to use in DB.
+    // DB에서 사용할 User Entity의 TypeORM 리포지토리를 주입.
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly configService: ConfigService,
@@ -37,32 +37,30 @@ export class AuthService {
       throw new BadRequestException('Bad Token Format.');
     }
 
-    // 1. Splits token by basic and token. Regex(/\s+/) inserted for clearer space.
-    // ['Basic', token]
     const basicToken = rawToken.split(' ');
 
-    // 2. If the token length `[Basic token]` isn't 2, throw `BadRequestException` since it's wrong approach for parsing token.
+    // 2. 분리된 토큰 길이가 `[Basic token]` 형태인 2가 아니면 파싱 방식이 잘못된 것이므로 `BadRequestException`을 던짐.
     if (basicToken.length !== 2) {
       logger.warn('Bad Token Format: invalid token segment count');
       throw new BadRequestException('Bad Token Format.');
     }
 
-    // 3. Extracts and sort out by basic and token from the splitted rawToken once again.
+    // 3. 분리된 rawToken에서 basic과 token을 다시 한번 추출해 정리.
     const [basic, token] = basicToken;
 
-    // 4. Verifies the token.
+    // 4. 토큰을 검증.
     if (basic.toLowerCase() !== 'basic') {
       logger.warn('Bad Token Format: missing Basic prefix');
       throw new BadRequestException('Bad Token Format.');
     }
 
-    // 5. Decodes extracted raw token from HTTP headers, then convert into readable code.
+    // 5. HTTP 헤더에서 추출한 raw token을 디코딩해 읽을 수 있는 값으로 변환.
     const decoded = Buffer.from(token, 'base64').toString('utf-8');
 
-    // 6. Split the decoded token by email and password.
+    // 6. 디코딩된 토큰을 email과 password로 분리.
     const tokenSplit = decoded.split(':');
 
-    // 7. Verifies if the token includes basic.
+    // 7. 토큰에 basic이 포함되어 있는지 검증.
     if (!(tokenSplit.length == 2)) {
       logger.warn(
         'Bad Token Format: decoded token missing email:password structure',
@@ -70,12 +68,12 @@ export class AuthService {
       throw new BadRequestException('Bad Token Format.');
     }
 
-    // 8. Extract email and password for returning to client.
+    // 8. 클라이언트에 반환할 email과 password를 추출.
     const [email, password] = tokenSplit;
 
     logger.debug(`User '${email}' parsed a basic token`);
 
-    // 9. Return result.
+    // 9. 결과를 반환.
     return {
       email,
       password,
@@ -83,17 +81,17 @@ export class AuthService {
   }
 
   async register(rawToken: string, nickname?: string) {
-    // Extracts email and password from basic token
+    // basic token에서 email과 password를 추출
     const { email, password } = this.parseBasicToken(rawToken);
 
-    // Finds user by email
+    // email로 사용자를 조회
     const user = await this.userRepository.findOne({
       where: {
         email,
       },
     });
 
-    // Verifies if user exist or not
+    // 사용자가 이미 존재하는지 확인
     if (user) {
       logger.warn(`Registration attempt for already-existing email: ${email}`);
       throw new BadRequestException('User Already Exist.');
@@ -108,13 +106,13 @@ export class AuthService {
       }
     }
 
-    // Hashing the password by bcrypt in secret hashing rounds
+    // bcrypt로 지정된 해싱 라운드만큼 비밀번호를 해싱
     const hash = await bcrypt.hash(
       password,
       this.configService.getOrThrow<number>('HASH_ROUNDS'),
     );
 
-    // Stores user email and hashed password by TypeORM method
+    // TypeORM으로 사용자 email과 해싱된 password를 저장
     await this.userRepository.save({
       email,
       password: hash,
@@ -124,7 +122,7 @@ export class AuthService {
 
     logger.info(`User '${email}' is registered`);
 
-    // Finds user's email returning to client by TypeORM method
+    // TypeORM으로 클라이언트에 반환할 사용자 email을 조회
     return await this.userRepository.findOne({
       where: {
         email,
@@ -164,7 +162,7 @@ export class AuthService {
     user: { id: number | undefined; role: UserRole | undefined },
     isRefreshToken: boolean,
   ) {
-    // Bring refreshToken and accessToken to issue token for creating user accessing validation.
+    // 사용자 접근 검증용 토큰 발급을 위해 refreshToken과 accessToken을 가져옴.
     const refreshToken = this.configService.getOrThrow<string>(
       'REFRESH_TOKEN_SECRET',
     );
@@ -177,9 +175,9 @@ export class AuthService {
         : 'ACCESS_TOKEN_SECRET_EXPIRES_IN',
     );
 
-    // A freshly issued refresh token becomes the only valid one for this user —
-    // recording its id here lets a later login (e.g. from another browser)
-    // supersede this one; `parseBearerToken` checks against it on refresh.
+    // 새로 발급된 refresh token이 이 사용자의 유일한 유효 토큰이 됨 — 여기서 id를
+    // 기록해두면 이후 로그인(예: 다른 브라우저)이 이전 토큰을 대체할 수 있고,
+    // `parseBearerToken`이 갱신 시 이 값을 검사.
     const jti = isRefreshToken ? randomUUID() : undefined;
     if (jti) {
       await this.redis.set(`auth:session:${user.id}`, jti, 'EX', expiresIn);
@@ -187,7 +185,7 @@ export class AuthService {
 
     logger.debug(`User '${user.id}' issued refresh and access tokens`);
 
-    // Since Nodejs single thread feature cannot process another request synchronously as the event loop gets blocked, creating JWT token asynchronously enhances the throughput getting other requests.
+    // Node.js는 싱글 스레드라 동기 처리 시 이벤트 루프가 블로킹되므로, JWT 토큰을 비동기로 생성해 다른 요청 처리량을 높임.
     return await this.jwtService.signAsync(
       {
         sub: user.id,
@@ -195,7 +193,8 @@ export class AuthService {
         role: user.role,
         ...(jti ? { jti } : {}),
       },
-      // `JwtSignOptions` Can also be set in `auth.module.ts` file, since it requires separated tokens, the options should be set manually.
+      // refresh와 access 토큰은 서로 다른 secret으로 서명하므로, auth.module.ts의
+      // JwtModule에 설정하지 않고 호출마다 전달.
       {
         secret: isRefreshToken ? refreshToken : accessToken,
         expiresIn,
@@ -207,7 +206,7 @@ export class AuthService {
     rawToken: string,
     isRefreshToken: boolean,
   ): Promise<JwtPayload> {
-    // This try/catch throws an unified error as JWT throws various error types
+    // jsonwebtoken의 다양한 에러 타입을 하나의 UnauthorizedException으로 통일
     let payload: JwtPayload;
     try {
       const bearerToken = rawToken.split(' ');
@@ -243,8 +242,8 @@ export class AuthService {
       throw new UnauthorizedException('Token Expired');
     }
 
-    // Kept outside the try/catch above so distinct messages reach the client
-    // instead of being flattened into the generic 'Token Expired'.
+    // 위 try/catch 밖에 둬서, 공통 'Token Expired'로 뭉뚱그려지지 않고
+    // 서로 다른 메시지가 클라이언트에 전달되도록 함.
     if (!isRefreshToken) {
       const token = rawToken.split(' ')[1];
       const isBlacklisted = await this.redis.get(`blacklist:${token}`);
@@ -267,10 +266,10 @@ export class AuthService {
   }
 
   async signIn(rawToken: string) {
-    // Extracts email and password
+    // email과 password를 추출
     const { email, password } = this.parseBasicToken(rawToken);
 
-    // Authenticates email and password
+    // email과 password를 인증
     const user = await this.validateUser(email, password);
 
     logger.info(`User '${email}' signed in. Say Hi.`);
@@ -295,8 +294,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User Not Found.');
     }
-    // Auth-level ban gate: a banned user must not be able to mint a fresh access token,
-    // otherwise the client's silent-refresh retry would loop against jwt.strategy's ban check.
+    // 인증 단계의 밴 차단: 밴된 사용자가 새 access token을 발급받을 수 있으면 안 됨 —
+    // 그렇지 않으면 클라이언트의 silent-refresh 재시도가 jwt.strategy의 밴 체크에 걸려 루프에 빠짐.
     if (isEffectivelyBanned(user)) {
       logger.warn(`[user=${user.id}] Banned user attempted token refresh`);
       throw new UnauthorizedException('Account Suspended');
@@ -310,14 +309,14 @@ export class AuthService {
   }
 
   async signOut(rawToken: string) {
-    // Get the bearer token
+    // bearer token을 가져옴
     const payload = await this.parseBearerToken(rawToken, false);
 
-    // Time-To-Live for the bearer token
+    // bearer token의 TTL(Time-To-Live)
     const ttl = payload.exp - Math.floor(Date.now() / 1000);
 
     if (ttl > 0) {
-      // Blacklist implementation
+      // 블랙리스트 처리
       await this.redis.set(
         `blacklist:${rawToken.split(' ')[1]}`,
         '1',

@@ -8,32 +8,32 @@ import { logger } from 'src/base/logger/logger';
 export class RBACguard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
-  // It activates when request is allowed
+  // 요청이 허용될 때 활성화됨
   canActivate(context: ExecutionContext): boolean {
-    // Get Role metadata from route handler using reflector
-    // Returns a reference to the handler (method) that will be invoked next in the request pipeline.
+    // reflector로 라우트 핸들러에서 Role 메타데이터를 가져옴
+    // 요청 파이프라인에서 다음에 실행될 핸들러(메서드)에 대한 참조를 반환.
     const role = this.reflector.get<UserRole>(RBAC, context.getHandler());
 
-    // Check if the retrieved role has validated enum values as UserRole
+    // 가져온 role이 UserRole enum에 유효한 값인지 확인
     if (!Object.values(UserRole).includes(role)) {
       return true;
     }
 
-    // Switch context to HTTP and extract the request.
+    // 컨텍스트를 HTTP로 전환해 요청을 추출.
     const request = context.switchToHttp().getRequest<{
       user?: { sub?: number; id?: number; role?: UserRole };
     }>();
 
-    // Get the authenticated user from the request in auth router.
+    // auth 라우터에서 요청으로부터 인증된 사용자를 가져옴.
     const user = request.user;
 
-    // If an user does not exist in request, deny access.
+    // 요청에 사용자가 없으면 접근을 거부.
     if (!user) {
       logger.warn(`RBAC denied: no authenticated user (required role=${role})`);
       return false;
     }
 
-    // Higher number = more privilege (user=0, admin=1, superadmin=2)
+    // 숫자가 클수록 높은 권한 (user=0, admin=1, superadmin=2)
     const accessLevel = {
       [UserRole.user]: 0,
       [UserRole.admin]: 1,
@@ -47,7 +47,7 @@ export class RBACguard implements CanActivate {
         `[user=${user.sub ?? user.id ?? 'unknown'}] RBAC denied: role=${user.role} < required=${role}`,
       );
     }
-    // Admin can access user-level endpoints; exact match is not required
+    // admin은 user 레벨 엔드포인트에 접근 가능; 정확히 일치할 필요는 없음
     return allowed;
   }
 }

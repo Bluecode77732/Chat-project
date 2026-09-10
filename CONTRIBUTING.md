@@ -36,7 +36,7 @@ cp admin/.env.example admin/.env.local
 **Full stack via Docker** (recommended for backend work — matches production's migrate-then-start
 sequence):
 ```bash
-docker compose up -d --build   # requires .env.local at the project root
+docker compose up -d --build   # requires .env.docker at the project root
 docker compose down -v         # tear down
 ```
 
@@ -63,6 +63,9 @@ Recent history uses a `Prefix: description` style — a capitalized word, colon,
 description. Going forward, use one of:
 
 `Fix:` `Feat:` `Add:` `Docs:` `Refactor:` `Test:` `Chore:` `Harden:` `Remove:` `Style:` `Logging:` `CI:`
+
+The description itself is written in Korean, matching this project's code-comment convention (see
+CLAUDE.md's Writing Style) — only the prefix stays English.
 
 Note: this convention has **not** been applied consistently across the project's full history (casing
 and prefix vocabulary vary a lot in older commits) — `CHANGELOG.md` reflects that history literally

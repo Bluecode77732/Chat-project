@@ -1,4 +1,4 @@
-// Winston npm log levels (lower number = higher priority)
+// Winston npm 로그 레벨(숫자가 낮을수록 우선순위가 높음)
 /**
  * error   (0)
  * warn    (1)
@@ -8,8 +8,8 @@
  * debug   (5)
  * silly   (6)
  *
- * LOG_LEVEL env var overrides the default.
- * Default: 'debug' in development, 'info' in production.
+ * LOG_LEVEL 환경 변수가 기본값을 덮어씀.
+ * 기본값: 개발 환경에서는 'debug', 운영 환경에서는 'info'.
  */
 
 import * as winston from 'winston';
@@ -19,10 +19,9 @@ const level =
   process.env.LOG_LEVEL ??
   (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
-// Railway injects RAILWAY_VOLUME_MOUNT_PATH at container start once a volume
-// is attached to this service (see railway.toml). Falls back to the local
-// ./logs dir when unset (local dev, CI, or no volume attached) so behavior
-// off Railway is unchanged.
+// Railway는 이 서비스에 볼륨이 연결되면 컨테이너 시작 시 RAILWAY_VOLUME_MOUNT_PATH를
+// 주입(railway.toml 참고). 미설정 시(로컬 개발, CI, 볼륨 미연결) 로컬 ./logs 디렉터리로
+// 폴백 — Railway 밖에서는 동작이 그대로 유지됨.
 const logDir = process.env.RAILWAY_VOLUME_MOUNT_PATH
   ? join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'logs')
   : join(process.cwd(), 'logs');

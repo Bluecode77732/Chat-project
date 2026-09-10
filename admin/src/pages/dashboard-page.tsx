@@ -1,6 +1,6 @@
-// Purpose: landing page after login — shows at-a-glance stats (user count, room count, recent logs).
-// Usage: rendered at /dashboard; linked from App.tsx and all page nav bars.
-// Rationale: admins previously landed on /users with no overview; a dashboard reduces navigation burden.
+// 목적: 로그인 후 랜딩 페이지 — 한눈에 보는 통계(사용자 수, 방 수, 최근 로그) 표시.
+// 사용처: /dashboard에서 렌더링; App.tsx와 모든 페이지 nav bar에서 링크됨.
+// 근거: 기존에는 admin이 개요 없이 바로 /users로 진입했음; 대시보드가 탐색 부담을 줄임.
 
 import { useEffect, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
@@ -31,14 +31,14 @@ function DashboardPage() {
     );
     const roomTotal = roomData?.getAllRooms.total ?? null;
 
-    // onlineUsers: IDs of currently connected users; count shown as stat card.
+    // onlineUsers: 현재 연결된 사용자 ID들; 개수를 stat card로 표시.
     const { data: onlineData } = useQuery<{ getOnlineUser: number[] }>(GET_ONLINE_USER, {
         pollInterval: 15000,
     });
     const onlineCount = onlineData?.getOnlineUser.length ?? null;
 
-    // nicknameById: used to resolve actorId in the recent logs table.
-    // Falls back to "User {id}" when the user has no nickname set.
+    // nicknameById: 최근 로그 테이블에서 actorId를 해석하는 데 사용.
+    // 닉네임이 없는 사용자는 "User {id}"로 대체 표시.
     const { data: nicknamesData } = useQuery<{ getUserNicknames: Array<{ id: string; nickname: string | null }> }>(
         GET_USER_NICKNAMES,
         { pollInterval: 60000 },
@@ -61,7 +61,7 @@ function DashboardPage() {
     }, []);
 
     const signOut = async () => {
-        try { await api.post('/auth/signOut'); } catch { /* best effort */ }
+        try { await api.post('/auth/signOut'); } catch { /* best effort — 실패해도 무시 */ }
         clearTokens();
         navigate('/');
     };

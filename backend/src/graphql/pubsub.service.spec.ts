@@ -106,9 +106,8 @@ describe('PubSubService', () => {
   });
 
   it('cached payload without a created field round-trips to an Invalid Date via SessionCacheService', async () => {
-    // Documents the exact defect: AiService previously published a plainToClass'd
-    // entity whose @Exclude()-decorated `created` field was stripped before reaching
-    // this cache write.
+    // AiService가 plainToClass된 엔티티를 publish하던 시절 실제로 겪은 결함을 재현함:
+    // @Exclude() 데코레이터가 붙은 created 필드가 이 캐시 write에 닿기 전에 제거됐었음
     const payloadMissingCreated = {
       receiveMessage: { id: 7, message: 'no date' },
     };
