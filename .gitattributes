@@ -1,15 +1,16 @@
-# Purpose: normalize all text files to LF in the repository so Windows/mac/Linux
-#          checkouts don't produce CRLF/LF diff churn or ship CRLF into the Linux container.
-# Usage: applied automatically by Git on add/checkout for every contributor.
-# Rationale: core.autocrlf is a per-machine git setting that can't be shared via the repo;
-#            a committed .gitattributes is the correct cross-OS mechanism.
+# 목적: 저장소의 모든 텍스트 파일을 LF로 정규화해서 Windows/mac/Linux
+#       체크아웃 간 CRLF/LF diff 잡음이 생기거나 CRLF가 Linux 컨테이너로
+#       들어가지 않게 함.
+# 사용처: 모든 기여자의 add/checkout 시점에 Git이 자동 적용.
+# 근거: core.autocrlf는 머신별 git 설정이라 저장소로 공유할 수 없음 —
+#       커밋된 .gitattributes가 크로스 OS를 위한 올바른 방법.
 
 * text=auto eol=lf
 
-# Scripts that run inside the Linux container must stay LF regardless of author OS.
+# 작성자 OS와 무관하게 Linux 컨테이너 안에서 실행되는 스크립트는 LF 유지.
 *.sh text eol=lf
 
-# Binary assets: never normalized.
+# 바이너리 자산: 정규화하지 않음.
 *.png  binary
 *.jpg  binary
 *.jpeg binary

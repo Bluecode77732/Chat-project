@@ -40,13 +40,13 @@ describe('migration FK cascade guard', () => {
 
   it.each(files)('%s keeps guarded FKs intact in up()', (file) => {
     const timestamp = Number(file.split('-')[0]);
-    if (Number.isNaN(timestamp)) return; // not a timestamped migration
+    if (Number.isNaN(timestamp)) return; // 타임스탬프가 없는 마이그레이션
 
     const source = readFileSync(join(migrationsDir, file), 'utf8');
 
     // up()만 스캔 — down()은 이전 ON DELETE 액션을 복원하는 게 정상 동작.
     const upStart = source.search(/async up\s*\(/);
-    if (upStart === -1) return; // not a migration file
+    if (upStart === -1) return; // 마이그레이션 파일이 아님
     const downStart = source.search(/async down\s*\(/);
     const upBody = source.slice(
       upStart,
@@ -55,7 +55,7 @@ describe('migration FK cascade guard', () => {
 
     const violations: string[] = [];
     for (const fk of GUARDED_FKS) {
-      if (timestamp < fk.since) continue; // predates the invariant — original state is fine
+      if (timestamp < fk.since) continue; // 불변조건 이전 — 원래 상태 그대로라 문제없음
       for (const line of upBody.split('\n')) {
         if (
           line.includes(`ADD CONSTRAINT "${fk.constraint}"`) &&

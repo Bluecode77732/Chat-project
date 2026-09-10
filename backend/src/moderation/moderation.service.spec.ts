@@ -161,7 +161,7 @@ describe('ModerationService', () => {
 
   describe('evaluateMessage escalation', () => {
     it('duplicate below flood threshold → no strike', async () => {
-      mockRedis.eval.mockResolvedValueOnce(2); // dup count < 3
+      mockRedis.eval.mockResolvedValueOnce(2); // dup count < 3 (flood 아님)
       await service.evaluateMessage(42, 'hi', callbacks());
       // dup 카운터 eval만 실행됨 — strike eval은 실행되지 않음
       expect(mockRedis.eval).toHaveBeenCalledTimes(1);
@@ -169,7 +169,7 @@ describe('ModerationService', () => {
 
     it('flood → strike reaching warn threshold posts a warning message', async () => {
       mockRedis.eval
-        .mockResolvedValueOnce(3) // dup >= 3 → flood
+        .mockResolvedValueOnce(3) // dup >= 3 → flood 판정
         .mockResolvedValueOnce(3); // strike == warnThreshold(경고 임계값)
       const ctx = callbacks();
       await service.evaluateMessage(42, 'spam', ctx);

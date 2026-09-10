@@ -1,4 +1,4 @@
-/* Injecting Tailwind into CSS */
+/* Tailwind를 CSS에 주입 */
 
 @import "tailwindcss";
 
@@ -10,7 +10,7 @@
     src: url('/fonts/cormorant-garamond-italic.woff2') format('woff2');
 }
 
-/* Hahmlet Light, subset to the Korean syllables actually used on the chat page (e.g. "유저 검색", "계정", "로그아웃", "채팅하세요!") — full Hangul coverage would be several MB. */
+/* Hahmlet Light — 채팅 페이지에서 실제로 쓰이는 한글 음절만 서브셋으로 추출함(예: "유저 검색", "계정", "로그아웃", "채팅하세요!") — 한글 전체를 포함하면 수 MB가 됨. */
 @font-face {
     font-family: 'Hahmlet';
     font-style: normal;
