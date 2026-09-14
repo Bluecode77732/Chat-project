@@ -10,6 +10,11 @@
 번역하지 않고 그대로 둠 — 번역하면 실제로 쓰이지 않은 말을 지어내는 셈이 되기 때문.
 
 
+## 2026-09-14
+
+- Feat: admin 패널에 동료 superadmin 강등 액션 추가, 계정 탈취 봉쇄 정책 문서화
+- Docs: CHANGELOG 동기화 (누락된 커밋 4건 반영)
+
 ## 2026-09-11
 
 - Docs: 남아있던 영어 주석 전수 한글화 (gitignore/gitattributes/tsconfig/CSS/spec)
