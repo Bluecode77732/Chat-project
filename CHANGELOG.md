@@ -9,8 +9,18 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-09-11
+
+- Docs: 남아있던 영어 주석 전수 한글화 (gitignore/gitattributes/tsconfig/CSS/spec)
+- Docs: CLAUDE.md에 AI Development Workflow 섹션 추가
+
+## 2026-09-07
+
+- Docs: frontend/README를 방치된 Vite 템플릿에서 최소 진입점형으로 교체
+
 ## 2026-09-06
 
+- Docs: ROADMAP에 Phase 12/13 추가, CHANGELOG 재동기화
 - Fix: ADR/CLAUDE.md/ARCHITECTURE.md의 오래된 줄 번호 인용 갱신 (2차)
 - Docs: CHANGELOG 동기화, 커밋 컨벤션에 한글 규칙 명시, 디버그 스크립트 제거
 - Docs: 나머지 코멘트 한글화 및 삭제됐던 필러 코멘트 복원
