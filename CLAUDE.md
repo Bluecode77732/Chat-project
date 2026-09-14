@@ -821,6 +821,29 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: any new role-mutation path (not just the existing one) must re-check these two
   population invariants — do not assume they only apply to the current update endpoint.
 
+**Compromised Superadmin Containment**
+- Breakdown: `updateRole` (`user.controller.ts:198-225`, `user.service.ts:240-315`) has no
+  actor-vs-target role comparison — unlike `ban`/`unban`/`forceLogout`/`remove`, which each
+  reject a target with an equal or higher role (`user.controller.ts:250,282,317,361`). This
+  means any superadmin can demote *another* superadmin, as long as doing so doesn't trip the
+  last-superadmin invariant above. The demotion takes effect on the target's very next
+  request, not after access-token expiry: `JwtStrategy.validate()` never trusts the JWT
+  payload's `role` claim — it re-resolves the current role from `user_cache`/DB on every
+  request (`jwt.strategy.ts:59-113`), and `updateRole` deletes that cache entry
+  (`user.service.ts:290`) before returning. Once demoted, the account's role is lower than
+  the acting superadmin's, so `forceLogout`/`ban`/`remove` become available for cleanup.
+  Operator-facing runbook: [README.md § Compromised Superadmin Containment](README.md#compromised-superadmin-containment).
+- Rationale: the only case this doesn't cover is exactly one superadmin remaining and that
+  one being compromised — the last-superadmin invariant blocks demoting it, and there is no
+  peer left to act. That single-point-of-failure is closed by an operational policy
+  (maintain at least two superadmin accounts at all times), not by code — see
+  Principle Conflict Protocol discussion of 2026-09-14: a break-glass code mechanism was
+  considered and rejected as unnecessary once this existing capability was traced, since the
+  policy alone removes the gap.
+- Goal: do not add an actor-vs-target role check to `updateRole` to "make it consistent" with
+  ban/forceLogout/remove — that would remove the only in-app path for recovering from a
+  compromised superadmin account without DB access or a full secret rotation.
+
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
