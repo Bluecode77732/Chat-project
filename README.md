@@ -1096,7 +1096,9 @@ Auto-deploy — full CI job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#befor
 **Setup (one-time)**
 1. Add `RAILWAY_TOKEN` in GitHub => Settings => Secrets => Actions
 2. Set `.env` variables in Railway Dashboard => Variables tab
-3. Add Redis plugin in Railway (replaces local Docker Redis)
+3. Add Redis plugin in Railway (replaces local Docker Redis) — its connection string ships with a
+   password by default, and with `ENV=prod` set, `app.module.ts`'s Joi schema now refuses to boot
+   if `REDIS_URL` ever ends up without one
 
 **Config Files**
 - 'railway.toml' builds with Dockerfile, runs `cd backend && pnpm migration:run && node dist/main` on deploy

@@ -386,7 +386,9 @@ Stacks section doesn't state.
     `redis.module.ts`, `chat.gateway.ts`, and `graphql/pubsub.service.ts` each independently parse
     `REDIS_URL` and detect `rediss:` for TLS — the connection-config logic
     (host/port/password/TLS extraction) is duplicated verbatim across all three files rather than
-    shared.
+    shared. One guarantee does live in a single place, though: `app.module.ts`'s Joi schema refuses
+    to boot when `ENV=prod` and `REDIS_URL` carries no password, so none of the three duplicated
+    parsers can end up constructing an unauthenticated production client.
 
   - **Cost:** every new cache/session key must follow the `{service}:{entity}:{id}` naming convention
     and carry an explicit TTL — a small but mandatory extra step at every call site that touches

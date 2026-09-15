@@ -384,7 +384,10 @@ flowchart LR
     subscriber connection, separate from the publisher connection, created inline in
     `graphql/pubsub.service.ts`"). `redis.module.ts`, `chat.gateway.ts`, `graphql/pubsub.service.ts`
     셋 다 각각 독립적으로 `REDIS_URL`을 파싱하고 `rediss:`를 감지해 TLS를 켬. 연결 설정
-    로직(host/port/password/TLS 추출)이 공유되지 않고 세 파일 모두에 그대로 중복되어 있음.
+    로직(host/port/password/TLS 추출)이 공유되지 않고 세 파일 모두에 그대로 중복되어 있음. 다만
+    한 곳에만 있는 보장은 있음: `app.module.ts`의 Joi 스키마가 `ENV=prod`에서 `REDIS_URL`에
+    비밀번호가 없으면 부팅 자체를 막아서, 이 세 곳의 중복 파서 중 어디도 무인증 프로덕션
+    클라이언트를 만들 수 없음.
 
   - **비용:** Redis를 건드리는 캐시/세션 키는 새로 만들 때마다 `{service}:{entity}:{id}` 네이밍
     컨벤션을 따르고 TTL을 명시해야 함. 작지만 모든 호출 지점에서 빠뜨리면 안 되는 추가
