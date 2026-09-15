@@ -17,9 +17,10 @@ Accepted
   `moderation:strike:{userId}`(`moderation.constants.ts`).
 - 모든 키는 쓰는 시점에 TTL을 걺. 무기한 캐시는 두지 않음. `user_cache:{userId}`
   (`USER_CACHE_TTL_SEC`, 기본 300초, `jwt.strategy.ts`에서 설정)는 여기에 더해 `updateRole`
-  (`user.service.ts:290`) 이후 명시적으로 무효화됨. 앞으로 사용자 역할을 바꾸는 경로를
-  새로 만들 때도 똑같이 `redis.del(\`user_cache:${userId}\`)`를 호출해야 함. 빠뜨리면
-  TTL이 만료될 때까지 권한 상승 창이 열려 있게 됨.
+  (`user.service.ts:290`)과 `remove`(`user.service.ts:403`) 이후 명시적으로 무효화됨. 앞으로
+  사용자 역할을 바꾸거나 박탈하는 경로를 새로 만들 때도 똑같이
+  `redis.del(\`user_cache:${userId}\`)`를 호출해야 함. 빠뜨리면 TTL이 만료될 때까지 권한 상승
+  창이 열려 있게 됨.
 - pub/sub은 발행자 연결과 분리된 전용 구독자 연결을 사용함. 이 연결은
   `graphql/pubsub.service.ts`에서 인라인으로 생성됨.
 - `@socket.io/redis-adapter`가 `ChatGateway`를 Redis에 연결해서(`chat.gateway.ts:64`), 서버

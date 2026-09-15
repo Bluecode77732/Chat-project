@@ -17,9 +17,10 @@ mechanism to keep Socket.IO room broadcasts consistent across instances.
   `moderation:strike:{userId}` (`moderation.constants.ts`).
 - Every key carries a TTL at write time — no indefinite cache. `user_cache:{userId}`
   (`USER_CACHE_TTL_SEC`, default 300s, set by `jwt.strategy.ts`) is additionally invalidated
-  explicitly after `updateRole` (`user.service.ts:290`) — any future path that mutates a user's role
-  must call `redis.del(\`user_cache:${userId}\`)` the same way, or it opens a privilege-escalation
-  window lasting up to the TTL.
+  explicitly after `updateRole` (`user.service.ts:290`) and after `remove` (`user.service.ts:403`) —
+  any future path that mutates or revokes a user's role must call
+  `redis.del(\`user_cache:${userId}\`)` the same way, or it opens a privilege-escalation window
+  lasting up to the TTL.
 - Pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created
   inline in `graphql/pubsub.service.ts`.
 - `@socket.io/redis-adapter` wires `ChatGateway` to Redis (`chat.gateway.ts:64`) so room

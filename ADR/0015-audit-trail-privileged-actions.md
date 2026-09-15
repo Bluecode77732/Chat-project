@@ -17,7 +17,7 @@ they're for debugging, not accountability.
 separate, queryable entity, independent of the application log stream:
 
 - `UserService`: `'ROLE_CHANGE'` (`user.service.ts:293-298`), `'FORCE_LOGOUT'`
-  (`user.service.ts:323`), `'USER_DELETE'` (`user.service.ts:419`) — `actorId` is the admin performing
+  (`user.service.ts:323`), `'USER_DELETE'` (`user.service.ts:420`) — `actorId` is the admin performing
   the action.
 - `ModerationService`: `'USER_MUTED'` (`moderation.service.ts:253-258`), `'USER_BANNED'`
   (`moderation.service.ts:287-292`), `'USER_UNBAN'` (`moderation.service.ts:189`) — `actorId` is

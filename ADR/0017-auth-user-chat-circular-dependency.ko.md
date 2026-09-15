@@ -12,7 +12,7 @@ Accepted
   `userService.findOne(payload.sub)`를 호출함(`jwt.strategy.ts:17,83`). `AuthService` 자신은
   `UserService`에 의존하지 않고, 직접 주입받은 리포지토리로 `UserEntity`를 읽음.
 - **`UserModule → ChatModule`**: `UserService`가 `forceLogout`(`user.service.ts:43,320`)과 `remove`의
-  캐스케이드 정리 경로(`user.service.ts:416`)에서 `chatService.disconnectSocket()`을 호출함.
+  캐스케이드 정리 경로(`user.service.ts:417`)에서 `chatService.disconnectSocket()`을 호출함.
 - **`ChatModule → AuthModule`**: `ChatGateway.handleConnection()`이 WebSocket 핸드셰이크 인증을
   위해 `authService.parseBearerToken()`을 호출함. 이 경로는 표준 HTTP Guard 파이프라인을
   타지 않음(`chat.gateway.ts:10,47,87`).
