@@ -25,6 +25,7 @@ import { GraphQLRBACGuard } from 'src/auth/guard/graphql-rbac.guard';
 import { RBAC } from 'src/auth/decorator/rbac.decorator';
 import { UserRole } from 'src/auth/role/role';
 import { RateLimitGuard } from './guard/rate-limit.guard';
+import { QueryRateLimitGuard } from './guard/query-rate-limit.guard';
 import { ModerationGuard } from 'src/moderation/moderation.guard';
 import { ModerationService } from 'src/moderation/moderation.service';
 import { PubSubService } from 'src/graphql/pubsub.service';
@@ -51,7 +52,7 @@ export class ChatResolver {
   @Query(() => PaginatedAdminRooms)
   @RBAC(UserRole.admin)
   // 순서가 중요: GraphQLAuthGuard가 req.user를 채우고, GraphQLRBACGuard가 이를 읽음.
-  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard, QueryRateLimitGuard)
   async getAllRooms(
     @Args('page', { type: () => Int, nullable: true, defaultValue: 1 })
     page: number,
@@ -78,7 +79,7 @@ export class ChatResolver {
   @Mutation(() => Boolean)
   @RBAC(UserRole.admin)
   // 순서가 중요: GraphQLAuthGuard가 req.user를 채우고, GraphQLRBACGuard가 이를 읽음.
-  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard)
+  @UseGuards(GraphQLAuthGuard, GraphQLRBACGuard, QueryRateLimitGuard)
   async deleteRoom(
     @Args('roomId', { type: () => Int }) roomId: number,
   ): Promise<boolean> {
@@ -102,7 +103,7 @@ export class ChatResolver {
   }
 
   @Query(() => AiPersonalityInfoType, { nullable: true })
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getAiPersonalityInfo(
     @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
@@ -115,7 +116,7 @@ export class ChatResolver {
   }
 
   @Mutation(() => Boolean)
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async setAiPersonality(
     @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,
@@ -131,33 +132,33 @@ export class ChatResolver {
   }
 
   @Query(() => [Int])
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getOnlineUser(): Promise<number[] | null> {
     return this.sessionCacheService.getOnlineUser();
   }
 
   @Query(() => [Int])
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getAllUsers(@Context() ctx: GqlContext): Promise<number[]> {
     const userId = ctx.req.user.id;
     return this.chatService.getAllUsers(userId);
   }
 
   @Query(() => [UserType])
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getUserNicknames(): Promise<UserType[]> {
     return this.chatService.getUserNicknames();
   }
 
   @Query(() => [RoomInfoType])
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getMyRooms(@Context() ctx: GqlContext): Promise<RoomInfoType[]> {
     const userId = ctx.req.user.id;
     return this.chatService.getMyRooms(userId);
   }
 
   @Query(() => Int, { nullable: true })
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getRoom(
     @Context() ctx: GqlContext,
     @Args('recipientId', { type: () => Int }) recipientId: number,
@@ -167,7 +168,7 @@ export class ChatResolver {
   }
 
   @Query(() => [MessageType])
-  @UseGuards(GraphQLAuthGuard)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   async getMessages(
     @Context() ctx: GqlContext,
     @Args('roomId', { type: () => Int }) roomId: number,

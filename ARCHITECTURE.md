@@ -110,7 +110,8 @@ request.
 | Surface | Chain | Where |
 |---|---|---|
 | REST (protected) | `JwtAuthGuard` → `RbacGuard` | `user.controller.ts` |
-| GraphQL, admin-gated | `GraphQLAuthGuard` → `GraphQLRBACGuard` | `chat.resolver.ts` (comment: "`GraphQLAuthGuard` populates `req.user`; `GraphQLRBACGuard` reads it") |
+| GraphQL, admin-gated | `GraphQLAuthGuard` → `GraphQLRBACGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` (comment: "`GraphQLAuthGuard` populates `req.user`; `GraphQLRBACGuard` reads it") — `getAllRooms`, `deleteRoom` |
+| GraphQL, other authenticated query/mutation | `GraphQLAuthGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` — `getMyRooms`, `getMessages`, `getOnlineUser`, `getRoom`, `getAllUsers`, `getUserNicknames`, `getAiPersonalityInfo`, `setAiPersonality`; unlike `RateLimitGuard` this fails **open** on a Redis error, since it isn't a security/abuse gate — see [ADR 0016](ADR/0016-redis-unavailability-policy.md) |
 | GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
 | Socket.IO `handleConnection` | JWT parse → `moderationService.isUserBanned()` check | `chat.gateway.ts` — same ban gate `jwt.strategy` applies over HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead |
 | GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:309-326` |

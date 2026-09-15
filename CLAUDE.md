@@ -1113,7 +1113,11 @@ docker compose up -d --build
 - `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms (no chat-message handling)
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
-- `RateLimitGuard` — Redis-backed 10 messages/15s per user
+- `RateLimitGuard` — Redis-backed 10 messages/15s per user, fails closed on a Redis error
+- `QueryRateLimitGuard` — Redis-backed 30 requests/15s per user, applied to the authenticated
+  GraphQL queries/mutations beyond `sendMessage`; unlike `RateLimitGuard` it fails **open** on a
+  Redis error and doesn't feed `ModerationService`'s strike ladder — see [ADR
+  0016](ADR/0016-redis-unavailability-policy.md)
 - `GqlTransactionInterceptor` wraps the `sendMessage` GraphQL mutation for ACID message saves (GraphQL-only — Socket.IO carries no chat-message traffic, so no REST/WS equivalent exists)
 
 **UserModule** (`backend/src/user/`)
