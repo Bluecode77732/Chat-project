@@ -3,6 +3,8 @@ import { EntityBase } from './base/entity/base.entity';
 import { UserEntity } from './user/entities/user.entity';
 import { ChatEntity } from './chat/entities/chat.entity';
 import { RoomEntity } from './chat/entities/room.entity';
+import { AuditLogEntity } from './audit-log/audit-log.entity';
+import { AiRoomEntity } from './ai/entities/ai-room.entity';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.docker', override: false, quiet: true });
@@ -15,7 +17,14 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: [EntityBase, UserEntity, ChatEntity, RoomEntity],
+  entities: [
+    EntityBase,
+    UserEntity,
+    ChatEntity,
+    RoomEntity,
+    AuditLogEntity,
+    AiRoomEntity,
+  ],
   migrations: ['dist/migrations/*.js'],
   synchronize: false,
 });
