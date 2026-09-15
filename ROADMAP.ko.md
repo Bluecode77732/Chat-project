@@ -192,6 +192,96 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
 - 채팅방 목록의 읽지 않은 메시지 수 배지 — 목록 UI 자체는 이미 `getMyRooms` 기반으로 렌더링되고
   있음(`chat-page.tsx`). 없는 것은 읽지 않음 배지뿐이며, 위 백엔드 항목에 종속.
 
+### 코드 품질/일관성 백로그 (2026-09 감사)
+
+전체 앱의 의존성/일관성을 훑은 조사(2026-09-14/15)에서 나온 항목들 — 파일별 실제 호출 체인을
+추적하고, 헤더 코멘트를 실제 소비처와 대조하고, 생성된 산출물(`schema.gql`)을 소스와 대조함. 실제
+런타임/보안 영향이 있던 5건(유저 삭제 시 `user_cache` 미삭제, `data-source.ts`의 마이그레이션용
+`DataSource`에서 엔티티 누락, `sendMessage`의 unhandled rejection 경로, `frontend`의 CI lint/test
+게이트 누락, admin 로그인 시 cross-tab 세션 마커 미기록)는 같은 주에 수정됨 — `CHANGELOG.md`의
+`851f765`~`d0ad00a` 부근 참고. 아래는 나머지 — 실재하지만 영향이 낮아 즉시 고치지 않고 백로그로
+남긴 것들. 애초에 "교차 모듈 확인 필요"로 남겼던 2건(admin의 `AdminRoomType`/`RoomInfoType` 필드
+사용과 `schema.gql` 대조, `getAllRooms`/`deleteRoom`/`getOnlineUser`/`getUserNicknames` 리졸버
+가드 수준과 admin이 실제로 요구하는 권한 대조)은 재확인 결과 문제없음 — 여기엔 안 실음.
+
+**백엔드**
+- `auth/guard/rbac.guard.ts`의 `accessLevel` 맵(`:37,44`)은 이미 자기 자신과 같은 값을 갖는
+  `UserRole` 숫자 enum 위에 항등 매핑을 또 만든 것 — `GraphQLRBACGuard`는 맵 없이
+  `user.role ?? UserRole.user >= role`로 동일 로직을 직접 처리함. 맵을 걷어내고 직접 비교로
+  통일할 것.
+- `moderation/constants/moderation.constants.ts`의 헤더(`:3`)는 `moderation.guard.ts`를 소비처로
+  명시하는데, 가드는 설계상(SRP — 임계값 로직은 서비스에만) 이 파일을 import 안 함. 실제 두 번째
+  소비처인 `user.service.ts`의 `SYSTEM_USER_EMAIL` import는 헤더에 빠져있음.
+- `user/user.service.ts`의 `create()`(`:50`)를 호출하는 컨트롤러 라우트가 없음 — 회원가입은
+  `AuthService.register()`가 이메일/닉네임 중복확인+bcrypt+save 로직을 독자적으로 중복 구현함.
+  의도된 호출자(admin용 유저 생성 엔드포인트?)를 확인하거나 제거할 것.
+- `user.service.ts`의 `remove()`는 고아 방 정리 전에 삭제된 유저가 속했던 방 개수만큼 `COUNT`
+  쿼리를 반복함(N+1 형태). 1:1 채팅 앱이라 유저당 방 수가 적어 긴급도는 낮음.
+- `graphql/base.type.ts`의 `BaseType`(`:3-8`, `created`/`updated`)은 `UserType`이 상속하지만
+  생성된 `schema.gql`엔 반영 안 됨 — code-first 생성이 왜 이 필드를 누락하는지 먼저 원인을 찾은
+  뒤 생성 쪽을 고칠지 죽은 필드를 지울지 결정할 것.
+- `auth/dto/token-types.auth.dto.ts`의 `tokenType`(`:11`)은 저장소 전체에 소비처 없음 — 형제
+  항목인 `bearerTokenType`만 실사용됨.
+- `ai/enums/ai-personality.enum.ts`의 `AI_PERSONALITY_LABELS`(`:12`)는 소비처 없음 —
+  `frontend/`가 personality 라벨을 이 상수를 안 쓰고 독자적으로 하드코딩 중.
+- `mail/mail.service.ts`(`:28-29`)가 `SMTP_PORT`를 인접한 두 줄에서 각각 `ConfigService`로
+  재조회해 `port`/`secure`를 도출함.
+
+**프론트엔드**
+- `api/apollo.ts`의 `errorLink`(`:17-30`)는 silent 토큰 refresh 실패 시
+  `observer.error`/`observer.complete`를 호출하지 않고 그냥 return함 — Observable(및 이를
+  기다리던 query/mutation)이 완결되지 않고 남을 수 있음. 구조가 동일한 `admin/src/api/apollo.ts`의
+  `errorLink`는 같은 분기에서 `observer.error(error)`를 호출함 — `frontend/` 쪽을 맞출 것.
+- `pages/chat-page.tsx`의 `handlePersonalitySelect`(`:441-446`)는 mutation에 `onError`도,
+  `await` 주변 try/catch도 없음 — 사용자에게 보이는 mutation 실패는 노출이 필수라는 이 파일
+  자체의 컨벤션 위반.
+- 동일한 인라인 API 에러 타입 캐스팅 `(err as { response?: { data?: { message?: ... } } })`이
+  `account-page.tsx`(`:79,112`), `register-page.tsx`(`:35`), `signin-page.tsx`(`:48,50`) 3개
+  파일에 5번 손으로 반복됨 — `axios.isAxiosError()`를 안 씀. `getApiErrorMessage(err)` 헬퍼
+  하나로 추출할 것.
+- `App.tsx:12-13`에 `<Route path='/'>`가 두 개 선언되어 있음 — 두 번째(플레이스홀더
+  `<div>Login Page</div>`)는 영원히 도달 불가능하고, `:17`에 동일 문구의 주석 잔재도 남아있음.
+  둘 다 치우지 않은 스캐폴드 흔적.
+- `useAuthStore()`가 5곳(`account-page.tsx:18`, `chat-page.tsx:84-85`, `signin-page.tsx:17`,
+  `protected-route.tsx:7`)에서 셀렉터 없이 호출되어, 각 컴포넌트가 읽는 필드가 아니라 스토어
+  전체를 구독함.
+- `main.tsx:8`의 `document.getElementById('root')!`는 non-null assertion(Never Do Group 1) —
+  `index.html`이 해당 엘리먼트를 보장해서 실질 위험은 낮지만 명시적으로 좁혀두는 게 원칙에 맞음.
+- `package.json:35`의 `@testing-library/user-event` devDependency는 `frontend/src` 어디서도
+  import된 곳이 없음.
+- `pages/chat-page.tsx`의 `signOut`(`:525-530`)은 본문이 코멘트뿐인 빈 catch — 의도(이미 만료된
+  토큰이어도 best-effort 로그아웃)는 정당하나 형태는 금지된 빈 catch 패턴과 문자 그대로 일치.
+
+**Admin**
+- `signOut` 핸들러 4개(`dashboard-page.tsx`, `logs-page.tsx`, `rooms-page.tsx`, `users-page.tsx`)
+  전부 `clearTokens()`만 호출하고 `clearSessionUser()`는 호출 안 함 — 같은 탭에서 로그아웃 후
+  다른 관리자로 재로그인하면 남은 세션 마커 때문에 다음 silent refresh가 정상 로그인을 cross-tab
+  충돌로 오판할 수 있음.
+- `admin/e2e/users.spec.ts`에 `demoteSuperadmin`(`users-page.tsx`) 케이스가 없음 — 가장 최근
+  추가된 권한 액션이자, CLAUDE.md의 Compromised Superadmin Containment 기준 탈취된 superadmin
+  계정을 복구하는 유일한 인앱 경로.
+- `actionColor`/`ACTION_COLOR` 액션→배지색 매핑이 `dashboard-page.tsx:69`, `logs-page.tsx:121`,
+  `users-page.tsx:43` 3곳에서 각각 다르게 구현됨(두 곳은 if/else 체인, 한 곳은 `Record`) — 4개
+  페이지에 걸쳐 nav/signOut JSX도 공용 컴포넌트 없이 중복됨.
+- `admin/e2e/seed-superadmin.mjs:36`이 `HASH_ROUNDS`(CI에선 12)를 안 읽고
+  `bcrypt.hash(password, 10)`을 하드코딩함 — 휘발성 CI 픽스처 DB라 실위험은 낮지만
+  single-source-of-truth env 컨벤션과 조용히 어긋남.
+
+**문서**
+- CLAUDE.md의 CI/CD 섹션이 `test` job 단계를 `check:deps`까지만 나열하고 `check:changelog`는
+  빠뜨림 — 실제로는 `deploy.yml:46`이 같은 job에서 이 스텝을 돌림.
+
+### 개발 환경 도구
+
+- OS 수준 샌드박스(`.claude/settings.local.json`의 `sandbox.enabled`) — 2026-09-16 검토, 미도입
+  결정함. 공식 Claude Code 문서 확인 결과 네이티브 Windows에서는 샌드박스가 동작하지 않음
+  (bubblewrap은 Linux/WSL2 전용, Seatbelt는 macOS 전용) — 이 개발 환경은 Windows 10 네이티브임.
+  이 환경이 WSL2로 이전되면 재검토. 그때까지는 `.claude/settings.local.json`의 명령어 패턴 기반
+  `deny`/`allow`/`ask` 규칙이 유일한 집행 계층임 — 알려진 한계: Bash/PowerShell 규칙 매칭은
+  명령어 문자열/접두사 기준이라 의미 기반이 아니므로, 다르게 인용부호를 쓰거나 별칭을 쓴 명령은
+  특정 `deny` 항목을 피해갈 수 있음. `defaultMode: "default"`가 실질 노출 범위를 `allow` 목록에
+  있는 것으로 한정함 — 그 외는 전부 매번 확인을 거치기 때문.
+
 ## 관련 문서
 
 - [README.md](README.md) — 현재 기능 집합

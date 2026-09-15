@@ -10,8 +10,26 @@
 번역하지 않고 그대로 둠 — 번역하면 실제로 쓰이지 않은 말을 지어내는 셈이 되기 때문.
 
 
+## 2026-09-16
+
+- Harden: getAiUserId/getSystemUserId에 인증·레이트리밋 가드 추가
+- Fix: admin 로그인 성공 시 recordSessionUser 호출 누락 수정
+- Docs: ai_room_entity FK 이름 불일치도 Generated-migration review 항목에 병기
+- Fix: CI test job에 frontend lint/test 스텝 추가, 관련 문서 동기화
+
+## 2026-09-15
+
+- Fix: sendMessage catch에서 미분류 GraphQL 에러 rethrow 제거
+- Docs: ROADMAP에 QueryRateLimitGuard 후속 항목 2건 추가
+- Feat: sendMessage 외 인증된 GraphQL 쿼리/뮤테이션에 호출 빈도 제한 추가
+- Fix: CLI DataSource entities 배열에 AuditLogEntity/AiRoomEntity 누락 보완
+- Docs: remove()의 user_cache 무효화 관련 ADR/CLAUDE.md 동기화
+- Fix: remove()에서 user_cache 무효화 누락 수정
+- Harden: REDIS_URL이 ENV=prod에서 비밀번호 없이 부팅되지 않도록 Joi 검증 추가
+
 ## 2026-09-14
 
+- Docs: CHANGELOG 동기화 (직전 커밋 2건 반영)
 - Feat: admin 패널에 동료 superadmin 강등 액션 추가, 계정 탈취 봉쇄 정책 문서화
 - Docs: CHANGELOG 동기화 (누락된 커밋 4건 반영)
 

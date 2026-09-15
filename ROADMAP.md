@@ -198,6 +198,99 @@ timeline or priority order.
   `getMyRooms` (`chat-page.tsx`); only the unread badge is missing, and it is blocked on the backend
   item above.
 
+### Code quality & consistency backlog (2026-09 audit)
+
+Findings from a whole-app dependency/consistency sweep (2026-09-14/15) that traced every file's
+actual call chain, cross-checked header comments against real consumers, and diffed generated
+artifacts (`schema.gql`) against their sources. The five findings with real runtime/security impact
+(stale `user_cache` on user deletion, missing entities in `data-source.ts`'s migration `DataSource`,
+an unhandled-rejection path in `sendMessage`, `frontend`'s missing CI lint/test gate, admin's missing
+cross-tab session marker on login) were fixed the same week — see `CHANGELOG.md` around `851f765`..
+`d0ad00a`. What's below is the rest: real but lower-impact, left as a backlog rather than fixed
+immediately. Two items originally flagged as "needs cross-module check" — admin's `AdminRoomType`/
+`RoomInfoType` field usage against `schema.gql`, and the `getAllRooms`/`deleteRoom`/`getOnlineUser`/
+`getUserNicknames` resolver guard levels against what `admin/` actually requires — were re-checked
+and found consistent; not listed here.
+
+**Backend**
+- `auth/guard/rbac.guard.ts`'s `accessLevel` map (`:37,44`) is an identity map over a `UserRole`
+  numeric enum that already equals itself — `GraphQLRBACGuard` implements the same check directly
+  (`user.role ?? UserRole.user >= role`) with no map. Drop the map, compare directly.
+- `moderation/constants/moderation.constants.ts`'s header (`:3`) claims `moderation.guard.ts` as a
+  consumer; the guard doesn't import it by design (SRP — threshold logic stays in the service). The
+  header omits the real second consumer, `user.service.ts`'s `SYSTEM_USER_EMAIL` import.
+- `user/user.service.ts`'s `create()` (`:50`) has no controller route calling it — registration goes
+  through `AuthService.register()`, which duplicates the same email/nickname-check + bcrypt-hash +
+  save logic independently. Confirm an intended caller (an admin-create-user endpoint?) or remove it.
+- `user.service.ts`'s `remove()` issues one `COUNT` query per room the deleted user belonged to (N+1
+  shape) before cleaning up orphaned rooms. Low urgency — this is a 1:1 chat app, so per-user room
+  counts stay small.
+- `graphql/base.type.ts`'s `BaseType` (`:3-8`, `created`/`updated`) is inherited by `UserType` but
+  never reaches the generated `schema.gql` — worth finding out why code-first generation drops it
+  before deciding whether to fix generation or delete the dead fields.
+- `auth/dto/token-types.auth.dto.ts`'s `tokenType` (`:11`) has no consumer anywhere in the repo; only
+  its sibling `bearerTokenType` is used.
+- `ai/enums/ai-personality.enum.ts`'s `AI_PERSONALITY_LABELS` (`:12`) has no consumer — `frontend/`
+  hardcodes personality labels independently instead of importing this as the source of truth.
+- `mail/mail.service.ts` (`:28-29`) reads `SMTP_PORT` from `ConfigService` twice in adjacent lines to
+  derive `port` and `secure`.
+
+**Frontend**
+- `api/apollo.ts`'s `errorLink` (`:17-30`) never calls `observer.error`/`observer.complete` when a
+  silent token refresh fails — it just returns, leaving the Observable (and whatever query/mutation
+  was waiting on it) unresolved. `admin/src/api/apollo.ts`'s otherwise-identical `errorLink` does call
+  `observer.error(error)` in the same branch; bring `frontend/`'s in line with it.
+- `pages/chat-page.tsx`'s `handlePersonalitySelect` (`:441-446`) has no `onError` on its mutation and
+  no try/catch around the `await` — a failed personality change fails silently, against this file's
+  own convention for user-visible mutation failures.
+- The same inline API-error type cast — `(err as { response?: { data?: { message?: ... } } })` — is
+  hand-written 5 times across `account-page.tsx` (`:79,112`), `register-page.tsx` (`:35`), and
+  `signin-page.tsx` (`:48,50`) instead of using `axios.isAxiosError()`. Extract one
+  `getApiErrorMessage(err)` helper.
+- `App.tsx:12-13` declares two `<Route path='/'>` siblings; the second (a placeholder
+  `<div>Login Page</div>`) is permanently unreachable, and a matching commented-out remnant sits at
+  `:17`. Both are scaffold leftovers to delete.
+- `useAuthStore()` is called without a selector at 5 call sites (`account-page.tsx:18`,
+  `chat-page.tsx:84-85`, `signin-page.tsx:17`, `protected-route.tsx:7`), subscribing each component to
+  the whole store instead of the fields it reads.
+- `main.tsx:8`'s `document.getElementById('root')!` is a non-null assertion (Never Do Group 1) — low
+  real risk since `index.html` guarantees the element, but still worth narrowing explicitly.
+- `package.json:35`'s `@testing-library/user-event` devDependency has no import site anywhere in
+  `frontend/src`.
+- `pages/chat-page.tsx`'s `signOut` (`:525-530`) has a comment-only empty `catch` block — the intent
+  (best-effort sign-out on an already-expired token) is legitimate but the shape matches the forbidden
+  empty-catch pattern literally.
+
+**Admin**
+- None of the 4 `signOut` handlers (`dashboard-page.tsx`, `logs-page.tsx`, `rooms-page.tsx`,
+  `users-page.tsx`) call `clearSessionUser()` — only `clearTokens()`. Signing out and back in as a
+  different admin in the same tab leaves a stale session marker that can make the next silent refresh
+  misread the new, legitimate login as a cross-tab conflict.
+- `admin/e2e/users.spec.ts` has no case covering `demoteSuperadmin` (`users-page.tsx`) — the newest
+  privileged action and, per CLAUDE.md's Compromised Superadmin Containment, the only in-app recovery
+  path for a compromised superadmin account.
+- The `actionColor`/`ACTION_COLOR` action-to-badge-color mapping is implemented 3 separate ways across
+  `dashboard-page.tsx:69`, `logs-page.tsx:121`, and `users-page.tsx:43` (two as an if/else chain, one
+  as a `Record`), alongside duplicated nav/sign-out JSX across all 4 pages with no shared component.
+- `admin/e2e/seed-superadmin.mjs:36` hardcodes `bcrypt.hash(password, 10)` instead of reading
+  `HASH_ROUNDS` (12 in CI) — low risk since this is an ephemeral CI fixture DB, but silently diverges
+  from the single-source-of-truth env convention.
+
+**Docs**
+- CLAUDE.md's CI/CD section lists the `test` job's steps through `check:deps` but omits
+  `check:changelog`, which `deploy.yml:46` actually runs as part of the same job.
+
+### Dev environment tooling
+
+- OS-level sandboxing (`sandbox.enabled` in `.claude/settings.local.json`) — reviewed 2026-09-16,
+  not adopted. Official Claude Code docs confirm the sandbox does not run on native Windows
+  (bubblewrap requires Linux/WSL2, Seatbelt is macOS-only), and this dev machine runs Windows 10
+  natively. Revisit if this environment ever moves to WSL2. Until then, `.claude/settings.local.json`'s
+  command-pattern `deny`/`allow`/`ask` rules are the sole enforcement layer — known limitation:
+  Bash/PowerShell rule matching is on literal command text/prefix, not semantic, so a differently-quoted
+  or aliased command can slip past a specific `deny` entry. `defaultMode: "default"` bounds the actual
+  exposure to whatever sits in the `allow` list, since anything else still prompts for confirmation.
+
 ## Related documents
 
 - [README.md](README.md) — current feature set
