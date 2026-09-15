@@ -171,6 +171,14 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
 - "입력 중" 표시기 — 방향: [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)의 "Socket.IO는
   채팅 트래픽을 나르지 않는다" 원칙을 지키기 위해, Socket.IO에 추가하지 않고 `receiveMessage`와
   같은 GraphQL Subscription 채널로 구현.
+- `ping`/`getAiUserId`/`getSystemUserId` 인증·레이트리밋 — `chat.resolver.ts`에서 가드가
+  하나도 없는(`GraphQLAuthGuard`조차 없는) 유일한 세 쿼리임. `QueryRateLimitGuard` 작업
+  (2026-09-15)은 이미 인증된 엔드포인트만 다뤘기 때문에 범위 밖으로 남겨둠. 이 셋에 인증을
+  요구할지, `QueryRateLimitGuard`를 붙일지, 둘 다 할지는 아직 미정.
+- `receiveMessage` 구독에 `QueryRateLimitGuard`(또는 동등한 가드) 적용 — 다른 모든 인증된
+  GraphQL 엔드포인트에는 이제 레이트리밋 가드(`QueryRateLimitGuard` 또는 `RateLimitGuard`)가
+  있지만 이것만 없음. `canActivate`가 구독 시점에 한 번만 실행되므로 붙여도 재구독 시도만
+  제한될 뿐 메시지 수신량 자체는 못 막음 — 그것만으로 추가할 가치가 있는지는 아직 미정.
 
 ### 프론트엔드
 

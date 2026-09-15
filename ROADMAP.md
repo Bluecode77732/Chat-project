@@ -175,6 +175,16 @@ timeline or priority order.
   `receiveMessage`) rather than adding it to Socket.IO, to stay consistent with
   [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)'s "Socket.IO carries no chat-message
   traffic" boundary.
+- Auth/rate-limit on `ping`, `getAiUserId`, `getSystemUserId` — the only three `chat.resolver.ts`
+  queries with no guard at all, not even `GraphQLAuthGuard`; out of scope for the
+  `QueryRateLimitGuard` pass (2026-09-15) since that pass only covered already-authenticated
+  endpoints. Whether these three should require auth, get `QueryRateLimitGuard`, or both is not yet
+  decided.
+- `QueryRateLimitGuard` (or equivalent) on the `receiveMessage` subscription — every other
+  authenticated GraphQL entrypoint now carries a rate-limit guard (`QueryRateLimitGuard` or
+  `RateLimitGuard`) except this one. Its `canActivate` only runs once per subscribe, so the guard
+  would throttle resubscribe attempts, not per-message delivery volume — whether that's worth adding
+  on its own is not yet decided.
 
 ### Frontend
 
