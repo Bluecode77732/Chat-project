@@ -1313,7 +1313,8 @@ GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and
 
 1. **`test`** — matrix `ubuntu-latest` + `windows-latest` (Windows is `continue-on-error: true`,
    ubuntu is not). `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` →
-   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (broken links/anchors,
+   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm --filter frontend lint` →
+   `pnpm --filter frontend test` → `pnpm check:adr` (broken links/anchors,
    stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
    (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:deps` (README's
    Dependencies/DevDependencies lists in sync with `backend/package.json`). No step has a `|| true`
