@@ -171,10 +171,17 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
 - "입력 중" 표시기 — 방향: [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)의 "Socket.IO는
   채팅 트래픽을 나르지 않는다" 원칙을 지키기 위해, Socket.IO에 추가하지 않고 `receiveMessage`와
   같은 GraphQL Subscription 채널로 구현.
-- `ping`/`getAiUserId`/`getSystemUserId` 인증·레이트리밋 — `chat.resolver.ts`에서 가드가
-  하나도 없는(`GraphQLAuthGuard`조차 없는) 유일한 세 쿼리임. `QueryRateLimitGuard` 작업
-  (2026-09-15)은 이미 인증된 엔드포인트만 다뤘기 때문에 범위 밖으로 남겨둠. 이 셋에 인증을
-  요구할지, `QueryRateLimitGuard`를 붙일지, 둘 다 할지는 아직 미정.
+- `ping`/`getAiUserId`/`getSystemUserId` 인증·레이트리밋 — 2026-09-16 결정됨.
+  `getAiUserId`/`getSystemUserId`에는 `getAiPersonalityInfo`와 동일한 패턴으로
+  `@UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)`를 추가함(`chat.resolver.ts`). 호출부를
+  추적한 결과 `frontend/src/pages/chat-page.tsx`는 `ProtectedRoute` 뒤에서만 이 둘을 호출하고
+  `admin/`은 아예 호출하지 않아, 기존의 무가드 상태에 의존하는 비인증 흐름이 없었음을 확인함.
+  `ping`은 의도적으로 그대로 둠 — README.md에 무인증 헬스체크로 문서화되어 있고, REST
+  `/health` liveness 엔드포인트(`health.controller.ts`)의 기존 무가드 패턴과 동일한 의도이며,
+  DB/Redis/연산 비용이 전혀 없어 노출 정도가 그 엔드포인트와 같음. 참고: 설령 원했더라도
+  `QueryRateLimitGuard`만 `ping`에 붙이는 건 불가능함 — `req.user.id`가 없으면 401을 던지므로
+  (`query-rate-limit.guard.ts:33-37`), 무인증 쿼리와 짝지으려면 이 범위 밖인 새 IP 기반
+  리미터가 필요함.
 - `receiveMessage` 구독에 `QueryRateLimitGuard`(또는 동등한 가드) 적용 — 다른 모든 인증된
   GraphQL 엔드포인트에는 이제 레이트리밋 가드(`QueryRateLimitGuard` 또는 `RateLimitGuard`)가
   있지만 이것만 없음. `canActivate`가 구독 시점에 한 번만 실행되므로 붙여도 재구독 시도만

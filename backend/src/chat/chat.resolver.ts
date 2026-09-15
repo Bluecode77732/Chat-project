@@ -93,11 +93,13 @@ export class ChatResolver {
   }
 
   @Query(() => Int)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   getAiUserId(): number {
     return this.aiService.getAiUserId();
   }
 
   @Query(() => Int)
+  @UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)
   getSystemUserId(): number {
     return this.moderationService.getSystemUserId();
   }

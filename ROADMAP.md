@@ -175,11 +175,17 @@ timeline or priority order.
   `receiveMessage`) rather than adding it to Socket.IO, to stay consistent with
   [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)'s "Socket.IO carries no chat-message
   traffic" boundary.
-- Auth/rate-limit on `ping`, `getAiUserId`, `getSystemUserId` — the only three `chat.resolver.ts`
-  queries with no guard at all, not even `GraphQLAuthGuard`; out of scope for the
-  `QueryRateLimitGuard` pass (2026-09-15) since that pass only covered already-authenticated
-  endpoints. Whether these three should require auth, get `QueryRateLimitGuard`, or both is not yet
-  decided.
+- Auth/rate-limit on `ping`, `getAiUserId`, `getSystemUserId` — resolved 2026-09-16.
+  `getAiUserId`/`getSystemUserId` now carry `@UseGuards(GraphQLAuthGuard, QueryRateLimitGuard)`
+  (`chat.resolver.ts`), matching the `getAiPersonalityInfo` pattern; traced call sites confirmed
+  `frontend/src/pages/chat-page.tsx` only calls them from behind `ProtectedRoute`, and `admin/` never
+  calls them, so no unauthenticated flow depended on the old behavior. `ping` is left unguarded on
+  purpose — it's documented in README.md as an unauthenticated health check, mirrors the same
+  intentional no-guard pattern already used by the REST `/health` liveness endpoint
+  (`health.controller.ts`), and does no DB/Redis/compute work, so the exposure is equivalent to that
+  endpoint's. Note: `QueryRateLimitGuard` couldn't be bolted onto `ping` alone even if desired — it
+  throws 401 when `req.user.id` is absent (`query-rate-limit.guard.ts:33-37`), so pairing it with an
+  unauthenticated query isn't possible without a new IP-based limiter, which is out of scope here.
 - `QueryRateLimitGuard` (or equivalent) on the `receiveMessage` subscription — every other
   authenticated GraphQL entrypoint now carries a rate-limit guard (`QueryRateLimitGuard` or
   `RateLimitGuard`) except this one. Its `canActivate` only runs once per subscribe, so the guard
