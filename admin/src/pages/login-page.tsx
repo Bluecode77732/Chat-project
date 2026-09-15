@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import api from '../api/axios';
 import { useAuthStore } from '../store/auth.store';
+import { recordSessionUser } from '../auth/session-guard';
 import { useState } from 'react';
 
 interface LoginForm {
@@ -29,6 +30,8 @@ function LoginPage() {
                 return;
             }
             setTokens(res.data.accessToken, sub, role);
+            // cross-tab 세션 체크를 위해 이 탭의 기준 계정을 설정
+            recordSessionUser(sub);
             navigate('/dashboard');
         } catch {
             setError('Invalid credentials.');
