@@ -153,9 +153,8 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   검증하려면 `bootstrap()`과 테스트의 `createNestApplication()` 호출이 공유하는 함수로 분리하는
   더 큰 리팩터가 필요한데, 이번에는 하지 않음.
 - `frontend/`와 `admin/`에는 React 에러 바운더리도, 전역 `window.onerror`/`unhandledrejection`
-  핸들러도 없음. 예상 못 한 에러(예: `frontend/src/pages/chat-page.tsx:410`이 알려진
-  `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL 에러가 아닌 나머지를 rethrow하는 부분)는 지금도
-  어디에도 흔적 없이 사라짐. 프로덕션 코드에 애초에 바운더리/핸들러가 없으니 이를 잡아낼
+  핸들러도 없음. 처리된 분기 밖의 예상 못 한 에러(렌더링 중 예외, 대응 분기가 없는 mutation
+  실패 등)는 지금도 어디에도 흔적 없이 사라짐. 프로덕션 코드에 애초에 바운더리/핸들러가 없으니 이를 잡아낼
   테스트도 없음. [ADR 0019](ADR/0019-sentry-error-tracking.ko.md)의 backend 전용 Sentry
   연동과 함께 의도적으로 미뤄둔 것임 — 그 결정에서 backend 에러 트래킹이 우선순위가 더
   높은 절반임. 나중에 착수할 때는 `@sentry/react`를 추가하고(backend의
