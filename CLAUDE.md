@@ -1080,6 +1080,9 @@ pnpm test --testPathPatterns auth.service
 ```bash
 docker compose up -d --build
 ```
+`chat` waits on `postgres`/`redis` reaching `service_healthy` (docker-compose.yml healthchecks) before
+running `migration:run` — removing either `depends_on: condition: service_healthy` line lets the
+container attempt migrations against a DB/cache that isn't accepting connections yet.
 
 ## Architecture
 
@@ -1317,8 +1320,9 @@ GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and
    `pnpm --filter frontend test` → `pnpm check:adr` (broken links/anchors,
    stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
    (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:deps` (README's
-   Dependencies/DevDependencies lists in sync with `backend/package.json`). No step has a `|| true`
-   fallback — any failure hard-fails the job.
+   Dependencies/DevDependencies lists in sync with `backend/package.json`) → `pnpm check:changelog`
+   (CHANGELOG.md/.ko.md list every commit under matching newest-first date headings, EN/KO in sync).
+   No step has a `|| true` fallback — any failure hard-fails the job.
 2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs
    migrations, runs the backend's jest e2e boot-smoke suite (`pnpm --filter backend test:e2e`), starts
    the compiled server, then runs Playwright e2e against `frontend/`. Blocks `deploy`.
