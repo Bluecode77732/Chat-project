@@ -12,6 +12,7 @@
 
 ## 2026-09-16
 
+- Chore: AppModule의 미사용 Logger provider 제거
 - Harden: getAiUserId/getSystemUserId에 인증·레이트리밋 가드 추가
 - Fix: admin 로그인 성공 시 recordSessionUser 호출 누락 수정
 - Docs: ai_room_entity FK 이름 불일치도 Generated-migration review 항목에 병기

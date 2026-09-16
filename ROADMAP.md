@@ -234,6 +234,12 @@ and found consistent; not listed here.
   hardcodes personality labels independently instead of importing this as the source of truth.
 - `mail/mail.service.ts` (`:28-29`) reads `SMTP_PORT` from `ConfigService` twice in adjacent lines to
   derive `port` and `secure`.
+- `user.controller.ts` casts route/query params to numbers by hand (`+id`, `parseInt(page/take, 10)` —
+  18 call sites, e.g. `:141-142,166`) instead of `ParseIntPipe`/`DefaultValuePipe` — the one spot in the
+  app where a built-in Pipe would fit but isn't used (every other Pipe need already goes through the
+  global `ValidationPipe`). A non-numeric `:id` becomes `NaN` and reaches TypeORM as-is; unverified
+  whether that surfaces as a clean 400 or an opaque `AllExceptionsFilter` 500. Found during a separate
+  NestJS-primitives audit (2026-09-16), not the 2026-09-14/15 sweep above.
 
 **Frontend**
 - `api/apollo.ts`'s `errorLink` (`:17-30`) never calls `observer.error`/`observer.complete` when a

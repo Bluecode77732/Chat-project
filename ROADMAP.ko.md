@@ -226,6 +226,12 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
   `frontend/`가 personality 라벨을 이 상수를 안 쓰고 독자적으로 하드코딩 중.
 - `mail/mail.service.ts`(`:28-29`)가 `SMTP_PORT`를 인접한 두 줄에서 각각 `ConfigService`로
   재조회해 `port`/`secure`를 도출함.
+- `user.controller.ts`가 route/query 파라미터를 `ParseIntPipe`/`DefaultValuePipe` 대신 수동으로
+  숫자 캐스팅함(`+id`, `parseInt(page/take, 10)` — 18곳, 예: `:141-142,166`) — built-in Pipe가
+  맞아떨어지는데 안 쓰인 유일한 지점(다른 Pipe 필요는 전부 전역 `ValidationPipe`로 처리됨). 숫자가
+  아닌 `:id`는 `NaN`이 되어 TypeORM에 그대로 전달됨 — 이게 깔끔한 400으로 이어지는지
+  `AllExceptionsFilter`의 불투명한 500으로 이어지는지는 미검증. 위 2026-09-14/15 훑기와는 별개로,
+  2026-09-16 NestJS 기본요소 감사에서 발견함.
 
 **프론트엔드**
 - `api/apollo.ts`의 `errorLink`(`:17-30`)는 silent 토큰 refresh 실패 시
