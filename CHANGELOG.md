@@ -9,8 +9,49 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-09-17
+
+- Fix: pnpm audit 런타임 경로 취약점 28건 패치 (socket.io-parser/engine.io/body-parser 등)
+- Docs: CLAUDE.md에 docker-compose 헬스체크 게이트 서술 추가, check:changelog CI 단계 누락 보완
+
+## 2026-09-16
+
+- Docs: ParseIntPipe 미도입 백로그 기록, CHANGELOG에 Logger 제거 반영
+- Chore: AppModule의 미사용 Logger provider 제거
+- Docs: ROADMAP에 샌드박스 미도입 결정 기록, CHANGELOG 동기화 (누락 커밋 12건 반영)
+- Harden: getAiUserId/getSystemUserId에 인증·레이트리밋 가드 추가
+- Fix: admin 로그인 성공 시 recordSessionUser 호출 누락 수정
+- Docs: ai_room_entity FK 이름 불일치도 Generated-migration review 항목에 병기
+- Fix: CI test job에 frontend lint/test 스텝 추가, 관련 문서 동기화
+
+## 2026-09-15
+
+- Fix: sendMessage catch에서 미분류 GraphQL 에러 rethrow 제거
+- Docs: ROADMAP에 QueryRateLimitGuard 후속 항목 2건 추가
+- Feat: sendMessage 외 인증된 GraphQL 쿼리/뮤테이션에 호출 빈도 제한 추가
+- Fix: CLI DataSource entities 배열에 AuditLogEntity/AiRoomEntity 누락 보완
+- Docs: remove()의 user_cache 무효화 관련 ADR/CLAUDE.md 동기화
+- Fix: remove()에서 user_cache 무효화 누락 수정
+- Harden: REDIS_URL이 ENV=prod에서 비밀번호 없이 부팅되지 않도록 Joi 검증 추가
+
+## 2026-09-14
+
+- Docs: CHANGELOG 동기화 (직전 커밋 2건 반영)
+- Feat: admin 패널에 동료 superadmin 강등 액션 추가, 계정 탈취 봉쇄 정책 문서화
+- Docs: CHANGELOG 동기화 (누락된 커밋 4건 반영)
+
+## 2026-09-11
+
+- Docs: 남아있던 영어 주석 전수 한글화 (gitignore/gitattributes/tsconfig/CSS/spec)
+- Docs: CLAUDE.md에 AI Development Workflow 섹션 추가
+
+## 2026-09-07
+
+- Docs: frontend/README를 방치된 Vite 템플릿에서 최소 진입점형으로 교체
+
 ## 2026-09-06
 
+- Docs: ROADMAP에 Phase 12/13 추가, CHANGELOG 재동기화
 - Fix: ADR/CLAUDE.md/ARCHITECTURE.md의 오래된 줄 번호 인용 갱신 (2차)
 - Docs: CHANGELOG 동기화, 커밋 컨벤션에 한글 규칙 명시, 디버그 스크립트 제거
 - Docs: 나머지 코멘트 한글화 및 삭제됐던 필러 코멘트 복원

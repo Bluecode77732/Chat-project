@@ -77,6 +77,7 @@ function UsersPage() {
 
     const navigate = useNavigate();
     const myRole = useAuthStore((s) => s.role);
+    const myUserId = useAuthStore((s) => s.userId);
     const clearTokens = useAuthStore((s) => s.clearTokens);
 
     // setLoading(true)를 이 effect 본문에 두지 않는 건 의도적 — react-hooks/set-state-in-effect 규칙 때문.
@@ -198,6 +199,14 @@ function UsersPage() {
         } catch {
             setActionMsg(`Failed to ban user ${userId}.`);
         }
+    };
+
+    // demoteSuperadmin: 동료 superadmin을 admin으로 강등. 계정 탈취 봉쇄 목적의 별도 액션이라
+    // 일반 promote/demote 토글과 분리 — 백엔드 updateRole은 동일-역할 대상을 막지 않으므로
+    // (다른 조치들과 달리) 여기서만 UI 차원의 확인창을 둠. 마지막 superadmin 강등은 서버가 거부함.
+    const demoteSuperadmin = async (id: number) => {
+        if (!confirm(`Demote superadmin ${id} to admin? Use this only to contain a compromised account.`)) return;
+        await updateRole(id, 1);
     };
 
     const forceLogout = async (id: number) => {
@@ -350,6 +359,15 @@ function UsersPage() {
                                                     className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                                                 >
                                                     {u.role === 1 ? 'Demote' : 'Promote'}
+                                                </button>
+                                            )}
+                                            {myRole === 2 && u.role === 2 && u.id !== myUserId && (
+                                                <button
+                                                    onClick={() => demoteSuperadmin(u.id)}
+                                                    data-testid={`user-demote-superadmin-${u.id}`}
+                                                    className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                                >
+                                                    Demote (superadmin)
                                                 </button>
                                             )}
                                             {myRole !== null && myRole > u.role && (

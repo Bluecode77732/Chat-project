@@ -38,6 +38,8 @@ jobs:
       - run: pnpm --filter backend test
       - run: pnpm --filter admin lint
       - run: pnpm --filter admin test
+      - run: pnpm --filter frontend lint
+      - run: pnpm --filter frontend test
       - run: pnpm check:adr
       - run: pnpm check:config
       - run: pnpm check:deps

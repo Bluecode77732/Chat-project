@@ -17,7 +17,7 @@ Accepted
 로그 스트림과 별개인, 조회 가능한 엔티티로 기록함.
 
 - `UserService`: `'ROLE_CHANGE'`(`user.service.ts:293-298`), `'FORCE_LOGOUT'`
-  (`user.service.ts:323`), `'USER_DELETE'`(`user.service.ts:419`) — `actorId`는 해당 작업을
+  (`user.service.ts:323`), `'USER_DELETE'`(`user.service.ts:420`) — `actorId`는 해당 작업을
   수행한 관리자임.
 - `ModerationService`: `'USER_MUTED'`(`moderation.service.ts:253-258`), `'USER_BANNED'`
   (`moderation.service.ts:287-292`), `'USER_UNBAN'`(`moderation.service.ts:189`) — `actorId`는

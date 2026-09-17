@@ -81,7 +81,7 @@ PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 
 
 | Job | 하는 일 | 필수 통과? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
 | `e2e` | 백엔드 jest e2e 부팅 스모크 테스트를 돌린 뒤 `frontend/` 대상 Playwright e2e 실행 — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 | `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`. 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않음 |
@@ -113,12 +113,10 @@ pnpm test:e2e      # backend e2e (test/app.e2e-spec.ts)
 cd ..              # 나머지는 저장소 루트에서 실행
 pnpm --filter admin lint
 pnpm --filter admin test
+pnpm --filter frontend lint
+pnpm --filter frontend test
 pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
 ```
-
-`frontend/`의 vitest 스위트만 예외임. 현재 CI 스텝이 없어서(`admin/`만 있음)
-`pnpm --filter frontend test`는 CI가 대신 돌려주지 않음. `frontend/src`를 건드렸다면
-로컬에서 직접 돌려주세요.
 
 코드 스타일은 `backend/.prettierrc`(`singleQuote: true`, `trailingComma: "all"`)와 ESLint
 (`backend/eslint.config.mjs`)로 강제됨. 포맷팅 외에도 이 프로젝트는 더 엄격한 컨벤션
@@ -153,9 +151,8 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   검증하려면 `bootstrap()`과 테스트의 `createNestApplication()` 호출이 공유하는 함수로 분리하는
   더 큰 리팩터가 필요한데, 이번에는 하지 않음.
 - `frontend/`와 `admin/`에는 React 에러 바운더리도, 전역 `window.onerror`/`unhandledrejection`
-  핸들러도 없음. 예상 못 한 에러(예: `frontend/src/pages/chat-page.tsx:410`이 알려진
-  `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL 에러가 아닌 나머지를 rethrow하는 부분)는 지금도
-  어디에도 흔적 없이 사라짐. 프로덕션 코드에 애초에 바운더리/핸들러가 없으니 이를 잡아낼
+  핸들러도 없음. 처리된 분기 밖의 예상 못 한 에러(렌더링 중 예외, 대응 분기가 없는 mutation
+  실패 등)는 지금도 어디에도 흔적 없이 사라짐. 프로덕션 코드에 애초에 바운더리/핸들러가 없으니 이를 잡아낼
   테스트도 없음. [ADR 0019](ADR/0019-sentry-error-tracking.ko.md)의 backend 전용 Sentry
   연동과 함께 의도적으로 미뤄둔 것임 — 그 결정에서 backend 에러 트래킹이 우선순위가 더
   높은 절반임. 나중에 착수할 때는 `@sentry/react`를 추가하고(backend의

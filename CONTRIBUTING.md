@@ -82,7 +82,7 @@ CI (`.github/workflows/deploy.yml`) runs on every PR to `main`:
 
 | Job | What it does | Blocking? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
 | `test` (windows-latest) | same steps | No — `continue-on-error: true` for this OS in the matrix |
 | `e2e` | backend jest e2e boot smoke test, then Playwright e2e against `frontend/` — both against real Postgres 16 + Redis 7 service containers | Yes — blocks `deploy` (listed in its `needs`) |
 | `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | No — `continue-on-error: true`; kept out of `deploy`'s `needs` until a successful run in the real GitHub Actions environment is confirmed via this workflow's run history (not just local YAML/unit-test validation) |
@@ -114,11 +114,10 @@ pnpm test:e2e      # backend e2e (test/app.e2e-spec.ts)
 cd ..              # the rest run from the repo root
 pnpm --filter admin lint
 pnpm --filter admin test
+pnpm --filter frontend lint
+pnpm --filter frontend test
 pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
 ```
-
-`frontend/`'s vitest suite is the one exception: it has no CI step today (only `admin/`'s does), so
-`pnpm --filter frontend test` will not be run for you — run it locally when touching `frontend/src`.
 
 Code style is enforced by `backend/.prettierrc` (`singleQuote: true`, `trailingComma: "all"`) and
 ESLint (`backend/eslint.config.mjs`). Beyond formatting, this project follows a set of stricter
@@ -151,9 +150,9 @@ CLAUDE.md's Scope Discipline.
   middleware stack in e2e would require extracting it into a function shared between `bootstrap()` and
   the test's `createNestApplication()` call -- a larger refactor, not done here.
 - `frontend/` and `admin/` have no React error boundary and no global `window.onerror`/
-  `unhandledrejection` handler -- an unexpected error (e.g. `frontend/src/pages/chat-page.tsx:410`'s
-  rethrow for anything other than a known `TOO_MANY_REQUESTS`/`FORBIDDEN` GraphQL error) vanishes with
-  no trace anywhere today. No test catches this because there's no boundary/handler in production code
+  `unhandledrejection` handler -- an unexpected error outside the handled cases (a render-time
+  exception, a mutation failure with no matching error branch) still vanishes with no trace
+  anywhere today. No test catches this because there's no boundary/handler in production code
   to test in the first place. Deliberately deferred alongside [ADR 0019](ADR/0019-sentry-error-tracking.md)'s
   backend-only Sentry integration -- backend error tracking was the higher-priority half of that
   decision. Pick this up by adding `@sentry/react` (mirroring the backend's `@sentry/nestjs` setup)

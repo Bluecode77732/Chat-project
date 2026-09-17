@@ -727,6 +727,28 @@ the full endpoint list, [Entities](#entities-typeorm) for the schema, and [Role]
 - The last remaining `superadmin` cannot be demoted — `updateRole` blocks it so the system can never end up with zero superadmins
 - `admin`-role accounts are capped at `MAX_ADMIN_COUNT`
 - The seeded AI reply account and moderation system account can never be deleted — `UserService.remove()` rejects it, since either would silently break AI replies or moderation notices
+- Unlike force-logout/ban/unban/delete, `updateRole` does **not** reject a target with an equal or higher role — a superadmin can demote another superadmin. This is intentional: see [Compromised Superadmin Containment](#compromised-superadmin-containment) below.
+
+
+### Compromised Superadmin Containment
+Policy: always keep at least two `superadmin` accounts. With only one, a compromised
+superadmin can't be demoted by anyone — the last-superadmin invariant above blocks it, and
+there's no peer left to act. With two or more, containment is a normal in-app action, not a
+DB-access situation:
+
+1. Sign in to the admin panel as the *other* superadmin.
+2. Users → find the compromised account → **Demote (superadmin)**. This drops it to `admin`
+   immediately (the target's next request re-resolves its role from the DB/cache, not from
+   its still-valid access token — see [Role](#role) above), not after the access token expires.
+3. Once demoted, the usual admin actions apply: **Force logout**, **Ban**, or **Delete**.
+4. Promote a trusted account back to superadmin to restore the two-account minimum.
+5. Review the audit log (`ROLE_CHANGE` / `FORCE_LOGOUT` / `USER_BANNED` entries for that user
+   ID) for what the account did while compromised.
+
+If only one superadmin exists and it's the one compromised, there is no in-app path — rotate
+`ACCESS_TOKEN_SECRET`/`REFRESH_TOKEN_SECRET` (forces every session, including the attacker's,
+to re-authenticate) and fix the row directly in the database. This is exactly the scenario the
+two-account policy exists to avoid.
 
 
 ### Moderation
@@ -811,7 +833,7 @@ Role values: `user = 0`, `admin = 1`, `superadmin = 2`
 A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and deployed as its own Vercel project (see [Admin Panel - Vercel](#admin-panel---vercel)).
 
 - **Dashboard** — total users (`humanOnly`, excludes the AI and moderation-system accounts), total rooms, users currently online, and the 5 most recent audit log entries.
-- **Users** — paginated, sortable, searchable list; filter by moderation status (active/banned). Clicking a row opens a detail panel with moderation status and recent audit history. Actions: promote/demote (superadmin only), force logout, manual ban (optional reason, permanent or timed) / unban, delete — restricted to accounts with a strictly lower role, and the AI/moderation-system accounts can never be deleted (see [Role](#role) invariants).
+- **Users** — paginated, sortable, searchable list; filter by moderation status (active/banned). Clicking a row opens a detail panel with moderation status and recent audit history. Actions (superadmin only where noted): promote/demote between `user`/`admin`; force logout, manual ban (optional reason, permanent or timed) / unban, and delete are restricted to accounts with a strictly lower role; a superadmin additionally gets a separate **Demote (superadmin)** action on peer superadmin accounts (see [Compromised Superadmin Containment](#compromised-superadmin-containment)); the AI/moderation-system accounts can never be deleted (see [Role](#role) invariants).
 - **Rooms** — paginated, searchable list; clicking a row opens a detail panel (room ID, created date, participants). Delete a room.
 - **Logs** — audit log filtered by action, user, and date range; **Export CSV** downloads the current filter as a file (same 10,000-row cap as the API).
 
@@ -1074,7 +1096,9 @@ Auto-deploy — full CI job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#befor
 **Setup (one-time)**
 1. Add `RAILWAY_TOKEN` in GitHub => Settings => Secrets => Actions
 2. Set `.env` variables in Railway Dashboard => Variables tab
-3. Add Redis plugin in Railway (replaces local Docker Redis)
+3. Add Redis plugin in Railway (replaces local Docker Redis) — its connection string ships with a
+   password by default, and with `ENV=prod` set, `app.module.ts`'s Joi schema now refuses to boot
+   if `REDIS_URL` ever ends up without one
 
 **Config Files**
 - 'railway.toml' builds with Dockerfile, runs `cd backend && pnpm migration:run && node dist/main` on deploy

@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
 import { AuthModule } from './auth/auth.module';
@@ -16,6 +16,46 @@ import { join } from 'node:path';
 import { ModerationModule } from './moderation/moderation.module';
 import { HealthModule } from './health/health.module';
 import { SentryModule } from '@sentry/nestjs/setup';
+
+// ENV=prod에서 REDIS_URL에 비밀번호가 빠지면 부팅을 막음 — redis.module.ts, pubsub.service.ts,
+// chat.gateway.ts 세 곳이 각자 REDIS_URL을 파싱해 클라이언트를 만들므로 개별 파일이 아니라
+// 여기 한 곳에서 막아야 세 곳 다 보호됨. 과거 무인증 Redis 노출 사고(README § AI-Assisted
+// Development Notes) 재발 방지 차원의 사전 강화.
+function resolveEnvFromAncestors(ancestors: unknown): string | undefined {
+  const siblings: unknown = Array.isArray(ancestors) ? ancestors[0] : undefined;
+  if (
+    typeof siblings === 'object' &&
+    siblings !== null &&
+    'ENV' in siblings &&
+    typeof siblings.ENV === 'string'
+  ) {
+    return siblings.ENV;
+  }
+  return undefined;
+}
+
+function validateRedisUrlPassword(
+  value: string,
+  helpers: Joi.CustomHelpers<string>,
+): string | Joi.ErrorReport {
+  const env = resolveEnvFromAncestors(helpers.state.ancestors);
+  if (env !== 'prod') return value;
+
+  let password: string;
+  try {
+    password = new URL(value).password;
+  } catch {
+    return helpers.message({ custom: 'REDIS_URL이 올바른 URL 형식이 아님' });
+  }
+
+  if (!password) {
+    return helpers.message({
+      custom: 'REDIS_URL은 ENV=prod에서 비밀번호를 포함해야 함',
+    });
+  }
+
+  return value;
+}
 
 @Module({
   imports: [
@@ -38,7 +78,7 @@ import { SentryModule } from '@sentry/nestjs/setup';
         CORS_ORIGIN: Joi.string().pattern(/\S/).required(),
         GEMINI_API_KEY: Joi.string().required(),
         // Redis 연결 문자열 — RedisModule과 PubSubService가 필요로 함
-        REDIS_URL: Joi.string().required(),
+        REDIS_URL: Joi.string().required().custom(validateRedisUrlPassword),
         USER_CACHE_TTL_SEC: Joi.number().required(),
         SESSION_TTL_SEC: Joi.number().required(),
         MESSAGE_CACHE_TTL_SEC: Joi.number().required(),
@@ -137,6 +177,5 @@ import { SentryModule } from '@sentry/nestjs/setup';
     ModerationModule,
     HealthModule,
   ],
-  providers: [Logger],
 })
 export class AppModule {}

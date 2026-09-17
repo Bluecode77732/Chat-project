@@ -400,6 +400,7 @@ export class UserService {
     // Redis 세션 정리
     await this.sessionCacheService.sethUserOffline(id);
     await this.redis.del(`user:${id}`);
+    await this.redis.del(`user_cache:${id}`);
 
     // 현재 액세스 토큰 블랙리스트 등록
     if (rawToken) {

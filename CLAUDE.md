@@ -821,6 +821,29 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: any new role-mutation path (not just the existing one) must re-check these two
   population invariants — do not assume they only apply to the current update endpoint.
 
+**Compromised Superadmin Containment**
+- Breakdown: `updateRole` (`user.controller.ts:198-225`, `user.service.ts:240-315`) has no
+  actor-vs-target role comparison — unlike `ban`/`unban`/`forceLogout`/`remove`, which each
+  reject a target with an equal or higher role (`user.controller.ts:250,282,317,361`). This
+  means any superadmin can demote *another* superadmin, as long as doing so doesn't trip the
+  last-superadmin invariant above. The demotion takes effect on the target's very next
+  request, not after access-token expiry: `JwtStrategy.validate()` never trusts the JWT
+  payload's `role` claim — it re-resolves the current role from `user_cache`/DB on every
+  request (`jwt.strategy.ts:59-113`), and `updateRole` deletes that cache entry
+  (`user.service.ts:290`) before returning. Once demoted, the account's role is lower than
+  the acting superadmin's, so `forceLogout`/`ban`/`remove` become available for cleanup.
+  Operator-facing runbook: [README.md § Compromised Superadmin Containment](README.md#compromised-superadmin-containment).
+- Rationale: the only case this doesn't cover is exactly one superadmin remaining and that
+  one being compromised — the last-superadmin invariant blocks demoting it, and there is no
+  peer left to act. That single-point-of-failure is closed by an operational policy
+  (maintain at least two superadmin accounts at all times), not by code — see
+  Principle Conflict Protocol discussion of 2026-09-14: a break-glass code mechanism was
+  considered and rejected as unnecessary once this existing capability was traced, since the
+  policy alone removes the gap.
+- Goal: do not add an actor-vs-target role check to `updateRole` to "make it consistent" with
+  ban/forceLogout/remove — that would remove the only in-app path for recovering from a
+  compromised superadmin account without DB access or a full secret rotation.
+
 **Audit Trail for Privileged Actions**
 - Breakdown: `AuditLogService.log(actorId, targetId, action, detail)` records every
   privileged user-management action — `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_DELETE`
@@ -975,7 +998,7 @@ Do not suggest alternatives to these decisions without explicit request.
 ### Cache (Redis via ioredis)
 - Key naming: `{service}:{entity}:{id}` — e.g. `chat:session:userId`
 - TTL required on every key — no indefinite cache
-- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`). Any new path that mutates a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
+- Cache Invalidation: `user_cache:{userId}` (TTL `USER_CACHE_TTL_SEC`, default 300 s, set by `jwt.strategy.ts`) is invalidated explicitly after `updateRole` (`user.service.ts:290`) and after `remove` (`user.service.ts:403`). Any new path that mutates or revokes a user's role or permissions must similarly call `redis.del(`user_cache:${userId}`)` — failing to do so creates a privilege-escalation window lasting up to the TTL.
 - pub/sub uses a dedicated subscriber connection, separate from the publisher connection, created inline in `graphql/pubsub.service.ts`
 - Unavailability policy: security checks backed only by Redis (e.g. mute state, token blacklist) must fail closed explicitly (catch, log, deny) — never let an unguarded Redis call surface as an uncaught, undocumented `500`. A Redis read that already has a DB fallback in the same method (e.g. `user_cache`) should instead be treated as a cache miss and fall through to that DB path. See [ADR 0016](ADR/0016-redis-unavailability-policy.md).
 - **Never suggest**: node-redis (ioredis is unified across codebase)
@@ -988,7 +1011,8 @@ Do not suggest alternatives to these decisions without explicit request.
 - Isolation level: `SERIALIZABLE` is used specifically for `updateRole` to prevent phantom reads in concurrent role-mutation checks (required by Role Population Invariants); do not apply `SERIALIZABLE` to other operations without explicit justification — it adds serialization overhead and retry costs under contention
 - Migration rollback: implement `down()` wherever reversal is meaningful; if a migration is intentionally irreversible (e.g. destructive column drop after data copy), document it with a comment in the migration file — never leave `down()` silently empty or throwing without explanation
 - Local Docker: after any migration that alters entity columns, rebuild the local stack — `docker compose up -d --build` — so the running container reflects the new schema
-- Generated-migration review: `migration:generate` re-emits a spurious FK drop/re-add on `room_entity_participants_user_entity` — its ManyToMany relation carries no `onDelete`, so TypeORM keeps trying to revert the `ON DELETE CASCADE` that `FixUserDeleteCascade1749700000000` set (and that `UserService.remove` relies on). Always strip those FK lines from the generated file, keep only the intended column change, then after running verify `SELECT confdeltype FROM pg_constraint WHERE conname='FK_501a0aef55632e3cf2894bda97f'` returns `c` (CASCADE) — an `a` (NO ACTION) breaks user deletion with a FK violation.
+- Generated-migration review: `migration:generate` re-emits a spurious FK drop/re-add on `room_entity_participants_user_entity` — its ManyToMany relation carries no `onDelete`, so TypeORM keeps trying to revert the `ON DELETE CASCADE` that `FixUserDeleteCascade1749700000000` set (and that `UserService.remove` relies on). Always strip those FK lines from the generated file, keep only the intended column change, then after running verify `SELECT confdeltype FROM pg_constraint WHERE conname='FK_501a0aef55632e3cf2894bda97f'` returns `c` (CASCADE) — an `a` (NO ACTION) breaks user deletion with a FK violation. Same category of spurious diff on `ai_room_entity`'s `OneToOne` FK to `room_entity`: the migration-assigned name (`FK_ai_room_entity_room`) doesn't match TypeORM's auto-generated name (`FK_d7d7c93863e5df50232bb8aa1fc`) for the same `ON DELETE CASCADE` constraint — a `schema:log`/`migration:generate` diff here is a naming artifact, not a real schema drift; strip it the same way.
+- CLI entity registration: `backend/src/data-source.ts`'s `entities` array is a separate, manually maintained list — `app.module.ts`'s `autoLoadEntities: true` only covers the running app, while `migration:generate`/`migration:run` read `data-source.ts` exclusively. Any new `*.entity.ts` must be added to both, or `migration:generate` diffs against an incomplete entity set and can emit a spurious drop/alter for the table `data-source.ts` doesn't know about. (Found missing: `AuditLogEntity`, `AiRoomEntity` — both had live tables and applied migrations but were absent from this array.)
 - **Never suggest**: `synchronize: true`, manual QueryRunner lifecycle inline (`createQueryRunner → connect → startTransaction → commit/rollback → release`)
 
 ### API Layer
@@ -1056,6 +1080,9 @@ pnpm test --testPathPatterns auth.service
 ```bash
 docker compose up -d --build
 ```
+`chat` waits on `postgres`/`redis` reaching `service_healthy` (docker-compose.yml healthchecks) before
+running `migration:run` — removing either `depends_on: condition: service_healthy` line lets the
+container attempt migrations against a DB/cache that isn't accepting connections yet.
 
 ## Architecture
 
@@ -1089,7 +1116,11 @@ docker compose up -d --build
 - `ChatGateway` — Socket.IO: validates JWT on `handleConnection`, joins rooms (no chat-message handling)
 - `ChatResolver` — GraphQL: `sendMessage` mutation, `receiveMessage` subscription (by roomId), `getOnlineUser` query
 - `SessionCacheService` — tracks `userId → {socketId, status}` in Redis hashes with 24h TTL
-- `RateLimitGuard` — Redis-backed 10 messages/15s per user
+- `RateLimitGuard` — Redis-backed 10 messages/15s per user, fails closed on a Redis error
+- `QueryRateLimitGuard` — Redis-backed 30 requests/15s per user, applied to the authenticated
+  GraphQL queries/mutations beyond `sendMessage`; unlike `RateLimitGuard` it fails **open** on a
+  Redis error and doesn't feed `ModerationService`'s strike ladder — see [ADR
+  0016](ADR/0016-redis-unavailability-policy.md)
 - `GqlTransactionInterceptor` wraps the `sendMessage` GraphQL mutation for ACID message saves (GraphQL-only — Socket.IO carries no chat-message traffic, so no REST/WS equivalent exists)
 
 **UserModule** (`backend/src/user/`)
@@ -1285,11 +1316,13 @@ GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and
 
 1. **`test`** — matrix `ubuntu-latest` + `windows-latest` (Windows is `continue-on-error: true`,
    ubuntu is not). `pnpm install` → `pnpm --filter backend lint` → `pnpm --filter backend test` →
-   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm check:adr` (broken links/anchors,
+   `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm --filter frontend lint` →
+   `pnpm --filter frontend test` → `pnpm check:adr` (broken links/anchors,
    stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
    (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:deps` (README's
-   Dependencies/DevDependencies lists in sync with `backend/package.json`). No step has a `|| true`
-   fallback — any failure hard-fails the job.
+   Dependencies/DevDependencies lists in sync with `backend/package.json`) → `pnpm check:changelog`
+   (CHANGELOG.md/.ko.md list every commit under matching newest-first date headings, EN/KO in sync).
+   No step has a `|| true` fallback — any failure hard-fails the job.
 2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs
    migrations, runs the backend's jest e2e boot-smoke suite (`pnpm --filter backend test:e2e`), starts
    the compiled server, then runs Playwright e2e against `frontend/`. Blocks `deploy`.

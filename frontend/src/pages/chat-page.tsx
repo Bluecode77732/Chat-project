@@ -91,6 +91,7 @@ function ChatPage() {
 
     const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState<number | null>(null);
     const [moderationNotice, setModerationNotice] = useState<string | null>(null);
+    const [sendErrorNotice, setSendErrorNotice] = useState<string | null>(null);
     const [pendingPersonality, setPendingPersonality] = useState<string | null>(null);
     const [showPersonalitySelector, setShowPersonalitySelector] = useState(false);
     const [isInitialSelect, setIsInitialSelect] = useState(true);
@@ -407,7 +408,11 @@ function ChatPage() {
                 window.setTimeout(() => setModerationNotice(null), 4000);
                 return;
             }
-            throw err;
+            // 그 외 GraphQL 에러: 여기서 종결 처리 — throw하면 onClick/onKeyDown 핸들러가
+            // await/.catch 없이 호출하므로 unhandled rejection이 되고 사용자에게 피드백이 없음.
+            setSendErrorNotice('메시지 전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+            window.setTimeout(() => setSendErrorNotice(null), 4000);
+            return;
         }
 
         const newRoomId = data?.sendMessage?.roomId;
@@ -801,6 +806,15 @@ function ChatPage() {
                 aria-live="polite"
             >
                 {moderationNotice}
+            </div>
+        )}
+        {sendErrorNotice && (
+            <div
+                className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 text-center"
+                role="status"
+                aria-live="polite"
+            >
+                {sendErrorNotice}
             </div>
         )}
         <div className="flex gap-2 mt-4 items-end">

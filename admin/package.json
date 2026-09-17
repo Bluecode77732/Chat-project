@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",
-    "axios": "^1.15.2",
+    "axios": "^1.20.0",
     "graphql": "^16.13.2",
     "jwt-decode": "^4.0.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.75.0",
-    "react-router-dom": "^7.15.1",
+    "react-router-dom": "^7.18.4",
     "rxjs": "^7.8.2",
     "zustand": "^5.0.12"
   },

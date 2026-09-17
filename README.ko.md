@@ -705,6 +705,27 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 - 마지막 남은 `superadmin`은 강등 불가 — `updateRole`이 차단해 시스템이 superadmin 0명 상태가 되는 것을 방지
 - `admin` 역할 계정은 `MAX_ADMIN_COUNT` 상한
 - 시딩된 AI 답장 계정과 moderation 시스템 계정은 삭제 불가 — `UserService.remove()`가 거부(AI 답장 또는 모더레이션 알림 기능이 조용히 깨지는 것을 방지)
+- force-logout/ban/unban/delete와 달리, `updateRole`은 자신과 같거나 높은 역할의 대상을 막지 않음 — superadmin이 다른 superadmin을 강등시킬 수 있음. 이는 의도된 동작임 — 아래 [탈취된 superadmin 계정 봉쇄](#탈취된-superadmin-계정-봉쇄) 참고.
+
+
+### 탈취된 superadmin 계정 봉쇄
+정책: superadmin 계정을 항상 최소 2명 유지함. 1명뿐이면 그 계정이 탈취돼도 아무도 강등시킬
+수 없음 — 위의 마지막-superadmin 불변식이 이를 막고, 조치할 다른 superadmin도 없기 때문임.
+2명 이상이면 봉쇄는 DB 접근이 필요한 상황이 아니라 평범한 앱 내 작업이 됨.
+
+1. 다른(탈취되지 않은) superadmin 계정으로 admin 패널에 로그인할 것.
+2. Users에서 탈취된 계정을 찾아 **Demote (superadmin)**을 클릭할 것. 대상의 다음 요청부터
+   즉시 `admin`으로 강등됨 — 여전히 유효한 access token이 있어도, 권한 판정은 그 토큰이
+   아니라 매 요청마다 DB/캐시에서 다시 조회한 role을 기준으로 하기 때문임(위 [역할](#역할)
+   참고). accessToken 만료를 기다릴 필요가 없음.
+3. 강등된 뒤에는 평범한 admin 작업(**Force logout**, **Ban**, **Delete**)을 그대로 쓸 것.
+4. 신뢰할 수 있는 계정을 다시 superadmin으로 승격해 최소 2명 기준을 복구할 것.
+5. 감사 로그(해당 사용자 ID의 `ROLE_CHANGE` / `FORCE_LOGOUT` / `USER_BANNED` 항목)를 검토해
+   탈취돼 있던 동안 그 계정이 무엇을 했는지 확인할 것.
+
+superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경로가 없음 — `ACCESS_TOKEN_SECRET`
+/`REFRESH_TOKEN_SECRET`을 교체해(공격자 세션을 포함한 모든 세션이 재인증하도록 강제) DB에서
+직접 그 행을 고쳐야 함. 이게 바로 "최소 2명 유지" 정책이 막으려는 상황임.
 
 
 ### 모더레이션
@@ -788,7 +809,7 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 배포됨([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
 
 - **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 moderation 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
-- **Users** — 페이지네이션/정렬/검색 지원 목록; 모더레이션 상태(active/banned)로 필터. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림. 액션: 승격/강등(superadmin 전용), 강제 로그아웃, 수동 밴(선택적 사유, 영구 또는 기간제)/언밴, 삭제 — 자신보다 명확히 낮은 등급만 대상 가능하며 AI/moderation 시스템 계정은 절대 삭제 불가([역할](#역할) 불변식 참고)
+- **Users** — 페이지네이션/정렬/검색 지원 목록; 모더레이션 상태(active/banned)로 필터. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림. 액션(표시된 것은 superadmin 전용): `user`/`admin` 간 승격·강등; 강제 로그아웃, 수동 밴(선택적 사유, 영구 또는 기간제)/언밴, 삭제는 자신보다 명확히 낮은 등급만 대상 가능; superadmin은 이와 별개로 동료 superadmin 계정에 **Demote (superadmin)** 액션을 추가로 씀([탈취된 superadmin 계정 봉쇄](#탈취된-superadmin-계정-봉쇄) 참고); AI/moderation 시스템 계정은 절대 삭제 불가([역할](#역할) 불변식 참고)
 - **Rooms** — 페이지네이션/검색 지원 목록; 행을 클릭하면 상세 패널(방 ID, 생성일, 참여자)이 열림. 방 삭제 가능
 - **Logs** — 액션/유저/날짜 범위로 필터한 감사 로그; **Export CSV**는 현재 필터를 파일로 다운로드(API와 동일하게 10,000행 캡)
 

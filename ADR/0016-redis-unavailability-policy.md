@@ -20,7 +20,9 @@ Redis is down."
 
 ## Decision
 
-Two policies, chosen per call site based on whether an authoritative non-Redis fallback exists:
+Three policies, chosen per call site based on whether an authoritative non-Redis fallback
+exists, and — when none exists — whether the check also gates a security/abuse-detection
+decision:
 
 - **Fail closed (no fallback available)** — the check denies the request rather than letting an
   uncaught exception surface as an unrelated `500`:
@@ -39,12 +41,26 @@ Two policies, chosen per call site based on whether an authoritative non-Redis f
   swallowed, since the caller already has the DB-resolved user and a failed cache write must not fail
   the request.
 
+- **Fail open (no fallback available, but the check has no security/abuse-detection role)** —
+  the check is skipped rather than blocking the request, so an outage widens to "the limit isn't
+  enforced for a while" instead of "the feature is unusable":
+  - `QueryRateLimitGuard` (`backend/src/chat/guard/query-rate-limit.guard.ts`, throttles the
+    authenticated GraphQL queries/mutations beyond `sendMessage` — `getMyRooms`, `getMessages`,
+    `getOnlineUser`, etc.): catches the error, logs it, returns `true` (allows the request).
+    Unlike `RateLimitGuard`, it does not feed `ModerationService`'s strike ladder and has no DB
+    fallback either — but it also isn't gating account status or abuse response. Failing closed
+    here would turn a Redis outage into "most of the chat UI stops working," not just "sending is
+    throttled less."
+
 **Alternatives considered and rejected:**
 
-- **Fail open everywhere on Redis error**: rejected — would bypass rate limiting and the mute/ban gate
-  at exactly the moment (a Redis outage) when abuse or a banned user retrying is hardest to distinguish
-  from legitimate traffic recovering; this is the opposite of what a security-relevant check should do
-  under uncertainty.
+- **Fail open everywhere on Redis error**: rejected for the security/abuse-detection call sites above
+  (`RateLimitGuard`, the blacklist check, the mute check) — would bypass rate limiting and the mute/ban
+  gate at exactly the moment (a Redis outage) when abuse or a banned user retrying is hardest to
+  distinguish from legitimate traffic recovering; this is the opposite of what a security-relevant check
+  should do under uncertainty. This does not extend to `QueryRateLimitGuard` above: it isn't a
+  security/abuse gate, so failing open there isn't a reopening of this rejection — it's a different call
+  site with a different risk profile.
 - **Fail closed everywhere, including `user_cache`**: rejected specifically for `user_cache` — since a
   DB fallback already exists in the same method, failing the whole auth request on a cache-only read is
   strictly worse than the "treat as a miss" degrade, which achieves the same safety with no user-facing
@@ -62,3 +78,7 @@ Two policies, chosen per call site based on whether an authoritative non-Redis f
   fail closed explicitly — relying on an uncaught exception to accidentally produce a deny is not
   equivalent to a documented fail-closed policy, since the exact HTTP status and log signature differ
   and are not attributable to "Redis is down" without reading a stack trace.
+- A Redis-backed check with no DB fallback still defaults to fail-closed. Fail-open is the narrow
+  exception, only for a check that also has no security/abuse-detection role (not linked to account
+  status or a moderation strike) — that reasoning must be stated explicitly at the call site (see
+  `QueryRateLimitGuard` above), never assumed by default.
