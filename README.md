@@ -32,6 +32,23 @@ A real-time private one-to-one chat service, iterated over 6+ months (600+ commi
 Two real incidents hit during development — a live infrastructure security exposure and an AI-reply cache-corruption bug — are written up with full root-cause analysis in [AI-Assisted Development Notes](#ai-assisted-development-notes).
 
 
+## Screenshots
+Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
+Hosting is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
+deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
+The UI text is Korean; only the sign-in screen is in English.
+
+| | |
+|---|---|
+| ![Sign-in screen with email and password fields](docs/images/en/01-signin.png)<br>**Sign in** — access token is kept in memory, refresh token in an httpOnly cookie | ![One-to-one chat between two demo accounts](docs/images/en/02-chat.png)<br>**One-to-one chat** — messages arrive through the `receiveMessage` GraphQL subscription |
+| ![AI personality selection dialog](docs/images/en/03-ai-personality.png)<br>**AI personality** — the first AI chat asks for one of four personalities before the first message | ![AI chat with a Gemini reply](docs/images/en/04-ai-chat.png)<br>**AI chat** — a live Gemini reply, delivered through the same channel as human messages |
+| ![Account settings with profile and account deletion](docs/images/en/05-account.png)<br>**Account** — profile edit and account deletion (current password required) | ![Admin dashboard with totals and recent audit logs](docs/images/en/06-admin-dashboard.png)<br>**Admin dashboard** — totals and recent audit logs (separate admin app) |
+| ![Admin user list with a banned user's detail panel](docs/images/en/07-admin-users-panel.png)<br>**Admin users** — detail panel of a banned account with its recent audit entries | |
+
+Known limitation of these captures: the dialog backdrop on the AI personality screen renders as solid
+black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides; it is not fixed here.
+
+
 ## Project Motivation
 - Built solo, iterating live over 600+ commits (2026-01-02 ~ present; see [CHANGELOG.md](CHANGELOG.md) for the exact count): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper

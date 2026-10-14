@@ -32,6 +32,22 @@
 개발 중 실제로 겪은 두 가지 인시던트 — 라이브 인프라 보안 노출과 AI 응답 캐시 손상 버그 — 는 근본원인 분석까지 포함해 [AI 보조 개발 사례](#ai-보조-개발-사례)에 정리되어 있음.
 
 
+## 스크린샷
+로컬 스택(backend, Postgres, Redis, Vite 개발 서버)에서 라이트 테마, 가로 1440px로 촬영함.
+현재 호스팅은 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
+계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. UI 문구는 한국어이며 로그인 화면만 영어임.
+
+| | |
+|---|---|
+| ![이메일과 비밀번호 입력란이 있는 로그인 화면](docs/images/ko/01-signin.png)<br>**로그인** — accessToken은 메모리, refreshToken은 httpOnly 쿠키에 보관함 | ![데모 계정 두 개의 1:1 채팅 화면](docs/images/ko/02-chat.png)<br>**1:1 채팅** — 메시지는 `receiveMessage` GraphQL 구독으로 도착함 |
+| ![AI 성격 선택 대화상자](docs/images/ko/03-ai-personality.png)<br>**AI 성격 선택** — 첫 AI 채팅은 첫 메시지 전에 4가지 성격 중 하나를 고르게 함 | ![Gemini 답장이 있는 AI 채팅 화면](docs/images/ko/04-ai-chat.png)<br>**AI 채팅** — 실제 Gemini 답장이며 사람 메시지와 같은 채널로 전달됨 |
+| ![프로필과 계정 탈퇴가 있는 계정 설정 화면](docs/images/ko/05-account.png)<br>**계정** — 프로필 수정과 계정 탈퇴(현재 비밀번호 필요) | ![총계와 최근 감사 로그가 있는 admin 대시보드](docs/images/ko/06-admin-dashboard.png)<br>**Admin 대시보드** — 총계와 최근 감사 로그(별도 admin 앱) |
+| ![밴된 유저의 상세 패널이 열린 admin 유저 목록](docs/images/ko/07-admin-users-panel.png)<br>**Admin 유저** — 밴된 계정의 상세 패널과 최근 감사 이력 | |
+
+이 촬영본의 알려진 한계: AI 성격 선택 화면의 대화상자 배경이 불투명한 검정으로 표시됨.
+오버레이가 `bg-opacity-40`을 쓰는데 Tailwind 4에서는 이 유틸리티가 제공되지 않기 때문이며, 여기서는 고치지 않음.
+
+
 ## 프로젝트 동기
 - 600개 이상의 커밋(2026-01-02 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
 - 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 실제 운영 중인 시스템에서 이런 변경에 어떤 비용이 드는지 체감하기 위함
