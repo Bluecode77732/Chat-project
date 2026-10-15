@@ -36,7 +36,7 @@ Two real incidents hit during development — a live infrastructure security exp
 Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
 Hosting is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
-The UI text is Korean; only the sign-in screen is in English.
+The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean.
 
 | | |
 |---|---|
