@@ -651,7 +651,7 @@ Create a `backend/.env` file and paste variables below :
   REFRESH_TOKEN_SECRET=yourEncodedSecretKey
   ACCESS_TOKEN_SECRET=yourEncodedSecretKey
 
-  # Expiry
+  # Expiry — seconds as a number only (e.g. 604800 = 7d, 900 = 15m); "7d"/"15m" fails boot validation
   REFRESH_TOKEN_SECRET_EXPIRES_IN=expiryTime
   ACCESS_TOKEN_SECRET_EXPIRES_IN=expiryTime
 

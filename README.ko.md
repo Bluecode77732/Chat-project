@@ -626,7 +626,7 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
   REFRESH_TOKEN_SECRET=yourEncodedSecretKey
   ACCESS_TOKEN_SECRET=yourEncodedSecretKey
 
-  # 만료 시간
+  # 만료 시간 — 초 단위 숫자만 허용(예: 604800 = 7일, 900 = 15분). "7d"/"15m"은 부팅 검증에서 거부됨
   REFRESH_TOKEN_SECRET_EXPIRES_IN=expiryTime
   ACCESS_TOKEN_SECRET_EXPIRES_IN=expiryTime
 
