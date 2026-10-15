@@ -9,6 +9,10 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-09-18
+
+- Docs: CHANGELOG 동기화 (누락된 커밋 3건 반영)
+
 ## 2026-09-17
 
 - Fix: pnpm audit 런타임 경로 취약점 28건 패치 (socket.io-parser/engine.io/body-parser 등)

@@ -56,10 +56,14 @@
 - KISS/YAGNI를 기본 원칙으로 유지하되 기능 데모 수준에서 멈추지 않음 — 행동 기반 모더레이션 파이프라인, 별도 admin 패널, 실제 서비스에 필요한 수준의 CI/CD(GitHub Actions + Railway/Vercel)까지 구축
 
 
-## 라이브 데모
-- 프론트엔드: https://chat-project-frontend-ten.vercel.app
-- REST API: https://chat-project-production-3b22.up.railway.app
-- WebSocket: wss://chat-project-production-3b22.up.railway.app
+## 호스팅 상태
+현재 호스팅은 비용에 의해 중단한 상태임. Railway로의 마지막 자동 배포 성공은 2026-05-27이며,
+[`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서
+확인 가능함(`main` push 성공 실행 66건, 최신 [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)는
+`test`와 `deploy` 모두 성공).
+
+`deploy` job은 현재 수동 실행 전용(`workflow_dispatch`)이라 `main` push에서는 skipped로 표시됨.
+앱 실행은 [빠른 시작](#빠른-시작)(로컬 또는 Docker)을 따를 것.
 
 
 ## 빠른 시작
@@ -1056,9 +1060,6 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 ### 배포
 #### 프론트엔드 - Vercel
-**라이브 데모**
-- 라이브 URL: https://chat-project-frontend-ten.vercel.app
-
 **CI/CD 흐름**
 `git push origin main` => Vercel 자동 배포
 
@@ -1080,12 +1081,10 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됨. 
 
 
 #### 공개 - Railway
-**라이브 데모**
-- 라이브 URL: https://chat-project-production-3b22.up.railway.app
-
 **CI/CD 흐름**
-`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e` → `deploy`) => Railway CLI
-=> 자동 배포 — 전체 CI job 구성은 [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고
+`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e`). `deploy`(Railway CLI =>
+자동 배포)는 호스팅 중단 동안 수동 실행(`workflow_dispatch`)으로만 동작함 — 전체 CI job 구성은
+[CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고
 
 **설정 (최초 1회)**
 1. GitHub => Settings => Secrets => Actions에 `RAILWAY_TOKEN` 추가

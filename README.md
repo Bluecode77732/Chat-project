@@ -57,10 +57,15 @@ black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides; it
 - Kept KISS/YAGNI as a default, but didn't stop at a feature demo: added a behavioral moderation pipeline, a separate admin panel, and CI/CD (GitHub Actions + Railway/Vercel) the way a real service would need them
 
 
-## Live Demo
-- Frontend: https://chat-project-frontend-ten.vercel.app
-- REST API: https://chat-project-production-3b22.up.railway.app
-- WebSocket: wss://chat-project-production-3b22.up.railway.app
+## Hosting Status
+Hosting is currently stopped (cost). The last successful automatic deploy to Railway was on
+2026-05-27 — see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)
+(66 successful `main` push runs; latest [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)
+passed both `test` and `deploy`).
+
+The `deploy` job is now manual-only (`workflow_dispatch`), so it shows as skipped on `main` pushes.
+To run the app, follow [Quick Start](#quick-start) (local or Docker). A demo video is planned — see
+[ROADMAP](ROADMAP.md#planned).
 
 
 ## Quick Start
@@ -1079,9 +1084,6 @@ entry to the `GUARDED_FKS` array in the spec.
 
 ### Deployment
 #### Frontend - Vercel
-**Live Demo**
-- Live URL: https://chat-project-frontend-ten.vercel.app
-
 **CI/CD Flow**
 `git push origin main` => Vercel Auto-deploy
 
@@ -1103,12 +1105,10 @@ Deployed as a **separate Vercel project**, same pattern as the frontend. Not par
 
 
 #### Public - Railway
-**Live Demo**
-- Live URL: https://chat-project-production-3b22.up.railway.app
-
 **CI/CD Flow**
-`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e` → `deploy`) => Railway CLI =>
-Auto-deploy — full CI job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr)
+`git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e`). `deploy` (Railway CLI =>
+Auto-deploy) runs only on manual dispatch (`workflow_dispatch`) while hosting is stopped — full CI
+job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr)
 
 **Setup (one-time)**
 1. Add `RAILWAY_TOKEN` in GitHub => Settings => Secrets => Actions
