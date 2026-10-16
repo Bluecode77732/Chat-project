@@ -9,6 +9,21 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-16
+
+- Docs: README.ko.md 문장·용어 정리, 영문 README에 사실·구조 오류 동기화
+- Docs: 만료 시간 환경변수 형식과 docker-compose 전용 변수 안내 보강
+- Docs: 호스팅 중단 상태 반영 (deploy job 수동 실행 전환, 라이브 데모 절을 호스팅 상태로 교체)
+- Docs: README 스크린샷 섹션의 UI 언어 서술 정정
+
+## 2026-10-14
+
+- Docs: README(영/한)에 스크린샷 섹션 추가, docs/images에 촬영본 7장 배치
+
+## 2026-09-25
+
+- Harden: curl 이중 URL 유출 경로를 막는 PreToolUse 훅 추가
+
 ## 2026-09-18
 
 - Docs: CHANGELOG 동기화 (누락된 커밋 3건 반영)
