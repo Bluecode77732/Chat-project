@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { AUDIT_ACTION_LABEL } from '../constants/audit-action-label';
 
 interface User {
     id: number;
@@ -349,7 +350,7 @@ function UsersPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                                            {new Date(u.created).toLocaleString()}
+                                            {new Date(u.created).toLocaleString('ko-KR')}
                                         </td>
                                         <td className="px-4 py-3 flex gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                                             {myRole === 2 && u.role !== 2 && (
@@ -465,7 +466,7 @@ function UsersPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-500">가입일</span>
-                                <span className="text-gray-600">{new Date(selectedUser.created).toLocaleString()}</span>
+                                <span className="text-gray-600">{new Date(selectedUser.created).toLocaleString('ko-KR')}</span>
                             </div>
 
                             {panelLoading ? (
@@ -484,7 +485,7 @@ function UsersPage() {
                                     {panelDetail?.bannedUntil && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">차단 해제 예정</span>
-                                            <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString()}</span>
+                                            <span className="text-red-600 text-xs">{new Date(panelDetail.bannedUntil).toLocaleString('ko-KR')}</span>
                                         </div>
                                     )}
                                     {/* Unban: 사용자가 현재 ban 상태이고 actor의 권한이 더 높을 때만 표시. */}
@@ -523,9 +524,9 @@ function UsersPage() {
                                         <li key={log.id} className="text-xs border rounded px-3 py-2 bg-gray-50">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className={`px-1.5 py-0.5 rounded font-medium ${ACTION_COLOR[log.action] ?? 'bg-gray-100 text-gray-600'}`}>
-                                                    {log.action}
+                                                    {AUDIT_ACTION_LABEL[log.action] ?? log.action}
                                                 </span>
-                                                <span className="text-gray-400">{new Date(log.created).toLocaleString()}</span>
+                                                <span className="text-gray-400">{new Date(log.created).toLocaleString('ko-KR')}</span>
                                             </div>
                                             {log.detail && <p className="text-gray-500">{log.detail}</p>}
                                         </li>

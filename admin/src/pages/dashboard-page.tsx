@@ -7,6 +7,7 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuthStore } from '../store/auth.store';
+import { AUDIT_ACTION_LABEL } from '../constants/audit-action-label';
 import { GET_ALL_ROOMS, GET_USER_NICKNAMES, GET_ONLINE_USER } from '../api/graphql-operations';
 
 interface AuditLog {
@@ -122,9 +123,9 @@ function DashboardPage() {
                                 <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">로그가 없습니다.</td></tr>
                             ) : recentLogs.map((log) => (
                                 <tr key={log.id} className="border-t">
-                                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(log.created).toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(log.created).toLocaleString('ko-KR')}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>{log.action}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>{AUDIT_ACTION_LABEL[log.action] ?? log.action}</span>
                                     </td>
                                     <td className="px-4 py-3">{displayName(log.actorId)}</td>
                                     <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>

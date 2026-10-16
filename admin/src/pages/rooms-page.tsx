@@ -175,7 +175,7 @@ function RoomsPage() {
                                             <td className="px-4 py-3">{room.roomId}</td>
                                             <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                                                {new Date(room.created).toLocaleString()}
+                                                {new Date(room.created).toLocaleString('ko-KR')}
                                             </td>
                                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <button
@@ -247,7 +247,7 @@ function RoomsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-500">생성일</span>
-                                <span className="text-gray-600 text-xs">{new Date(selectedRoom.created).toLocaleString()}</span>
+                                <span className="text-gray-600 text-xs">{new Date(selectedRoom.created).toLocaleString('ko-KR')}</span>
                             </div>
                             <div>
                                 <span className="text-gray-500 block mb-1">참여자</span>

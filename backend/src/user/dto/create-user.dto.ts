@@ -17,8 +17,8 @@ export class CreateUserDto {
     example: 'x@gmail.com',
     type: String,
   })
-  @IsNotEmpty()
-  @IsEmail()
+  @IsNotEmpty({ message: '이메일을 입력해주세요.' })
+  @IsEmail({}, { message: '이메일 형식이 올바르지 않습니다.' })
   email?: string;
 
   @ApiProperty({
@@ -38,7 +38,7 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(20)
+  @MaxLength(20, { message: '닉네임은 20자 이하여야 합니다.' })
   nickname?: string;
 
   @ApiProperty({
@@ -48,8 +48,7 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, {
-    message:
-      'profileImage must be a base64 data URI (image/jpeg, image/png, or image/webp)',
+    message: '프로필 이미지는 jpeg, png, webp 형식이어야 합니다.',
   })
   @MaxLength(MAX_PROFILE_IMAGE_BASE64_LENGTH)
   profileImage?: string;

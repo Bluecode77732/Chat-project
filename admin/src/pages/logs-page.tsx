@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client/react';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { AUDIT_ACTION_LABEL } from '../constants/audit-action-label';
 import { GET_USER_NICKNAMES } from '../api/graphql-operations';
 
 interface AuditLog {
@@ -153,7 +154,7 @@ function LogsPage() {
                     >
                         <option value="">전체</option>
                         {ACTIONS.map((a) => (
-                            <option key={a} value={a}>{a}</option>
+                            <option key={a} value={a}>{AUDIT_ACTION_LABEL[a] ?? a}</option>
                         ))}
                     </select>
 
@@ -229,11 +230,11 @@ function LogsPage() {
                                     {result.data.map((log) => (
                                         <tr key={log.id} data-testid={`log-row-${log.id}`} className="border-t">
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                                                {new Date(log.created).toLocaleString()}
+                                                {new Date(log.created).toLocaleString('ko-KR')}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>
-                                                    {log.action}
+                                                    {AUDIT_ACTION_LABEL[log.action] ?? log.action}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3">{displayName(log.actorId)}</td>

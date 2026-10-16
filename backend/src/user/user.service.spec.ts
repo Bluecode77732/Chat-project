@@ -386,7 +386,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce({ id: 2, nickname: 'Taken' }); // 닉네임 조회
 
       await expect(userService.create(createUserDto)).rejects.toThrow(
-        new BadRequestException('Nickname already in use.'),
+        new BadRequestException('이미 사용 중인 닉네임입니다.'),
       );
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });

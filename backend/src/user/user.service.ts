@@ -66,7 +66,7 @@ export class UserService {
         where: { nickname },
       });
       if (existingNickname) {
-        throw new BadRequestException('Nickname already in use.');
+        throw new BadRequestException('이미 사용 중인 닉네임입니다.');
       }
     }
 
@@ -200,7 +200,7 @@ export class UserService {
         where: { nickname: updateUserDto.nickname },
       });
       if (existingNickname && existingNickname.id !== id) {
-        throw new BadRequestException('Nickname already in use.');
+        throw new BadRequestException('이미 사용 중인 닉네임입니다.');
       }
     }
 
@@ -342,15 +342,15 @@ export class UserService {
     // 시스템 계정(AI 답장/moderation 경고·밴 메시지 발신용) 삭제 방지 —
     // 삭제되면 해당 기능이 통째로 깨짐. 둘 다 실제 로그인 경로가 없어 본인 요청으로는 도달 불가.
     if (user.isAI || user.email === SYSTEM_USER_EMAIL) {
-      throw new BadRequestException('Cannot delete a system-managed account.');
+      throw new BadRequestException('시스템 계정은 삭제할 수 없습니다.');
     }
 
     // 비밀번호 본인 확인 (admin이 타인 삭제 시 스킵)
     if (!skipPasswordCheck) {
-      if (!password) throw new BadRequestException('Password is required.');
+      if (!password) throw new BadRequestException('비밀번호를 입력해주세요.');
       const valid = await bcrypt.compare(password, String(user.password));
       if (!valid) {
-        throw new BadRequestException('Invalid password.');
+        throw new BadRequestException('비밀번호가 올바르지 않습니다.');
       }
     }
 

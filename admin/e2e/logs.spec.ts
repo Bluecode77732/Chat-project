@@ -47,6 +47,6 @@ test('Audit log action filter narrows results', async ({ page }) => {
     const badges = page.getByTestId('logs-table').locator('tbody td span');
     const count = await badges.count();
     for (let i = 0; i < count; i++) {
-        await expect(badges.nth(i)).toHaveText('USER_DELETE');
+        await expect(badges.nth(i)).toHaveText('사용자 삭제');
     }
 });

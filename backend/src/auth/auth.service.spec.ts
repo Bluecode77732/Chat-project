@@ -276,7 +276,7 @@ describe('AuthService', () => {
       mockUserRepository.findOne.mockResolvedValue(mockUserEntity);
 
       await expect(authService.register(BasicToken)).rejects.toThrow(
-        new BadRequestException('User Already Exist.'),
+        new BadRequestException('이미 가입된 이메일입니다.'),
       );
 
       // save가 호출되지 않았는지 확인
@@ -290,7 +290,9 @@ describe('AuthService', () => {
 
       await expect(
         authService.register(BasicToken, 'TakenNickname'),
-      ).rejects.toThrow(new BadRequestException('Nickname already in use.'));
+      ).rejects.toThrow(
+        new BadRequestException('이미 사용 중인 닉네임입니다.'),
+      );
 
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });
