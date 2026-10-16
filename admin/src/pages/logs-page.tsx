@@ -44,13 +44,13 @@ function LogsPage() {
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
     );
-    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
+    const displayName = (id: number) => nicknameById.get(id) || `사용자 ${id}`;
 
     useEffect(() => {
         let cancelled = false;
         api.get('/audit-log', { params: { action: action || undefined, page, sort, userId, from: from || undefined, to: to || undefined } })
             .then((res) => { if (!cancelled) { setResult(res.data as AuditLogPage); setLoadError(''); setLoading(false); } })
-            .catch(() => { if (!cancelled) { setLoadError('Failed to load logs.'); setLoading(false); } });
+            .catch(() => { if (!cancelled) { setLoadError('로그를 불러오지 못했습니다.'); setLoading(false); } });
         return () => { cancelled = true; };
     }, [action, page, sort, userId, from, to]);
 
@@ -108,7 +108,7 @@ function LogsPage() {
             link.remove();
             URL.revokeObjectURL(url);
         } catch {
-            setExportError('Failed to export logs.');
+            setExportError('로그를 내보내지 못했습니다.');
         }
     };
 
@@ -134,30 +134,30 @@ function LogsPage() {
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Audit Logs</h1>
+                    <h1 className="text-2xl font-bold">감사 로그</h1>
                     <div className="flex gap-3">
-                        <button onClick={() => navigate('/dashboard')} data-testid="nav-dashboard" className="text-sm text-blue-600 hover:underline">Dashboard</button>
-                        <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">Users</button>
-                        <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">Rooms</button>
-                        <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">Sign out</button>
+                        <button onClick={() => navigate('/dashboard')} data-testid="nav-dashboard" className="text-sm text-blue-600 hover:underline">대시보드</button>
+                        <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">사용자</button>
+                        <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">채팅방</button>
+                        <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">로그아웃</button>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
-                    <label className="text-sm text-gray-600">Action</label>
+                    <label className="text-sm text-gray-600">작업</label>
                     <select
                         value={action}
                         onChange={(e) => changeAction(e.target.value)}
                         data-testid="log-action-filter"
                         className="text-sm border rounded px-2 py-1"
                     >
-                        <option value="">All</option>
+                        <option value="">전체</option>
                         {ACTIONS.map((a) => (
                             <option key={a} value={a}>{a}</option>
                         ))}
                     </select>
 
-                    <label className="text-sm text-gray-600">User</label>
+                    <label className="text-sm text-gray-600">사용자</label>
                     {/* User 드롭다운: 알려진 모든 사용자를 닉네임으로 표시.
                         userId를 백엔드로 보내면 actorId 또는 targetId가 일치하는 로그를 반환. */}
                     <select
@@ -166,13 +166,13 @@ function LogsPage() {
                         data-testid="log-user-filter"
                         className="text-sm border rounded px-2 py-1"
                     >
-                        <option value="">All</option>
+                        <option value="">전체</option>
                         {Array.from(nicknameById.entries()).map(([id, nickname]) => (
-                            <option key={id} value={id}>{nickname ?? `User ${id}`}</option>
+                            <option key={id} value={id}>{nickname ?? `사용자 ${id}`}</option>
                         ))}
                     </select>
 
-                    <label className="text-sm text-gray-600">From</label>
+                    <label className="text-sm text-gray-600">시작일</label>
                     <input
                         type="date"
                         value={from}
@@ -180,7 +180,7 @@ function LogsPage() {
                         data-testid="log-from-filter"
                         className="text-sm border rounded px-2 py-1"
                     />
-                    <label className="text-sm text-gray-600">To</label>
+                    <label className="text-sm text-gray-600">종료일</label>
                     <input
                         type="date"
                         value={to}
@@ -194,7 +194,7 @@ function LogsPage() {
                         data-testid="log-export-csv"
                         className="ml-auto text-sm px-3 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                        Export CSV
+                        CSV 내보내기
                     </button>
                 </div>
 
@@ -207,7 +207,7 @@ function LogsPage() {
                 )}
 
                 {loading ? (
-                    <p className="text-gray-500">Loading...</p>
+                    <p className="text-gray-500">불러오는 중...</p>
                 ) : (
                     <>
                         <div data-testid="logs-table" className="bg-white rounded-xl shadow overflow-hidden">
@@ -216,13 +216,13 @@ function LogsPage() {
                                     <tr>
                                         <th className="px-4 py-3">
                                             <button onClick={toggleSort} className="hover:underline cursor-pointer font-bold">
-                                                Time
+                                                시간
                                             </button>
                                         </th>
-                                        <th className="px-4 py-3">Action</th>
-                                        <th className="px-4 py-3">Actor</th>
-                                        <th className="px-4 py-3">Target</th>
-                                        <th className="px-4 py-3">Detail</th>
+                                        <th className="px-4 py-3">작업</th>
+                                        <th className="px-4 py-3">수행자</th>
+                                        <th className="px-4 py-3">대상</th>
+                                        <th className="px-4 py-3">상세</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -243,7 +243,7 @@ function LogsPage() {
                                     ))}
                                     {result.data.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-6 text-center text-gray-400">No logs yet.</td>
+                                            <td colSpan={5} className="px-4 py-6 text-center text-gray-400">로그가 없습니다.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -251,21 +251,21 @@ function LogsPage() {
                         </div>
 
                         <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-                            <span>Page {result.page} of {totalPages} ({result.total} total)</span>
+                            <span>{result.page} / {totalPages} 페이지 (총 {result.total}건)</span>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => changePage(Math.max(1, page - 1))}
                                     disabled={page <= 1}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
-                                    Prev
+                                    이전
                                 </button>
                                 <button
                                     onClick={() => changePage(Math.min(totalPages, page + 1))}
                                     disabled={page >= totalPages}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
-                                    Next
+                                    다음
                                 </button>
                             </div>
                         </div>

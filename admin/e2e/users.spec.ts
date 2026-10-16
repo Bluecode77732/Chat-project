@@ -15,7 +15,7 @@ test('a non-admin account is rejected from the admin login', async ({ page, requ
     await page.getByTestId('login-password-input').fill(target.password);
     await page.getByTestId('login-submit-button').click();
 
-    await expect(page.getByTestId('login-error')).toHaveText('Admin access only.');
+    await expect(page.getByTestId('login-error')).toHaveText('관리자 전용입니다.');
     await expect(page).toHaveURL('/');
 });
 
@@ -28,7 +28,7 @@ test('superadmin can force-log-out a user', async ({ page, request }) => {
     await row.getByTestId(`user-force-logout-${target.id}`).click();
 
     await expect(page.getByTestId('action-message')).toHaveText(
-        `User ${target.id} force-logged out.`,
+        `사용자 ${target.id}번을 강제 로그아웃했습니다.`,
     );
 });
 
@@ -40,13 +40,13 @@ test('superadmin can promote and demote a user, and it appears in the audit log'
     await loginAsSuperadmin(page);
 
     const row = page.getByTestId(`user-row-${target.id}`);
-    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('user');
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('일반');
 
     await row.getByTestId(`user-promote-${target.id}`).click();
-    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('admin');
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('관리자');
 
     await row.getByTestId(`user-promote-${target.id}`).click();
-    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('user');
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('일반');
 
     await page.getByTestId('nav-logs').click();
     await expect(page).toHaveURL('/logs');
@@ -61,8 +61,8 @@ test('Users table shows Created column and sort indicator switches between ID, R
     await loginAsSuperadmin(page);
 
     const idBtn = page.getByRole('columnheader').filter({ hasText: 'ID' }).getByRole('button');
-    const roleBtn = page.getByRole('columnheader').filter({ hasText: 'Role' }).getByRole('button');
-    const createdBtn = page.getByRole('columnheader').filter({ hasText: 'Created' }).getByRole('button');
+    const roleBtn = page.getByRole('columnheader').filter({ hasText: '역할' }).getByRole('button');
+    const createdBtn = page.getByRole('columnheader').filter({ hasText: '생성일' }).getByRole('button');
 
     // 기본값: ID가 bold임
     await expect(idBtn).toHaveClass(/font-bold/);
@@ -113,6 +113,6 @@ test('superadmin can delete a user', async ({ page, request }) => {
     page.once('dialog', (dialog) => dialog.accept());
     await row.getByTestId(`user-delete-${target.id}`).click();
 
-    await expect(page.getByTestId('action-message')).toHaveText(`User ${target.id} deleted.`);
+    await expect(page.getByTestId('action-message')).toHaveText(`사용자 ${target.id}번을 삭제했습니다.`);
     await expect(page.getByTestId(`user-row-${target.id}`)).toHaveCount(0);
 });

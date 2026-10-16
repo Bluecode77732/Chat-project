@@ -548,7 +548,7 @@ function ChatPage() {
                 </div>
             </div>
             <div className="flex gap-2 mb-2 items-center">
-                <span className="hidden sm:inline text-base text-gray-400 shrink-0" style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}>Conversations:</span>
+                <span className="hidden sm:inline text-base text-gray-400 shrink-0" style={{ fontFamily: "'Cormorant Garamond', 'Hahmlet', serif" }}>대화 상대:</span>
                 <input
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
@@ -633,7 +633,7 @@ function ChatPage() {
                                                 : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
                                         }`}
                                     >
-                                        {recipientId === aiUserId ? '✓ AI Chat' : 'AI Chat'}
+                                        {recipientId === aiUserId ? '✓ AI 채팅' : 'AI 채팅'}
                                     </span>
                                 )}
                                 {/* 성격 변경 버튼 */}
@@ -833,7 +833,7 @@ function ChatPage() {
                     onClick={sendMessage}
                     disabled={rateLimitSecondsLeft !== null}
                     data-testid="chat-send-button"
-                    aria-label="Send"
+                    aria-label="전송"
                     className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-full ${
                         rateLimitSecondsLeft !== null
                             ? 'bg-sky-200 text-sky-600 cursor-not-allowed'

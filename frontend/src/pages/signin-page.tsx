@@ -49,9 +49,9 @@ function SignInPage() {
             if (status === 429) {
                 const message = (err as { response?: { data?: { message?: string } } })
                     ?.response?.data?.message;
-                setError(message ?? 'Too many attempts, please try again later.');
+                setError(message ?? '시도 횟수가 너무 많습니다. 잠시 후 다시 시도해주세요.');
             } else {
-                setError('Your email or password is not correct.');
+                setError('이메일 또는 비밀번호가 올바르지 않습니다.');
             }
         };
     };
@@ -59,7 +59,7 @@ function SignInPage() {
     return (
         <div className='flex items-center justify-center h-screen'>
             <div className='flex flex-col gap-4 w-80'>
-                <h1 className='text-2xl font-bold'>Sign In</h1>
+                <h1 className='text-2xl font-bold'>로그인</h1>
                 {sessionEnded && (
                     <span className='text-gray-500 text-sm'>
                         다른 곳에서 로그인되어 세션이 종료되었습니다. 다시 로그인해주세요.
@@ -72,10 +72,10 @@ function SignInPage() {
                 )}
                 {/* `register`가 값을 수집 */}
                 <input {...register('email', {
-                    required: 'Please Enter Your Email',
-                    pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
+                    required: '이메일을 입력해주세요.',
+                    pattern: { value: /\S+@\S+\.\S+/, message: '이메일 형식이 올바르지 않습니다.' }
                 })}
-                    placeholder='email'
+                    placeholder='이메일'
                     data-testid='signin-email-input'
                     className='border p-2 rounded'>
                 </input>
@@ -83,11 +83,11 @@ function SignInPage() {
                 {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
                 <input {...register('password', {
-                    required: "Please Enter Your Password",
-                    minLength: { value: 8, message: "Password cannot be less than 8 words string" },
+                    required: '비밀번호를 입력해주세요.',
+                    minLength: { value: 8, message: '비밀번호는 8자 이상이어야 합니다.' },
                 })}
                     type='password'
-                    placeholder='password'
+                    placeholder='비밀번호'
                     data-testid='signin-password-input'
                     className='border p-2 rounded'>
                 </input>
@@ -96,12 +96,12 @@ function SignInPage() {
                 <button onClick={handleSubmit(onSubmit)}
                     data-testid='signin-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
-                    Sign In
+                    로그인
                 </button>
                 <button onClick={() => navigate('/register')}
                     data-testid='signin-register-link'
                     className='bg-white text-sm'>
-                    Don't have an account? Register.
+                    계정이 없으신가요? 회원가입
                 </button>
             </div>
         </div>

@@ -34,7 +34,7 @@ export async function register(page: Page, user: TestUser): Promise<void> {
     await page.getByTestId('register-confirm-password-input').fill(user.password);
     await page.getByTestId('register-nickname-input').fill(user.nickname);
     await page.getByTestId('register-submit-button').click();
-    await expect(page.getByText('Registration Successful! Redirecting...')).toBeVisible();
+    await expect(page.getByText('회원가입이 완료되었습니다. 이동 중...')).toBeVisible();
     // register-page.tsx가 성공 1.5초 후 '/'로 리다이렉트함
     await expect(page).toHaveURL('/');
 }
