@@ -38,6 +38,8 @@ Hosting is currently stopped (see [Hosting Status](#hosting-status)), so none of
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
 The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean. Click an image to open the full-size file.
 
+[![Two browser windows side by side: a message typed in one window appears in the other without a reload](docs/images/demo-realtime-chat.gif)](docs/images/demo-realtime-chat.gif)<br>**Live delivery** — two demo accounts side by side; messages arrive without a reload through the `receiveMessage` GraphQL subscription. Message times are shown in UTC (the browser time zone was fixed for the recording).
+
 [![One-to-one chat between two demo accounts](docs/images/02-chat.png)](docs/images/02-chat.png)<br>**One-to-one chat** — messages arrive through the `receiveMessage` GraphQL subscription
 
 [![AI chat with a Gemini reply](docs/images/04-ai-chat.png)](docs/images/04-ai-chat.png)<br>**AI chat** — a live Gemini reply, delivered through the same channel as human messages
