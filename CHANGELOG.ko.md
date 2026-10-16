@@ -12,6 +12,8 @@
 
 ## 2026-10-16
 
+- Docs: 스크린샷을 docs/images 한 폴더로 통합, README에서 대표 화면을 전체 폭으로 배치
+- Docs: CHANGELOG 동기화 (누락된 커밋 6건 반영)
 - Docs: README.ko.md 문장·용어 정리, 영문 README에 사실·구조 오류 동기화
 - Docs: 만료 시간 환경변수 형식과 docker-compose 전용 변수 안내 보강
 - Docs: 호스팅 중단 상태 반영 (deploy job 수동 실행 전환, 라이브 데모 절을 호스팅 상태로 교체)
