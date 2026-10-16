@@ -36,14 +36,18 @@ Two real incidents hit during development — a live infrastructure security exp
 Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
 Hosting is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
-The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean.
+The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean. Click an image to open the full-size file.
+
+[![One-to-one chat between two demo accounts](docs/images/02-chat.png)](docs/images/02-chat.png)<br>**One-to-one chat** — messages arrive through the `receiveMessage` GraphQL subscription
+
+[![AI chat with a Gemini reply](docs/images/04-ai-chat.png)](docs/images/04-ai-chat.png)<br>**AI chat** — a live Gemini reply, delivered through the same channel as human messages
+
+[![Admin user list with a banned user's detail panel](docs/images/07-admin-users-panel.png)](docs/images/07-admin-users-panel.png)<br>**Admin users** — detail panel of a banned account with its recent audit entries
 
 | | |
 |---|---|
-| ![Sign-in screen with email and password fields](docs/images/en/01-signin.png)<br>**Sign in** — access token is kept in memory, refresh token in an httpOnly cookie | ![One-to-one chat between two demo accounts](docs/images/en/02-chat.png)<br>**One-to-one chat** — messages arrive through the `receiveMessage` GraphQL subscription |
-| ![AI personality selection dialog](docs/images/en/03-ai-personality.png)<br>**AI personality** — the first AI chat asks for one of four personalities before the first message | ![AI chat with a Gemini reply](docs/images/en/04-ai-chat.png)<br>**AI chat** — a live Gemini reply, delivered through the same channel as human messages |
-| ![Account settings with profile and account deletion](docs/images/en/05-account.png)<br>**Account** — profile edit and account deletion (current password required) | ![Admin dashboard with totals and recent audit logs](docs/images/en/06-admin-dashboard.png)<br>**Admin dashboard** — totals and recent audit logs (separate admin app) |
-| ![Admin user list with a banned user's detail panel](docs/images/en/07-admin-users-panel.png)<br>**Admin users** — detail panel of a banned account with its recent audit entries | |
+| [![Sign-in screen with email and password fields](docs/images/01-signin.png)](docs/images/01-signin.png)<br>**Sign in** — access token is kept in memory, refresh token in an httpOnly cookie | [![AI personality selection dialog](docs/images/03-ai-personality.png)](docs/images/03-ai-personality.png)<br>**AI personality** — the first AI chat asks for one of four personalities before the first message |
+| [![Account settings with profile and account deletion](docs/images/05-account.png)](docs/images/05-account.png)<br>**Account** — profile edit and account deletion (current password required) | [![Admin dashboard with totals and recent audit logs](docs/images/06-admin-dashboard.png)](docs/images/06-admin-dashboard.png)<br>**Admin dashboard** — totals and recent audit logs (separate admin app) |
 
 Known limitation of these captures: the dialog backdrop on the AI personality screen renders as solid
 black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides.

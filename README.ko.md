@@ -35,14 +35,18 @@
 ## 스크린샷
 로컬 스택(backend, Postgres, Redis, Vite 개발 서버)에서 라이트 테마, 가로 1440px로 촬영함.
 현재 호스팅은 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
-계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. 앱에 언어 전환 기능이 없어 영/한 README가 같은 이미지를 씀. 로그인과 admin 화면은 영어, 채팅·AI·계정 화면은 한국어임.
+계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. 앱에 언어 전환 기능이 없어 영/한 README가 같은 이미지를 씀. 로그인과 admin 화면은 영어, 채팅·AI·계정 화면은 한국어임. 이미지를 누르면 원본이 열림.
+
+[![데모 계정 두 개의 1:1 채팅 화면](docs/images/02-chat.png)](docs/images/02-chat.png)<br>**1:1 채팅** — 메시지는 `receiveMessage` GraphQL 구독으로 도착함
+
+[![Gemini 답장이 있는 AI 채팅 화면](docs/images/04-ai-chat.png)](docs/images/04-ai-chat.png)<br>**AI 채팅** — 실제 Gemini 답장이며 사람 메시지와 같은 채널로 전달됨
+
+[![밴된 유저의 상세 패널이 열린 admin 유저 목록](docs/images/07-admin-users-panel.png)](docs/images/07-admin-users-panel.png)<br>**Admin 유저** — 밴된 계정의 상세 패널과 최근 감사 이력
 
 | | |
 |---|---|
-| ![이메일과 비밀번호 입력란이 있는 로그인 화면](docs/images/ko/01-signin.png)<br>**로그인** — 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키에 보관함 | ![데모 계정 두 개의 1:1 채팅 화면](docs/images/ko/02-chat.png)<br>**1:1 채팅** — 메시지는 `receiveMessage` GraphQL 구독으로 도착함 |
-| ![AI 성격 선택 대화상자](docs/images/ko/03-ai-personality.png)<br>**AI 성격 선택** — 첫 AI 채팅은 첫 메시지 전에 4가지 성격 중 하나를 고르도록 함 | ![Gemini 답장이 있는 AI 채팅 화면](docs/images/ko/04-ai-chat.png)<br>**AI 채팅** — 실제 Gemini 답장이며 사람 메시지와 같은 채널로 전달됨 |
-| ![프로필과 계정 탈퇴가 있는 계정 설정 화면](docs/images/ko/05-account.png)<br>**계정** — 프로필 수정과 계정 탈퇴(현재 비밀번호 필요) | ![총계와 최근 감사 로그가 있는 admin 대시보드](docs/images/ko/06-admin-dashboard.png)<br>**Admin 대시보드** — 총계와 최근 감사 로그(별도 admin 앱) |
-| ![밴된 유저의 상세 패널이 열린 admin 유저 목록](docs/images/ko/07-admin-users-panel.png)<br>**Admin 유저** — 밴된 계정의 상세 패널과 최근 감사 이력 | |
+| [![이메일과 비밀번호 입력란이 있는 로그인 화면](docs/images/01-signin.png)](docs/images/01-signin.png)<br>**로그인** — 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키에 보관함 | [![AI 성격 선택 대화상자](docs/images/03-ai-personality.png)](docs/images/03-ai-personality.png)<br>**AI 성격 선택** — 첫 AI 채팅은 첫 메시지 전에 4가지 성격 중 하나를 고르도록 함 |
+| [![프로필과 계정 탈퇴가 있는 계정 설정 화면](docs/images/05-account.png)](docs/images/05-account.png)<br>**계정** — 프로필 수정과 계정 탈퇴(현재 비밀번호 필요) | [![총계와 최근 감사 로그가 있는 admin 대시보드](docs/images/06-admin-dashboard.png)](docs/images/06-admin-dashboard.png)<br>**Admin 대시보드** — 총계와 최근 감사 로그(별도 admin 앱) |
 
 이 촬영본의 알려진 한계: AI 성격 선택 화면의 대화상자 배경이 불투명한 검정으로 표시됨.
 오버레이가 쓰는 `bg-opacity-40`을 Tailwind 4가 제공하지 않기 때문임.
