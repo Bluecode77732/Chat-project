@@ -9,8 +9,13 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-17
+
+- Docs: README 호스팅 상태를 사실에 맞게 정정 (백엔드만 중단, 프론트엔드는 Vercel 배포 지속)
+
 ## 2026-10-16
 
+- Docs: CHANGELOG 동기화 (누락된 커밋 2건 반영)
 - Docs: README에 두 계정 실시간 전달 GIF 추가
 - Docs: CHANGELOG 동기화 (누락된 커밋 2건 반영)
 - Docs: 스크린샷을 docs/images 한 폴더로 통합, README에서 대표 화면을 전체 폭으로 배치
