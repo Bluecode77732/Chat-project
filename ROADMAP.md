@@ -198,6 +198,14 @@ timeline or priority order.
   `getMyRooms` (`chat-page.tsx`); only the unread badge is missing, and it is blocked on the backend
   item above.
 
+### Documentation
+
+- Demo video / GIF for the README's Hosting Status section — hosting is stopped, so the only proof
+  the app runs end to end is the e2e history and the docs. Planned scenes, against the local Docker
+  stack: register → two accounts chatting live → AI reply → moderation warning/mute → admin panel
+  (user list, role change, audit log). Open decision: commit the file (check size and
+  `.gitattributes` first) or link an externally hosted one.
+
 ### Code quality & consistency backlog (2026-09 audit)
 
 Findings from a whole-app dependency/consistency sweep (2026-09-14/15) that traced every file's

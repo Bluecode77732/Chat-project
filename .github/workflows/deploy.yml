@@ -4,6 +4,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # 호스팅 중단 중 deploy job은 수동 실행으로만 동작함(Actions 탭 Run workflow).
+  workflow_dispatch:
 
 jobs:
   test:
@@ -248,7 +250,9 @@ jobs:
 
   deploy:
     needs: [test, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # 호스팅 중단(비용)으로 main push 자동 배포를 끔. 재개 시 RAILWAY_TOKEN secret을
+    # 갱신한 뒤 수동 실행하거나, 이 조건을 push/main 조건으로 되돌릴 것.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
