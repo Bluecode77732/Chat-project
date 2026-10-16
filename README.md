@@ -34,7 +34,7 @@ Two real incidents hit during development — a live infrastructure security exp
 
 ## Screenshots
 Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
-Hosting is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
+The backend is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
 The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean. Click an image to open the full-size file.
 
@@ -64,12 +64,15 @@ black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides.
 
 
 ## Hosting Status
-Hosting is currently stopped (cost). The last successful automatic deploy to Railway was on
+The backend (Railway) is currently stopped (cost). The last successful automatic deploy to Railway was on
 2026-05-27 — see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)
 (66 successful `main` push runs; latest [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)
 passed both `test` and `deploy`).
 
 The `deploy` job is now manual-only (`workflow_dispatch`), so it shows as skipped on `main` pushes.
+
+The frontend is still built and deployed by Vercel on every push to `main` (its production deployment succeeded on 2026-10-17), but without a backend it cannot sign in or chat, so no live URL is listed here. The admin panel is configured as its own Vercel project (see [Admin Panel - Vercel](#admin-panel---vercel)); whether that deployment is live was not verified.
+
 To run the app, follow [Quick Start](#quick-start) (local or Docker).
 
 
@@ -861,7 +864,7 @@ Role values: `user = 0`, `admin = 1`, `superadmin = 2`
 
 
 ### Admin Panel
-A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and deployed as its own Vercel project (see [Admin Panel - Vercel](#admin-panel---vercel)).
+A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and configured as its own Vercel project (see [Admin Panel - Vercel](#admin-panel---vercel)).
 
 - **Dashboard** — total users (`humanOnly`, excludes the AI and moderation-system accounts), total rooms, users currently online, and the 5 most recent audit log entries.
 - **Users** — paginated, sortable, searchable list; filter by moderation status (active/banned). Clicking a row opens a detail panel with moderation status and recent audit history. Actions (superadmin only where noted): promote/demote between `user`/`admin`; force logout, manual ban (optional reason, permanent or timed) / unban, and delete are restricted to accounts with a strictly lower role; a superadmin additionally gets a separate **Demote (superadmin)** action on peer superadmin accounts (see [Compromised Superadmin Containment](#compromised-superadmin-containment)); the AI/moderation-system accounts can never be deleted (see [Role](#role) invariants).
@@ -1102,7 +1105,7 @@ entry to the `GUARDED_FKS` array in the spec.
 
 
 #### Admin Panel - Vercel
-Deployed as a **separate Vercel project**, same pattern as the frontend. Not part of GitHub Actions — Vercel builds and deploys on push independently.
+Configured as a **separate Vercel project**, same pattern as the frontend. Not part of GitHub Actions — Vercel builds and deploys on push independently. Its current deployment status was not verified (only the frontend project reports status checks to this repository).
 
 **CI/CD Flow**
 `git push origin main` => Vercel Auto-deploy
@@ -1116,7 +1119,7 @@ Deployed as a **separate Vercel project**, same pattern as the frontend. Not par
 #### Public - Railway
 **CI/CD Flow**
 `git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e`). `deploy` (Railway CLI =>
-Auto-deploy) runs only on manual dispatch (`workflow_dispatch`) while hosting is stopped — full CI
+Auto-deploy) runs only on manual dispatch (`workflow_dispatch`) while the backend hosting is stopped — full CI
 job breakdown in [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr)
 
 **Setup (one-time)**

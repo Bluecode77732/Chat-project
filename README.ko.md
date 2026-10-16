@@ -34,7 +34,7 @@
 
 ## 스크린샷
 로컬 스택(backend, Postgres, Redis, Vite 개발 서버)에서 라이트 테마, 가로 1440px로 촬영함.
-현재 호스팅은 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
+현재 백엔드는 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
 계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. 앱에 언어 전환 기능이 없어 영/한 README가 같은 이미지를 씀. 로그인과 admin 화면은 영어, 채팅·AI·계정 화면은 한국어임. 이미지를 누르면 원본이 열림.
 
 [![두 브라우저 창을 나란히 놓고 한쪽에서 보낸 메시지가 새로고침 없이 다른 쪽에 도착하는 모습](docs/images/demo-realtime-chat.gif)](docs/images/demo-realtime-chat.gif)<br>**실시간 전달** — 데모 계정 두 개를 나란히 띄워, 메시지가 새로고침 없이 `receiveMessage` GraphQL 구독으로 도착하는 모습. 메시지 시각은 UTC 기준임(촬영 시 브라우저 시간대를 고정함).
@@ -63,12 +63,15 @@
 
 
 ## 호스팅 상태
-현재 호스팅은 비용 문제로 중단한 상태임. Railway로의 마지막 자동 배포 성공은 2026-05-27이며,
+현재 백엔드(Railway)는 비용 문제로 중단한 상태임. Railway로의 마지막 자동 배포 성공은 2026-05-27이며,
 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서
 확인 가능함(`main` push 성공 실행 66건, 최신 [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)는
 `test`와 `deploy` 모두 성공).
 
 `deploy` job은 현재 수동 실행 전용(`workflow_dispatch`)이라 `main` push에서는 skipped로 표시됨.
+
+프론트엔드는 `main`에 푸시할 때마다 Vercel이 계속 빌드·배포하며(2026-10-17 기준 프로덕션 배포 성공), 백엔드가 없어 로그인과 채팅은 동작하지 않으므로 라이브 URL은 싣지 않음. admin 패널은 별도 Vercel 프로젝트로 구성돼 있으나([Admin 패널 - Vercel](#admin-패널---vercel) 참고) 현재 배포 여부는 확인하지 못함.
+
 앱 실행은 [빠른 시작](#빠른-시작)(로컬 또는 Docker)을 따를 것.
 
 
@@ -839,7 +842,7 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 
 
 ### Admin 패널
-admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 배포됨([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
+admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 구성됨([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
 
 - **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 모더레이션 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
 - **Users** — 페이지네이션/정렬/검색을 지원하는 목록이며 모더레이션 상태(active/banned)로 필터할 수 있음. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림.
@@ -1086,7 +1089,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 
 #### Admin 패널 - Vercel
-frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됨. GitHub Actions와는 무관하며, Vercel이 push 시 독립적으로 빌드·배포함.
+frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 구성함. GitHub Actions와는 무관하며, Vercel이 push 시 독립적으로 빌드·배포함. 현재 배포 상태는 확인하지 못함(이 저장소의 상태 체크에는 프론트엔드 프로젝트만 보고됨).
 
 **CI/CD 흐름**
 `git push origin main` => Vercel 자동 배포
@@ -1100,7 +1103,7 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됨. 
 #### 프로덕션 - Railway
 **CI/CD 흐름**
 `git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e`). `deploy`(Railway CLI =>
-자동 배포)는 호스팅 중단 동안 수동 실행(`workflow_dispatch`)으로만 동작함 — 전체 CI job 구성은
+자동 배포)는 백엔드 호스팅 중단 동안 수동 실행(`workflow_dispatch`)으로만 동작함 — 전체 CI job 구성은
 [CONTRIBUTING.md](CONTRIBUTING.md#before-submitting-a-pr) 참고
 
 **설정 (최초 1회)**
