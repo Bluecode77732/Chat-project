@@ -14,22 +14,22 @@
 
 > English version: [README.md](README.md)
 
-# 실시간 채팅 애플리케이션
-- 개인 1:1 실시간 채팅 서비스임. 600개 이상의 커밋(2026-01 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발하며 Socket.IO, Redis, 인증을 다뤘고, 이후 실전 보안 인시던트 대응과 행동 기반 모더레이션 시스템까지 추가함.
-- 최소한의 인증 사용자 채팅 프로토타입으로 시작해, AI 챗봇 동반자, 별도 admin 패널, 행동 기반 모더레이션, 3개 서비스에 걸친 CI/CD를 갖춘 시스템으로 성장함.
+# Chatterley — 실시간 채팅 애플리케이션
+- 1:1 실시간 채팅 서비스임. 혼자 반복 개발하며 Socket.IO, Redis, 인증을 다뤘고, 이후 실제 보안 사고 대응과 행동 기반 모더레이션 시스템까지 추가함. 커밋 이력은 [CHANGELOG.md](CHANGELOG.md) 참고.
+- 로그인한 사용자끼리 채팅하는 최소한의 프로토타입으로 시작해, AI 챗봇, 별도 Admin 패널, 행동 기반 모더레이션, 3개 서비스(backend, frontend, admin)에 걸친 CI/CD를 갖춘 시스템으로 성장함.
 
 
 ## 개요
-실시간 1:1 개인 채팅 서비스임. 6개월 이상(600개 이상의 커밋, [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실전 보안 인시던트 대응, 행동 기반 모더레이션 시스템까지 반복 발전함.
-- 인증: Passport 전략 기반 JWT 인증 — refreshToken은 httpOnly 쿠키, accessToken은 메모리에만 보관
+실시간 1:1 개인 채팅 서비스임. 6개월 이상(600개 이상의 커밋, [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 초기 프로토타입에서 아키텍처 전환, 실제 보안 사고 대응, 행동 기반 모더레이션 시스템까지 반복 발전함.
+- 인증: Passport 전략 기반 JWT 인증 — 리프레시 토큰은 httpOnly 쿠키, 액세스 토큰은 메모리에만 보관
 - 채팅 관리: Socket.IO(연결 라이프사이클 전용) + GraphQL(메시지용 Mutation/Subscription), 트랜잭션 안전성을 갖춘 Redis 기반 세션/캐시
 - 모더레이션: 중복/도배 및 속도 기반 자동 스트라이크 탐지가 경고 → 뮤트 → 기간제/영구 밴으로 에스컬레이션, admin 복구 도구 제공
 - AI 채팅: Google Gemini 2.5 Flash, 선택 가능한 4가지 성격, 비용 상한 설계(토큰 제한, 재시도 상한)
-- Admin 패널: 유저/방 관리, 모더레이션 액션, 감사로그 export를 위한 별도 React 앱
+- Admin 패널: 유저/방 관리, 모더레이션 액션, 감사 로그 export를 위한 별도 React 앱
 - API 문서: Swagger 연동 + Altair & GraphQL
-- 테스트: 핵심 서비스 계층 전반의 유닛 테스트([테스트 커버리지](#테스트-커버리지)에 서비스별 정확한 수치 참고) + 메인 앱과 admin 패널 양쪽의 Playwright e2e
+- 테스트: 핵심 서비스 계층 전반의 유닛 테스트([테스트 커버리지](#테스트-커버리지)에 서비스별 정확한 수치 참고) + 메인 앱과 Admin 패널 양쪽의 Playwright e2e
 
-개발 중 실제로 겪은 두 가지 인시던트 — 라이브 인프라 보안 노출과 AI 응답 캐시 손상 버그 — 는 근본원인 분석까지 포함해 [AI 보조 개발 사례](#ai-보조-개발-사례)에 정리되어 있음.
+개발 중 실제로 겪은 두 가지 사고 — 인프라 보안 노출과 AI 응답 캐시 손상 버그 — 는 근본 원인 분석까지 포함해 [AI 보조 개발 사례](#ai-보조-개발-사례)에 정리되어 있음.
 
 
 ## 스크린샷
@@ -39,25 +39,25 @@
 
 | | |
 |---|---|
-| ![이메일과 비밀번호 입력란이 있는 로그인 화면](docs/images/ko/01-signin.png)<br>**로그인** — accessToken은 메모리, refreshToken은 httpOnly 쿠키에 보관함 | ![데모 계정 두 개의 1:1 채팅 화면](docs/images/ko/02-chat.png)<br>**1:1 채팅** — 메시지는 `receiveMessage` GraphQL 구독으로 도착함 |
-| ![AI 성격 선택 대화상자](docs/images/ko/03-ai-personality.png)<br>**AI 성격 선택** — 첫 AI 채팅은 첫 메시지 전에 4가지 성격 중 하나를 고르게 함 | ![Gemini 답장이 있는 AI 채팅 화면](docs/images/ko/04-ai-chat.png)<br>**AI 채팅** — 실제 Gemini 답장이며 사람 메시지와 같은 채널로 전달됨 |
+| ![이메일과 비밀번호 입력란이 있는 로그인 화면](docs/images/ko/01-signin.png)<br>**로그인** — 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키에 보관함 | ![데모 계정 두 개의 1:1 채팅 화면](docs/images/ko/02-chat.png)<br>**1:1 채팅** — 메시지는 `receiveMessage` GraphQL 구독으로 도착함 |
+| ![AI 성격 선택 대화상자](docs/images/ko/03-ai-personality.png)<br>**AI 성격 선택** — 첫 AI 채팅은 첫 메시지 전에 4가지 성격 중 하나를 고르도록 함 | ![Gemini 답장이 있는 AI 채팅 화면](docs/images/ko/04-ai-chat.png)<br>**AI 채팅** — 실제 Gemini 답장이며 사람 메시지와 같은 채널로 전달됨 |
 | ![프로필과 계정 탈퇴가 있는 계정 설정 화면](docs/images/ko/05-account.png)<br>**계정** — 프로필 수정과 계정 탈퇴(현재 비밀번호 필요) | ![총계와 최근 감사 로그가 있는 admin 대시보드](docs/images/ko/06-admin-dashboard.png)<br>**Admin 대시보드** — 총계와 최근 감사 로그(별도 admin 앱) |
 | ![밴된 유저의 상세 패널이 열린 admin 유저 목록](docs/images/ko/07-admin-users-panel.png)<br>**Admin 유저** — 밴된 계정의 상세 패널과 최근 감사 이력 | |
 
 이 촬영본의 알려진 한계: AI 성격 선택 화면의 대화상자 배경이 불투명한 검정으로 표시됨.
-오버레이가 `bg-opacity-40`을 쓰는데 Tailwind 4에서는 이 유틸리티가 제공되지 않기 때문이며, 여기서는 고치지 않음.
+오버레이가 쓰는 `bg-opacity-40`을 Tailwind 4가 제공하지 않기 때문임.
 
 
 ## 프로젝트 동기
 - 600개 이상의 커밋(2026-01-02 ~ 현재, 정확한 수는 [CHANGELOG.md](CHANGELOG.md) 참고)에 걸쳐 혼자 반복 개발: Socket.IO 연결 처리, Redis 세션/캐시/pub-sub, 그리고 실시간 전송에서 raw WebSocket 메시징과 GraphQL Subscription 간의 트레이드오프
 - 메시지 전송 경로를 Socket.IO 직접 전송에서 트랜잭션 보장이 있는 GraphQL Mutation/Subscription 분리 구조로 **이미 동작 중인 앱에서** 마이그레이션 — 실제 운영 중인 시스템에서 이런 변경에 어떤 비용이 드는지 체감하기 위함
-- Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 end-to-end로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 수정한 경험 포함
-- 실전 보안 인시던트(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 기록으로 남김
-- KISS/YAGNI를 기본 원칙으로 유지하되 기능 데모 수준에서 멈추지 않음 — 행동 기반 모더레이션 파이프라인, 별도 admin 패널, 실제 서비스에 필요한 수준의 CI/CD(GitHub Actions + Railway/Vercel)까지 구축
+- Basic/Bearer/JWT, RBAC 가드까지 인증/인가를 엔드투엔드로 실습 — 직접 발견한 XSS/localStorage 토큰 저장 취약점을 수정한 경험 포함
+- 실제 보안 사고(노출된 로컬 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제한 사건) 대응 — 봉쇄, 자격증명 교체, 정리까지 전 과정을 기록으로 남김
+- KISS/YAGNI를 기본 원칙으로 유지하되 기능 데모 수준에서 멈추지 않음 — 행동 기반 모더레이션 파이프라인, 별도 Admin 패널, 실제 서비스에 필요한 수준의 CI/CD(GitHub Actions + Railway/Vercel)까지 구축
 
 
 ## 호스팅 상태
-현재 호스팅은 비용에 의해 중단한 상태임. Railway로의 마지막 자동 배포 성공은 2026-05-27이며,
+현재 호스팅은 비용 문제로 중단한 상태임. Railway로의 마지막 자동 배포 성공은 2026-05-27이며,
 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서
 확인 가능함(`main` push 성공 실행 66건, 최신 [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)는
 `test`와 `deploy` 모두 성공).
@@ -90,12 +90,16 @@ cd backend
 pnpm migration:run
 ```
 
-**Docker로 Redis 실행**
+**Docker로 Redis 실행** — 컨테이너가 없으면 먼저 한 번 생성하세요.
+```powershell
+docker run -d -p 6379:6379 --name redis-chat redis:latest
+```
+이미 만든 컨테이너는 아래 명령으로 시작함.
 ```powershell
 docker start redis-chat
 ```
 
-**백엔드 실행** (backend 디렉터리에서 실행)
+**백엔드 실행**
 ```powershell
 cd backend && pnpm start:dev
 ```
@@ -114,10 +118,9 @@ cd admin && pnpm install && pnpm dev
 ```
 → http://localhost:5174 — 어떤 기능이 있는지는 [Admin 패널](#admin-패널) 참고. admin/superadmin 계정이 필요함([Admin 계정 생성](#admin-계정-생성) 참고)
 
-**채팅 통신 테스트** — 채팅 메시지는 GraphQL(전송은 Mutation, 수신은
-Subscription)로만 오갑니다. Socket.IO는 연결 라이프사이클과 방 생성
-알림만 처리하며 채팅 메시지 트래픽은 전혀 다루지 않음. Altair/Postman을
-통한 GraphQL 실습은 아래 **API 문서 → 주요 엔드포인트 → 채팅** 섹션을
+**채팅 통신 테스트** — 채팅 메시지는 GraphQL(전송은 Mutation, 수신은 Subscription)로만 오감.
+Socket.IO는 연결 라이프사이클과 방 생성 알림만 처리하며 채팅 메시지 트래픽은 전혀 다루지 않음.
+Altair/Postman으로 직접 해 보는 방법은 아래 **API 문서 → 주요 엔드포인트 → 채팅** 섹션을
 참고하세요.
 
 **전체 테스트 실행**
@@ -125,7 +128,7 @@ Subscription)로만 오갑니다. Socket.IO는 연결 라이프사이클과 방 
 pnpm test
 ```
 
-**테스트 커버리지 실행** (backend 디렉터리에서 실행)
+**테스트 커버리지 실행**
 ```powershell
 cd backend && pnpm test:cov
 ```
@@ -134,7 +137,7 @@ cd backend && pnpm test:cov
 
 
 ### 문제 해결
-프로그램 실행 시 발생하는 문제 목록임.
+실행 중 자주 만나는 문제와 해결책임.
 - Redis 연결 문제
   - 로그: "GraphQLModule dependencies initialized"
   - 로그: "Redis Error: AggregateError [ECONNREFUSED]"
@@ -152,7 +155,7 @@ cd backend && pnpm test:cov
 ## API 문서
 ### Swagger UI
 ***모든 기능을 테스트하려면 먼저 회원가입을 해야 함.***
-Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없음. 그래서 두 도구가 역할을 나눠 맡아야 채팅 통신을 빠짐없이 테스트할 수 있음.
+REST(`Auth`, `User`)는 Swagger UI에서 테스트함. 채팅 통신(GraphQL)은 Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없으므로 두 도구를 나눠 써야 송수신을 빠짐없이 확인할 수 있음.
 
 ### 주요 엔드포인트
 **Swagger**
@@ -160,33 +163,33 @@ Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없�
 - URL: `http://localhost:3000/document`
 
 **Health**
-- `GET /health` - 인증 불필요, liveness 체크 — Railway의 `healthcheckPath`가 사용; DB/Redis 확인 없이 `{ status: 'ok' }` 반환(의존성 장애가 컨테이너 재시작을 유발하지 않도록)
+- `GET /health` - 인증 불필요, liveness 체크 — Railway의 `healthcheckPath`가 호출함. DB/Redis는 확인하지 않고 `{ status: 'ok' }`만 반환함(의존성 장애가 컨테이너 재시작을 유발하지 않도록)
 
 **인증**
-- `POST /auth/register` - Basic Auth로 회원가입 — 선택적 body `{ nickname? }`, IP당 60초/10회 rate limit(초과 시 429)
-- `POST /auth/signin` - JWT 토큰 발급 — register와 동일하게 IP당 60초/10회 rate limit
-- `POST /auth/signOut` - 현재 액세스 토큰을 블랙리스트 처리하고 refreshToken 쿠키 삭제(토큰이 이미 만료/무효해도 쿠키는 삭제됨)
+- `POST /auth/register` - Basic Auth로 회원가입 — 선택적 body `{ nickname? }`, IP당 60초/10회 속도 제한(초과 시 429)
+- `POST /auth/signin` - JWT 토큰 발급 — register와 동일하게 IP당 60초/10회 속도 제한
+- `POST /auth/signOut` - 현재 액세스 토큰을 블랙리스트 처리하고 리프레시 토큰 쿠키 삭제(토큰이 이미 만료/무효해도 쿠키는 삭제됨)
 - `POST /auth/token/refreshaccess` - 액세스 토큰 갱신
 
 **사용자** — 계정 생성은 위 `POST /auth/register`를 통해서만 가능, 여기 없음
-- `GET /user` - 사용자 목록 조회 **(admin 전용)** — 쿼리 파라미터: `page`, `take`, `sort`(`ASC`/`DESC`), `sortBy`(`id`/`role`/`created`), `search`(이메일/닉네임), `status`(`active`/`banned`), `humanOnly`(시딩된 AI 계정과 moderation 시스템 계정 제외)
+- `GET /user` - 사용자 목록 조회 **(admin 전용)** — 쿼리 파라미터: `page`, `take`, `sort`(`ASC`/`DESC`), `sortBy`(`id`/`role`/`created`), `search`(이메일/닉네임), `status`(`active`/`banned`), `humanOnly`(시드된 AI 계정과 모더레이션 시스템 계정 제외)
 - `GET /user/:id` - 특정 사용자 조회 (본인 또는 admin)
 - `PATCH /user/:id` - 사용자 수정 (본인 또는 admin) — 선택적 body `{ email?, password?, nickname?, profileImage? }`(nickname은 20자 이하이며 고유해야 함; profileImage는 base64 data URI, jpeg/png/webp, 2MB 이하); 닉네임이 이미 사용 중이면 400
 - `PATCH /user/:id/role` - 사용자 역할 변경 **(superadmin 전용)**
 - `POST /user/:id/force-logout` - 강제 로그아웃 **(admin 전용)**
 - `POST /user/:id/ban` - 자동 스트라이크 시스템과 무관하게 수동으로 밴 **(admin 전용)** — 선택적 body `{ reason?, durationSec? }`(`durationSec` 생략 시 영구 밴), 활성 세션도 즉시 종료
 - `POST /user/:id/unban` - 밴/뮤트/스트라이크 해제 **(admin 전용)**
-- `DELETE /user/:id` - 사용자 삭제 (본인 또는 admin) — 시딩된 AI 계정과 moderation 시스템 계정은 삭제 불가
+- `DELETE /user/:id` - 사용자 삭제 (본인 또는 admin) — 시드된 AI 계정과 모더레이션 시스템 계정은 삭제 불가
 
 **감사 로그**
 - `GET /audit-log` - 페이지네이션된 감사 로그 조회 **(admin 전용)** — 쿼리 파라미터: `action`(`ROLE_CHANGE`/`FORCE_LOGOUT`/`USER_DELETE`/`USER_UNBAN`/`USER_MUTED`/`USER_BANNED`), `userId`(actor 또는 target으로 매칭), `from`/`to`(ISO 8601 날짜 범위), `page`, `take`, `sort`
-- `GET /audit-log/export` - 동일한 필터 결과를 CSV로 export, 최대 10,000행 캡(저볼륨 권한 데이터라 커서 스트리밍보다 단순한 상한을 선택) **(admin 전용)**
+- `GET /audit-log/export` - 동일한 필터 결과를 CSV로 export, 최대 10,000행까지만 내보냄(권한 관련 데이터라 양이 적어서, 커서 스트리밍 대신 단순한 상한을 선택함) **(admin 전용)**
 
 **채팅**
 - Socket.IO (연결 라이프사이클과 방 생성 이벤트만 처리 — 채팅 메시지 트래픽은 전혀 다루지 않음)
   ***탭 1 & 2***
   - URL: `ws://localhost:3000`
-  - 설명: Postman에서 Socket.IO 탭 두 개를 엽니다. Socket.IO는 연결 인증을 처리하고 새 방이 생성되면 클라이언트에 알립니다. 채팅 메시지의 송수신은 아래 GraphQL Mutation/Subscription 경로로만 이루어집니다.
+  - 설명: Postman에서 Socket.IO 탭 두 개를 열어 둠. Socket.IO는 연결 인증을 처리하고 새 방이 생성되면 클라이언트에 알림. 채팅 메시지의 송수신은 아래 GraphQL Mutation/Subscription 경로로만 이루어짐.
   - 요청 핸들러
     - 기본 요청 핸들러: Socket.IO
     - Headers
@@ -225,7 +228,7 @@ Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없�
 
 - GraphQL (뮤테이션)
   - URL: `http://localhost:3000/graphql`
-  - 설명: 이 단계는 다른 도구로 대체할 수 없음. Postman에서 GraphQL 탭을 열고 아래처럼 사전 요구사항을 설정한 뒤 Altair와 연결하세요. 설정이 끝나면 발신자 입장에서 채팅 통신을 테스트할 준비가 완료됨.
+  - 설명: HTTP로 GraphQL을 호출할 수 있는 도구면 대체해도 됨. Postman에서 GraphQL 탭을 열고 아래처럼 헤더를 설정하면 발신자 입장에서 채팅 통신을 테스트할 수 있음.
 
   - 요청 핸들러
     - Headers: authorization: Bearer token
@@ -260,16 +263,16 @@ Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없�
 
   **쿼리**
   - `ping` → `String` — 인증 불필요한 헬스체크 쿼리, `"ping has returned."` 반환
-  - `getMessages(roomId: Int!, cursor?: Int)` → `[MessageType]` — 커서 기준 이전 메시지 최대 15개 조회 (커서 기반 페이지네이션)
+  - `getMessages(roomId: Int!, cursor?: Int)` → `[MessageType]` — 커서 이전 메시지를 최대 15개 조회 (커서 기반 페이지네이션)
   - `getMyRooms` → `[RoomInfoType]` — 인증된 사용자가 속한 모든 방 목록 조회
   - `getRoom(recipientId: Int!)` → `Int` — 수신자와 공유하는 방 ID 반환, 없으면 null
   - `getOnlineUser` → `[Int]` — Redis에 현재 온라인으로 표시된 사용자 ID 목록
   - `getAllUsers` → `[Int]` — 호출자를 제외한 전체 사용자 ID 목록
-  - `getUserNicknames` → `[UserType]` — AI를 제외한 전체 사용자의 `{id, nickname, profileImage}` 목록 — 표시 이름/아바타 해석에 사용(채팅) 또는 표시 이름만 사용(Admin Panel — profileImage는 조회 안 함)
+  - `getUserNicknames` → `[UserType]` — AI를 제외한 전체 사용자의 `{id, nickname, profileImage}` 목록 — 표시 이름/아바타 조회에 사용(채팅), Admin 패널은 표시 이름만 사용(profileImage는 조회하지 않음)
   - `getAiUserId` → `Int` — 시스템 AI 유저 ID 반환
   - `getSystemUserId` → `Int` — 모더레이션 시스템 계정 ID 반환 (자동 감사 로그 항목, 예: `USER_MUTED`/`USER_BANNED`의 행위자로 사용됨)
   - `getAiPersonalityInfo(roomId: Int!)` → `AiPersonalityInfoType` — 해당 방의 현재 AI 성격 반환
-  - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` → `PaginatedAdminRooms` — **(admin 전용)** 페이지네이션/정렬/검색이 가능한 방 목록 — Admin Panel Rooms 페이지가 사용
+  - `getAllRooms(page?: Int, take?: Int, sort?: String, sortBy?: String, search?: String)` → `PaginatedAdminRooms` — **(admin 전용)** 페이지네이션/정렬/검색이 가능한 방 목록 — Admin 패널의 Rooms 페이지가 사용함
 
   **뮤테이션**
   - `setAiPersonality(roomId: Int!, personality: AiPersonality!)` → `Boolean` — 방의 AI 성격 설정 또는 변경
@@ -299,42 +302,46 @@ Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없�
 
 ## 기술 스택
 ### 프론트엔드
-백엔드와의 엔드투엔드 통합을 보여주는 최소화된 React + TypeScript 클라이언트임.
+백엔드와의 엔드투엔드 통합을 보여주기 위해 필요한 기능만 갖춘 React + TypeScript 클라이언트임.
 
-- 스택: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
-- 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음 ✔
-- 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리 ✔
-- 보안: DOMPurify를 통한 XSS 방지, CORS 준수 요청, 보호된 페이지를 위한 Route Guard ✔
-- 배포: Vercel (푸시 시 자동 배포) ✔
+- 스택: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3
+- 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음
+- 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리
+- 보안: DOMPurify를 통한 XSS 방지, CORS 설정에 맞춘 요청, 보호된 페이지를 위한 Route Guard
+- 배포: Vercel (푸시 시 자동 배포)
 
 ### 백엔드
-- **언어**: TypeScript 5.7.3 — backend/frontend/admin 전체에 걸친 정적 타이핑으로, 초기 raw 디버깅 단계(1~3월 커밋 히스토리 참고)에서 반복적으로 겪었던 `undefined` 프로퍼티류 버그를 잡음
+- **언어**: TypeScript 5.7.3 — backend/frontend/admin 전체에 걸친 정적 타이핑으로, 초기 디버깅 단계(1~3월 커밋 히스토리 참고)에서 반복적으로 겪었던 `undefined` 프로퍼티 접근 버그를 컴파일 시점에 잡음
 - **런타임**: Node.js 24.x(`.nvmrc`/`engines`로 고정) — 논블로킹 I/O가 연결 밀집형 채팅 워크로드에 적합
-- **프레임워크**: NestJS 11.1.19 — DI 기반 모듈 경계 덕분에 리졸버 하나였던 규모에서 십수 개 모듈(auth/chat/moderation/ai/admin)로 커지는 동안 결합도를 낮게 유지
+- **프레임워크**: NestJS 11.1.19 — DI 기반 모듈 경계 덕분에 리졸버 하나였던 규모에서 10개 안팎의 모듈(auth/chat/user/ai/moderation/audit-log 등)로 커지는 동안 결합도를 낮게 유지
 - **아키텍처**: 모놀리식, 단일 배포 단위 — 모듈 경계([프로젝트 구조](#프로젝트-구조) 참고)로 이 규모에 굳이 필요 없는 서비스 메시 복잡도 없이 관심사를 분리
 - **실시간 처리 분리**: Socket.IO 4.8.3은 연결 라이프사이클 전용(연결 시 인증, 방 생성 알림), 채팅 메시지는 GraphQL 16.12.0 Mutation/Subscription([흐름](#흐름) 참고) — 원래 설계는 아니었고, 메시지 저장에 트랜잭션 보장(`GqlTransactionInterceptor`)을 주기 위해 프로젝트 중반에 raw Socket.IO에서 마이그레이션함
-- **데이터베이스**: PostgreSQL + TypeORM 0.3.29 — 상호 의존적인 유저/방/채팅/감사로그 데이터의 관계형 정합성; 마이그레이션 전용(`synchronize: false`)으로 스키마 변경을 리뷰 가능하게 유지
+- **데이터베이스**: PostgreSQL + TypeORM 0.3.29 — 상호 의존적인 유저/방/채팅/감사 로그 데이터의 관계형 정합성; 마이그레이션 전용(`synchronize: false`)으로 스키마 변경을 리뷰 가능하게 유지
 - **캐시/Pub-Sub**: ioredis 5.9.3 기반 Redis — 세션/온라인 상태, 방별 최근 메시지 캐시, 수평 확장을 위한 `@socket.io/redis-adapter`(없으면 방 브로드캐스트가 서버 인스턴스 간에 전달되지 않음)
-- **AI**: `@google/genai`를 통한 Google Gemini 2.5 Flash, 선택 가능한 성격 4종 — 설계 단계부터 비용 상한 적용(출력 토큰 제한, 대화 이력 절단, 재시도 상한), 나중에 요금 폭탄 맞고 붙인 게 아님
+- **AI**: `@google/genai`를 통한 Google Gemini 2.5 Flash, 선택 가능한 성격 4종 — 설계 단계부터 비용 상한 적용(출력 토큰 제한, 대화 이력 절단, 재시도 상한), 사후에 요금 문제를 겪고 붙인 것이 아님
 - **인증**: JWT(액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키) + Passport 전략; RBAC 가드는 REST와 GraphQL 계층 모두에서 서브클래싱이 아니라 조합(composition)으로 구성
 - **테스트**: 서비스 계층에 대한 Jest 유닛 테스트([테스트 커버리지](#테스트-커버리지) 참고), `frontend/`와 `admin/` 양쪽에 Playwright e2e
-- **API 문서**: REST용 Swagger + Altair를 통한 GraphQL introspection — Altair와 Postman 어느 한쪽만으로는 두 메시지 전송 경로를 모두 테스트할 수 없어 각각 필요
+- **API 문서**: REST용 Swagger + Altair를 통한 GraphQL introspection — Altair와 Postman 중 한쪽만으로는 Mutation과 Subscription을 모두 테스트할 수 없어 두 도구를 함께 씀
 
 
 ## 기능
 - 실시간 양방향 메시지 전송
-- 속도 제한 - 사용자당 15초당 10개 메시지
+- 속도 제한 - 사용자당 15초에 10개 메시지
 - 행동 기반 모더레이션 - 중복/도배 및 속도 기반 스트라이크가 경고 → 뮤트 → 기간제 밴 → 영구 밴으로 에스컬레이션, admin unban 지원
-- 보안 강화 - 백엔드에는 Helmet 보안 헤더(CSP는 의도적으로 생략 - HTML을 거의 서빙하지 않아 켜봤자 Swagger만 보호됨), 대신 실제 렌더링 표면인 frontend/admin에 Content-Security-Policy 적용(Vercel `headers`), Railway 뒤에서 정확한 클라이언트 IP를 위한 trust proxy, 로그인/회원가입 IP 기반 rate limiting(IP당 60초/10회, 초과 시 429)
+- 보안 강화
+  - 백엔드: Helmet 보안 헤더 적용. CSP는 의도적으로 생략함(HTML을 거의 서빙하지 않아 적용해도 Swagger만 보호됨)
+  - frontend/admin: 실제 렌더링 표면이므로 Content-Security-Policy를 적용함(Vercel `headers`)
+  - Railway 프록시 뒤에서 정확한 클라이언트 IP를 얻도록 trust proxy 설정
+  - 로그인/회원가입 IP 기반 속도 제한(IP당 60초/10회, 초과 시 429)
 - 서버 재시작 시에도 유지되는 사용자 세션
 - 사용자 간 개인 채팅방
-- 트랜잭션 안전한 메시지 저장 및 전달
+- 트랜잭션으로 보호되는 메시지 저장 및 전달
 - Redis 기반 세션으로 수평 확장 지원
 - Google Gemini 2.5 Flash 기반 AI 채팅 (4가지 성격: 친절한 어시스턴트, 코드 도우미, 영어 선생님, 창의적인 작가)
 - 커서 기반 메시지 히스토리 및 무한 스크롤
 - 프로필 커스터마이징 - 계정 설정에서 설정하는 선택적 닉네임(고유값, 20자 이하)과 프로필 이미지(jpeg/png/webp, 2MB 이하)
-- 채팅 UX 개선 - 메시지 입력창 포커스용 `/` 단축키, 닫을 수 있는 "빈 채팅" 안내, 클릭-홀드 배너 자동 스크롤, 모더레이션 알림용 aria-live 리전
-- Admin 대시보드 - 유저/방 관리, 모더레이션 액션, 감사로그 CSV export를 위한 별도 앱([Admin 패널](#admin-패널) 참고)
+- 채팅 UX 개선 - 메시지 입력창 포커스용 `/` 단축키, 닫을 수 있는 "빈 채팅" 안내, 배너 좌우 버튼을 길게 누르면 연속 스크롤, 모더레이션 알림용 aria-live 리전
+- Admin 패널 - 유저/방 관리, 모더레이션 액션, 감사 로그 CSV export를 위한 별도 앱([Admin 패널](#admin-패널) 참고)
 
 
 ## 아키텍처
@@ -368,7 +375,7 @@ Chat Project/                   ← 모노레포 루트
 │       │   └── interceptor/    ← GqlTransactionInterceptor
 │       ├── graphql/            ← PubSubService, GraphQL 입력/반환 타입
 │       ├── health/             ← HealthController (liveness probe, GET /health)
-│       ├── mail/                ← MailService (SMTP 알림, 예: 역할 변경 이메일)
+│       ├── mail/               ← MailService (SMTP 알림, 예: 역할 변경 이메일)
 │       ├── migrations/         ← TypeORM 마이그레이션 파일
 │       ├── mocks/              ← 테스트용 bcrypt 목
 │       ├── moderation/         ← ModerationService, ModerationGuard (스트라이크 사다리, 밴/뮤트 적용)
@@ -382,26 +389,26 @@ Chat Project/                   ← 모노레포 루트
 ├── frontend/                   ← React + Vite 애플리케이션 (채팅 UI, 5173 포트)
 │   └── src/
 │       ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
-│       ├── auth/               ← session-guard.ts (조용한 토큰 갱신, 탭 간 충돌 감지)
+│       ├── auth/               ← session-guard.ts (자동 토큰 갱신, 탭 간 충돌 감지)
 │       ├── components/         ← ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
-│       ├── pages/               ← ChatPage, SigninPage, RegisterPage, AccountPage
-│       ├── socket/              ← socket.ts (Socket.IO 싱글톤)
-│       ├── store/                ← auth.store.ts (Zustand)
+│       ├── pages/              ← ChatPage, SigninPage, RegisterPage, AccountPage
+│       ├── socket/             ← socket.ts (Socket.IO 싱글톤)
+│       ├── store/              ← auth.store.ts (Zustand)
 │       └── types/
-└── admin/                       ← React + Vite admin 대시보드 (5174 포트) — Admin 패널 참고
+└── admin/                      ← React + Vite admin 대시보드 (5174 포트) — Admin 패널 참고
     └── src/
         ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
-        ├── auth/               ← session-guard.ts (조용한 토큰 갱신, 탭 간 충돌 감지)
+        ├── auth/               ← session-guard.ts (자동 토큰 갱신, 탭 간 충돌 감지)
         ├── components/         ← ProtectedRoute
-        ├── pages/               ← LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
-        ├── store/                ← auth.store.ts (Zustand)
-        └── test/                 ← Vitest 셋업 (jest-dom matcher, RTL cleanup)
+        ├── pages/              ← LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── store/              ← auth.store.ts (Zustand)
+        └── test/               ← Vitest 셋업 (jest-dom matcher, RTL cleanup)
 ```
 
 ### 하이브리드 저장소 패턴
-- Redis(세션/캐시): 일관된 데이터 흐름과 서버 공유를 위해 `userId` => `socketId` 매핑 저장
+- Redis(세션/캐시): 여러 서버 인스턴스가 공유할 수 있도록 `userId` => `socketId` 매핑 저장
 - 인메모리(소켓): 쉬운 구현과 실시간 통신이 가능한 WebSocket 작업에 필요한 `socketId` => `Socket` 객체 저장
-- 두 방식을 함께 쓰는 이유: Redis에는 직렬화된 객체가 'JSON' 형식으로 남지만, Socket 객체는 클라이언트가 TCP 연결을 유지하는 동안에만 존재함. 그래서 연결이 끊겨도 클라이언트는 Redis의 세션/캐시 데이터를 근거로 재연결할 수 있음.
+- 두 방식을 함께 쓰는 이유: Socket 객체는 클라이언트가 TCP 연결을 유지하는 동안에만 존재하므로 직렬화해 Redis에 둘 수 없음. 반면 Redis에는 `userId` => `socketId` 매핑과 세션/캐시 데이터가 JSON 형식으로 남기 때문에, 연결이 끊긴 뒤에도 이를 근거로 재연결할 수 있음.
 
 ### Redis Pub/Sub
 - `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신함.
@@ -433,7 +440,7 @@ RoomEntity
   participants >< UserEntity   (ManyToMany 소유자, @JoinTable)
   chats        =< ChatEntity   (OneToMany)
 
-AiRoomEntity — 관심사 분리와 더 깔끔한 관리를 위해 RoomEntity에서 분리됨
+AiRoomEntity — AI 성격 정보를 RoomEntity와 분리하려고 별도 엔티티로 둠
 (자세한 이유는 ARCHITECTURE.md의 엔티티 절 참고)
   id          PK
   room        -- RoomEntity  (OneToOne, onDelete: CASCADE)
@@ -446,7 +453,7 @@ EntityBase (네 엔티티 모두 상속)
 
 
 ## 흐름
-모든 채팅 메시지는 **GraphQL Mutation 경로**로만 전송·전달됩니다. Socket.IO(`ChatGateway`)는
+모든 채팅 메시지는 **GraphQL Mutation 경로**로만 전송·전달됨. Socket.IO(`ChatGateway`)는
 WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@SubscribeMessage` 핸들러가 없고
 어떤 메시지도 emit하지 않음.
 
@@ -491,8 +498,8 @@ WebSocket 연결 생명주기만 담당하며, 채팅 메시지를 다루는 `@S
   4.2. GraphQL 구독 리졸버가 페이로드를 클라이언트에 push
 
 ### 인증 토큰 생명주기
-두 토큰은 의도적으로 서로 다른 곳에 저장됩니다. 수명이 짧은 `accessToken`은 메모리에만
-(Zustand, `persist`에서 제외), 수명이 긴 `refreshToken`은 JavaScript가 읽을 수 없는 백엔드 설정
+두 토큰은 의도적으로 서로 다른 곳에 저장함. 수명이 짧은 `accessToken`은 메모리에만
+(Zustand, `persist`에서 제외), 수명이 긴 `refreshToken`은 JavaScript가 읽을 수 없도록 백엔드가 설정한
 httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strategy.ko.md) 참고.
 
 1. 로그인 — `POST /auth/signin` (Basic 인증)
@@ -504,14 +511,14 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
   2.1. `authLink`가 요청 시점에 `useAuthStore.getState().accessToken`을 읽어
        `Authorization: Bearer` 헤더 설정
 
-3. 조용한 갱신 — 페이지 새로고침(메모리가 비어 있음) 또는 `errorLink`가 401을 감지했을 때
+3. 자동 갱신 — 페이지 새로고침(메모리가 비어 있음) 또는 `errorLink`가 401을 감지했을 때
   3.1. 모든 호출 지점은 `refreshAccessTokenSafely()`(`session-guard.ts`)를 거치며, 동시 호출자는
        진행 중인 요청 하나를 공유
   3.2. `POST /auth/token/refreshaccess`를 `credentials: 'include'`로 전송 — 브라우저가 쿠키를
        자동 첨부하므로 JavaScript가 리프레시 토큰을 읽는 일이 없음
   3.3. 새 `accessToken`이 body로 돌아와 다시 메모리에 저장됨
   3.4. 갱신 결과가 이 탭이 마지막으로 인증했던 계정과 다르면
-       (`sessionStorage['chat:sessionUserId']`), 조용히 신원을 바꾸는 대신 해당 탭을 로그아웃시킴
+       (`sessionStorage['chat:sessionUserId']`), 사용자 모르게 신원을 바꾸는 대신 해당 탭을 로그아웃시킴
 
 4. 로그아웃 — `POST /auth/signOut`
   4.1. 백엔드가 액세스 토큰을 블랙리스트에 등록하고 `res.clearCookie('refreshToken')` 호출 —
@@ -571,7 +578,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - ts-jest (커스텀 jest 설정)
 - ts-loader
 
-common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript 등의 NestJS CLI 기본 패키지는 제외.
+common, core, platform-express, testing, jest, eslint, prettier, ts-node, typescript 등 NestJS CLI가 기본으로 추가하는 패키지는 제외함.
 
 
 ### 설정
@@ -580,10 +587,10 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 패키지
 - joi
   - JavaScript 객체를 스키마 기준으로 검증하는 유효성 검사 패키지임.
-  - `validationSchema`만으로는 자동 검증되지 않는 설정 값을 검증하는 데 사용함.
+  - `ConfigModule.forRoot()`의 `validationSchema`로 `.env` 값을 부팅 시점에 검증함.
 
 메서드
-- join
+- join — GraphQL 스키마 경로 `join(process.cwd(), 'src/schema.gql')` 조립에 사용함
   - 'path' 대신 'node:path'를 사용함: 같은 이름의 외부 패키지와 충돌을 막기 위해서임.
   - 경로 구분자를 OS에 맞게 처리하므로 크로스 플랫폼 호환성이 보장됨.
 
@@ -592,12 +599,12 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 
   @Module({
     imports: [
-      // FYI : 정적 메서드 `forRoot`
+      // 참고: 정적 메서드 `forRoot`
       ConfigModule.forRoot({
       validationSchema: Joi.object({
         ENV: Joi.string().valid('dev', 'prod').required(),
         DB_TYPE: Joi.string().valid('postgres').required(),
-        // ...나머지 필드는 DB/토큰/Redis/CORS/Gemini/mail/moderation 설정을 검증합니다 —
+        // ...나머지 필드는 DB/토큰/Redis/CORS/Gemini/mail/moderation 설정을 검증함 —
         // 전체 최신 변수 목록은 아래 환경 변수 설정 참고
       }),
       isGlobal: true,
@@ -638,14 +645,14 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
   SESSION_TTL_SEC=86400
   MESSAGE_CACHE_TTL_SEC=86400
 
-  # CORS URL 설정
-  CORS_ORIGIN=your.vercel.app
+  # CORS 허용 출처 — 쉼표로 구분한 목록(frontend, admin)
+  CORS_ORIGIN=http://localhost:5173,http://localhost:5174
 
   # Google Gemini AI
   GEMINI_API_KEY=your-gemini-key
 ```
 
-이 목록은 로컬에서 서버를 부팅하는 데 필요한 핵심 변수만 다룹니다. 선택적 `MAIL_*` 변수
+이 목록은 로컬에서 서버를 부팅하는 데 필요한 핵심 변수만 다룸. 선택적 `MAIL_*` 변수
 그룹(SMTP 알림 설정, [역할](#역할) 섹션의 역할 변경 이메일이 사용)과 `MODERATION_*` 그룹(스트라이크/밴
 임계값, 전부 기본값 있음, [모더레이션](#모더레이션) 참고)을 포함한 전체 목록은
 [backend/.env.example](backend/.env.example)을 참고하세요.
@@ -661,13 +668,13 @@ common, core, platform-express, testing, jest, eslint, prettier, ts-node, typesc
 
 **`handleDisconnect`** — 위 3단계에서 설정된 `client.data.user`를 읽어 `chatService.removeClient()`를 호출; 연결이 그 이전 단계에서 거부됐다면 정리할 것이 없으므로 두 핸들러는 대칭을 유지함.
 
-**수평 확장**: `afterInit`이 Socket.IO 서버를 `@socket.io/redis-adapter`(Redis pub/sub 클라이언트 쌍)에 연결함 — 이게 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에게만 전달되어, 백엔드 인스턴스가 두 개 이상이 되는 순간 조용히 깨짐.
+**수평 확장**: `afterInit`이 Socket.IO 서버를 `@socket.io/redis-adapter`(Redis pub/sub 클라이언트 쌍)에 연결함 — 이 어댑터가 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에게만 전달되어, 백엔드 인스턴스가 두 개 이상이 되는 순간 조용히 깨짐.
 
 
 ### Docker 
-#### 공개 - Dockerfile
+#### 프로덕션 - Dockerfile
 무거운 `devDependencies`와 보안 취약점을 줄이기 위해 Multi-Stage 패턴을 사용함.
-이 이미지를 빌드·배포하는 CI/CD 흐름은 [배포 → 공개 - Railway](#공개---railway)를 참고하세요.
+이 이미지를 빌드·배포하는 CI/CD 흐름은 [배포 → 프로덕션 - Railway](#프로덕션---railway)를 참고하세요.
 
 #### 로컬 - docker-compose
 Docker를 통해 모든 서비스 실행
@@ -694,7 +701,7 @@ Docker를 통해 모든 서비스 실행
 
 
 #### 사용법
-redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Docker → Redis 컨테이너 사용법**을 참고하세요(두 곳에 중복해서 어긋나지 않도록 한곳에만 둡니다).
+redis-chat 컨테이너 시작/중지/제거 명령은 [Redis 컨테이너 사용법](#redis-컨테이너-사용법)을 참고하세요.
 
 
 ### 인증
@@ -702,8 +709,8 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
   `Authorization: Basic` 헤더로 보내며, Passport 전략 없이 `AuthService`가 직접 파싱·검증함.
 - **JWT** (그 외 모든 보호된 라우트) — `passport-jwt`의 `JwtAuthGuard`
   (`backend/src/auth/strategy/jwt.strategy.ts`)로 검증하며, 액세스 토큰은 `Authorization: Bearer`
-  헤더에 실립니다.
-- `register`/`signin`은 둘 다 `AuthRateLimitGuard`로 레이트리밋됩니다([주요 엔드포인트](#주요-엔드포인트) 참고).
+  헤더에 실림.
+- `register`/`signin`은 둘 다 `AuthRateLimitGuard`로 속도 제한함([주요 엔드포인트](#주요-엔드포인트) 참고).
 
 
 ### 사용자
@@ -717,14 +724,14 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 - 모든 가입 사용자는 `user` 역할을 부여받아 메시지 전송이 가능함.
 - `admin` 역할은 상위 권한을 가지며, 모든 사용자 계정 조회·수정·삭제, 강제 로그아웃, 감사 로그 조회가 가능함.
 - `superadmin` 역할은 역할 변경 권한을 추가로 보유함. 다른 사용자의 역할 승격·강등은 superadmin만 가능함.
-- 최초 superadmin은 DB에 직접 INSERT하여 생성함. 이후 admin은 admin 패널에서 승격 가능함.
-- `MAX_ADMIN_COUNT` 환경변수(기본값: 5)로 `admin` 역할 계정 수를 제한함. superadmin은 이 상한에 포함되지 않음.
-- 역할이 변경될 때마다 `MailService`를 통해 대상 유저에게 이메일이 발송됩니다(non-blocking — 발송 실패는 로그만 남기고 역할 변경 자체를 막지 않음).
+- 최초 superadmin은 DB에 직접 INSERT하여 생성함. 이후 admin은 Admin 패널에서 승격 가능함.
+- `MAX_ADMIN_COUNT` 환경 변수(기본값: 5)로 `admin` 역할 계정 수를 제한함. superadmin은 이 상한에 포함되지 않음.
+- 역할이 변경될 때마다 `MailService`를 통해 대상 유저에게 이메일을 발송함(non-blocking — 발송 실패는 로그만 남기고 역할 변경 자체를 막지 않음).
 
 **서버측 불변식**(호출자와 무관하게 항상 강제되며, UI 제약이 아님):
 - 마지막 남은 `superadmin`은 강등 불가 — `updateRole`이 차단해 시스템이 superadmin 0명 상태가 되는 것을 방지
 - `admin` 역할 계정은 `MAX_ADMIN_COUNT` 상한
-- 시딩된 AI 답장 계정과 moderation 시스템 계정은 삭제 불가 — `UserService.remove()`가 거부(AI 답장 또는 모더레이션 알림 기능이 조용히 깨지는 것을 방지)
+- 시드된 AI 답장 계정과 모더레이션 시스템 계정은 삭제 불가 — `UserService.remove()`가 거부(AI 답장 또는 모더레이션 알림 기능이 조용히 깨지는 것을 방지)
 - force-logout/ban/unban/delete와 달리, `updateRole`은 자신과 같거나 높은 역할의 대상을 막지 않음 — superadmin이 다른 superadmin을 강등시킬 수 있음. 이는 의도된 동작임 — 아래 [탈취된 superadmin 계정 봉쇄](#탈취된-superadmin-계정-봉쇄) 참고.
 
 
@@ -733,11 +740,11 @@ redis-chat 컨테이너 시작/중지/제거 명령은 **배포 → 로컬 - Doc
 수 없음 — 위의 마지막-superadmin 불변식이 이를 막고, 조치할 다른 superadmin도 없기 때문임.
 2명 이상이면 봉쇄는 DB 접근이 필요한 상황이 아니라 평범한 앱 내 작업이 됨.
 
-1. 다른(탈취되지 않은) superadmin 계정으로 admin 패널에 로그인할 것.
+1. 다른(탈취되지 않은) superadmin 계정으로 Admin 패널에 로그인할 것.
 2. Users에서 탈취된 계정을 찾아 **Demote (superadmin)**을 클릭할 것. 대상의 다음 요청부터
-   즉시 `admin`으로 강등됨 — 여전히 유효한 access token이 있어도, 권한 판정은 그 토큰이
+   즉시 `admin`으로 강등됨 — 여전히 유효한 액세스 토큰이 있어도, 권한 판정은 그 토큰이
    아니라 매 요청마다 DB/캐시에서 다시 조회한 role을 기준으로 하기 때문임(위 [역할](#역할)
-   참고). accessToken 만료를 기다릴 필요가 없음.
+   참고). 액세스 토큰 만료를 기다릴 필요가 없음.
 3. 강등된 뒤에는 평범한 admin 작업(**Force logout**, **Ban**, **Delete**)을 그대로 쓸 것.
 4. 신뢰할 수 있는 계정을 다시 superadmin으로 승격해 최소 2명 기준을 복구할 것.
 5. 감사 로그(해당 사용자 ID의 `ROLE_CHANGE` / `FORCE_LOGOUT` / `USER_BANNED` 항목)를 검토해
@@ -749,12 +756,12 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
 
 
 ### 모더레이션
-자동으로 에스컬레이션되고 admin이 되돌릴 수 있는 행동 기반 어뷰징 탐지 시스템임. `sendMessage` 경로와 auth/socket 계층에서 동작하며 별도의 신고 UI는 없음. 탐지·누적·집행 로직은 모두 `ModerationService`에 있고, 얇은 `ModerationGuard`가 뮤트/밴된 사용자를 `sendMessage`에서 걸러냄.
+자동으로 에스컬레이션되고 admin이 되돌릴 수 있는 행동 기반 어뷰징 탐지 시스템임. `sendMessage` 경로와 auth/socket 계층에서 동작하며 별도의 신고 UI는 없음. 탐지·누적·집행 로직은 모두 `ModerationService`에 있고, `ModerationGuard`는 뮤트/밴된 사용자를 `sendMessage`에서 걸러내는 역할만 함.
 
 - **스트라이크 소스**
   - *중복/도배* — 동일한 메시지(정규화됨)를 60초 내에 3회 전송하면 스트라이크 1회 추가
   - *속도* — `RateLimitGuard`(10건/15초)에 걸리면 스트라이크 1회 추가(동일 가중치)
-- **에스컬레이션 사다리** — 스트라이크는 24시간 롤링 윈도우 내에서 누적됩니다(모든 임계값은 env로 조정 가능):
+- **에스컬레이션 사다리** — 스트라이크는 24시간 롤링 윈도우 내에서 누적됨(모든 임계값은 환경 변수로 조정 가능):
   - **3 스트라이크 → 경고** — 방에 System 계정 메시지가 게시됨(가운데 정렬된 알림으로 렌더링)
   - **5 스트라이크 → 임시 뮤트** — 10분, Redis 기반; 연결은 유지되지만 전송 불가
   - **7 스트라이크 → 기간제 밴** — 7일; 재범(두 번째 `USER_BANNED`)은 **영구** 밴이 됨
@@ -762,11 +769,11 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
 - **복구 및 감사** — `POST /user/:id/unban`(admin)이 밴/뮤트/스트라이크를 해제하고 auth 캐시를 무효화함. 모든 액션은 감사 로그 항목(`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`)을 남김.
 - **저장소** — `user_entity.status`(`active` | `banned`)와 `bannedUntil`이 영구 밴을 뒷받침하고, 스트라이크와 뮤트는 Redis 전용(`moderation:*` 키, 전부 TTL 있음)임. 시작 전 `AddModerationColumns` 마이그레이션을 실행하세요.
 
-조정 가능한 env var(선택; 합리적인 기본값 적용됨): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
+조정 가능한 환경 변수(선택, 적절한 기본값이 적용됨): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
 
 > 이 절에 인용된 기본값은 네 곳(여기, CLAUDE.md, `backend/.env.example`, 코드)에 중복되어 있음. `backend/src/moderation/constants/moderation.constants.ts`의 `MODERATION_DEFAULTS`가 단일 진실 공급원이므로, 값을 바꿀 때는 그곳을 먼저 수정한 뒤 나머지 세 곳을 다시 동기화하세요.
 
-**감사 로그 액션 값** — 모든 권한 액션은 아래 중 하나를 감사 기록에 남깁니다(`GET /audit-log?action=`으로 필터 가능, [주요 엔드포인트](#주요-엔드포인트) 참고):
+**감사 로그 액션 값** — 모든 권한 액션은 아래 중 하나를 감사 기록에 남김(`GET /audit-log?action=`으로 필터 가능, [주요 엔드포인트](#주요-엔드포인트) 참고):
 
 | 액션 | 기록 주체 |
 |---|---|
@@ -783,11 +790,11 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
 이 부분은 자동화된 E2E로 커버되지 않음(유닛 테스트만 있음). 세 계정 — **A**(위반자),
 **B**(수신자), **admin** — 으로 검증하세요. 상위 단계에 빨리 도달하려면 `.env`에서 임계값을
 일시적으로 낮추되, 값들은 반드시 서로 다르게(`warn < mute < ban`) 유지해야 함. 값이 겹치면
-`escalate()`의 정확히-일치 검사가 충돌함. 예: `MODERATION_WARN_THRESHOLD=2`,
+`escalate()`의 값 일치 검사가 충돌함. 예: `MODERATION_WARN_THRESHOLD=2`,
 `MODERATION_MUTE_THRESHOLD=3`, `MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30`.
 백엔드를 재시작해 적용하고, 검증이 끝나면 원래 값으로 되돌리세요.
 
-1. **경고** — A에서 B에게 *동일한* 메시지를 반복 전송(`DUP_WINDOW` 이내, rate limit 이하). warn
+1. **경고** — A에서 B에게 *동일한* 메시지를 반복 전송(`DUP_WINDOW` 이내, 속도 제한 이하). warn
    임계값에서 방에 가운데 정렬된 System 계정 알림이 나타남; 새로고침해도 유지됨(저장된
    `ChatEntity`이기 때문).
 2. **뮤트** — 계속 전송. mute 임계값에서 A의 다음 전송이 거부됨(`ModerationGuard` → FORBIDDEN,
@@ -802,7 +809,7 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
 5. **언밴(admin)** — A에 `POST /user/:id/unban` → `status`가 `active`로 복구, 스트라이크/뮤트
    해제, auth 캐시 무효화; A는 즉시 다시 전송 가능.
 6. **감사** — 위 각 단계는 admin이 볼 수 있는 감사 로그 항목(`USER_MUTED` / `USER_BANNED` /
-   `USER_UNBAN`)을 남깁니다.
+   `USER_UNBAN`)을 남김.
 
 ### Admin 계정 생성
 최초 superadmin은 데이터베이스에 직접 생성해야 함. API 엔드포인트에서 `user` 이상의 역할을 부여하지 않아 공격 면을 최소화함.
@@ -828,8 +835,12 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 ### Admin 패널
 admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 배포됨([Admin 패널 - Vercel](#admin-패널---vercel) 참고).
 
-- **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 moderation 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
-- **Users** — 페이지네이션/정렬/검색 지원 목록; 모더레이션 상태(active/banned)로 필터. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림. 액션(표시된 것은 superadmin 전용): `user`/`admin` 간 승격·강등; 강제 로그아웃, 수동 밴(선택적 사유, 영구 또는 기간제)/언밴, 삭제는 자신보다 명확히 낮은 등급만 대상 가능; superadmin은 이와 별개로 동료 superadmin 계정에 **Demote (superadmin)** 액션을 추가로 씀([탈취된 superadmin 계정 봉쇄](#탈취된-superadmin-계정-봉쇄) 참고); AI/moderation 시스템 계정은 절대 삭제 불가([역할](#역할) 불변식 참고)
+- **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 모더레이션 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
+- **Users** — 페이지네이션/정렬/검색을 지원하는 목록이며 모더레이션 상태(active/banned)로 필터할 수 있음. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림.
+  - 승격·강등: `user`와 `admin` 사이의 역할 변경(superadmin 전용)
+  - 강제 로그아웃, 수동 밴(선택적 사유, 영구 또는 기간제)/언밴, 삭제: 자신보다 명확히 낮은 등급만 대상으로 할 수 있음
+  - **Demote (superadmin)**: superadmin이 동료 superadmin 계정에 추가로 쓸 수 있는 액션([탈취된 superadmin 계정 봉쇄](#탈취된-superadmin-계정-봉쇄) 참고)
+  - AI/모더레이션 시스템 계정은 삭제할 수 없음([역할](#역할) 불변식 참고)
 - **Rooms** — 페이지네이션/검색 지원 목록; 행을 클릭하면 상세 패널(방 ID, 생성일, 참여자)이 열림. 방 삭제 가능
 - **Logs** — 액션/유저/날짜 범위로 필터한 감사 로그; **Export CSV**는 현재 필터를 파일로 다운로드(API와 동일하게 10,000행 캡)
 
@@ -847,7 +858,7 @@ Socket 인메모리
   };
 ```
 
-인메모리 포함 Redis
+인메모리와 Redis 병행
 ```ts
   // Redis 이후
   async registerClient(participantId: number, client: Socket) {
@@ -858,7 +869,7 @@ Socket 인메모리
 
 
 ### AI
-Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함됩니다.
+Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함됨.
 - `AiService` - Gemini API 호출, 대화 히스토리 구성(최근 10개 메시지), Redis 분산 락으로 방당 중복 응답 방지
 - `AiRoomService` - 방별 성격 선택 및 조회 관리
 
@@ -879,13 +890,13 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 - 대화 컨텍스트를 최근 10개 메시지로 제한(`AI_HISTORY_LIMIT`) - 전체 히스토리 전송 방지
 - 시스템 프롬프트로 응답 길이 강제: 가벼운 대화·인사 1-3줄, 설명이 필요한 질문 4-5줄, 최대 5줄 초과 금지
 
-**Rate Limiting & 비용 제어**
+**속도 제한 & 비용 제어**
 - 기존 `RateLimitGuard`(사용자당 15초당 10개)가 `sendMessage` 뮤테이션에 동일 적용되어 AI 호출 빈도를 간접적으로 제한
 - Redis 분산 락(`ai:lock:${roomId}`, TTL 30s)으로 동일 방에서 AI 응답이 동시에 중복 생성되는 것을 방지
 - AI 응답은 수신자가 AI 유저(`recipientId === aiUserId`)일 때만 트리거
 
 **응답 전달 방식**
-- `generateContent()` 완전 응답을 목적으로 사용
+- 스트리밍 없이 `generateContent()`로 전체 응답을 한 번에 받음
 - AI 응답 전문이 사람 메시지와 동일한 `receiveMessage :${roomId}` GraphQL Pub/Sub 채널을 통해 단일 메시지로 전달 — 별도의 Socket.IO/WebSocket 브로드캐스트는 없음
 
 **시스템 프롬프트**
@@ -908,18 +919,18 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 
 테스트 코드는 `spec.ts` 파일에 정의되어 있고 바로 실행할 수 있음.
 
-테스트 디렉터리는 상대 경로 `src` 대신 별도의 루트 배열 `["src"]`로 지정함('Package.json' 기준).
+테스트 디렉터리는 단일 `rootDir: "src"` 대신 `roots: ["src"]` 배열로 지정함(`package.json` 기준).
 
-배열로 지정해 두면 나중에 e2e 테스트 같은 추가 테스트 위치를 붙이기 쉬움.
+배열로 지정해 두면 나중에 e2e 테스트처럼 다른 테스트 위치를 추가하기 쉬움.
 
-**단일 기본 디렉터리**
+**단일 루트 디렉터리 (`rootDir`)**
 ```json
 "jest": {
   "rootDir": "src",
 }
 ```
 
-**다중 기본 디렉터리**
+**다중 루트 디렉터리 (`roots`)**
 ```json
 "jest": {
   "roots": ["src"],
@@ -927,7 +938,7 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 ```
 
 - 커버리지 경로 제외
-`coveragePathIgnorePatterns`에서 테스트하지 않을 항목을 정의함 ('Package.json' 기준).
+`coveragePathIgnorePatterns`에서 테스트하지 않을 항목을 정의함 (`package.json` 기준).
 ```json
 "coveragePathIgnorePatterns": [
   "main.ts",
@@ -956,19 +967,19 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 ```
 
 - 디렉터리 루트
-'Package.json'에서 커버리지 리포트 출력 위치를 설정 파일의 상위 디렉터리로 지정하면, 모든 테스트 파일을 한 번에 돌리고 결과를 한곳에서 볼 수 있음.
-  - 하위 저장소
+`package.json`에서 커버리지 리포트 출력 위치를 설정 파일의 상위 디렉터리로 지정하면, 모든 테스트 파일을 한 번에 돌리고 결과를 한곳에서 볼 수 있음.
+  - 상위 디렉터리에 출력
   ```json
     "coverageDirectory": "../coverage",
   ```
 
-  - 상위 저장소
+  - `rootDir` 안에 출력
   ```json
     "coverageDirectory": "./coverage",
   ```
 
 - 모듈명 매퍼
-'Package.json'에서 정규식으로 모듈 임포트 경로를 매핑함. 예를 들어 `src/utils`를 `<rootDir>/src/utils`로 해석하게 함.
+`package.json`에서 정규식으로 모듈 임포트 경로를 매핑함. 예를 들어 `src/utils`를 `<rootDir>/src/utils`로 해석하게 함.
 ```json
 "moduleNameMapper": {
   "src/(.*)": "<rootDir>/src/$1"
@@ -1044,9 +1055,9 @@ Google Gemini 2.5 Flash 기반. `AiModule`에는 두 가지 서비스가 포함�
 정당하므로 스캔 대상에서 제외함. 이전 마이그레이션(원래 `NO ACTION`을 설정한 것들)은 `since`
 타임스탬프로 예외 처리되어, 최초 `InitialSchema`는 걸리지 않음.
 
-**왜 `pnpm test`에 얹혀있는가.** lint도 이제 blocking CI 단계이지만, 문법/스타일만 검사할 뿐
-마이그레이션 간 FK 이력은 검사하지 않음 — 그래서 이 가드는 대신 테스트 스위트에 얹혀
-두 지점에서 발동함:
+**왜 `pnpm test`에 포함했는가.** lint도 이제 blocking CI 단계이지만, 문법/스타일만 검사할 뿐
+마이그레이션 간 FK 이력은 검사하지 않음 — 그래서 이 가드는 대신 테스트 스위트에 포함해
+두 지점에서 발동하게 함:
 
 | 발동 지점 | 효과 |
 |---|---|
@@ -1077,10 +1088,10 @@ frontend와 동일한 패턴으로 **별도 Vercel 프로젝트**로 배포됨. 
 **설정**
 - 루트 디렉터리: `admin/`
 - 모노레포 패키지 해석을 위한 `pnpm-workspace.yaml`
-- 환경변수: `VITE_API_URL` (frontend와 동일한 백엔드)
+- 환경 변수: `VITE_API_URL` (frontend와 동일한 백엔드)
 
 
-#### 공개 - Railway
+#### 프로덕션 - Railway
 **CI/CD 흐름**
 `git push origin main` => GitHub Actions (`test` → `e2e` + `admin-e2e`). `deploy`(Railway CLI =>
 자동 배포)는 호스팅 중단 동안 수동 실행(`workflow_dispatch`)으로만 동작함 — 전체 CI job 구성은
@@ -1145,6 +1156,7 @@ Redis 중지
 
 
 ## 디버깅 목록
+개발 중 반복해서 겪은 문제 유형임.
 - service의 잘못된 TypeORM 쿼리
 - 엔티티 스키마와 일치하지 않는 속성명
 - 메시지가 DB에 표시되지 않는 `commitTransaction()` 누락
@@ -1152,11 +1164,11 @@ Redis 중지
 - 프론트엔드에서 잘못된 recipient ID 전송
 - 발신자 ID 조회 실패
 
-이런 종류의 문제에 대한 전체 근본원인 서사(한 줄 요약이 아니라)는 아래 [AI 보조 개발 사례](#ai-보조-개발-사례)를 참고하세요.
+실제 사고 두 건의 근본 원인 분석 전문은 아래 [AI 보조 개발 사례](#ai-보조-개발-사례)를 참고하세요.
 
 
 ## 향후 확장 계획
-[ROADMAP.ko.md](ROADMAP.ko.md)로 옮김.
+향후 계획은 [ROADMAP.ko.md](ROADMAP.ko.md)를 참고.
 
 
 ## AI 보조 개발 사례
@@ -1166,7 +1178,7 @@ Redis 중지
 코드 리뷰와 단위 테스트만으로는 잡기 어려운 인프라 수준 취약점을 AI 보조 라이브 테스트 세션에서 발견하고 대응한 사례임.
 
 **발단**
-Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Docker Compose 설정을 검토하던 중 다음을 발견함:
+Swagger + curl로 API를 직접 호출해 보던 중, AI(Claude Code)가 Docker Compose 설정을 검토하다가 다음을 발견함:
 - 모든 서비스 포트가 `0.0.0.0:PORT:PORT`로 바인딩되어 모든 네트워크 인터페이스에 노출
 - 개발 머신의 Ethernet 어댑터가 공인 IP를 보유하면서 Windows 방화벽 프로파일이 "Private(신뢰)"으로 설정됨
 - 결과: PostgreSQL(5432), Redis(6379), 백엔드(3000)가 인터넷에 노출
@@ -1182,17 +1194,17 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 5. Windows 방화벽 프로파일 Public 전환 안내 (사용자 직접 수행)
 
 **AI가 수행하지 않은 것 — 프롬프트 인젝션 방지**
-`readme_to_recover.readme` 테이블 내용을 SQL 쿼리로 직접 읽지 않음. 공격자가 DB에 AI 지시문을 심었을 경우, AI 도구가 그 내용을 컨텍스트에 로드하는 순간 의도치 않은 명령이 실행될 수 있기 때문임. AI는 테이블의 위치와 존재만 설명하고 내용 확인을 사용자에게 위임함. 사용자가 직접 확인한 결과 표준 비트코인 요구문으로 판단됨.
+`readme_to_recover.readme` 테이블 내용을 SQL 쿼리로 직접 읽지 않음. 공격자가 DB에 AI 지시문을 심었을 경우, AI 도구가 그 내용을 컨텍스트에 로드하는 순간 의도치 않은 명령이 실행될 수 있기 때문임. AI는 테이블의 위치와 존재만 설명하고 내용 확인을 사용자에게 위임함. 사용자가 직접 확인한 결과 표준적인 비트코인 요구문이었음.
 
 **대응 순서 — 봉쇄 우선**
-랜섬웨어 DB를 먼저 삭제하자는 판단도 있었지만, 접근 경로가 열린 상태에서 삭제해도 봇이 즉시 재생성 가능하므로 다음 순서를 지킴:
+랜섬웨어 봇이 만든 DB를 먼저 삭제하는 방법도 있었지만, 접근 경로가 열린 상태에서 삭제해도 봇이 즉시 재생성 가능하므로 다음 순서를 지킴:
 1. 네트워크 봉쇄 (포트 바인딩 + 방화벽)
 2. 자격증명 로테이션
 3. 아티팩트 제거
 
 **교훈**
 - AI 보조 라이브 테스트는 코드 리뷰와 CI만으로는 드러나지 않는 배포 환경 취약점을 탐지함
-- AI 도구가 외부에서 생성된 컨텐츠(DB 행, 업로드 파일 등)를 직접 읽는 것은 프롬프트 인젝션 경로가 됨. 내용 확인은 사람이 직접 해야 함
+- AI 도구가 외부에서 생성된 콘텐츠(DB 행, 업로드 파일 등)를 직접 읽는 것은 프롬프트 인젝션 경로가 됨. 내용 확인은 사람이 직접 해야 함
 - 보안 사고 대응 순서는 **봉쇄 → 로테이션 → 정리**임. 순서가 바뀌면 정리가 무의미해짐
 
 ### 라이브 브라우저 테스트 중 발견한 AI 응답 캐시 손상
@@ -1226,8 +1238,8 @@ Swagger + curl을 이용한 API 라이브 테스트 도중 AI(Claude Code)가 Do
 - [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력
 - [ADR/](ADR/) — 아키텍처 결정 기록(영문 전용)
 - [아키텍처 다이어그램](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 인증,
-  `sendMessage`, 소켓, AI, 모더레이션, Redis, 가드, 모듈 등 코드 검증 기반 다이어그램 14종(private
-  링크, 저장소 내 다른 곳에는 색인되어 있지 않음)
+  `sendMessage`, 소켓, AI, 모더레이션, Redis, 가드, 모듈 등 코드 검증 기반 다이어그램 14종(작성자 계정에서만 열람 가능한 비공개
+  링크)
 
 
 ## 라이선스

@@ -14,7 +14,7 @@
 
 > 한국어 버전: [README.ko.md](README.ko.md)
 
-# Real-Time Chat Application
+# Chatterley — Real-Time Chat Application
 - A private one-to-one real-time chat service, built solo over 600+ commits (2026-01 ~ present, see [CHANGELOG.md](CHANGELOG.md) for the exact count) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
 - Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
 
@@ -46,7 +46,7 @@ The app has no language switch, so both READMEs use the same images. The sign-in
 | ![Admin user list with a banned user's detail panel](docs/images/en/07-admin-users-panel.png)<br>**Admin users** — detail panel of a banned account with its recent audit entries | |
 
 Known limitation of these captures: the dialog backdrop on the AI personality screen renders as solid
-black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides; it is not fixed here.
+black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides.
 
 
 ## Project Motivation
@@ -64,8 +64,7 @@ Hosting is currently stopped (cost). The last successful automatic deploy to Rai
 passed both `test` and `deploy`).
 
 The `deploy` job is now manual-only (`workflow_dispatch`), so it shows as skipped on `main` pushes.
-To run the app, follow [Quick Start](#quick-start) (local or Docker). A demo video is planned — see
-[ROADMAP](ROADMAP.md#planned).
+To run the app, follow [Quick Start](#quick-start) (local or Docker).
 
 
 ## Quick Start
@@ -92,12 +91,16 @@ cd backend
 pnpm migration:run
 ```
 
-**Run Redis in Docker**
+**Run Redis in Docker** — create the container once if it does not exist yet:
+```powershell
+docker run -d -p 6379:6379 --name redis-chat redis:latest
+```
+Start an existing container with:
 ```powershell
 docker start redis-chat
 ```
 
-**Run backend** (cd backend first)
+**Run backend**
 ```powershell
 cd backend && pnpm start:dev
 ```
@@ -127,7 +130,7 @@ GraphQL walkthrough.
 pnpm test
 ```
 
-**Run test coverage** (cd backend first)
+**Run test coverage**
 ```powershell
 cd backend && pnpm test:cov
 ```
@@ -153,8 +156,8 @@ List of Troubleshooting when the program runs
 
 ## API Documentation
 ### Swagger UI
-***To try all of'em, you must register first to get started.***
-Since Altair cannot test with Mutation, while Postman cannot test Subscription, each platforms take a role as Subscription and Mutation separately to test chat communication altogether.
+***You must register first to try all features.***
+REST (`Auth`, `User`) is tested in Swagger UI. For chat (GraphQL), Altair cannot test Mutations and Postman cannot test Subscriptions, so use the two tools together to cover sending and receiving.
 
 ### Key Endpoints
 **Swagger**
@@ -227,7 +230,7 @@ Test 'Auth' and 'User' Endpoints URL below.
 
 - GraphQL (Mutation)
   - URL: `http://localhost:3000/graphql`
-  - Description: This platform cannot be altered. Open a tap of GraphQL in 'Postman', and set the pre-requisition as following, then connect to the Altair. If this all set, you are ready to test messaging communication as sender.
+  - Description: Any tool that can call GraphQL over HTTP works here. In Postman, open a GraphQL tab and set the headers as follows; once set, you can test messaging communication as the sender.
 
   - Request Handlers
     - Headers: authorization: Bearer token
@@ -312,7 +315,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 ### Backend
 - **Language**: TypeScript 5.7.3 — static typing across backend/frontend/admin catches the class of `undefined`-property bugs this project hit repeatedly during its early raw-debugging phase (see commit history, Jan–Mar)
 - **Runtime**: Node.js 24.x (pinned via `.nvmrc` / `engines`) — non-blocking I/O suits a connection-heavy chat workload
-- **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/moderation/ai/admin) decoupled as it grew from a single resolver to a dozen+ modules
+- **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/user/ai/moderation/audit-log, etc.) decoupled as it grew from a single resolver to about ten modules
 - **Architecture**: Monolith, single deployable — module boundaries (see [Project Structure](#project-structure)) provide separation without paying for service-mesh complexity this scale doesn't need
 - **Realtime split**: Socket.IO 4.8.3 for connection lifecycle only (auth on connect, room-creation notifications) + GraphQL 16.12.0 Mutation/Subscription for chat messages (see [Flow](#flow)) — not the original design; messages were migrated off raw Socket.IO mid-project to get transactional guarantees around persistence (`GqlTransactionInterceptor`)
 - **Database**: PostgreSQL + TypeORM 0.3.29 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
@@ -320,7 +323,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - **AI**: Google Gemini 2.5 Flash via `@google/genai`, 4 selectable personalities — cost-capped by design (output token limit, conversation-history truncation, retry ceiling), not bolted on after the fact
 - **Auth**: JWT (access token in memory, refresh token in an httpOnly cookie) + Passport strategies; RBAC guards are composed at both the REST and GraphQL layer, not subclassed
 - **Testing**: Jest unit tests on the service layer (see [Test Coverage](#test-coverage)), Playwright e2e for both `frontend/` and `admin/`
-- **API Docs**: Swagger for REST + GraphQL introspection via Altair — REST and GraphQL each need their own tool since neither Altair nor Postman alone can exercise both message-sending paths
+- **API Docs**: Swagger for REST + GraphQL introspection via Altair — Altair and Postman are used together since neither alone can exercise both Mutation and Subscription
 
 
 ## Features
@@ -663,8 +666,8 @@ Create a `backend/.env` file and paste variables below :
   SESSION_TTL_SEC=86400
   MESSAGE_CACHE_TTL_SEC=86400
 
-  # CORS URL Set Up
-  CORS_ORIGIN=your.vercel.app
+  # CORS allowed origins — comma-separated list (frontend, admin)
+  CORS_ORIGIN=http://localhost:5173,http://localhost:5174
 
   # Google Gemini AI
   GEMINI_API_KEY=your-gemini-key
@@ -719,7 +722,7 @@ Running all of services through Docker
 
 
 #### Usage
-See **Deployment → Local - Docker → Redis Container Usage** below for the redis-chat container start/stop/remove commands (kept in one place to avoid drift between two copies).
+See **Deployment → Local - Docker → Redis Container Usage** below for the redis-chat container start/stop/remove commands.
 
 
 ### Auth
@@ -1171,6 +1174,7 @@ Remove container (keeps image)
 
 
 ## Debugging List
+Recurring problem types met during development.
 - Incorrect TypeORM queries in service
 - Mismatching property name with entity schema
 - Missing `commitTransaction()` to messages will appear in DB
@@ -1248,7 +1252,7 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 - [ADR/](ADR/) — formal architecture decision records
 - [Architecture Diagrams](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 14
   code-verified sequence/flowchart/ERD diagrams (auth, `sendMessage`, sockets, AI, moderation, Redis,
-  guards, modules); a private link, not indexed elsewhere in the repo
+  guards, modules); a private link viewable only from the author's account
 
 
 ## License
