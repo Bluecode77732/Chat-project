@@ -43,7 +43,8 @@ function RegisterPage() {
 
     return (
         <div className='flex items-center justify-center h-screen'>
-            <div className='flex flex-col gap-4 w-80'>
+            {/* form으로 감싸야 입력 중 Enter로 제출됨 */}
+            <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4 w-80'>
                 <h1 className='text-2xl font-bold'>회원가입</h1>
                 {/* `register`가 값을 수집 */}
                 <input {...register('email', {
@@ -88,18 +89,18 @@ function RegisterPage() {
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
                 {success && <span className='text-green-500 text-sm'>회원가입이 완료되었습니다. 이동 중...</span>}
                 {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
-                <button onClick={handleSubmit(onSubmit)}
+                <button type='submit'
                     data-testid='register-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
                     회원가입
                 </button>
-                <button onClick={() => navigate('/')}
+                <button type='button' onClick={() => navigate('/')}
                     data-testid='register-signin-link'
                     className='text-blue-500 text-sm'
                 >
                 이미 계정이 있으신가요? 로그인
                 </button>
-            </div>
+            </form>
         </div>
     )
 }

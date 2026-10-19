@@ -58,7 +58,8 @@ function SignInPage() {
 
     return (
         <div className='flex items-center justify-center h-screen'>
-            <div className='flex flex-col gap-4 w-80'>
+            {/* form으로 감싸야 입력 중 Enter로 제출됨 */}
+            <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4 w-80'>
                 <h1 className='text-2xl font-bold'>로그인</h1>
                 {sessionEnded && (
                     <span className='text-gray-500 text-sm'>
@@ -93,17 +94,17 @@ function SignInPage() {
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
-                <button onClick={handleSubmit(onSubmit)}
+                <button type='submit'
                     data-testid='signin-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
                     로그인
                 </button>
-                <button onClick={() => navigate('/register')}
+                <button type='button' onClick={() => navigate('/register')}
                     data-testid='signin-register-link'
                     className='bg-white text-sm'>
                     계정이 없으신가요? 회원가입
                 </button>
-            </div>
+            </form>
         </div>
     )
 }
