@@ -38,5 +38,5 @@ test('user can delete their account and can no longer sign in', async ({ page })
     await page.getByTestId('signin-email-input').fill(user.email);
     await page.getByTestId('signin-password-input').fill(user.password);
     await page.getByTestId('signin-submit-button').click();
-    await expect(page.getByText('Your email or password is not correct.')).toBeVisible();
+    await expect(page.getByText('이메일 또는 비밀번호가 올바르지 않습니다.')).toBeVisible();
 });

@@ -26,7 +26,7 @@ function LoginPage() {
             });
             const { sub, role } = jwtDecode<{ sub: number; role: number }>(res.data.accessToken);
             if (role < 1) {
-                setError('Admin access only.');
+                setError('관리자 전용입니다.');
                 return;
             }
             setTokens(res.data.accessToken, sub, role);
@@ -34,7 +34,7 @@ function LoginPage() {
             recordSessionUser(sub);
             navigate('/dashboard');
         } catch {
-            setError('Invalid credentials.');
+            setError('이메일 또는 비밀번호가 올바르지 않습니다.');
         }
     };
 
@@ -44,19 +44,19 @@ function LoginPage() {
                 onSubmit={handleSubmit(onSubmit)}
                 className="bg-white p-8 rounded-xl shadow w-80 flex flex-col gap-4"
             >
-                <h1 className="text-xl font-bold text-center">Admin Login</h1>
+                <h1 className="text-xl font-bold text-center">관리자 로그인</h1>
                 {error && <p data-testid="login-error" className="text-red-500 text-sm text-center">{error}</p>}
                 <input
                     {...register('email', { required: true })}
                     type="email"
-                    placeholder="Email"
+                    placeholder="이메일"
                     data-testid="login-email-input"
                     className="border rounded px-3 py-2 text-sm"
                 />
                 <input
                     {...register('password', { required: true })}
                     type="password"
-                    placeholder="Password"
+                    placeholder="비밀번호"
                     data-testid="login-password-input"
                     className="border rounded px-3 py-2 text-sm"
                 />
@@ -65,7 +65,7 @@ function LoginPage() {
                     data-testid="login-submit-button"
                     className="bg-blue-600 text-white rounded py-2 text-sm font-semibold hover:bg-blue-700"
                 >
-                    Sign In
+                    로그인
                 </button>
             </form>
         </div>

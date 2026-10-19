@@ -36,7 +36,7 @@ Two real incidents hit during development — a live infrastructure security exp
 Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
 The backend is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
-The app has no language switch, so both READMEs use the same images. The sign-in and admin screens are in English; the chat, AI and account screens are in Korean. Click an image to open the full-size file.
+The app has no language switch, so both READMEs use the same images. The UI is Korean throughout. Captures that show times were taken with the browser time zone fixed to UTC, so message and log times are UTC. Click an image to open the full-size file.
 
 [![Two browser windows side by side: a message typed in one window appears in the other without a reload](docs/images/demo-realtime-chat.gif)](docs/images/demo-realtime-chat.gif)<br>**Live delivery** — two demo accounts side by side; messages arrive without a reload through the `receiveMessage` GraphQL subscription. Message times are shown in UTC (the browser time zone was fixed for the recording).
 

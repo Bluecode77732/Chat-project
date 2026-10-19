@@ -94,7 +94,7 @@ export class AuthService {
     // 사용자가 이미 존재하는지 확인
     if (user) {
       logger.warn(`Registration attempt for already-existing email: ${email}`);
-      throw new BadRequestException('User Already Exist.');
+      throw new BadRequestException('이미 가입된 이메일입니다.');
     }
 
     if (nickname) {
@@ -102,7 +102,7 @@ export class AuthService {
         where: { nickname },
       });
       if (existingNickname) {
-        throw new BadRequestException('Nickname already in use.');
+        throw new BadRequestException('이미 사용 중인 닉네임입니다.');
       }
     }
 

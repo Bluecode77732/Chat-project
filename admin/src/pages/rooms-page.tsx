@@ -34,7 +34,7 @@ function RoomsPage() {
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
     );
-    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
+    const displayName = (id: number) => nicknameById.get(id) || `사용자 ${id}`;
     const [deleteRoom] = useMutation<boolean, { roomId: number }>(DELETE_ROOM);
     const [actionMsg, setActionMsg] = useState('');
     // selectedRoom: 상세 패널을 열기 위해 클릭된 행.
@@ -68,13 +68,13 @@ function RoomsPage() {
     };
 
     const handleDelete = async (roomId: number) => {
-        if (!confirm(`Delete room ${roomId}? All messages will be lost.`)) return;
+        if (!confirm(`채팅방 ${roomId}번을 삭제할까요? 모든 메시지가 사라집니다.`)) return;
         try {
             await deleteRoom({ variables: { roomId } });
-            setActionMsg(`Room ${roomId} deleted.`);
+            setActionMsg(`채팅방 ${roomId}번을 삭제했습니다.`);
             await refetch({ page, take: 20, sort, sortBy, search: debouncedSearch || undefined });
         } catch {
-            setActionMsg(`Failed to delete room ${roomId}.`);
+            setActionMsg(`채팅방 ${roomId}번 삭제에 실패했습니다.`);
         }
     };
 
@@ -94,35 +94,35 @@ function RoomsPage() {
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Rooms</h1>
+                    <h1 className="text-2xl font-bold">채팅방</h1>
                     <div className="flex gap-3">
                         <button
                             onClick={() => navigate('/dashboard')}
                             data-testid="nav-dashboard"
                             className="text-sm text-blue-600 hover:underline"
                         >
-                            Dashboard
+                            대시보드
                         </button>
                         <button
                             onClick={() => navigate('/users')}
                             data-testid="nav-users"
                             className="text-sm text-blue-600 hover:underline"
                         >
-                            Users
+                            사용자
                         </button>
                         <button
                             onClick={() => navigate('/logs')}
                             data-testid="nav-logs"
                             className="text-sm text-blue-600 hover:underline"
                         >
-                            Logs
+                            로그
                         </button>
                         <button
                             onClick={signOut}
                             data-testid="sign-out-button"
                             className="text-sm text-red-600 hover:underline"
                         >
-                            Sign out
+                            로그아웃
                         </button>
                     </div>
                 </div>
@@ -132,7 +132,7 @@ function RoomsPage() {
                         type="text"
                         value={search}
                         onChange={(e) => handleSearch(e.target.value)}
-                        placeholder="Search by participant email or nickname..."
+                        placeholder="참여자 이메일 또는 닉네임으로 검색..."
                         data-testid="room-search-input"
                         className="w-full text-sm border rounded px-3 py-2"
                     />
@@ -143,7 +143,7 @@ function RoomsPage() {
                 )}
 
                 {loading ? (
-                    <p className="text-gray-500">Loading...</p>
+                    <p className="text-gray-500">불러오는 중...</p>
                 ) : (
                     <>
                         <div className="bg-white rounded-xl shadow overflow-hidden">
@@ -152,16 +152,16 @@ function RoomsPage() {
                                     <tr>
                                         <th className="px-4 py-3">
                                             <button onClick={() => toggleSort('id')} className={`hover:underline cursor-pointer${sortBy === 'id' ? ' font-bold' : ''}`}>
-                                                Room ID
+                                                채팅방 ID
                                             </button>
                                         </th>
-                                        <th className="px-4 py-3">Participants</th>
+                                        <th className="px-4 py-3">참여자</th>
                                         <th className="px-4 py-3">
                                             <button onClick={() => toggleSort('created')} className={`hover:underline cursor-pointer${sortBy === 'created' ? ' font-bold' : ''}`}>
-                                                Created
+                                                생성일
                                             </button>
                                         </th>
-                                        <th className="px-4 py-3">Actions</th>
+                                        <th className="px-4 py-3">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -175,7 +175,7 @@ function RoomsPage() {
                                             <td className="px-4 py-3">{room.roomId}</td>
                                             <td className="px-4 py-3">{room.participantIds.map(displayName).join(', ')}</td>
                                             <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                                                {new Date(room.created).toLocaleString()}
+                                                {new Date(room.created).toLocaleString('ko-KR')}
                                             </td>
                                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                                 <button
@@ -183,7 +183,7 @@ function RoomsPage() {
                                                     data-testid={`room-delete-${room.roomId}`}
                                                     className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                                                 >
-                                                    Delete
+                                                    삭제
                                                 </button>
                                             </td>
                                         </tr>
@@ -193,21 +193,21 @@ function RoomsPage() {
                         </div>
 
                         <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-                            <span>Page {result?.page ?? 1} of {totalPages} ({result?.total ?? 0} total)</span>
+                            <span>{result?.page ?? 1} / {totalPages} 페이지 (총 {result?.total ?? 0}건)</span>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => changePage(Math.max(1, page - 1))}
                                     disabled={page <= 1}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
-                                    Prev
+                                    이전
                                 </button>
                                 <button
                                     onClick={() => changePage(Math.min(totalPages, page + 1))}
                                     disabled={page >= totalPages}
                                     className="px-3 py-1 rounded border disabled:opacity-40"
                                 >
-                                    Next
+                                    다음
                                 </button>
                             </div>
                         </div>
@@ -230,7 +230,7 @@ function RoomsPage() {
                         data-testid="room-detail-panel"
                     >
                         <div className="flex justify-between items-center px-5 py-4 border-b">
-                            <h2 className="font-semibold text-gray-800">Room Detail</h2>
+                            <h2 className="font-semibold text-gray-800">채팅방 상세</h2>
                             <button
                                 onClick={() => setSelectedRoom(null)}
                                 data-testid="room-panel-close"
@@ -242,15 +242,15 @@ function RoomsPage() {
 
                         <div className="px-5 py-4 space-y-3 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Room ID</span>
+                                <span className="text-gray-500">채팅방 ID</span>
                                 <span className="font-mono">{selectedRoom.roomId}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Created</span>
-                                <span className="text-gray-600 text-xs">{new Date(selectedRoom.created).toLocaleString()}</span>
+                                <span className="text-gray-500">생성일</span>
+                                <span className="text-gray-600 text-xs">{new Date(selectedRoom.created).toLocaleString('ko-KR')}</span>
                             </div>
                             <div>
-                                <span className="text-gray-500 block mb-1">Participants</span>
+                                <span className="text-gray-500 block mb-1">참여자</span>
                                 <ul className="space-y-1">
                                     {selectedRoom.participantIds.map((id) => (
                                         <li key={id} className="text-xs bg-gray-50 rounded px-2 py-1">

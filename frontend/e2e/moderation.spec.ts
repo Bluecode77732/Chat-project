@@ -13,7 +13,7 @@ test('repeated identical messages escalate to a system warning then a mute notic
 
     // AI 채팅이 가장 단순한 전송 대상(상대 유저 불필요) — 모더레이션은 수신자와 무관하게
     // 발신 메시지에 적용됨. rate-limit.spec과 동일한 설정.
-    await page.getByText('AI Chat', { exact: true }).click();
+    await page.getByText('AI 채팅', { exact: true }).click();
     await page.getByTestId('personality-option-friendly').click();
 
     const input = page.getByTestId('chat-message-input');

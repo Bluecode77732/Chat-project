@@ -62,7 +62,7 @@ export class AuthRateLimitGuard implements CanActivate {
           `[ip=${ip}] Auth rate limit exceeded on ${handlerName} (count=${count})`,
         );
         throw new HttpException(
-          'Too many attempts, please try again later',
+          '시도 횟수가 너무 많습니다. 잠시 후 다시 시도해주세요.',
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }

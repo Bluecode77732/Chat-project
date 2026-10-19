@@ -15,8 +15,8 @@ test('Rooms table shows Created column and sort indicator switches between Room 
     await page.getByTestId('nav-rooms').click();
     await expect(page).toHaveURL('/rooms');
 
-    const roomIdBtn = page.getByRole('columnheader').filter({ hasText: 'Room ID' }).getByRole('button');
-    const createdBtn = page.getByRole('columnheader').filter({ hasText: 'Created' }).getByRole('button');
+    const roomIdBtn = page.getByRole('columnheader').filter({ hasText: '채팅방 ID' }).getByRole('button');
+    const createdBtn = page.getByRole('columnheader').filter({ hasText: '생성일' }).getByRole('button');
 
     // 기본값: Room ID가 bold임
     await expect(roomIdBtn).toHaveClass(/font-bold/);
@@ -47,6 +47,6 @@ test('superadmin can delete a room', async ({ page, request }) => {
     page.once('dialog', (dialog) => dialog.accept());
     await row.getByTestId(`room-delete-${roomId}`).click();
 
-    await expect(page.getByTestId('action-message')).toHaveText(`Room ${roomId} deleted.`);
+    await expect(page.getByTestId('action-message')).toHaveText(`채팅방 ${roomId}번을 삭제했습니다.`);
     await expect(page.getByTestId(`room-row-${roomId}`)).toHaveCount(0);
 });

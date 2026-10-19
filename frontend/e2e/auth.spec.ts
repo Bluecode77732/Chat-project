@@ -15,5 +15,5 @@ test('sign-in shows an error for wrong credentials', async ({ page }) => {
     await page.getByTestId('signin-email-input').fill('nonexistent-e2e-user@test.local');
     await page.getByTestId('signin-password-input').fill('WrongPassword123');
     await page.getByTestId('signin-submit-button').click();
-    await expect(page.getByText('Your email or password is not correct.')).toBeVisible();
+    await expect(page.getByText('이메일 또는 비밀번호가 올바르지 않습니다.')).toBeVisible();
 });
