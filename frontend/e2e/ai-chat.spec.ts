@@ -27,6 +27,8 @@ test('sending a message to the AI chat gets a reply', async ({ page }) => {
     await expect(messagesList.getByText('AI', { exact: true })).toBeVisible({
         timeout: 20_000,
     });
+    // AI 말풍선 묶음 위의 표시 이름
+    await expect(messagesList.getByText('Chattey AI').first()).toBeVisible();
 });
 
 test('AI chat personality can be changed more than once', async ({ page }) => {

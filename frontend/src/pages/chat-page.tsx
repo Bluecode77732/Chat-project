@@ -18,6 +18,8 @@ import RateLimitNotice from "../components/rate-limit-notice";
 import EmptyStateNotice from "../components/empty-state-notice";
 
 const RATE_LIMIT_WINDOW_SECONDS = 15;
+// AI 계정은 닉네임 목록에 없어 말풍선 위에 표시할 이름을 상수로 둠.
+const AI_DISPLAY_NAME = 'Chattey AI';
 
 interface Message {
     id?: number;
@@ -149,7 +151,7 @@ function ChatPage() {
     const profileImageById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.profileImage]) ?? []
     );
-    const displayName = (id: number) => nicknameById.get(id) || `User ${id}`;
+    const displayName = (id: number) => nicknameById.get(id) || `유저 ${id}`;
     const [fetchMessages] = useLazyQuery<GetMessagesData>(GET_MESSAGES, { fetchPolicy: 'network-only' });
     const [fetchRoom] = useLazyQuery<{ getRoom: number | null }>(GET_ROOM, { fetchPolicy: 'network-only' });
     const { data: myRoomsData, refetch: refetchRooms } = useQuery<MyRoomsData>(GET_MY_ROOMS, { fetchPolicy: 'network-only' });
@@ -599,7 +601,7 @@ function ChatPage() {
                                                         : 'bg-gray-200 hover:bg-blue-100'
                                             }`}
                                         >
-                                            {id === userId ? `Me (${displayName(id)})` : id === recipientId ? `✓ ${displayName(id)}` : displayName(id)}
+                                            {id === userId ? `나(${displayName(id)})` : id === recipientId ? `✓ ${displayName(id)}` : displayName(id)}
                                         </span>
                                     ))}
                                 {/* 오프라인 사용자 — 현재 온라인이 아닌 모든 등록 사용자 */}
@@ -619,7 +621,7 @@ function ChatPage() {
                                                         : 'border border-dashed bg-gray-50 text-gray-400 hover:bg-gray-100'
                                             }`}
                                         >
-                                            {id === recipientId ? `✓ ${displayName(id)} (offline)` : `${displayName(id)} (offline)`}
+                                            {id === recipientId ? `✓ ${displayName(id)} (오프라인)` : `${displayName(id)} (오프라인)`}
                                         </span>
                                     ))}
                                 {/* AI 채팅 */}
@@ -767,6 +769,9 @@ function ChatPage() {
                                     </div>
                                 )}
                                 <div className={`flex flex-col gap-0.5 min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
+                                    {isAi && (
+                                        <span className="text-xs text-gray-500 px-1">{AI_DISPLAY_NAME}</span>
+                                    )}
                                     {group.map((msg, i) => {
                                         const isLast = i === group.length - 1;
                                         return (
