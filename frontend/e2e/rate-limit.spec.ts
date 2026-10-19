@@ -9,7 +9,7 @@ import { registerAndSignIn } from './helpers';
 test('sending more than 10 messages within 15s shows the rate limit notice', async ({ page }) => {
     await registerAndSignIn(page, 'ratelimit');
 
-    await page.getByText('AI Chat', { exact: true }).click();
+    await page.getByText('AI 채팅', { exact: true }).click();
     await page.getByTestId('personality-option-friendly').click();
 
     const input = page.getByTestId('chat-message-input');

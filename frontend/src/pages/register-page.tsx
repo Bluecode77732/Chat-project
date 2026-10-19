@@ -36,70 +36,71 @@ function RegisterPage() {
                     ?.response?.data?.message;
             setError(
                 (Array.isArray(message) ? message.join(' ') : message) ??
-                    'Your email already exist.',
+                    '이미 가입된 이메일입니다.',
             );
         };
     };
 
     return (
         <div className='flex items-center justify-center h-screen'>
-            <div className='flex flex-col gap-4 w-80'>
-                <h1 className='text-2xl font-bold'>Sign In</h1>
+            {/* form으로 감싸야 입력 중 Enter로 제출됨 */}
+            <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col gap-4 w-80'>
+                <h1 className='text-2xl font-bold'>회원가입</h1>
                 {/* `register`가 값을 수집 */}
                 <input {...register('email', {
-                    required: 'Please Enter Your Email',
-                    pattern: { value: /\S+@\S+\.\S+/, message: 'Email Formed Wrong.' }
+                    required: '이메일을 입력해주세요.',
+                    pattern: { value: /\S+@\S+\.\S+/, message: '이메일 형식이 올바르지 않습니다.' }
                 })}
-                    placeholder='email'
+                    placeholder='이메일'
                     data-testid='register-email-input'
                     className='border p-2 rounded'>
                 </input>
                 {/* 로그인 실패 에러 */}
                 {errors.email && <span className='text-red-500 text-sm'>{errors.email.message}</span>}
                 <input {...register('password', {
-                    required: "Please Enter Your Password",
-                    minLength: { value: 8, message: "Password cannot be less than 8 words string" },
+                    required: '비밀번호를 입력해주세요.',
+                    minLength: { value: 8, message: '비밀번호는 8자 이상이어야 합니다.' },
                 })}
                     type='password'
-                    placeholder='password'
+                    placeholder='비밀번호'
                     data-testid='register-password-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.password && <span className='text-red-500 text-sm'>{errors.password.message}</span>}
                 <input {...register('confirmPassword', {
-                    required: 'Please Re-enter Your Password',
-                    validate: (value) => value === getValues('password') || 'Passwords do not match.',
+                    required: '비밀번호를 다시 입력해주세요.',
+                    validate: (value) => value === getValues('password') || '비밀번호가 일치하지 않습니다.',
                 })}
                     type='password'
-                    placeholder='confirm password'
+                    placeholder='비밀번호 확인'
                     data-testid='register-confirm-password-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.confirmPassword && <span className='text-red-500 text-sm'>{errors.confirmPassword.message}</span>}
                 <input {...register('nickname', {
-                    maxLength: { value: 20, message: 'Nickname must be 20 characters or fewer.' },
+                    maxLength: { value: 20, message: '닉네임은 20자 이하여야 합니다.' },
                 })}
-                    placeholder='nickname (optional)'
+                    placeholder='닉네임 (선택)'
                     maxLength={20}
                     data-testid='register-nickname-input'
                     className='border p-2 rounded'>
                 </input>
                 {errors.nickname && <span className='text-red-500 text-sm'>{errors.nickname.message}</span>}
                 {error && <span className='text-red-500 text-sm'>{error}</span>}
-                {success && <span className='text-green-500 text-sm'>Registration Successful! Redirecting...</span>}
+                {success && <span className='text-green-500 text-sm'>회원가입이 완료되었습니다. 이동 중...</span>}
                 {/* `handleSubmit(onSubmit)`은 검증 실패 시 막음 */}
-                <button onClick={handleSubmit(onSubmit)}
+                <button type='submit'
                     data-testid='register-submit-button'
                     className='bg-blue-500 text-white p-2 rounded'>
-                    Register
+                    회원가입
                 </button>
-                <button onClick={() => navigate('/')}
+                <button type='button' onClick={() => navigate('/')}
                     data-testid='register-signin-link'
                     className='text-blue-500 text-sm'
                 >
-                Already have an account? Sign In.
+                이미 계정이 있으신가요? 로그인
                 </button>
-            </div>
+            </form>
         </div>
     )
 }

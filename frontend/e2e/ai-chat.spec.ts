@@ -10,7 +10,7 @@ import { registerAndSignIn } from './helpers';
 test('sending a message to the AI chat gets a reply', async ({ page }) => {
     await registerAndSignIn(page, 'ai');
 
-    await page.getByText('AI Chat', { exact: true }).click();
+    await page.getByText('AI 채팅', { exact: true }).click();
 
     // 첫 AI 채팅은 메시지 전송 전 성격 선택이 필수임
     await page.getByTestId('personality-option-friendly').click();
@@ -27,12 +27,14 @@ test('sending a message to the AI chat gets a reply', async ({ page }) => {
     await expect(messagesList.getByText('AI', { exact: true })).toBeVisible({
         timeout: 20_000,
     });
+    // AI 말풍선 묶음 위의 표시 이름
+    await expect(messagesList.getByText('Chattey AI').first()).toBeVisible();
 });
 
 test('AI chat personality can be changed more than once', async ({ page }) => {
     await registerAndSignIn(page, 'personality');
 
-    await page.getByText('AI Chat', { exact: true }).click();
+    await page.getByText('AI 채팅', { exact: true }).click();
     await page.getByTestId('personality-option-friendly').click();
 
     // 방과 성격 변경 버튼은 첫 메시지 이후에만 존재함

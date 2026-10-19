@@ -205,6 +205,14 @@ timeline or priority order.
   stack: register → two accounts chatting live → AI reply → moderation warning/mute → admin panel
   (user list, role change, audit log). Open decision: commit the file (check size and
   `.gitattributes` first) or link an externally hosted one.
+- CHANGELOG auto-generation — `CHANGELOG.md`/`.ko.md` are synced by hand from `git log`, and
+  `check:changelog` matches every commit subject, so each sync commit lags one commit behind and
+  parallel branches conflict on the same top-of-file lines (seen between the `dev` and PR #41
+  branches, 2026-10). Squash merges are unusable too, since they rewrite the subjects. This is
+  manageable at the current volume; if PR/commit volume grows, generate the changelog from PR titles
+  or conventional commits at release time (e.g. release-please or GitHub's generated release notes)
+  and retire the per-commit check. Open decision: how to keep the Korean `.ko.md` mirror (generate
+  it too, or drop it).
 
 ### Code quality & consistency backlog (2026-09 audit)
 

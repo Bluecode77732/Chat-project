@@ -9,8 +9,23 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-19
+
+- Feat: AI 시스템 프롬프트에 이름(Chattey) 자기소개 지침 추가
+- Docs: UI 한글 통일 반영해 스크린샷 5장과 GIF 재촬영, README 서술 정정
+- Docs: ROADMAP에 CHANGELOG 자동 생성 전환을 추후 작업으로 기록
+- Feat: 로그인·회원가입 화면에서 Enter로 제출되도록 form 기반으로 변경
+- Feat: 채팅 배너 잔여 영문을 한글로 통일하고 AI 말풍선에 "Chattey AI" 이름 표시
+
+## 2026-10-17
+
+- Docs: UI 언어 통일 반영 (README 스크린샷 서술, CHANGELOG 동기화)
+- Feat: 백엔드 사용자 노출 메시지와 감사 로그 라벨·날짜 로캘을 한글로 통일
+- Feat: frontend·admin 화면 문구를 한글로 통일
+
 ## 2026-10-16
 
+- Docs: CHANGELOG 동기화 (누락된 커밋 2건 반영)
 - Docs: README에 두 계정 실시간 전달 GIF 추가
 - Docs: CHANGELOG 동기화 (누락된 커밋 2건 반영)
 - Docs: 스크린샷을 docs/images 한 폴더로 통합, README에서 대표 화면을 전체 폭으로 배치

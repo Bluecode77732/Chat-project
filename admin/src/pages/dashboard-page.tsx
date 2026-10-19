@@ -7,6 +7,7 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuthStore } from '../store/auth.store';
+import { AUDIT_ACTION_LABEL } from '../constants/audit-action-label';
 import { GET_ALL_ROOMS, GET_USER_NICKNAMES, GET_ONLINE_USER } from '../api/graphql-operations';
 
 interface AuditLog {
@@ -46,7 +47,7 @@ function DashboardPage() {
     const nicknameById = new Map(
         nicknamesData?.getUserNicknames.map((u) => [Number(u.id), u.nickname]) ?? []
     );
-    const displayName = (id: number) => nicknameById.get(id) ?? `User ${id}`;
+    const displayName = (id: number) => nicknameById.get(id) ?? `사용자 ${id}`;
 
     useEffect(() => {
         Promise.all([
@@ -80,51 +81,51 @@ function DashboardPage() {
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Dashboard</h1>
+                    <h1 className="text-2xl font-bold">대시보드</h1>
                     <div className="flex gap-3">
-                        <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">Users</button>
-                        <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">Rooms</button>
-                        <button onClick={() => navigate('/logs')} data-testid="nav-logs" className="text-sm text-blue-600 hover:underline">Logs</button>
-                        <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">Sign out</button>
+                        <button onClick={() => navigate('/users')} data-testid="nav-users" className="text-sm text-blue-600 hover:underline">사용자</button>
+                        <button onClick={() => navigate('/rooms')} data-testid="nav-rooms" className="text-sm text-blue-600 hover:underline">채팅방</button>
+                        <button onClick={() => navigate('/logs')} data-testid="nav-logs" className="text-sm text-blue-600 hover:underline">로그</button>
+                        <button onClick={signOut} data-testid="sign-out-button" className="text-sm text-red-600 hover:underline">로그아웃</button>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 mb-8">
                     <div data-testid="stat-users" className="bg-white rounded-xl shadow p-5">
-                        <p className="text-sm text-gray-500 mb-1">Total Users</p>
+                        <p className="text-sm text-gray-500 mb-1">전체 사용자</p>
                         <p className="text-3xl font-bold">{statsLoading ? '—' : userTotal}</p>
                     </div>
                     <div data-testid="stat-rooms" className="bg-white rounded-xl shadow p-5">
-                        <p className="text-sm text-gray-500 mb-1">Total Rooms</p>
+                        <p className="text-sm text-gray-500 mb-1">전체 채팅방</p>
                         <p className="text-3xl font-bold">{roomTotal === null ? '—' : roomTotal}</p>
                     </div>
                     <div data-testid="stat-online" className="bg-white rounded-xl shadow p-5">
-                        <p className="text-sm text-gray-500 mb-1">Online Now</p>
+                        <p className="text-sm text-gray-500 mb-1">현재 접속자</p>
                         <p className="text-3xl font-bold">{onlineCount === null ? '—' : onlineCount}</p>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-xl shadow overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-100 text-sm font-semibold">Recent Audit Logs</div>
+                    <div className="px-4 py-3 bg-gray-100 text-sm font-semibold">최근 감사 로그</div>
                     <table className="w-full text-sm">
                         <thead className="bg-gray-50 text-left text-gray-500">
                             <tr>
-                                <th className="px-4 py-2">Time</th>
-                                <th className="px-4 py-2">Action</th>
-                                <th className="px-4 py-2">Actor</th>
-                                <th className="px-4 py-2">Detail</th>
+                                <th className="px-4 py-2">시간</th>
+                                <th className="px-4 py-2">작업</th>
+                                <th className="px-4 py-2">수행자</th>
+                                <th className="px-4 py-2">상세</th>
                             </tr>
                         </thead>
                         <tbody>
                             {statsLoading ? (
-                                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+                                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">불러오는 중...</td></tr>
                             ) : recentLogs.length === 0 ? (
-                                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No logs yet.</td></tr>
+                                <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">로그가 없습니다.</td></tr>
                             ) : recentLogs.map((log) => (
                                 <tr key={log.id} className="border-t">
-                                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(log.created).toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{new Date(log.created).toLocaleString('ko-KR')}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>{log.action}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${actionColor(log.action)}`}>{AUDIT_ACTION_LABEL[log.action] ?? log.action}</span>
                                     </td>
                                     <td className="px-4 py-3">{displayName(log.actorId)}</td>
                                     <td className="px-4 py-3 text-gray-500">{log.detail ?? '—'}</td>

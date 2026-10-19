@@ -16,14 +16,14 @@ test('Audit log Time header is always bold and toggling sort re-renders the tabl
     const row = page.getByTestId(`user-row-${target.id}`);
     await expect(row).toBeVisible();
     await row.getByTestId(`user-promote-${target.id}`).click();
-    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('admin');
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('관리자');
     await row.getByTestId(`user-promote-${target.id}`).click();
-    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('user');
+    await expect(row.getByTestId(`user-role-${target.id}`)).toHaveText('일반');
 
     await page.getByTestId('nav-logs').click();
     await expect(page).toHaveURL('/logs');
 
-    const timeBtn = page.getByRole('columnheader').filter({ hasText: 'Time' }).getByRole('button');
+    const timeBtn = page.getByRole('columnheader').filter({ hasText: '시간' }).getByRole('button');
 
     // 정렬 가능한 컬럼은 Time뿐이라 항상 bold임
     await expect(timeBtn).toHaveClass(/font-bold/);
@@ -47,6 +47,6 @@ test('Audit log action filter narrows results', async ({ page }) => {
     const badges = page.getByTestId('logs-table').locator('tbody td span');
     const count = await badges.count();
     for (let i = 0; i < count; i++) {
-        await expect(badges.nth(i)).toHaveText('USER_DELETE');
+        await expect(badges.nth(i)).toHaveText('사용자 삭제');
     }
 });
