@@ -15,21 +15,22 @@
 > 한국어 버전: [README.ko.md](README.ko.md)
 
 # Chatterley — Real-Time Chat Application
-- A private one-to-one real-time chat service, built solo over 600+ commits (2026-01 ~ present, see [CHANGELOG.md](CHANGELOG.md) for the exact count) as an iterative deep dive into Socket.IO, Redis, authentication, and — later — a live security incident and a behavioral moderation system.
-- Started as a minimal validated-user chat prototype and grew into a system with an AI chat companion, a separate admin panel, behavioral moderation, and CI/CD across three deployed services.
+A one-to-one real-time chat with an AI companion, behavioral moderation, and a separate admin panel, built solo. It is a learning and portfolio project: the goal is to build the message delivery path, authentication, and abuse handling of a real-time chat by hand, with the weight on the backend.
 
 
 ## Overview
-A real-time private one-to-one chat service, iterated over 6+ months (600+ commits, see [CHANGELOG.md](CHANGELOG.md)) from an initial prototype through an architecture migration, a live security-incident response, and a behavioral moderation system.
-- Authentication: JWT-based auth with Passport strategies; refresh token in an httpOnly cookie, access token in memory only
-- Chat Management: Socket.IO (connection lifecycle only) + GraphQL (Mutation/Subscription for messages), Redis-backed session/cache with transaction-safe writes
-- Moderation: automatic strike-based abuse detection (duplicate/flood + velocity) escalating warn → mute → timed/permanent ban, with admin recovery tools
-- AI Chat: Google Gemini 2.5 Flash with 4 selectable personalities, cost-capped (token limits, retry ceiling)
-- Admin Panel: separate React app for user/room management, moderation actions, and audit-log export
-- API Documentation: Swagger integration + Altair & GraphQL
-- Testing: unit tests across core service layers (see [Test Coverage](#test-coverage) for exact per-service numbers) plus Playwright e2e for both the main app and the admin panel
+**Stack**: NestJS · TypeScript · GraphQL (Apollo) · Socket.IO · Redis · PostgreSQL (TypeORM) · React · Vite · Docker · Gemini
 
-Two real incidents hit during development — a live infrastructure security exposure and an AI-reply cache-corruption bug — are written up with full root-cause analysis in [AI-Assisted Development Notes](#ai-assisted-development-notes).
+- Messages: sent with the `sendMessage` GraphQL mutation and received through the `receiveMessage` subscription. Writes are wrapped in a transaction by `GqlTransactionInterceptor` ([ADR 0003](ADR/0003-database-transaction-strategy.md), [ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)). Socket.IO only handles connection auth, room-creation notices, and forced logout on a second login
+- Authentication: the JWT access token lives in memory only, the refresh token in an httpOnly cookie. Role-based access control (RBAC) and an audit log for privileged actions
+- Moderation: duplicate, flood, and velocity strikes escalate warn → mute → timed ban → permanent ban, and an admin can reverse them
+- AI chat: Google Gemini 2.5 Flash with four selectable personalities. Capped output tokens, truncated history, a retry ceiling, and a per-room Redis lock. The AI's name `Chattey` is an alias set in the system prompt (`backend/src/ai/constants/system-prompts.ts`), different from the service name Chatterley
+- Admin panel: a separate React app for user/room management, moderation actions, and audit-log CSV export
+- Tests: backend Jest 13 suites / 254 tests, frontend Vitest 21 tests, and admin Vitest 14 tests pass (local run on 2026-10-22, commit `d684b19`). Playwright e2e for frontend and admin runs in CI ([Test Coverage](#test-coverage))
+- History: built solo over 730 commits since 2026-01 (as of `d684b19`). Full history in [CHANGELOG.md](CHANGELOG.md)
+- Docs: [ARCHITECTURE.md](ARCHITECTURE.md) · [ADR/](ADR/) · [ROADMAP.md](ROADMAP.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
+
+The incidents, bugs, and design decisions met along the way are written up in [Technical Decisions and Troubleshooting](#technical-decisions-and-troubleshooting) as problem → cause → fix → verification.
 
 
 ## Screenshots
@@ -55,94 +56,438 @@ Known limitation of these captures: the dialog backdrop on the AI personality sc
 black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides.
 
 
+## Hosting Status
+Hosting is stopped for cost reasons. The last successful automatic deploy was on 2026-05-27; see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml). The `deploy` job is manual-only (`workflow_dispatch`). To run the app, follow [Quick Start](#quick-start) locally.
+
+
+## My Role and AI Usage
+- **Form of work**: solo project.
+- **How design decisions were made**: the first version used Socket.IO only. After learning that GraphQL can also carry two-way traffic, and wanting to try the technology, I had the AI explain the structure, reviewed the pieces it required, and decided on my own to move the message path to GraphQL ([Case 1](#technical-decisions-and-troubleshooting)). The other design decisions went as follows.
+  - **Transaction interceptor**: introduced so that the DB write happens after the `QueryRunner` commit, so the repeated logic lives in one interceptor, and so the `QueryRunner`'s atomicity gives a safe transaction. I researched it myself and implemented it, and the AI filled in what I was missing
+  - **Redis design**: built to serve as a cache so requests do not have to reach the DB, and as a standby-DB-like server that takes load off the server when many users connect. As with the interceptor, I researched it myself and implemented it, and the AI filled in what I was missing
+  - **Moderation ladder**: after finishing each module I take a review break, and I came across this while discussing the next thing to build with the AI. I looked into whether it was a must-have, whether it fit the app, was sound, and was practical, reviewed ways to implement it, and chose the approach that kept the effect on other files as small as possible
+- **Work handed to the AI (Claude Code)**: writing and editing code, code review and root-cause analysis, writing tests, writing docs
+- **How the output was verified**: reading and editing the AI's code by hand, running it locally and in the browser, tests and CI, and a review in a separate AI session from the one that wrote the code
+- **AI working rules**: [CLAUDE.md](CLAUDE.md) at the repository root holds the rules the AI follows (forbidden patterns, change scope, confirm-before-implementing steps)
+- **AI suggestions I rejected or changed**: before [CLAUDE.md](CLAUDE.md) existed, the AI sometimes put decorators on entities that did not need them or used types such as `any`, `null`, and `!` carelessly, and I read the code and fixed them by hand. Those patterns are in CLAUDE.md's forbidden list today
+- **Parts I can explain without the code**: the `sendMessage` flow, when the transaction commits, and the guard chain (see [Flow](#flow) and [ARCHITECTURE.md](ARCHITECTURE.md))
+
+
 ## Project Motivation
-- Built solo, iterating live over 600+ commits (2026-01-02 ~ present; see [CHANGELOG.md](CHANGELOG.md) for the exact count): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
+- Built solo, iterating live over 730 commits (2026-01-02 ~ present; the count is as of `d684b19`, see [CHANGELOG.md](CHANGELOG.md) for the history): Socket.IO connection handling, Redis session/cache/pub-sub, and the tradeoffs between raw WebSocket messaging and GraphQL Subscriptions for real-time delivery
 - Migrated the message-delivery path from direct Socket.IO message passing to a GraphQL Mutation/Subscription split with transactional guarantees **while the app was already working**, to learn what that kind of change actually costs in a live system, not just on paper
 - Practiced authentication/authorization end-to-end — Basic/Bearer/JWT, RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled a live security incident (an exposed local dev port that led to a ransomware bot wiping the dev database) end-to-end: containment, credential rotation, cleanup — documented as a case study, not glossed over
 - Kept KISS/YAGNI as a default, but didn't stop at a feature demo: added a behavioral moderation pipeline, a separate admin panel, and CI/CD (GitHub Actions + Railway/Vercel) the way a real service would need them
 
 
-## Hosting Status
-Hosting is currently stopped (cost). The last successful automatic deploy to Railway was on
-2026-05-27 — see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)
-(66 successful `main` push runs; latest [#26523963385](https://github.com/Bluecode77732/Chat-project/actions/runs/26523963385)
-passed both `test` and `deploy`).
+## Stacks
+### Role and Code Location by Technology
+| Area | Technology | Role in this project | Code location |
+|---|---|---|---|
+| Backend | NestJS, TypeScript | Single-deployable monolith split into auth/chat/user/ai/moderation/audit-log/mail/redis/health modules | `backend/src/` |
+| API | GraphQL (Apollo), graphql-ws | Mutation to send a message, per-room subscription to receive it | `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/` |
+| Realtime | Socket.IO, `@socket.io/redis-adapter` | JWT auth on connect, room-creation notice, `forceLogout` on a second login | `backend/src/chat/chat.gateway.ts` |
+| Database | PostgreSQL, TypeORM | Users, rooms, messages, audit log. Schema changes go through migrations only (`synchronize: false`) | `backend/src/migrations/`, `backend/src/data-source.ts` |
+| Cache / Pub-Sub | Redis (ioredis) | Session and online state, per-room recent-message cache, rate limits, moderation state, AI lock, GraphQL Pub/Sub | `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts` |
+| Auth | Passport JWT, bcrypt | Sign-in, token refresh, role-based guards | `backend/src/auth/` |
+| AI | Gemini (`@google/genai`) | Per-room personality-driven AI replies | `backend/src/ai/` |
+| Config validation | Joi | Validates env vars at boot; boot fails if a required value is missing | `backend/src/app.module.ts` |
+| Frontend | React, Vite, Zustand, Apollo Client | Chat UI, in-memory token, silent token refresh | `frontend/src/` |
+| Admin | React, Vite | User/room management, audit log | `admin/src/` |
+| Tests | Jest, Vitest, Playwright | Service unit tests, component/store tests, e2e | `backend/src/**/*.spec.ts`, `frontend/e2e/`, `admin/e2e/` |
+| Build / CI | Docker Compose, GitHub Actions | Local full stack; lint, test, e2e, and doc-integrity checks | `docker-compose.yml`, `backend/Dockerfile`, `.github/workflows/deploy.yml` |
 
-The `deploy` job is now manual-only (`workflow_dispatch`), so it shows as skipped on `main` pushes.
-To run the app, follow [Quick Start](#quick-start) (local or Docker).
+### Backend
+- **Language**: TypeScript 5.7.3 — static typing across backend/frontend/admin catches the class of `undefined`-property bugs this project hit repeatedly during its early raw-debugging phase (see commit history, Jan–Mar)
+- **Runtime**: Node.js 24.x (pinned via `.nvmrc` / `engines`) — non-blocking I/O suits a connection-heavy chat workload
+- **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/user/ai/moderation/audit-log, etc.) decoupled as it grew from a single resolver to about ten modules
+- **Architecture**: Monolith, single deployable — module boundaries (see [Project Structure](#project-structure)) provide separation without paying for service-mesh complexity this scale doesn't need
+- **Realtime split**: Socket.IO 4.8.3 for connection lifecycle only (auth on connect, room-creation notifications) + GraphQL 16.12.0 Mutation/Subscription for chat messages (see [Flow](#flow)) — not the original design; messages were migrated off raw Socket.IO mid-project to get transactional guarantees around persistence (`GqlTransactionInterceptor`)
+- **Database**: PostgreSQL + TypeORM 0.3.29 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
+- **Cache / Pub-Sub**: Redis via ioredis 5.9.3 — session/online-status, a per-room recent-message cache, and `@socket.io/redis-adapter` for horizontal scaling (without it, room broadcasts don't cross server instances)
+- **AI**: Google Gemini 2.5 Flash via `@google/genai`, 4 selectable personalities — cost-capped by design (output token limit, conversation-history truncation, retry ceiling), not bolted on after the fact
+- **Auth**: JWT (access token in memory, refresh token in an httpOnly cookie) + Passport strategies; RBAC guards are composed at both the REST and GraphQL layer, not subclassed
+- **Testing**: Jest unit tests on the service layer (see [Test Coverage](#test-coverage)), Playwright e2e for both `frontend/` and `admin/`
+- **API Docs**: Swagger for REST + GraphQL introspection via Altair — Altair and Postman are used together since neither alone can exercise both Mutation and Subscription
+
+### Frontend
+A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
+
+- Stack: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
+- Auth: access token in memory (Zustand), refresh token in a backend-set httpOnly cookie — never in localStorage ✔
+- Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
+- Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
+- Deployment: Vercel (auto-deploy on push) ✔
+
+
+## Features
+- Real-time bidirectional messaging
+- Rate limiting - 10 messages per 15s/user
+- Behavioral moderation - duplicate/flood & velocity strikes escalate warn → mute → timed ban → permanent ban, with admin unban
+- Security hardening - Helmet security headers on the backend (CSP intentionally omitted there: it serves almost no HTML, so it would only protect Swagger), Content-Security-Policy on frontend/admin instead (Vercel `headers`, since that's where the actual rendering surface is), trust proxy for accurate client IPs behind Railway, IP-based rate limiting on signin/register (10 attempts/60s per IP, 429 on exceed)
+- Persistent user sessions across server restarts
+- Private chat rooms between users
+- Transaction-safe message storage & delivery
+- Horizontal scaling ready - Redis-backed session
+- AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
+- Cursor-based message history with infinite scroll
+- Profile customization - optional nickname (unique, ≤20 chars) and profile image (jpeg/png/webp, ≤2MB) set via account settings
+- Chat UX polish - `/` keyboard shortcut to focus the message input, dismissible "empty chat" notice, click-and-hold banner auto-scroll, aria-live region for moderation notices
+- Admin dashboard - separate app for user/room management, moderation actions, and audit-log CSV export (see [Admin Panel](#admin-panel))
+
+
+### Core Features and Where They Live
+| Feature | What the user does | API / code | Worth noting |
+|---|---|---|---|
+| Messaging | A sent message shows up on the other side without a reload | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`. Redis Pub/Sub is at-most-once |
+| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user |
+| AI chat | Talks to the AI account and picks a personality per room | `setAiPersonality` mutation, `AiService.handleReply()` | Per-room Redis lock (`ai:lock:{roomId}`, 30 s TTL), `maxOutputTokens` 300, 10 messages of history |
+| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP, GraphQL, sockets, and token refresh. Every action is audit-logged |
+| Admin panel | Manage users and rooms, export the audit log as CSV | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | A separate app that only uses queries and mutations (no realtime client) |
+
+
+## Architecture
+### System Context Diagram
+```mermaid
+flowchart LR
+    FE["frontend<br/>chat UI (local 5173)"] -- "GraphQL + Socket.IO" --> BE["backend<br/>NestJS"]
+    AD["admin<br/>dashboard (local 5174)"] -- "GraphQL query/mutation" --> BE
+    BE --> PG[("PostgreSQL")]
+    BE --> RD[("Redis")]
+    BE -- "AI replies" --> GM["Gemini API"]
+    BE -. "optional: role-change mail" .-> SMTP["SMTP"]
+    BE -. "optional: 5xx errors" .-> SE["Sentry"]
+```
+admin has no realtime client (`graphql-ws`, `socket.io-client`), so it never takes part in chat. SMTP and Sentry do nothing when their env vars are empty ([backend/.env.example](backend/.env.example)).
+### Project Structure
+A pnpm monorepo with three packages: `backend/`, `frontend/`, and `admin/`. Only the key paths for finding the core code are listed. See [ARCHITECTURE.md](ARCHITECTURE.md#monorepo-layout) for the full directory tree.
+
+| Path | Role | Files to look at first |
+|---|---|---|
+| `backend/src/chat/` | Message send/receive, socket connection, transactions | `chat.resolver.ts`, `chat.gateway.ts`, `chat.service.ts`, `interceptor/gql-transaction.interceptor.ts` |
+| `backend/src/graphql/`, `backend/src/redis/` | Pub/Sub, session, cache, rate limits | `pubsub.service.ts`, `redis.service.ts` |
+| `backend/src/auth/` | JWT auth, role-based guards | `strategy/jwt.strategy.ts`, `guard/` |
+| `backend/src/moderation/` | Strike accrual, mute and ban enforcement | `moderation.service.ts`, `moderation.guard.ts` |
+| `backend/src/ai/` | Gemini replies, per-room personality | `ai.service.ts`, `constants/system-prompts.ts` |
+| `backend/src/user/`, `backend/src/audit-log/` | User management, audit log of privileged actions | `user.service.ts`, `audit-log.service.ts` |
+| `backend/src/migrations/` | TypeORM migrations (the only place schema changes go) | `data-source.ts` |
+| `backend/src/app.module.ts`, `main.ts` | Module wiring, env validation, boot settings | |
+| `frontend/src/` | Chat UI | `api/apollo.ts`, `auth/session-guard.ts`, `socket/socket.ts`, `store/auth.store.ts`, `pages/chat-page.tsx` |
+| `admin/src/` | Admin dashboard | `pages/`, `auth/session-guard.ts` |
+| `frontend/e2e/`, `admin/e2e/` | Playwright e2e | |
+| `ADR/`, `scripts/` | Design decision records, doc-integrity check scripts | |
+
+### Session Store (Redis)
+- Redis: session and online state live in a `user:{id}` hash (`socketId`, `status`) and an `online_users` set. The TTL is `SESSION_TTL_SEC` (default 86400 s), and every server instance sees the same values
+- Socket objects can't be serialized, so they are not put in Redis. Each process's Socket.IO server holds its connected sockets
+- An in-memory `userId → Socket` Map (`clientConnection`) was used before and was replaced by a Redis session cache (`backend/src/redis/redis.service.ts`). The reasoning and structure are in case 5 of [Technical Decisions and Troubleshooting](#technical-decisions-and-troubleshooting)
+
+### Redis Pub/Sub
+- `RedisPubSub` singleton (`pubsub.service.ts`): bridges GraphQL mutations to active subscriptions. After commit the resolver publishes to a `receiveMessage :${roomId}` channel; all connected `receiveMessage` subscribers receive the message in real time.
+- `PubSubService.publish()` also caches the published message via `SessionCacheService.cacheMessage()` as a side effect — this is the **only** place message caching happens, identically for human and AI messages. Callers (resolver, `AiService`) never call `cacheMessage()` directly.
+
+### Entities (TypeORM)
+```
+UserEntity
+  id          PK
+  email       unique
+  nickname    nullable, unique, max 20 chars — display name shown to other users
+  profileImage nullable text (base64 data URI, jpeg/png/webp, max ~2MB)
+  password    excluded from API responses
+  isAI        boolean (true only for the seeded AI system account)
+  role        enum: user (0) | admin (1) | superadmin (2)
+  status      enum: active | banned (moderation state, see Moderation)
+  bannedUntil nullable timestamp — null means permanent ban or not banned
+  chats    =< ChatEntity   (OneToMany)
+  rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
+
+ChatEntity
+  id          PK
+  message     string
+  participant >= UserEntity  (ManyToOne — sender)
+  room        >= RoomEntity  (ManyToOne)
+
+RoomEntity
+  id            PK
+  participants >< UserEntity   (ManyToMany owner, @JoinTable)
+  chats        =< ChatEntity   (OneToMany)
+
+AiRoomEntity — split out of RoomEntity for separation of concerns and cleaner ongoing
+management (see ARCHITECTURE.md's Entities section for the full rationale)
+  id          PK
+  room        -- RoomEntity  (OneToOne, onDelete: CASCADE)
+  personality string (active AI personality for this room)
+
+EntityBase (inherited by all four)
+  created     CreateDateColumn — excluded from API responses
+  updated     UpdateDateColumn — excluded from API responses
+```
+
+
+## Flow
+All chat messages are sent and delivered through the **GraphQL Mutation Path**. Socket.IO
+(`ChatGateway`) only handles the WebSocket connection lifecycle — it has no
+`@SubscribeMessage` handler for chat messages and emits none.
+
+### Socket.IO Connection Lifecycle
+1. Client connects WebSocket, `handleConnection` runs in `chat.gateway.ts`
+  1.1. Authenticate JWT token via `AuthService.parseBearerToken()`
+  1.2. `ChatService.registerClient()` records `userId` => `socketId` in Redis
+  1.3. `ChatService.joinRooms()` joins the client to their existing rooms
+  1.4. On a session conflict, the previous socket for that user receives `forceLogout` and is disconnected
+
+2. Room creation notification
+  2.1. When `ChatService` creates a new `RoomEntity` (first message between two users), it
+       emits `CreateRoom` to the recipient's socket so their client can join the new room
+
+3. Client disconnects
+  3.1. `handleDisconnect` runs in `chat.gateway.ts`
+  3.2. `ChatService.removeClient()` marks the user offline in Redis only if the current session is this socket (ignored if a newer session already replaced it)
+
+### GraphQL Mutation Path (`sendMessage`)
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant G as Guard chain
+    participant I as GqlTransactionInterceptor
+    participant S as ChatService
+    participant DB as PostgreSQL
+    participant R as Redis Pub/Sub
+    participant V as Subscriber
+    C->>G: sendMessage mutation
+    Note over G: GraphQLAuthGuard → ModerationGuard → RateLimitGuard
+    G->>I: pass
+    I->>DB: begin transaction (QueryRunner)
+    I->>S: sendMessage()
+    S->>DB: find or create room, save ChatEntity
+    S->>R: publish to the receiveMessage channel (per room)
+    R-->>V: deliver subscription payload
+    S-->>I: resolver returns
+    I->>DB: commit (after the return)
+    I-->>C: response
+```
+1. Client calls `sendMessage` mutation
+  1.1. `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` run in that order (the order matters: `ModerationGuard` filters out muted/banned users before `RateLimitGuard` spends their rate-limit budget)
+  1.2. `GqlTransactionInterceptor` opens a `QueryRunner` and starts a transaction before the
+       resolver runs, injecting it via `@GqlQueryRunnerDecorator()`
+  1.3. `ChatService.sendMessage()` validates sender/recipient, finds or creates room, saves
+       `ChatEntity` within that transaction
+  1.4. Resolver publishes to `receiveMessage :${roomId}` via `PubSubService.publish()` and returns
+
+2. Post-return commit
+  2.1. `GqlTransactionInterceptor` commits the transaction *after* the resolver returns
+  2.2. Any logic that depends on the write being durable awaits `ctx.req.transactionCommitted`
+       rather than assuming the commit already happened at return time
+
+3. AI reply (if recipient is AI user)
+  3.1. `setImmediate` schedules the AI reply trigger, which first awaits `ctx.req.transactionCommitted`
+  3.2. `AiService.handleReply()` acquires a Redis lock, builds conversation history, calls the Gemini API
+  3.3. AI reply saved to DB, then published to Pub/Sub through the same `receiveMessage :${roomId}`
+       channel as human messages — `PubSubService.publish()` caches it as a side effect (see Redis
+       Pub/Sub above); `AiService` does not cache directly
+
+4. Subscriber receives message
+  4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers
+  4.2. GraphQL subscription resolves and pushes payload to client
+
+### Auth Token Lifecycle
+The two tokens live in deliberately different places: the short-lived `accessToken` in memory only
+(Zustand, excluded from `persist`), the long-lived `refreshToken` in a backend-set httpOnly cookie
+that JavaScript cannot read. See [ADR 0001](ADR/0001-jwt-auth-token-strategy.md) for the rationale.
+
+1. Sign-in — `POST /auth/signin` (Basic auth)
+  1.1. Backend returns `accessToken` in the response body and sets `refreshToken` as an httpOnly
+       cookie (`secure`, `sameSite: 'none'` — frontend and backend are separate origins)
+  1.2. Frontend calls `setTokens(accessToken, userId)`; no token is written to `localStorage`
+
+2. Authenticated request
+  2.1. `authLink` reads `useAuthStore.getState().accessToken` at request time and sets
+       `Authorization: Bearer`
+
+3. Silent refresh — on page reload (memory is empty) or on a 401 surfaced by `errorLink`
+  3.1. Every call site goes through `refreshAccessTokenSafely()` (`session-guard.ts`); concurrent
+       callers share one in-flight request
+  3.2. `POST /auth/token/refreshaccess` is sent with `credentials: 'include'` — the browser attaches
+       the cookie automatically, so JavaScript never reads the refresh token
+  3.3. A fresh `accessToken` comes back in the body and goes into memory again
+  3.4. If the refresh resolves to a different account than this tab last authenticated as
+       (`sessionStorage['chat:sessionUserId']`), the tab is logged out instead of silently
+       switching identity
+
+4. Sign-out — `POST /auth/signOut`
+  4.1. Backend blacklists the access token and calls `res.clearCookie('refreshToken')` — the cookie
+       is cleared even if the token is already expired or invalid
+  4.2. Frontend clears the Zustand store and redirects
+
+
+## Technical Decisions and Troubleshooting
+Each case reads problem → cause → fix → verification. **Verification** lists only what was confirmed through code, tests, or a run, and keeps design expectations apart from real measurements. No performance numbers are given because none were measured. Runs refer to the local Docker environment on 2026-10-22 (Windows 10, Docker 28.5.1, commit `d684b19`).
+
+### Case 1: Moving the message path from Socket.IO to GraphQL
+- **Problem**: At first a Socket.IO handler received, saved, and delivered messages. A socket handler had no way to wrap a write that touches several tables, such as creating a room and saving a message, in one transaction.
+- **Cause**: A socket handler has no layer that owns the transaction lifecycle per request (open the `QueryRunner`, commit, roll back, `release()`). Managing it by hand at every call site risks a missed `release()` leaking connections out of the pool, as [ADR 0003](ADR/0003-database-transaction-strategy.md) records.
+- **Fix**: Sending moved to the `sendMessage` mutation and receiving to the `receiveMessage` subscription, with `GqlTransactionInterceptor` owning the transaction lifecycle. Socket.IO kept only connection auth, room-creation notices, and `forceLogout`. Keeping both paths was rejected because the same event could be duplicated or arrive out of order ([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)). The change was made on an app that already worked, and both paths coexisted for about 4.5 months until the old Socket.IO message handler was deleted on 2026-06-11 ([ROADMAP.md](ROADMAP.md)).
+- **Verification**:
+  - `gql-transaction.interceptor.spec.ts` covers the success path (no result is emitted before the commit finishes), the error path (rollback, one `release`, `InternalServerErrorException`), and the case where the commit itself fails
+  - In a local Docker run, sign-up → `sendMessage` → delivery to another account's `receiveMessage` subscription → `getMessages` was confirmed at the API level
+  - Limit: Redis Pub/Sub is at-most-once, so a message published while nobody is subscribed is not redelivered (a limit accepted in ADR 0004). Performance before and after the move was not measured
+
+### Case 2: Dev DB and Redis ports exposed to the internet
+- **Problem**: During development PostgreSQL (5432), Redis (6379), and the backend (3000) were reachable from the internet. An automated ransomware bot logged in to PostgreSQL with default credentials, wiped the dev database, and left a ransom note.
+- **Cause**: The ports in `docker-compose.yml` were bound to `0.0.0.0`, and the Windows Firewall profile of the Ethernet adapter that held a public IP was set to "Private (trusted)", so a Docker Desktop rule allowed inbound traffic on every port.
+- **Fix**: Close the access path first (port bindings to `127.0.0.1`, loopback-only host in development, and the firewall profile switched to Public by hand), then rotate the DB and Redis passwords and the JWT secrets, and only then clean up the attacker's database. Cleaning first would let the bot recreate it at once, so the order was contain → rotate → clean. The AI did not read the attacker's table; a person did (prompt-injection prevention). To keep it from happening again, Redis `requirepass` was turned on and boot is refused when `ENV=prod` has a `REDIS_URL` without a password. Details in [AI-Assisted Development Notes](#ai-assisted-development-notes) and [ADR 0013](ADR/0013-local-dev-network-binding.md).
+- **Verification**:
+  - The settings were confirmed in code: the `127.0.0.1` bindings and `requirepass` in `docker-compose.yml`, the loopback branch in `main.ts`, and the `REDIS_URL` password check in `app.module.ts`
+  - In a local Docker run, `docker compose ps` showed 3000, 5432, and 6379 bound to `127.0.0.1` only
+  - Limit: no port scan from an outside network was run, and the password/secret rotation rests on the record from the time
+
+### Case 3: AI reply cache corruption (`Invalid time value`)
+- **Problem**: While checking the AI retry/fallback feature by hand in a browser, restarting the backend made the socket reconnect and reload the room's messages from the cache, and `CombinedGraphQLErrors: Invalid time value` appeared.
+- **Cause**: `AiService` cached its own reply directly, and the publish hook in `PubSubService` cached the same reply a second time. The second copy had lost its `@Exclude()`-decorated `created` field, so reading it back gave `new Date(undefined)` (NaN inside), and the GraphQL `DateTime` scalar's `toISOString()` threw. `git show --stat` on the earlier caching refactor showed that refactor never touched `ai.service.ts`, so the duplicate was a leftover and not a design choice.
+- **Fix**: `AiService` now publishes the raw entity, as the human-message path does, and the duplicate direct caching call is gone. Caching happens in one place, `PubSubService.publish()`.
+- **Verification**:
+  - `redis.service.spec.ts` has a case that pins the behavior where a cache entry with no `created` field becomes an Invalid Date, and `pubsub.service.spec.ts` covers the cache-on-publish behavior
+  - `backend/src/ai/` no longer contains a `cacheMessage` call (confirmed by search)
+  - `pnpm test` passes 13 suites / 254 tests
+  - Limit: the same browser scenario (restart the backend, then reload) was not replayed on purpose; the error did not show up again during later use of the app
+
+### Case 4: A generated migration reverts ON DELETE CASCADE
+- **Problem**: `pnpm migration:generate` re-emits the ManyToMany join-table FK `FK_501a0aef55632e3cf2894bda97f` (`room_entity_participants_user_entity`) as `ON DELETE NO ACTION`, which quietly reverts the `ON DELETE CASCADE` that user deletion uses to clear room membership. Once reverted, deleting a user fails on an FK violation ([CLAUDE.md](CLAUDE.md)).
+- **Cause**: The ManyToMany relation declares no `onDelete`, so TypeORM sees the DB's CASCADE as different from the declaration and generates a change that reverts it.
+- **Fix**: A step was set to strip that FK line from every generated migration. As a safety net for human slips there is a static guard, `migration-cascade-guard.spec.ts`, which scans the source of each migration's `up()` as text and requires the CASCADE to survive. It rides `pnpm test`, so it fires locally and in CI. It is not run in production, where migrations have already been applied by boot time.
+- **Verification**:
+  - `pnpm test` with that spec passes 13 suites / 254 tests
+  - Limit: the FK's delete behavior (`confdeltype`) on a running DB was not queried in this run
+
+### Case 5: From an in-memory socket map to a Redis session
+- **Problem**: Keeping `userId → Socket` only in a Map in process memory loses it on a restart, and once there is more than one instance, the others can't tell where a user is connected or whether they are online.
+- **Cause**: The Map is process-local state, and a Socket object can't be serialized, so it can't be shared as is.
+- **Fix**: The old in-memory `clientConnection` Map was replaced by a Redis-backed session cache (comment in `redis.service.ts`).
+  - A `user:{id}` hash (`socketId`, `status`) carries a TTL (`SESSION_TTL_SEC`, default 86400 s), and the online list is an `online_users` set. `hset`, `expire`, and `sadd` run in one MULTI/EXEC so no key without a TTL is left behind
+  - At startup and every 5 minutes `online_users` is reconciled against `user:{id}` to drop ghost users. It does not delete unconditionally because that would also remove users connected to other instances
+  - A new socket is recorded as the current session first, and only then does the previous socket get `forceLogout`. `removeClient` marks a user offline only when the current session is that socket ([ADR 0014](ADR/0014-single-active-session.md))
+  - Room broadcasts cross instances through `@socket.io/redis-adapter`
+
+  Current code (`backend/src/redis/redis.service.ts`) for going online:
+  ```ts
+  async sethUserOnline(userId: number, socketId: string) {
+    const key = `user:${userId}`;
+    const ttl = this.configService.get<number>('SESSION_TTL_SEC', 86400);
+    await this.redis
+      .multi()
+      .hset(key, 'socketId', socketId, 'status', 'online')
+      .expire(key, ttl)
+      .sadd('online_users', String(userId))
+      .exec();
+  }
+  ```
+- **Verification**:
+  - Confirmed in code: the structure above, the adapter wiring in `chat.gateway.ts`, and the unit tests in `redis.service.spec.ts` and `chat.service.spec.ts`
+  - Design expectation (not verified): without the adapter, `server.to(room).emit(...)` reaches only clients connected to the same process
+  - Measurement: nothing was run with two or more instances or under load (not measured). There is no number showing it got faster
+  - Checking the stored values (standalone local container, no password): connect with `docker exec -it redis-chat redis-cli` and run `KEYS user:*`, `HGETALL user:<user ID>`, and `TTL user:<user ID>`. The Redis in docker compose has `requirepass` on and needs a password (use `redis-cli -a "$REDIS_PASSWORD"`, the same way the compose healthcheck does; this command was not run here)
 
 
 ## Quick Start
 - Prerequisites
-  - Node.js >= v24.xx
-  - Nest.js >= v11.xx
-  - PostgreSQL 18
-  - pnpm >= 10 (exact pinned version tracked in [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites)) or npm >= v10.xx
-  - Docker >= v28.xx
+  - Node.js 24.x (`.nvmrc`), pnpm >= 10 (the pinned version is in [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites))
+  - Docker >= v28.xx — path A below needs no local PostgreSQL or Redis install
+  - `GEMINI_API_KEY` is a required env var and boot fails without it ([`app.module.ts`](backend/src/app.module.ts)). A Gemini API key is needed to get real AI replies
 
-**Install dependencies**
-```powershell
+### A. Run backend + PostgreSQL + Redis with Docker
+**1. Install dependencies** (needed to run frontend and admin)
+```bash
 pnpm install
 ```
 
-**Setup environment** — copy to `backend/.env` and fill in your credentials.
-```powershell
-cp backend/.env.example backend/.env
+**2. Create `.env.docker` at the project root** (not tracked by git). Every value below is a placeholder; fill in your own.
+```env
+ENV=dev
+DB_TYPE=postgres
+DB_HOST=postgres
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=<any password>
+DB_DATABASE=chatdb
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<same value as DB_PASSWORD>
+POSTGRES_DB=chatdb
+REDIS_PASSWORD=<any password>
+REDIS_URL=redis://:<REDIS_PASSWORD value>@redis:6379
+HASH_ROUNDS=12
+REFRESH_TOKEN_SECRET=<any long random string>
+ACCESS_TOKEN_SECRET=<any long random string>
+REFRESH_TOKEN_SECRET_EXPIRES_IN=604800
+ACCESS_TOKEN_SECRET_EXPIRES_IN=900
+USER_CACHE_TTL_SEC=300
+SESSION_TTL_SEC=86400
+MESSAGE_CACHE_TTL_SEC=86400
+CORS_ORIGIN=http://localhost:5173,http://localhost:5174
+GEMINI_API_KEY=<your Gemini API key>
 ```
+`NODE_ENV` and `RUNTIME_ENV` are set by compose, so leave them out ([docker-compose.yml](docker-compose.yml)). The `postgres` and `redis` containers read `POSTGRES_*` and `REDIS_PASSWORD` from the same file. Expiry values accept seconds as a number only (a string such as `7d` is rejected at boot). The full variable list is in [backend/.env.example](backend/.env.example).
 
-**Create database schema via migrations**
-```powershell
-cd backend
-pnpm migration:run
+**3. Start the services**
+```bash
+docker compose up -d --build
 ```
+Migrations run automatically when the container starts, so don't run them by hand. To check boot, `http://localhost:3000/health` returns `{"status":"ok"}`.
 
-**Run Redis in Docker** — create the container once if it does not exist yet:
-```powershell
-docker run -d -p 6379:6379 --name redis-chat redis:latest
-```
-Start an existing container with:
-```powershell
-docker start redis-chat
-```
-
-**Run backend**
-```powershell
-cd backend && pnpm start:dev
-```
-
-**Run frontend** (separate terminal) — copy the template and adjust if your backend runs elsewhere:
-```powershell
+**4. Run the frontend** (separate terminal)
+```bash
 cp frontend/.env.example frontend/.env.local
-cd frontend && pnpm install && pnpm dev
+cd frontend && pnpm dev
 ```
 → http://localhost:5173
 
-**Run admin panel** (separate terminal) — copy the template (no adjustment usually needed):
-```powershell
+**5. Run the admin panel** (separate terminal; needs an admin/superadmin account)
+```bash
 cp admin/.env.example admin/.env.local
-cd admin && pnpm install && pnpm dev
+cd admin && pnpm dev
 ```
-→ http://localhost:5174 — see [Admin Panel](#admin-panel) for what it does; requires an admin/superadmin account (see [Admin Account Setup](#admin-account-setup))
+→ http://localhost:5174 — the first superadmin has to be created in the DB by hand (see [Admin Account Setup](#admin-account-setup)).
 
-**Test chat communication** — chat messages go over GraphQL (Mutation to
-send, Subscription to receive). Socket.IO only handles connection lifecycle
-and room-creation notifications; it carries no chat-message traffic. See
-**API Documentation → Key Endpoints → Chat** below for the Altair/Postman
-GraphQL walkthrough.
+**Stopping**: `docker compose down` removes the containers and keeps the data (volumes). `docker compose down -v` also deletes the PostgreSQL and Redis volumes, so the data is lost.
 
-**Run all tests**
-```powershell
-pnpm test
+### B. Manual run (with a local PostgreSQL 18 and Redis)
+```bash
+pnpm install
+cp backend/.env.example backend/.env     # fill in the values. DB_TYPE is postgres; DB_HOST and REDIS_URL are local addresses
+pnpm --filter backend build               # migration:run uses dist/data-source.js, so build first
+pnpm migration:run
+docker run -d -p 6379:6379 --name redis-chat redis:latest   # if it already exists: docker start redis-chat
+cd backend && pnpm start:dev
 ```
+Creating the database in PostgreSQL is not covered here. frontend and admin are the same as steps 4 and 5 of path A.
 
-**Run test coverage**
-```powershell
-cd backend && pnpm test:cov
+### Verification Status
+Checked on 2026-10-22 on Windows 10, Docker 28.5.1 / Compose 2.40.0, Node 24.8.0, pnpm 10.33.0, commit `d684b19`, in an isolated temporary clone.
+
+| Item | Status |
+|---|---|
+| Path A: containers start, migrations run automatically, `/health` | Confirmed |
+| Sign-up, sign-in, `sendMessage`, `receiveMessage` subscription delivery, `getMessages` | Confirmed at the API level |
+| Superadmin INSERT, then admin sign-in and `GET /user` | Confirmed |
+| frontend and admin dev servers | Only the response (200) was checked. Sign-in and the chat screen in a browser were not |
+| Path B | Confirmed up to `build` then `migration:run`. `start:dev` and the first migration on an empty DB were not |
+| AI replies, Playwright e2e, moderation behavior | Not checked in this run |
+| Unit tests | backend 13 suites / 254 tests, frontend 21 tests, admin 14 tests pass |
+
+**Run the tests**
+```bash
+pnpm test                         # backend Jest
+pnpm --filter frontend test       # frontend Vitest
+pnpm --filter admin test          # admin Vitest
+cd backend && pnpm test:cov       # backend coverage
 ```
+e2e (Playwright) runs with `pnpm --filter frontend e2e` and `pnpm --filter admin e2e`, and runs in CI.
 
-**Access Swagger UI** — http://localhost:3000/document
+**Swagger UI** — with the backend running: http://localhost:3000/document
 
+**Try the chat** — chat messages travel over GraphQL only (a Mutation to send, a Subscription to receive).
+Socket.IO only handles the connection lifecycle and room-creation notices and carries no chat-message traffic.
+For the Altair/Postman walkthrough, see **API Documentation → Key Endpoints → Chat** below.
 
 ### Troubleshooting
 List of Troubleshooting when the program runs
@@ -159,40 +504,32 @@ List of Troubleshooting when the program runs
   - Solution 
     - ✅ Take a look at `backend/src/chat/interceptor/gql-transaction.interceptor.ts`, which owns the transaction elements: `commitTransaction()`, `rollbackTransaction()`, `release()`. The commit runs after the resolver returns, so check that any post-commit logic awaits `ctx.req.transactionCommitted`.
 
+- `pnpm migration:run` fails with `Unable to open file ... dist/data-source.js`
+  - Solution
+    - ✅ Build first with `pnpm --filter backend build`. `migration:run` reads the build output (`dist/data-source.js`)
+
 
 ## API Documentation
 ### Swagger UI
 ***You must register first to try all features.***
-REST (`Auth`, `User`) is tested in Swagger UI. For chat (GraphQL), Altair cannot test Mutations and Postman cannot test Subscriptions, so use the two tools together to cover sending and receiving.
+Parameters and response schemas for each REST endpoint (`Auth`, `User`, `Audit Log`) are in Swagger UI (`http://localhost:3000/document`) once the backend is running locally. For chat (GraphQL), Altair cannot test Mutations and Postman cannot test Subscriptions, so use the two tools together to cover sending and receiving.
 
 ### Key Endpoints
-**Swagger**
-Test 'Auth' and 'User' Endpoints URL below.
-- URL: `http://localhost:3000/document`
+**REST** — parameters and schemas are in Swagger, so this lists only the permissions and limits that Swagger does not show.
 
-**Health**
-- `GET /health` - Liveness check, no auth — used by Railway's `healthcheckPath`; returns `{ status: 'ok' }` without checking DB/Redis (a dependency outage should not force a container restart)
-
-**Authentication**
-- `POST /auth/register` - Register with Basic Auth — optional body `{ nickname? }`; rate-limited to 10 attempts/60s per IP (429 on exceed)
-- `POST /auth/signin` - Get JWT tokens — same 10 attempts/60s per-IP rate limit as register
-- `POST /auth/signOut` - Blacklists the current access token and clears the refreshToken cookie (cookie is cleared even if the token is already expired/invalid)
-- `POST /auth/token/refreshaccess` - Refresh access token
-
-**User** — account creation happens via `POST /auth/register` above, not here
-- `GET /user` - List users **(admin only)** — query params: `page`, `take`, `sort` (`ASC`/`DESC`), `sortBy` (`id`/`role`/`created`), `search` (email/nickname), `status` (`active`/`banned`), `humanOnly` (excludes the seeded AI and moderation-system accounts)
-- `GET /user/:id` - Get a user (own account or admin)
-- `PATCH /user/:id` - Update a user (own account or admin) — optional body `{ email?, password?, nickname?, profileImage? }` (nickname ≤20 chars, must be unique; profileImage as a base64 data URI, jpeg/png/webp, ≤2MB); 400 if the nickname is already in use
-- `PATCH /user/:id/role` - Change user role **(superadmin only)**
-- `POST /user/:id/force-logout` - Force logout a user **(admin only)**
-- `POST /user/:id/ban` - Manually ban a user, independent of the automatic strike system **(admin only)** — optional body `{ reason?, durationSec? }` (omit `durationSec` for a permanent ban); also evicts any active session
-- `POST /user/:id/unban` - Clear a user's ban / mute / strikes **(admin only)**
-- `DELETE /user/:id` - Delete a user (own account or admin) — the seeded AI and moderation-system accounts cannot be deleted
-
-**Audit Log**
-- `GET /audit-log` - Paginated audit log entries **(admin only)** — query params: `action` (`ROLE_CHANGE`/`FORCE_LOGOUT`/`USER_DELETE`/`USER_UNBAN`/`USER_MUTED`/`USER_BANNED`), `userId` (matches as actor OR target), `from`/`to` (ISO 8601 date range), `page`, `take`, `sort`
-- `GET /audit-log/export` - Export the same filtered results as CSV, capped at 10,000 rows (low-volume privileged-action data, so a flat cap is simpler than cursor streaming) **(admin only)**
-
+| Endpoint | Permission | Limits / behavior |
+|---|---|---|
+| `GET /health` | None | Liveness check. Returns `{ status: 'ok' }` without checking DB/Redis (a dependency outage should not force a container restart) |
+| `POST /auth/register`, `POST /auth/signin` | None | 10 attempts per 60 s per IP (429 on exceed). Credentials go in a Basic auth header |
+| `POST /auth/signOut` | Signed in | Blacklists the current access token and clears the refreshToken cookie (the cookie is cleared even if the token is already expired/invalid) |
+| `POST /auth/token/refreshaccess` | Refresh cookie | Refreshes the access token |
+| `GET /user` | admin | `humanOnly` excludes the seeded AI and moderation-system accounts |
+| `GET /user/:id`, `PATCH /user/:id` | Own account or admin | Nickname ≤20 chars and must be unique (400 if taken). Profile image is a base64 data URI, jpeg/png/webp, ≤2MB |
+| `DELETE /user/:id` | Own account or admin | The seeded AI and moderation-system accounts cannot be deleted |
+| `PATCH /user/:id/role` | superadmin | Accounts are created only through `POST /auth/register` |
+| `POST /user/:id/force-logout`, `/ban`, `/unban` | admin | `ban` is permanent when `durationSec` is omitted and also evicts any active session. `unban` clears ban, mute, and strikes |
+| `GET /audit-log` | admin | `userId` matches as actor or target |
+| `GET /audit-log/export` | admin | Exports the same filtered results as CSV, capped at 10,000 rows (low-volume privileged-action data, so a flat cap is simpler than cursor streaming) |
 **Chat**
 - Socket.IO (connection lifecycle and room-creation events only — no chat-message traffic)
   ***Tap 1 & 2***
@@ -306,229 +643,6 @@ Test 'Auth' and 'User' Endpoints URL below.
     setAiPersonality(roomId: 19, personality: CODING)
   }
   ```
-
-
-## Stacks
-### Frontend
-A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
-
-- Stack: React 19.2.5, TypeScript ~6.0.2, Vite 8.0.10, Tailwind CSS 4.2.4, Zustand 5.0.12, Apollo Client 4.1.9, Socket.IO Client 4.8.3 ✔
-- Auth: access token in memory (Zustand), refresh token in a backend-set httpOnly cookie — never in localStorage ✔
-- Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
-- Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
-- Deployment: Vercel (auto-deploy on push) ✔
-
-### Backend
-- **Language**: TypeScript 5.7.3 — static typing across backend/frontend/admin catches the class of `undefined`-property bugs this project hit repeatedly during its early raw-debugging phase (see commit history, Jan–Mar)
-- **Runtime**: Node.js 24.x (pinned via `.nvmrc` / `engines`) — non-blocking I/O suits a connection-heavy chat workload
-- **Framework**: NestJS 11.1.19 — DI-based module boundaries kept the feature surface (auth/chat/user/ai/moderation/audit-log, etc.) decoupled as it grew from a single resolver to about ten modules
-- **Architecture**: Monolith, single deployable — module boundaries (see [Project Structure](#project-structure)) provide separation without paying for service-mesh complexity this scale doesn't need
-- **Realtime split**: Socket.IO 4.8.3 for connection lifecycle only (auth on connect, room-creation notifications) + GraphQL 16.12.0 Mutation/Subscription for chat messages (see [Flow](#flow)) — not the original design; messages were migrated off raw Socket.IO mid-project to get transactional guarantees around persistence (`GqlTransactionInterceptor`)
-- **Database**: PostgreSQL + TypeORM 0.3.29 — relational integrity for interdependent user/room/chat/audit-log data; migrations only (`synchronize: false`) so schema changes stay reviewable
-- **Cache / Pub-Sub**: Redis via ioredis 5.9.3 — session/online-status, a per-room recent-message cache, and `@socket.io/redis-adapter` for horizontal scaling (without it, room broadcasts don't cross server instances)
-- **AI**: Google Gemini 2.5 Flash via `@google/genai`, 4 selectable personalities — cost-capped by design (output token limit, conversation-history truncation, retry ceiling), not bolted on after the fact
-- **Auth**: JWT (access token in memory, refresh token in an httpOnly cookie) + Passport strategies; RBAC guards are composed at both the REST and GraphQL layer, not subclassed
-- **Testing**: Jest unit tests on the service layer (see [Test Coverage](#test-coverage)), Playwright e2e for both `frontend/` and `admin/`
-- **API Docs**: Swagger for REST + GraphQL introspection via Altair — Altair and Postman are used together since neither alone can exercise both Mutation and Subscription
-
-
-## Features
-- Real-time bidirectional messaging
-- Rate limiting - 10 messages per 15s/user
-- Behavioral moderation - duplicate/flood & velocity strikes escalate warn → mute → timed ban → permanent ban, with admin unban
-- Security hardening - Helmet security headers on the backend (CSP intentionally omitted there: it serves almost no HTML, so it would only protect Swagger), Content-Security-Policy on frontend/admin instead (Vercel `headers`, since that's where the actual rendering surface is), trust proxy for accurate client IPs behind Railway, IP-based rate limiting on signin/register (10 attempts/60s per IP, 429 on exceed)
-- Persistent user sessions across server restarts
-- Private chat rooms between users
-- Transaction-safe message storage & delivery
-- Horizontal scaling ready - Redis-backed session
-- AI chat powered by Google Gemini 2.5 Flash (4 personalities: Friendly, Coding, English, Creative)
-- Cursor-based message history with infinite scroll
-- Profile customization - optional nickname (unique, ≤20 chars) and profile image (jpeg/png/webp, ≤2MB) set via account settings
-- Chat UX polish - `/` keyboard shortcut to focus the message input, dismissible "empty chat" notice, click-and-hold banner auto-scroll, aria-live region for moderation notices
-- Admin dashboard - separate app for user/room management, moderation actions, and audit-log CSV export (see [Admin Panel](#admin-panel))
-
-
-## Architecture
-### Project Structure
-```
-Chat Project/                   <= monorepo root
-├── backend/                    <= NestJS application
-│   └── src/
-│       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
-│       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
-│       │   ├── entities/       <= AiRoomEntity (room's active AI personality, split out of RoomEntity)
-│       │   └── enums/          <= ai-personality.enum.ts
-│       ├── audit-log/          <= AuditLogController, AuditLogService (privileged-action audit trail, CSV export)
-│       │   └── dto/            <= AuditLogQueryDto, AuditLogExportQueryDto
-│       ├── auth/               <= JWT auth, guards, strategies
-│       │   ├── decorator/
-│       │   ├── dto/
-│       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
-│       │   ├── interface/      <= Payload (JWT payload shape)
-│       │   ├── role/
-│       │   └── strategy/       <= passport-jwt
-│       ├── base/
-│       │   ├── entity/         <= EntityBase (created/updated timestamps)
-│       │   ├── filter/         <= AllExceptionsFilter (global HTTP+GraphQL error normalization)
-│       │   └── logger/         <= winston logger
-│       ├── chat/               <= ChatGateway, ChatService, ChatResolver
-│       │   ├── decorator/      <= gql-query-runner.decorator
-│       │   ├── entities/       <= ChatEntity, RoomEntity
-│       │   │   └── dto/        <= CreateChatDto
-│       │   ├── guard/          <= RateLimitGuard
-│       │   └── interceptor/    <= GqlTransactionInterceptor
-│       ├── graphql/            <= PubSubService, GraphQL input/return types
-│       ├── health/             <= HealthController (liveness probe, GET /health)
-│       ├── mail/                <= MailService (SMTP notifications, e.g. role-change emails)
-│       ├── migrations/         <= TypeORM migration files
-│       ├── mocks/              <= bcrypt mock for tests
-│       ├── moderation/         <= ModerationService, ModerationGuard (strike ladder, ban/mute enforcement)
-│       │   ├── constants/      <= thresholds, system-account email, notice texts, redis keys
-│       │   └── enums/          <= moderation-status.enum.ts (active | banned)
-│       ├── redis/              <= RedisModule, SessionCacheService
-│       │   └── interface/      <= CachableMessage (shared with graphql/pubsub.service.ts)
-│       └── user/               <= UserController, UserService, UserEntity
-│           ├── dto/
-│           └── entities/
-├── frontend/                   <= React + Vite application (chat UI, port 5173)
-│   └── src/
-│       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
-│       ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
-│       ├── components/         <= ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
-│       ├── pages/               <= ChatPage, SigninPage, RegisterPage, AccountPage
-│       ├── socket/              <= socket.ts (Socket.IO singleton)
-│       ├── store/                <= auth.store.ts (Zustand)
-│       └── types/
-└── admin/                       <= React + Vite admin dashboard (port 5174) — see Admin Panel
-    └── src/
-        ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
-        ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
-        ├── components/         <= ProtectedRoute
-        ├── pages/               <= LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
-        ├── store/                <= auth.store.ts (Zustand)
-        └── test/                 <= Vitest setup (jest-dom matchers, RTL cleanup)
-```
-
-### Hybrid Storage Pattern
-- Redis(session/cache): It stores `userId` => `socketId` mapping for consistent data flow and shareable servers
-- In-Memory(socket): It stores `socketId` => `Socket` objects which requires WebSocket operation which is easy implement and able to communicate in real-time
-- Reason for utilizing both: Redis holds serialized objects as 'JSON' format, while socket holds as long as client is connected via TCP-level connection. Therefore, clients are enabled to reconnect with their session/cache data.
-
-### Redis Pub/Sub
-- `RedisPubSub` singleton (`pubsub.service.ts`): bridges GraphQL mutations to active subscriptions. After commit the resolver publishes to a `receiveMessage :${roomId}` channel; all connected `receiveMessage` subscribers receive the message in real time.
-- `PubSubService.publish()` also caches the published message via `SessionCacheService.cacheMessage()` as a side effect — this is the **only** place message caching happens, identically for human and AI messages. Callers (resolver, `AiService`) never call `cacheMessage()` directly.
-
-### Entities (TypeORM)
-```
-UserEntity
-  id          PK
-  email       unique
-  nickname    nullable, unique, max 20 chars — display name shown to other users
-  profileImage nullable text (base64 data URI, jpeg/png/webp, max ~2MB)
-  password    excluded from API responses
-  isAI        boolean (true only for the seeded AI system account)
-  role        enum: user (0) | admin (1) | superadmin (2)
-  status      enum: active | banned (moderation state, see Moderation)
-  bannedUntil nullable timestamp — null means permanent ban or not banned
-  chats    =< ChatEntity   (OneToMany)
-  rooms    >< RoomEntity   (ManyToMany, join table on RoomEntity side)
-
-ChatEntity
-  id          PK
-  message     string
-  participant >= UserEntity  (ManyToOne — sender)
-  room        >= RoomEntity  (ManyToOne)
-
-RoomEntity
-  id            PK
-  participants >< UserEntity   (ManyToMany owner, @JoinTable)
-  chats        =< ChatEntity   (OneToMany)
-
-AiRoomEntity — split out of RoomEntity for separation of concerns and cleaner ongoing
-management (see ARCHITECTURE.md's Entities section for the full rationale)
-  id          PK
-  room        -- RoomEntity  (OneToOne, onDelete: CASCADE)
-  personality string (active AI personality for this room)
-
-EntityBase (inherited by all four)
-  created     CreateDateColumn — excluded from API responses
-  updated     UpdateDateColumn — excluded from API responses
-```
-
-
-## Flow
-All chat messages are sent and delivered through the **GraphQL Mutation Path**. Socket.IO
-(`ChatGateway`) only handles the WebSocket connection lifecycle — it has no
-`@SubscribeMessage` handler for chat messages and emits none.
-
-### Socket.IO Connection Lifecycle
-1. Client connects WebSocket, `handleConnection` runs in `chat.gateway.ts`
-  1.1. Authenticate JWT token via `AuthService.parseBearerToken()`
-  1.2. `ChatService.registerClient()` maps `userId` => `socketId`/Socket
-  1.3. `ChatService.joinRooms()` joins the client to their existing rooms
-  1.4. On a session conflict, the previous socket for that user receives `forceLogout` and is disconnected
-
-2. Room creation notification
-  2.1. When `ChatService` creates a new `RoomEntity` (first message between two users), it
-       emits `CreateRoom` to the recipient's socket so their client can join the new room
-
-3. Client disconnects
-  3.1. `handleDisconnect` runs in `chat.gateway.ts`
-  3.2. `ChatService.removeClient()` removes the `socketId` entry from the in-memory Map
-
-### GraphQL Mutation Path (`sendMessage`)
-1. Client calls `sendMessage` mutation
-  1.1. `GraphQLAuthGuard` + `RateLimitGuard` run
-  1.2. `GqlTransactionInterceptor` opens a `QueryRunner` and starts a transaction before the
-       resolver runs, injecting it via `@GqlQueryRunnerDecorator()`
-  1.3. `ChatService.sendMessage()` validates sender/recipient, finds or creates room, saves
-       `ChatEntity` within that transaction
-  1.4. Resolver publishes to `receiveMessage :${roomId}` via `PubSubService.publish()` and returns
-
-2. Post-return commit
-  2.1. `GqlTransactionInterceptor` commits the transaction *after* the resolver returns
-  2.2. Any logic that depends on the write being durable awaits `ctx.req.transactionCommitted`
-       rather than assuming the commit already happened at return time
-
-3. AI reply (if recipient is AI user)
-  3.1. `setImmediate` schedules the AI reply trigger, which first awaits `ctx.req.transactionCommitted`
-  3.2. `AiService.handleReply()` acquires a Redis lock, builds conversation history, calls the Gemini API
-  3.3. AI reply saved to DB, then published to Pub/Sub through the same `receiveMessage :${roomId}`
-       channel as human messages — `PubSubService.publish()` caches it as a side effect (see Redis
-       Pub/Sub above); `AiService` does not cache directly
-
-4. Subscriber receives message
-  4.1. Redis Pub/Sub delivers to all active `receiveMessage(roomId)` subscribers
-  4.2. GraphQL subscription resolves and pushes payload to client
-
-### Auth Token Lifecycle
-The two tokens live in deliberately different places: the short-lived `accessToken` in memory only
-(Zustand, excluded from `persist`), the long-lived `refreshToken` in a backend-set httpOnly cookie
-that JavaScript cannot read. See [ADR 0001](ADR/0001-jwt-auth-token-strategy.md) for the rationale.
-
-1. Sign-in — `POST /auth/signin` (Basic auth)
-  1.1. Backend returns `accessToken` in the response body and sets `refreshToken` as an httpOnly
-       cookie (`secure`, `sameSite: 'none'` — frontend and backend are separate origins)
-  1.2. Frontend calls `setTokens(accessToken, userId)`; no token is written to `localStorage`
-
-2. Authenticated request
-  2.1. `authLink` reads `useAuthStore.getState().accessToken` at request time and sets
-       `Authorization: Bearer`
-
-3. Silent refresh — on page reload (memory is empty) or on a 401 surfaced by `errorLink`
-  3.1. Every call site goes through `refreshAccessTokenSafely()` (`session-guard.ts`); concurrent
-       callers share one in-flight request
-  3.2. `POST /auth/token/refreshaccess` is sent with `credentials: 'include'` — the browser attaches
-       the cookie automatically, so JavaScript never reads the refresh token
-  3.3. A fresh `accessToken` comes back in the body and goes into memory again
-  3.4. If the refresh resolves to a different account than this tab last authenticated as
-       (`sessionStorage['chat:sessionUserId']`), the tab is logged out instead of silently
-       switching identity
-
-4. Sign-out — `POST /auth/signOut`
-  4.1. Backend blacklists the access token and calls `res.clearCookie('refreshToken')` — the cookie
-       is cleared even if the token is already expired or invalid
-  4.2. Frontend clears the Zustand store and redirects
 
 
 ## Build
@@ -646,7 +760,7 @@ Create a `backend/.env` file and paste variables below :
   ENV=dev
 
   # DB configuration
-  DB_TYPE=yourDatabase
+  DB_TYPE=postgres
   DB_HOST=yourDatabase
   DB_PORT=yourPort
   DB_USERNAME=yourDBport
@@ -706,16 +820,18 @@ See [Deployment → Public - Railway](#public---railway) for the CI/CD flow that
 #### Local - docker-compose
 Running all of services through Docker
 
-- Requires `.env.docker` at the project root (copy from `backend/.env.example` and adjust — `NODE_ENV=development`, `RUNTIME_ENV=docker`)
+- Requires `.env.docker` at the project root — see path A in [Quick Start](#quick-start) for the required variables (`NODE_ENV` and `RUNTIME_ENV` are set by compose)
 
 - Start all of services
 `docker compose up -d --build`
 
-- Abort all of services
+- Abort all of services (data is kept)
+`docker compose down`
+
+- Also delete the volumes — PostgreSQL and Redis data is lost
 `docker compose down -v`
 
-- Run DB migration
-`docker compose exec chat pnpm migration:run`
+- DB migrations run automatically when the `chat` container starts (the `command` in `docker-compose.yml`)
 
 - Check logs
 `docker compose logs -f chat`
@@ -846,8 +962,12 @@ The first superadmin must be created directly in the database. No API endpoint a
 ```bash
 node -e "const b=require('bcrypt'); b.hash('yourPassword', 12).then(h=>console.log(h))"
 ```
+`bcrypt` only resolves inside the `backend/` directory, so run this in `backend/`, not at the repository root. On the docker compose stack, run it inside the container (the password goes in the `PW` env var):
+```bash
+echo "require('bcrypt').hash(process.env.PW, 12).then(h => console.log(h))" | docker compose exec -T -e PW='yourPassword' -w /app/backend chat node -
+```
 
-**Step 2 — Insert into the database** (Railway query runner, `psql`, or any DB client):
+**Step 2 — Insert into the database** (Railway query runner, a DB client, or on the docker compose stack, pipe the SQL into `docker compose exec -T postgres psql -U <POSTGRES_USER> -d <POSTGRES_DB>`):
 ```sql
 INSERT INTO user_entity (email, password, role, "isAI")
 VALUES ('superadmin@example.com', '<hash from step 1>', 2, false);
@@ -869,32 +989,12 @@ A separate React app (`admin/`) for admin/superadmin accounts, run locally at `h
 - **Logs** — audit log filtered by action, user, and date range; **Export CSV** downloads the current filter as a file (same 10,000-row cap as the API).
 
 
-### Redis
-- Without Redis, connection state (`socketId`, online status) would live only in the process's own memory — fine for a single instance, but invisible to every other instance once the app scales horizontally. Redis stores that metadata centrally so any instance can look up where a user is connected, and doubles as the message cache and pub/sub bridge described above.
-
-#### Compare Sample Code 
-Socket In-memory
-```ts
-  // Before Redis
-  registerClient(participantId: number, client: Socket) {
-    this.clientConnection.set(participantId, client);
-  };
-```
-
-Redis with In-Memory
-```ts
-  // After Redis
-  async registerClient(participantId: number, client: Socket) {
-    await this.redisService.sethUserOnline(participantId, client.id);
-    this.clientConnection.set(client.id, client);
-  };
-```
-
-
 ### AI
 Powered by Google Gemini 2.5 Flash. The `AiModule` contains two services:
 - `AiService` — Gemini API calls, conversation history (last 10 messages), Redis distributed lock to prevent duplicate replies per room
 - `AiRoomService` — per-room personality selection and retrieval
+
+The AI companion's name is an alias, `Chattey`, set in the system prompt (`backend/src/ai/constants/system-prompts.ts`), different from the service name Chatterley.
 
 **Personalities**
 - `FRIENDLY`: General Q&A, warm and encouraging
@@ -962,6 +1062,7 @@ The directories wrapped in an array gives flexibility to add more test locations
 
 - Coverage Path Ignore
 In `coveragePathIgnorePatterns`, it creates and passes in what not to test in 'Package.json'.
+Coverage is measured mainly on the service layer. Controllers, gateways, guards, interceptors, and resolvers are left out of the measurement, but some are verified by their own specs (for example `gql-transaction.interceptor.spec.ts` and `query-rate-limit.guard.spec.ts`).
 ```json
 "coveragePathIgnorePatterns": [
   "main.ts",
@@ -1005,15 +1106,18 @@ It sets output directory for coverage reports in parents directory, one level ab
 It maps module import paths using Regex to change `src/utils` into `<rootDir>/src/utils` in 'Package.json'.
 ```json
 "moduleNameMapper": {
-  "src/(.*)": "<rootDir>/src/$1"
+  "src/(.*)": "<rootDir>/src/$1",
+  "^bcrypt$": "<rootDir>/src/mocks/bcrypt.ts"
 }
 ```
+`bcrypt` is replaced by `src/mocks/bcrypt.ts`, so the unit tests pass without a native build (confirmed in this verification: the backend tests passed in an environment installed with `--ignore-scripts`).
 
 #### Test Coverage
 **Test Results**
-- Test Suites: 12 passed, 12 total
+- Test Suites: 13 passed, 13 total (254 tests, re-measured on 2026-10-22)
+- frontend Vitest: 4 files, 21 tests pass / admin Vitest: 3 files, 14 tests pass
 
-**Coverage Results** (% Stmts, `pnpm test:cov` — as of 2026-07-16)
+**Coverage Results** (% Stmts, `pnpm test:cov` — re-measured on 2026-10-22, same values as 2026-07-16)
 - Auth Service: 98.29%
 - Chat Service: 97.72%
 - Redis Service: 96.34%
@@ -1154,31 +1258,6 @@ Remove container (keeps image)
 `docker rm redis-chat`
 
 
-#### Check User Data
-
-- Terminal command
-`docker compose exec redis redis-cli`
-
-- Check keys
-`KEYS user:*`
-
-- Check data
-`HGETALL user:<user_number>`
-
-- Result
-`HGETALL user:1`
-1) "socketId"
-2) "user's connection ID"
-3) "status"
-4) "online"
-
-`HGETALL user:2`
-1) "socketId"
-2) "user's connection ID"
-3) "status"
-4) "online"
-
-
 ## Debugging List
 Recurring problem types met during development.
 - Incorrect TypeORM queries in service
@@ -1192,7 +1271,23 @@ For the full root-cause narratives behind issues of this kind (not just the one-
 
 
 ## Scale Up In Future
-Moved to [ROADMAP.md](ROADMAP.md).
+**Current limits**
+- Redis Pub/Sub is at-most-once, so a message published while nobody is subscribed is not delivered again ([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md))
+- Room create/lookup logic assumes exactly two participants, so group chat is not supported ([ROADMAP.md](ROADMAP.md))
+- `GEMINI_API_KEY` is a required env var, so the app does not boot without a key
+- Hosting is stopped, so behavior on a deployed environment was not checked
+- Multi-instance runs and load were not measured
+- The first superadmin has to be inserted into the DB by hand
+- The `admin-e2e` job is not blocking yet, and the Windows `test` job passes even when it fails ([deploy.yml](.github/workflows/deploy.yml))
+- frontend and admin have no error tracking (Sentry covers the backend only)
+
+**Unimplemented backlog** (not a committed priority order; details in [ROADMAP.md](ROADMAP.md))
+- Last message and unread count on the conversation list
+- Group chat
+- User-facing room and conversation deletion
+- "User is typing" indicator
+- Rate limiting on the `receiveMessage` subscription
+- Error tracking for frontend and admin
 
 
 ## AI-Assisted Development Notes
@@ -1256,9 +1351,6 @@ While manually verifying a newly added AI-reply retry/fallback feature in a live
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
 - [CHANGELOG.md](CHANGELOG.md) — full commit history
 - [ADR/](ADR/) — formal architecture decision records
-- [Architecture Diagrams](https://claude.ai/code/artifact/29b14132-8dd8-4b1b-bb28-f21d3ab27b44) — 14
-  code-verified sequence/flowchart/ERD diagrams (auth, `sendMessage`, sockets, AI, moderation, Redis,
-  guards, modules); a private link viewable only from the author's account
 
 
 ## License

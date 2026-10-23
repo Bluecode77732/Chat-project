@@ -4,7 +4,7 @@ This document is the technical deep-dive companion to [README.md](README.md). RE
 project pitch, quick start, and feature list; [CLAUDE.md](CLAUDE.md) covers AI-agent conventions and
 guardrails. This file covers structure that neither of those fully spells out: the module dependency
 graph, guard-chain composition, global bootstrap/error handling, and deployment topology. Where README already documents something well
-(project structure tree, entity relationships, the `sendMessage` data flow), this file links to it
+(entity relationships, the `sendMessage` data flow), this file links to it
 instead of restating it, to avoid the two drifting out of sync. Design-intent explanations below are
 grounded in code and, where the reasoning isn't derivable from code alone, in the developer's own
 stated motivation — never invented.
@@ -35,8 +35,69 @@ flowchart LR
 ## Monorepo Layout
 
 pnpm workspace with three packages: `backend/` (NestJS API, the only deployable that talks to
-Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). See README's
-[Project Structure](README.md#project-structure) for the full directory tree.
+Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). The full directory tree is below; README's
+[Project Structure](README.md#project-structure) lists only the key paths.
+
+Folder-level summary; some files and subfolders are omitted.
+
+```
+Chat Project/                   <= monorepo root
+├── backend/                    <= NestJS application
+│   └── src/
+│       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
+│       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
+│       │   ├── entities/       <= AiRoomEntity (room's active AI personality, split out of RoomEntity)
+│       │   └── enums/          <= ai-personality.enum.ts
+│       ├── audit-log/          <= AuditLogController, AuditLogService (privileged-action audit trail, CSV export)
+│       │   └── dto/            <= AuditLogQueryDto, AuditLogExportQueryDto
+│       ├── auth/               <= JWT auth, guards, strategies
+│       │   ├── decorator/
+│       │   ├── dto/
+│       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── interface/      <= Payload (JWT payload shape)
+│       │   ├── role/
+│       │   └── strategy/       <= passport-jwt
+│       ├── base/
+│       │   ├── entity/         <= EntityBase (created/updated timestamps)
+│       │   ├── filter/         <= AllExceptionsFilter (global HTTP+GraphQL error normalization)
+│       │   └── logger/         <= winston logger
+│       ├── chat/               <= ChatGateway, ChatService, ChatResolver
+│       │   ├── decorator/      <= gql-query-runner.decorator
+│       │   ├── entities/       <= ChatEntity, RoomEntity
+│       │   │   └── dto/        <= CreateChatDto
+│       │   ├── guard/          <= RateLimitGuard
+│       │   └── interceptor/    <= GqlTransactionInterceptor
+│       ├── graphql/            <= PubSubService, GraphQL input/return types
+│       ├── health/             <= HealthController (liveness probe, GET /health)
+│       ├── mail/                <= MailService (SMTP notifications, e.g. role-change emails)
+│       ├── migrations/         <= TypeORM migration files
+│       ├── mocks/              <= bcrypt mock for tests
+│       ├── moderation/         <= ModerationService, ModerationGuard (strike ladder, ban/mute enforcement)
+│       │   ├── constants/      <= thresholds, system-account email, notice texts, redis keys
+│       │   └── enums/          <= moderation-status.enum.ts (active | banned)
+│       ├── redis/              <= RedisModule, SessionCacheService
+│       │   └── interface/      <= CachableMessage (shared with graphql/pubsub.service.ts)
+│       └── user/               <= UserController, UserService, UserEntity
+│           ├── dto/
+│           └── entities/
+├── frontend/                   <= React + Vite application (chat UI, port 5173)
+│   └── src/
+│       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+│       ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
+│       ├── components/         <= ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
+│       ├── pages/               <= ChatPage, SigninPage, RegisterPage, AccountPage
+│       ├── socket/              <= socket.ts (Socket.IO singleton)
+│       ├── store/                <= auth.store.ts (Zustand)
+│       └── types/
+└── admin/                       <= React + Vite admin dashboard (port 5174) — see Admin Panel
+    └── src/
+        ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+        ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
+        ├── components/         <= ProtectedRoute
+        ├── pages/               <= LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── store/                <= auth.store.ts (Zustand)
+        └── test/                 <= Vitest setup (jest-dom matchers, RTL cleanup)
+```
 
 - **Why:** solo-project scale — one developer maintaining three packages that share a GraphQL contract
   makes monorepo overhead lower than coordinating three separate repos (per the developer: "1인

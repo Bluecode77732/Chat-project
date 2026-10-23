@@ -3,7 +3,7 @@
 이 문서는 [README.md](README.md)의 기술 심화 버전임. README는 프로젝트 소개, 빠른 시작, 기능
 목록을 다루고, [CLAUDE.md](CLAUDE.md)는 AI 에이전트 컨벤션과 가드레일을 다룸. 이 문서는 그 두
 문서가 충분히 다루지 않는 부분, 즉 모듈 의존성 그래프, 가드 체인 구성, 전역 부트스트랩/에러 처리,
-배포 토폴로지를 다룸. README가 이미 잘 정리한 내용(프로젝트 구조 트리, 엔티티 관계,
+배포 토폴로지를 다룸. README가 이미 잘 정리한 내용(엔티티 관계,
 `sendMessage` 데이터 흐름)은 다시 쓰지 않고 링크로 대신해 두 문서가 서로 어긋나지 않게 함.
 아래의 설계 의도 설명은 코드에 근거하고, 코드만으로 알 수 없는 부분은 개발자 본인이 밝힌 동기에
 근거함. 지어내지 않음.
@@ -35,7 +35,68 @@ flowchart LR
 
 pnpm 워크스페이스로 세 패키지를 구성함. `backend/`(NestJS API, Postgres/Redis와 통신하는
 유일한 배포 단위), `frontend/`(채팅 클라이언트), `admin/`(관리 대시보드)임. 전체 디렉터리
-트리는 README의 [프로젝트 구조](README.ko.md#프로젝트-구조) 절을 참고하세요.
+트리는 아래와 같고, README의 [프로젝트 구조](README.ko.md#프로젝트-구조)에는 핵심 경로만 있음.
+
+폴더 수준 요약이며 일부 파일과 하위 폴더는 생략돼 있음.
+
+```
+Chat Project/                   ← 모노레포 루트
+├── backend/                    ← NestJS 애플리케이션
+│   └── src/
+│       ├── ai/                 ← Gemini AI (AiService, AiRoomService)
+│       │   ├── constants/      ← system-prompts.ts, AI_USER_EMAIL
+│       │   ├── entities/       ← AiRoomEntity (해당 방의 활성 AI 성격, RoomEntity에서 분리됨)
+│       │   └── enums/          ← ai-personality.enum.ts
+│       ├── audit-log/          ← AuditLogController, AuditLogService (권한 액션 감사 추적, CSV export)
+│       │   └── dto/            ← AuditLogQueryDto, AuditLogExportQueryDto
+│       ├── auth/               ← JWT 인증, 가드, 전략
+│       │   ├── decorator/
+│       │   ├── dto/
+│       │   ├── guard/          ← JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── interface/      ← Payload (JWT payload shape)
+│       │   ├── role/
+│       │   └── strategy/       ← passport-jwt
+│       ├── base/
+│       │   ├── entity/         ← EntityBase (생성/수정 타임스탬프)
+│       │   ├── filter/         ← AllExceptionsFilter (HTTP+GraphQL 에러 응답 전역 정규화)
+│       │   └── logger/         ← winston 로거
+│       ├── chat/               ← ChatGateway, ChatService, ChatResolver
+│       │   ├── decorator/      ← gql-query-runner.decorator
+│       │   ├── entities/       ← ChatEntity, RoomEntity
+│       │   │   └── dto/        ← CreateChatDto
+│       │   ├── guard/          ← RateLimitGuard
+│       │   └── interceptor/    ← GqlTransactionInterceptor
+│       ├── graphql/            ← PubSubService, GraphQL 입력/반환 타입
+│       ├── health/             ← HealthController (liveness probe, GET /health)
+│       ├── mail/               ← MailService (SMTP 알림, 예: 역할 변경 이메일)
+│       ├── migrations/         ← TypeORM 마이그레이션 파일
+│       ├── mocks/              ← 테스트용 bcrypt 목
+│       ├── moderation/         ← ModerationService, ModerationGuard (스트라이크 사다리, 밴/뮤트 적용)
+│       │   ├── constants/      ← 임계값, 시스템 계정 이메일, 알림 문구, redis 키
+│       │   └── enums/          ← moderation-status.enum.ts (active | banned)
+│       ├── redis/              ← RedisModule, SessionCacheService
+│       │   └── interface/      ← CachableMessage (graphql/pubsub.service.ts와 공유)
+│       └── user/               ← UserController, UserService, UserEntity
+│           ├── dto/
+│           └── entities/
+├── frontend/                   ← React + Vite 애플리케이션 (채팅 UI, 5173 포트)
+│   └── src/
+│       ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
+│       ├── auth/               ← session-guard.ts (자동 토큰 갱신, 탭 간 충돌 감지)
+│       ├── components/         ← ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
+│       ├── pages/              ← ChatPage, SigninPage, RegisterPage, AccountPage
+│       ├── socket/             ← socket.ts (Socket.IO 싱글톤)
+│       ├── store/              ← auth.store.ts (Zustand)
+│       └── types/
+└── admin/                      ← React + Vite admin 대시보드 (5174 포트) — Admin 패널 참고
+    └── src/
+        ├── api/                ← apollo.ts, axios.ts, graphql-operations.ts
+        ├── auth/               ← session-guard.ts (자동 토큰 갱신, 탭 간 충돌 감지)
+        ├── components/         ← ProtectedRoute
+        ├── pages/              ← LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── store/              ← auth.store.ts (Zustand)
+        └── test/               ← Vitest 셋업 (jest-dom matcher, RTL cleanup)
+```
 
 - **이유:** 1인 프로젝트 규모이기 때문임. 개발자 한 명이 GraphQL 계약을 공유하는 패키지 3개를
   관리할 때는, 별도 저장소 세 개를 조율하는 것보다 모노레포의 관리 오버헤드가 더 낮음(개발자
