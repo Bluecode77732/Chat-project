@@ -159,6 +159,33 @@ CLAUDE.md's Scope Discipline.
   with a top-level error boundary in both apps' `main.tsx`, plus wiring `errorLink`'s currently-silent
   non-auth branch (`frontend/src/api/apollo.ts`, `admin/src/api/apollo.ts`) to report as well.
 
+### Manual moderation verification
+
+`frontend/e2e/moderation.spec.ts` automates repeated identical messages escalating to a system warning and then a mute notice. Ban, unban, and the audit log are not automated, so verify them by hand. Verify with three accounts — **A** (offender),
+**B** (recipient), and an **admin**. To reach the higher tiers quickly, temporarily lower the
+thresholds in `.env` — keep them distinct (`warn < mute < ban`) or `escalate()`'s exact-match
+checks collide, e.g. `MODERATION_WARN_THRESHOLD=2`, `MODERATION_MUTE_THRESHOLD=3`,
+`MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30` — then restart the backend and
+reset afterward.
+
+1. **Warning** — from A, send B the *same* message repeatedly (within `DUP_WINDOW`, under the
+   rate limit). At the warn threshold a centered System-account notice appears in the room;
+   refresh the page → it persists (it is a stored `ChatEntity`).
+2. **Mute** — keep sending. At the mute threshold A's next send is rejected (`ModerationGuard`
+   → FORBIDDEN, frontend shows the mute notice); A stays connected and still *receives* B's
+   messages. Note: while muted, `sendMessage` is blocked at the guard, so **no further strikes
+   accrue** until the mute expires.
+3. **Timed ban (auto)** — after the mute expires, resume flooding to cross the ban threshold.
+   Expect: A is disconnected immediately; a reconnect is refused at `handleConnection`; a token
+   refresh is refused — a still-valid access token cannot bypass it. After `bannedUntil`
+   elapses, A can use the app again.
+4. **Manual ban (admin)** — `POST /user/:id/ban` on A → immediate session eviction (reuses
+   `forceLogout`) and the same auth-layer rejection as the automatic ban.
+5. **Unban (admin)** — `POST /user/:id/unban` on A → `status` back to `active`, strikes/mute
+   cleared, auth cache invalidated; A can send again immediately.
+6. **Audit** — each step above writes an admin-visible audit entry (`USER_MUTED` /
+   `USER_BANNED` / `USER_UNBAN`).
+
 ## Reporting issues
 
 The only issue template configured is `.github/ISSUE_TEMPLATE/architecture-completeness-sweep.md`,

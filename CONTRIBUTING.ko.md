@@ -160,6 +160,32 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   동시에 `errorLink`에서 현재 조용히 지나가는 non-auth 분기(`frontend/src/api/apollo.ts`,
   `admin/src/api/apollo.ts`)도 함께 보고하도록 연결하세요.
 
+### 수동 모더레이션 검증
+
+`frontend/e2e/moderation.spec.ts`가 같은 메시지 반복 → 시스템 경고 → 뮤트 알림까지는 자동으로 검증함. 밴, 언밴, 감사 로그는 자동화되어 있지 않으므로 직접 검증함. 세 계정 — **A**(위반자),
+**B**(수신자), **admin** — 으로 검증하세요. 상위 단계에 빨리 도달하려면 `.env`에서 임계값을
+일시적으로 낮추되, 값들은 반드시 서로 다르게(`warn < mute < ban`) 유지해야 함. 값이 겹치면
+`escalate()`의 값 일치 검사가 충돌함. 예: `MODERATION_WARN_THRESHOLD=2`,
+`MODERATION_MUTE_THRESHOLD=3`, `MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30`.
+백엔드를 재시작해 적용하고, 검증이 끝나면 원래 값으로 되돌리세요.
+
+1. **경고** — A에서 B에게 *동일한* 메시지를 반복 전송(`DUP_WINDOW` 이내, 속도 제한 이하). warn
+   임계값에서 방에 가운데 정렬된 System 계정 알림이 나타남; 새로고침해도 유지됨(저장된
+   `ChatEntity`이기 때문).
+2. **뮤트** — 계속 전송. mute 임계값에서 A의 다음 전송이 거부됨(`ModerationGuard` → FORBIDDEN,
+   프론트엔드가 뮤트 알림 표시); A는 연결은 유지되고 B의 메시지를 계속 *수신*함. 참고: 뮤트
+   상태에서는 `sendMessage`가 가드에서 차단되므로 뮤트가 풀릴 때까지 **추가 스트라이크가
+   쌓이지 않음**.
+3. **기간제 밴(자동)** — 뮤트가 풀린 후 다시 도배해 ban 임계값을 넘김. 예상: A는 즉시 연결
+   종료됨; 재연결은 `handleConnection`에서 거부됨; 토큰 갱신도 거부됨 — 여전히 유효한
+   액세스 토큰이라도 우회 불가. `bannedUntil`이 지나면 A는 다시 앱을 사용할 수 있음.
+4. **수동 밴(admin)** — A에 `POST /user/:id/ban` → 즉시 세션 종료(`forceLogout` 재사용)와
+   자동 밴과 동일한 auth 계층 거부.
+5. **언밴(admin)** — A에 `POST /user/:id/unban` → `status`가 `active`로 복구, 스트라이크/뮤트
+   해제, auth 캐시 무효화; A는 즉시 다시 전송 가능.
+6. **감사** — 위 각 단계는 admin이 볼 수 있는 감사 로그 항목(`USER_MUTED` / `USER_BANNED` /
+   `USER_UNBAN`)을 남김.
+
 ## 이슈 리포트
 
 설정된 이슈 템플릿은 정기 문서 갭 점검용인
