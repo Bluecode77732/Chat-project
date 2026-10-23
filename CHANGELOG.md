@@ -9,8 +9,13 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-23
+
+- Docs: README를 면접관 관점으로 재구성하고 프로젝트 구조 트리를 ARCHITECTURE로 이동
+
 ## 2026-10-19
 
+- Docs: CHANGELOG 동기화 (누락된 커밋 5건 반영)
 - Feat: AI 시스템 프롬프트에 이름(Chattey) 자기소개 지침 추가
 - Docs: UI 한글 통일 반영해 스크린샷 5장과 GIF 재촬영, README 서술 정정
 - Docs: ROADMAP에 CHANGELOG 자동 생성 전환을 추후 작업으로 기록
