@@ -185,9 +185,9 @@ from `graphql-ws`'s `connectionParams`, captured during `onConnect` and threaded
 This is the actual message-*delivery* guard — `sendMessage`'s guard chain (above) only gates the write
 side; every subscriber independently re-proves both authentication and room membership on subscribe,
 so a token revoked or a room left after subscribing isn't re-checked mid-stream (the check runs once,
-at `receiveMessage` call time, not per delivered message).
+at `receiveMessage` call time, not per delivered message). A ban falls into the same gap: a subscription opened before the ban keeps delivering new messages after it (confirmed in a local run on 2026-10-26); closing it on a ban is not implemented.
 
-**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:55-60`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md).
+**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:55-60`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md). **Single instance only:** `kickPreviousSession()` and `disconnectSocket()` look the socket up in `this.server.sockets.sockets`, which holds only the current process's sockets, so with two backend instances the eviction does not reach a socket connected to the other one (confirmed in a local run on 2026-10-26). The repository's deployment configuration runs one instance.
 
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.

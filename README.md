@@ -117,9 +117,9 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 | Feature | What the user does | API / code | Worth noting |
 |---|---|---|---|
 | Messaging | A sent message shows up on the other side without a reload | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`. Redis Pub/Sub is at-most-once, and the resolver publishes before the commit |
-| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user |
+| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user (confirmed with a single instance only; see [Scale Up In Future](#scale-up-in-future)) |
 | AI chat | Talks to the AI account and picks a personality per room | `setAiPersonality` mutation, `AiService.handleReply()` | Per-room Redis lock (`ai:lock:{roomId}`, 30 s TTL), `maxOutputTokens` 300, 10 messages of history |
-| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP, GraphQL, sockets, and token refresh. Every action is audit-logged |
+| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP and GraphQL requests, socket connections, and token refresh. A GraphQL subscription that is already open keeps receiving after a ban ([limits](#scale-up-in-future)). Every action is audit-logged |
 | Admin panel | Manage users and rooms, export the audit log as CSV | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | A separate app that only uses queries and mutations (no realtime client) |
 
 
@@ -350,7 +350,7 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 - **Verification**:
   - Confirmed in code: the structure above, the adapter wiring in `chat.gateway.ts`, and the unit tests in `redis.service.spec.ts` and `chat.service.spec.ts`
   - Design expectation (not verified): without the adapter, `server.to(room).emit(...)` reaches only clients connected to the same process
-  - Measurement: nothing was run with two or more instances or under load (not measured). There is no number showing it got faster
+  - Measurement (2026-10-26, two instances attached to the same Postgres and Redis): when the same account logs in a second time on another instance, the first socket gets no `forceLogout` and is not disconnected, because `kickPreviousSession` looks only at the current process's sockets; for the same reason a socket on another instance is not disconnected by a ban. Load and performance were not measured, and there is no number showing it got faster
   - Checking the stored values (standalone local container, no password): connect with `docker exec -it redis-chat redis-cli` and run `KEYS user:*`, `HGETALL user:<user ID>`, and `TTL user:<user ID>`. The Redis in docker compose has `requirepass` on and needs a password (use `redis-cli -a "$REDIS_PASSWORD"`, the same way the compose healthcheck does; this command was not run here)
 
 
@@ -494,7 +494,9 @@ List of Troubleshooting when the program runs
 - Room create/lookup logic assumes exactly two participants, so group chat is not supported ([ROADMAP.md](ROADMAP.md))
 - `GEMINI_API_KEY` is a required env var, so the app does not boot without a key
 - Hosting is stopped, so behavior on a deployed environment was not checked
-- Multi-instance runs and load were not measured
+- With more than one instance, evicting the previous session (`forceLogout`) and disconnecting a banned user's socket only reach sockets in the same process (confirmed with two instances). The repository's configuration runs one instance, so this has no effect today
+- A GraphQL subscription that is already open keeps receiving new messages after a ban (confirmed with a single instance too)
+- Load on multiple instances was not measured
 - The first superadmin has to be inserted into the DB by hand
 - The `admin-e2e` job is not blocking yet, and the Windows `test` job passes even when it fails ([deploy.yml](.github/workflows/deploy.yml))
 - frontend and admin have no error tracking (Sentry covers the backend only)
@@ -505,6 +507,8 @@ List of Troubleshooting when the program runs
 - User-facing room and conversation deletion
 - "User is typing" indicator
 - Rate limiting on the `receiveMessage` subscription
+- Closing open GraphQL subscriptions on a ban or forced logout
+- Session eviction that works with more than one instance (calls routed through the adapter)
 - Error tracking for frontend and admin
 
 
@@ -608,7 +612,7 @@ Behavioral abuse detection that escalates automatically and is reversible by an 
   - **3 strikes → warning** — a System-account message is posted into the room (rendered as a centered notice).
   - **5 strikes → temporary mute** — 10 min, Redis-backed; the user stays connected but cannot send.
   - **7 strikes → timed ban** — 7 days; a repeat ban (a second `USER_BANNED`) becomes **permanent**.
-- **Enforcement** — a banned user is rejected at `jwt.strategy` (HTTP/GraphQL), at `handleConnection` (socket), and at token refresh, so a still-valid session cannot bypass the ban. A mute only blocks sending.
+- **Enforcement** — a banned user is rejected at `jwt.strategy` (HTTP/GraphQL), at `handleConnection` (socket), and at token refresh, so a still-valid token cannot open a new connection, make a request, or refresh. A GraphQL subscription opened before the ban is not closed, though, and keeps receiving new messages after the ban (confirmed in a local run on 2026-10-26; the permission check runs only when the subscription starts). A mute only blocks sending.
 - **Recovery & audit** — `POST /user/:id/unban` (admin) clears ban/mute/strikes and invalidates the auth cache. Every action writes an audit entry (`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`).
 - **Storage** — `user_entity.status` (`active` | `banned`) and `bannedUntil` back persistent bans; strikes and mutes are Redis-only (`moderation:*` keys, all with TTL). Run the `AddModerationColumns` migration before starting.
 

@@ -116,9 +116,9 @@
 | 기능 | 사용자 동작 | 관련 API·코드 | 주목할 점 |
 |---|---|---|---|
 | 메시지 송수신 | 메시지를 보내면 상대 화면에 새로고침 없이 도착함 | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림. Redis Pub/Sub은 at-most-once이고, 발행은 resolver가 커밋 전에 함 |
-| 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나임 |
+| 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나임(인스턴스 하나일 때만 확인함, [한계](#향후-확장-계획) 참고) |
 | AI 채팅 | AI 계정과 대화하고 방마다 성격을 고름 | `setAiPersonality` mutation, `AiService.handleReply()` | 방별 Redis 락(`ai:lock:{roomId}`, TTL 30초), `maxOutputTokens` 300, 대화 이력 10개 |
-| 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL·소켓·토큰 갱신에서 모두 거부됨. 모든 조치가 감사 로그에 남음 |
+| 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨. 이미 열린 GraphQL 구독은 밴 이후에도 새 메시지를 받음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음 |
 | 관리자 패널 | 유저·방을 관리하고 감사 로그를 CSV로 내려받음 | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | 별도 앱이고 query·mutation만 사용함(실시간 클라이언트 없음) |
 
 
@@ -348,7 +348,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **검증 결과**:
   - 코드로 확인한 것: 위 구조, `chat.gateway.ts`의 어댑터 연결, `redis.service.spec.ts`와 `chat.service.spec.ts` 단위 테스트
   - 설계상 기대(미검증): 어댑터가 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에만 전달됨
-  - 실측: 인스턴스 둘 이상으로 실행하거나 부하를 측정한 적이 없음(미측정). 성능이 좋아졌다는 수치는 없음
+  - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행): 같은 계정이 다른 인스턴스에서 두 번째로 접속하면 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회하기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않음. 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
   - 저장된 값 확인(로컬 단독 컨테이너, 비밀번호 없음): `docker exec -it redis-chat redis-cli`로 접속해 `KEYS user:*`, `HGETALL user:<유저 ID>`, `TTL user:<유저 ID>`를 실행함. docker compose의 Redis는 `requirepass`가 켜져 있어 비밀번호가 필요함(compose 헬스체크와 같은 방식의 `redis-cli -a "$REDIS_PASSWORD"`를 쓰며, 이 명령은 이번에 실행해 보지 않음)
 
 
@@ -492,7 +492,9 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - 방 생성·조회 로직이 정확히 두 명을 전제로 해서 그룹 채팅은 지원하지 않음([ROADMAP.ko.md](ROADMAP.ko.md))
 - `GEMINI_API_KEY`가 필수 환경 변수라 키 없이는 부팅되지 않음
 - 호스팅이 중단된 상태라 배포 환경에서의 동작은 확인하지 않음
-- 다중 인스턴스 실행과 부하는 측정하지 않음
+- 다중 인스턴스에서는 이전 세션 종료(`forceLogout`)와 밴에 따른 소켓 끊기가 같은 프로세스의 소켓에만 적용됨(인스턴스 2개로 직접 확인함). 저장소 구성은 인스턴스 하나라 지금은 영향이 없음
+- 밴 이후에도 이미 열린 GraphQL 구독은 새 메시지를 계속 받음(단일 인스턴스에서도 직접 확인함)
+- 다중 인스턴스 부하는 측정하지 않음
 - 최초 superadmin은 DB에 직접 INSERT해야 함
 - `admin-e2e` job은 아직 blocking이 아니고 Windows `test` job은 실패해도 통과 처리됨([deploy.yml](.github/workflows/deploy.yml))
 - frontend와 admin에는 에러 트래킹이 없음(backend만 Sentry 적용)
@@ -503,6 +505,8 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - 사용자 측 방·대화 삭제
 - 입력 중 표시
 - `receiveMessage` 구독의 속도 제한
+- 밴·강제 로그아웃 시 열린 GraphQL 구독 종료
+- 다중 인스턴스에서도 동작하는 세션 종료(어댑터를 거치는 호출로 변경)
 - frontend·admin 에러 트래킹
 
 
@@ -605,7 +609,7 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
   - **3 스트라이크 → 경고** — 방에 System 계정 메시지가 게시됨(가운데 정렬된 알림으로 렌더링)
   - **5 스트라이크 → 임시 뮤트** — 10분, Redis 기반; 연결은 유지되지만 전송 불가
   - **7 스트라이크 → 기간제 밴** — 7일; 재범(두 번째 `USER_BANNED`)은 **영구** 밴이 됨
-- **집행** — 밴된 사용자는 `jwt.strategy`(HTTP/GraphQL), `handleConnection`(소켓), 토큰 갱신 시점에서 모두 거부되어, 여전히 유효한 세션이라도 밴을 우회할 수 없음. 뮤트는 전송만 차단함.
+- **집행** — 밴된 사용자는 `jwt.strategy`(HTTP/GraphQL), `handleConnection`(소켓), 토큰 갱신 시점에서 거부되어, 여전히 유효한 토큰으로는 새 연결·요청·갱신을 할 수 없음. 다만 밴 이전에 열어 둔 GraphQL 구독은 닫히지 않아 밴 이후에도 새 메시지를 계속 받음(2026-10-26 로컬 실행으로 확인함. 구독의 권한 확인이 구독 시작 시점에만 일어남). 뮤트는 전송만 차단함.
 - **복구 및 감사** — `POST /user/:id/unban`(admin)이 밴/뮤트/스트라이크를 해제하고 auth 캐시를 무효화함. 모든 액션은 감사 로그 항목(`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`)을 남김.
 - **저장소** — `user_entity.status`(`active` | `banned`)와 `bannedUntil`이 영구 밴을 뒷받침하고, 스트라이크와 뮤트는 Redis 전용(`moderation:*` 키, 전부 TTL 있음)임. 시작 전 `AddModerationColumns` 마이그레이션을 실행하세요.
 

@@ -255,9 +255,9 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 `sendMessage`의 가드 체인(위)은 쓰기 쪽만 막고, 모든 구독자는 구독 시점에 인증과 룸 멤버십을
 각자 독립적으로 다시 증명함. 다만 구독 이후 토큰이 폐기되거나 방에서 나가도 스트림 도중에는
 재확인되지 않음(체크는 `receiveMessage` 호출 시점에 한 번만 실행되고, 전달되는 메시지마다
-실행되지 않음).
+실행되지 않음). 밴도 같은 틈에 해당함: 밴 이전에 열린 구독은 밴 이후에도 새 메시지를 계속 전달함(2026-10-26 로컬 실행으로 확인함). 밴 시 구독을 닫는 처리는 구현되어 있지 않음.
 
-**세션 충돌 시 축출 순서는 의도적임**: `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 현재 세션으로 먼저 기록한 *다음에* 이전 세션을 축출함(`kickPreviousSession()`, `chat.service.ts:55-60`). 먼저 기록하는 이유는, 축출당하는 소켓 자신의 `disconnect` 핸들러가 새 세션의 온라인 상태를 도로 오프라인으로 덮어쓰는 경합을 피하기 위해서임. [ADR 0014](ADR/0014-single-active-session.md) 참고.
+**세션 충돌 시 축출 순서는 의도적임**: `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`가 새 소켓을 현재 세션으로 먼저 기록한 *다음에* 이전 세션을 축출함(`kickPreviousSession()`, `chat.service.ts:55-60`). 먼저 기록하는 이유는, 축출당하는 소켓 자신의 `disconnect` 핸들러가 새 세션의 온라인 상태를 도로 오프라인으로 덮어쓰는 경합을 피하기 위해서임. [ADR 0014](ADR/0014-single-active-session.md) 참고. **단일 인스턴스 한정:** `kickPreviousSession()`과 `disconnectSocket()`은 `this.server.sockets.sockets`에서 소켓을 찾는데, 이 맵에는 현재 프로세스의 소켓만 있어서 백엔드 인스턴스가 둘이면 다른 인스턴스에 연결된 소켓에는 축출이 닿지 않음(2026-10-26 로컬 실행으로 확인함). 저장소의 배포 설정은 인스턴스 하나를 전제함.
 
 `ModerationGuard`(`moderation.guard.ts`) 자체는 밴/뮤트 상태만 확인하도록 의도적으로 얇게
 설계되어 있음(SRP). 스트라이크 누적과 실제 제재 side effect는 모두 `ModerationService`에

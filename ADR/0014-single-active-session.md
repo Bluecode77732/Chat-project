@@ -31,7 +31,7 @@ to offline (`chat.service.ts:41-46`, inline comment).
 
 ## Consequences
 
-- At most one live socket per user at any time — any new per-user real-time registration (not just
+- At most one live socket per user at any time on a single backend instance — any new per-user real-time registration (not just
   this existing Socket.IO path) must check for and evict a prior registration the same way, rather than
   assuming one connection per user is guaranteed elsewhere.
 - The superseded session's frontend receives an explicit `forceLogout` event rather than silently
@@ -40,3 +40,4 @@ to offline (`chat.service.ts:41-46`, inline comment).
 - Never suggest reordering `registerClient` to kick the previous session before recording the new
   one — that reopens the specific race the current order was written to avoid (see the inline comment
   at `chat.service.ts:41-46`).
+- **Known limitation (confirmed 2026-10-26):** with two backend instances the guarantee does not hold. `kickPreviousSession()` finds the previous socket through `this.server.sockets.sockets`, which lists only the current process's sockets, so a socket on the other instance is neither sent `forceLogout` nor disconnected. The repository deploys one instance, so this is latent; fixing it means routing the eviction through the Socket.IO adapter (`server.in(socketId)`), which has not been tried here.
