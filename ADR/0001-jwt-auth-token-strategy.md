@@ -21,6 +21,11 @@ subscriptions) and a Socket.IO connection, without forcing a session store looku
   (Bearer token in the Socket.IO handshake header) — there is no separate WS-specific auth mechanism.
 - Sign-out (`POST /auth/signOut`) has the backend call `res.clearCookie('refreshToken')` server-side;
   the frontend clears its Zustand store and redirects.
+- A new sign-in supersedes the previous refresh token: `AuthService.issueToken()` stores the refresh
+  token's `jti` in Redis as `auth:session:{userId}` (TTL = refresh token lifetime), and
+  `parseBearerToken()` rejects a refresh token whose `jti` no longer matches with "Session Superseded".
+  Each refresh therefore costs one Redis lookup, and a sign-in in another browser ends the earlier
+  refresh session.
 - All silent refreshes go through one function, `refreshAccessTokenSafely()`
   (`frontend/src/auth/session-guard.ts`) — concurrent callers share one in-flight request, closing a
   race where a second caller could adopt a conflicting account mid-redirect.

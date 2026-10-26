@@ -47,6 +47,39 @@ cd frontend && pnpm dev        # Vite 개발 서버, :5173
 cd admin && pnpm dev           # Vite 개발 서버, :5174
 ```
 
+### GraphQL API 직접 호출
+
+백엔드를 실행하고 가입한 계정이 있는 상태에서, 구독은 Altair로, 뮤테이션은 Postman(또는 HTTP
+GraphQL 클라이언트)으로 테스트함. Altair로는 뮤테이션을, Postman으로는 구독을 테스트할 수 없음.
+전체 스키마는 `backend/src/schema.gql`임. 채팅 메시지는 GraphQL로만 오가고, Socket.IO는 연결
+인증과 `CreateRoom` 알림만 처리함.
+
+- Altair (구독): URL `http://localhost:3000/graphql`, Subscription type은 WebSocket(graphql-ws),
+  Connection Parameters는 `{ "authorization": "Bearer <token>" }`
+  ```graphql
+  subscription {
+    receiveMessage(roomId: "19") {
+      id
+      message
+      participant { id }
+    }
+  }
+  ```
+- Postman 등 (뮤테이션): 헤더 `authorization: Bearer <token>`
+  ```graphql
+  mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+    sendMessage(input: $input, recipientId: $recipientId) {
+      id
+      message
+      roomId
+      createdAt
+    }
+  }
+  ```
+  변수: `{ "input": { "message": "Sent from Postman" }, "recipientId": 2 }`
+- Socket.IO: `ws://localhost:3000`에 `authorization: Bearer <token>` 헤더로 연결하면 새 방이 생길 때
+  `CreateRoom` 이벤트를 받음
+
 ## 브랜치 모델
 
 - `main` — 배포 브랜치임. `.github/workflows/deploy.yml`의 `deploy` job은 `main` push에서만
@@ -137,7 +170,7 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   [CLAUDE.md의 Testing 절](CLAUDE.md#testing)에 있음.
 - `frontend/e2e/`와 `admin/e2e/`는 각자의 Playwright 스위트를 가지며 CI에서 독립적으로
   실행됨.
-- `admin/`(vitest, 14개)과 `frontend/`(vitest, 21개) 둘 다 이제 유닛테스트를 갖추고 있으며,
+- `admin/`(vitest)과 `frontend/`(vitest) 둘 다 이제 유닛테스트를 갖추고 있으며,
   동일한 설정(`src/test/setup.ts`, 동일 버전의 devDependency)을 씀. `frontend/` 스위트는
   admin의 기존 3개 파일(axios/protected-route/auth.store — frontend의 더 단순한, role 없는
   인증 모델에 맞게 조정)을 포팅하고, `session-guard.ts`용 테스트를 새로 추가함.

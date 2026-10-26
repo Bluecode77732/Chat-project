@@ -24,6 +24,13 @@ can't provide (see [0003](0003-database-transaction-strategy.md)).
   (`chat.resolver.ts:289-292` vs `:210`) — one delivery path, no sender-type branching in clients.
 - Redis Pub/Sub (`graphql-redis-subscriptions`) provides at-most-once delivery for `receiveMessage` — a
   subscriber not connected at publish time misses the message permanently, with no replay.
+- `sendMessage` publishes to `receiveMessage :${roomId}` inside the resolver (`chat.resolver.ts:210`),
+  before `GqlTransactionInterceptor` commits, because the interceptor commits only after the resolver
+  returns ([0003](0003-database-transaction-strategy.md)). If the commit then fails, a subscriber may
+  already have received a message that was never saved (possible from the code structure, not
+  reproduced). Work that must follow a durable write — the room notice, moderation evaluation, and AI
+  reply — awaits `ctx.req.transactionCommitted`, which resolves only after a successful commit. Accepted
+  for live chat on the same grounds as the at-most-once limit above.
 - Alternatives considered and rejected:
   - **Staying on raw Socket.IO for messages** (the pre-migration state): rejected — a bare socket handler
     has no way to get the ACID guarantees `GqlTransactionInterceptor` provides around the

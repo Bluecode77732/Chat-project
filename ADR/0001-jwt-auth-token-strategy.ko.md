@@ -22,6 +22,10 @@ Accepted
   핸드셰이크 헤더의 Bearer 토큰)을 검증함. WS 전용 인증 메커니즘을 따로 두지 않음.
 - 로그아웃(`POST /auth/signOut`) 시 백엔드가 서버 측에서 `res.clearCookie('refreshToken')`을
   호출하고, 프론트엔드는 Zustand 스토어를 비운 뒤 리다이렉트함.
+- 새 로그인은 이전 리프레시 토큰을 대체함. `AuthService.issueToken()`이 리프레시 토큰의 `jti`를
+  Redis에 `auth:session:{userId}`로 저장하고(TTL은 리프레시 토큰 수명), `parseBearerToken()`은
+  `jti`가 더 이상 일치하지 않는 리프레시 토큰을 "Session Superseded"로 거부함. 그래서 갱신
+  요청마다 Redis 조회가 한 번 들고, 다른 브라우저에서 로그인하면 이전 리프레시 세션이 끝남.
 - 조용한 토큰 갱신은 전부 `refreshAccessTokenSafely()`
   (`frontend/src/auth/session-guard.ts`) 한 함수를 거침. 동시에 여러 곳에서 갱신을 요청해도
   진행 중인 요청 하나를 공유함. 그 덕분에 두 번째 호출자가 리다이렉트 도중 충돌하는 계정을

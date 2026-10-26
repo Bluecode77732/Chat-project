@@ -26,16 +26,16 @@
 - 모더레이션: 중복·도배·속도 위반 스트라이크가 경고 → 뮤트 → 기간제 밴 → 영구 밴으로 에스컬레이션되고, admin이 되돌릴 수 있음
 - AI 채팅: Google Gemini 2.5 Flash, 선택 가능한 성격 4종. 출력 토큰 상한, 대화 이력 절단, 재시도 상한, 방별 Redis 락을 둠. AI의 이름 `Chattey`는 시스템 프롬프트(`backend/src/ai/constants/system-prompts.ts`)에서 지정한 별칭이고 서비스명 Chatterley와 다름
 - Admin 패널: 유저·방 관리, 모더레이션 액션, 감사 로그 CSV export를 위한 별도 React 앱
-- 테스트: backend Jest 14 suites / 258 tests(2026-10-26 로컬 실행), frontend Vitest 21 tests와 admin Vitest 14 tests(2026-10-22 로컬 실행, 커밋 `d684b19`)가 통과함. Playwright e2e(frontend, admin)는 CI에서 실행됨([테스트 커버리지](#테스트-커버리지))
-- 이력: 2026-01부터 730개 커밋(`d684b19` 기준)에 걸쳐 혼자 반복 개발함. 전체 이력은 [CHANGELOG.md](CHANGELOG.md) 참고
-- 문서: [ARCHITECTURE.md](ARCHITECTURE.md) · [ADR/](ADR/) · [ROADMAP.ko.md](ROADMAP.ko.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
+- 테스트: backend Jest, frontend Vitest, admin Vitest 단위 테스트와 CI의 Playwright e2e(frontend, admin)를 둠. 개수와 실행 일자는 [검증 상태](#검증-상태) 참고
+- 이력: 2026-01부터 730개 커밋(`d684b19` 기준)에 걸쳐 혼자 반복 개발함. 전체 이력은 [CHANGELOG.ko.md](CHANGELOG.ko.md) 참고
+- 문서: [ARCHITECTURE.ko.md](ARCHITECTURE.ko.md) · [ADR/](ADR/) · [ROADMAP.ko.md](ROADMAP.ko.md) · [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md)
 
 개발 중 실제로 겪은 사고와 버그, 설계 결정은 [기술적 의사결정과 트러블슈팅](#기술적-의사결정과-트러블슈팅)에 문제 → 원인 → 해결 → 검증 결과로 정리함.
 
 
 ## 스크린샷
 로컬 스택(backend, Postgres, Redis, Vite 개발 서버)에서 라이트 테마, 가로 1440px로 촬영함.
-현재 호스팅은 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
+현재 백엔드는 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
 계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. 앱에 언어 전환 기능이 없어 영/한 README가 같은 이미지를 씀. UI는 전체가 한국어임. 시각이 보이는 캡처는 브라우저 시간대를 UTC로 고정해 찍어 메시지·로그 시각이 UTC 기준으로 표시됨. 이미지를 누르면 원본이 열림.
 
 [![두 브라우저 창을 나란히 놓고 한쪽에서 보낸 메시지가 새로고침 없이 다른 쪽에 도착하는 모습](docs/images/demo-realtime-chat.gif)](docs/images/demo-realtime-chat.gif)<br>**실시간 전달** — 데모 계정 두 개를 나란히 띄워, 메시지가 새로고침 없이 `receiveMessage` GraphQL 구독으로 도착하는 모습. 메시지 시각은 UTC 기준임(촬영 시 브라우저 시간대를 고정함).
@@ -56,20 +56,24 @@
 
 
 ## 호스팅 상태
-호스팅은 비용 문제로 중단한 상태임. 마지막 자동 배포 성공은 2026-05-27이고 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서 확인할 수 있음. `deploy` job은 수동 실행 전용(`workflow_dispatch`)임. 앱은 [빠른 시작](#빠른-시작)으로 로컬에서 실행할 것.
+백엔드(Railway)는 비용 문제로 중단한 상태임. 마지막 자동 배포 성공은 2026-05-27이고 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서 확인할 수 있음. `deploy` job은 수동 실행 전용(`workflow_dispatch`)임.
+
+프론트엔드는 Vercel 프로젝트로 구성되어 있고(`frontend/vercel.json`) GitHub Actions와 별개로 Vercel이 빌드함. `main`의 마지막 확인 결과는 2026-10-19의 `success`이며 이후 푸시는 확인하지 않음. 백엔드가 없어 로그인과 채팅이 되지 않으므로 라이브 URL은 싣지 않음. admin 패널도 별도 Vercel 프로젝트로 구성되어 있으나 배포 상태는 확인하지 못함.
+
+앱은 [빠른 시작](#빠른-시작)으로 로컬에서 실행할 것.
 
 
 ## 내 역할과 AI 활용 범위
 - **개발 형태**: 1인 개발임.
 - **설계 결정 방식**: 처음에는 Socket.IO만으로 구현함. GraphQL로도 양방향 통신이 가능하다는 정보를 접하고 새 기술을 도입해 보고 싶어서, AI에게 구조 설명을 듣고 필요한 구현 요소를 검토한 뒤 직접 판단해 메시지 경로를 GraphQL로 옮김([사례 1](#기술적-의사결정과-트러블슈팅)). 나머지 설계 결정은 아래와 같이 진행함.
   - **트랜잭션 인터셉터**: `QueryRunner`에서 커밋이 끝난 뒤에 DB에 반영되게 하고, 반복되는 로직을 인터셉터로 분리하며, `QueryRunner`의 원자성으로 안전한 트랜잭션을 만들기 위해 도입함. 자료를 직접 찾아보며 구현했고 부족한 부분은 AI의 보충을 받음
-  - **Redis 사용 방식**: 요청이 DB까지 가지 않게 하는 캐시로, 그리고 대규모 사용자를 받는 서버의 부담을 덜 수 있는 예비 DB 같은 서버로 쓰려고 구현함. 트랜잭션 인터셉터와 마찬가지로 자료를 직접 찾아보며 구현했고 부족한 부분은 AI의 보충을 받음
+  - **Redis 사용 방식**: DB를 대체하지 않는 캐시·휘발성 상태 저장소로 씀(영속 저장소는 PostgreSQL뿐). 최근 메시지 캐시로 DB 조회를 줄이고, 세션·온라인 상태, 속도 제한, 락, Pub/Sub를 맡김. 트랜잭션 인터셉터와 마찬가지로 자료를 직접 찾아보며 구현했고 부족한 부분은 AI의 보충을 받음
   - **모더레이션 단계**: 모듈 하나를 끝낼 때마다 중간 점검 기간을 두는데, 그때 다음에 구현할 요소를 AI와 논의하다가 알게 됨. 필수 기능인지, 앱과의 적절성·타당성·실무성 등을 조사한 뒤 구현 방안을 검토하고, 다른 파일에 미치는 범위를 최대한 줄이는 방안으로 수정함
 - **AI(Claude Code)에게 맡긴 작업**: 코드 작성·수정, 코드 리뷰·원인 분석, 테스트 작성, 문서 작성
 - **검증 방식**: AI가 작성한 코드를 직접 읽고 수정함. 로컬과 브라우저에서 직접 실행해 확인함. 테스트와 CI로 확인함. 구현과 다른 AI 세션에서 리뷰를 받음
 - **AI 작업 규칙**: 저장소 루트의 [CLAUDE.md](CLAUDE.md)에 AI가 따르는 규칙(금지 패턴, 변경 범위, 구현 전 확인 절차)을 정리해 둠
 - **AI 제안을 거절하거나 수정한 사례**: [CLAUDE.md](CLAUDE.md)를 두기 전에는 AI가 불필요한 엔티티에 데코레이터를 붙이거나 `any`, `null`, `!` 같은 타입을 무분별하게 쓰는 경우가 있어, 코드를 직접 보고 고침. 이 패턴들은 이후 CLAUDE.md의 금지 패턴에 들어 있음
-- **코드 없이 설명할 수 있는 부분**: `sendMessage` 흐름, 트랜잭션 커밋 타이밍, 가드 체인([흐름](#흐름), [ARCHITECTURE.md](ARCHITECTURE.md) 참고)
+- **코드 없이 설명할 수 있는 부분**: `sendMessage` 흐름, 트랜잭션 커밋 타이밍, 가드 체인([흐름](#흐름), [ARCHITECTURE.md](ARCHITECTURE.ko.md) 참고)
 
 
 ## 프로젝트 동기
@@ -89,7 +93,7 @@
 | API | GraphQL(Apollo), graphql-ws | 메시지 전송 mutation과 방별 수신 subscription. 처음에는 Socket.IO로 직접 보내다가 메시지 저장에 트랜잭션 보장을 주려고 프로젝트 중반에 옮김([사례 1](#기술적-의사결정과-트러블슈팅)) | `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/` |
 | 실시간 | Socket.IO, `@socket.io/redis-adapter` | 연결 시 JWT 인증, 방 생성 알림, 중복 로그인 시 `forceLogout`. 어댑터가 없으면 방 브로드캐스트가 서버 인스턴스 간에 전달되지 않음 | `backend/src/chat/chat.gateway.ts` |
 | DB | PostgreSQL, TypeORM | 유저·방·메시지·감사 로그가 서로 얽힌 관계형 데이터. 스키마는 마이그레이션으로만 바꿔 변경을 리뷰할 수 있게 함(`synchronize: false`) | `backend/src/migrations/`, `backend/src/data-source.ts` |
-| 캐시·Pub/Sub | Redis(ioredis) | 세션·온라인 상태, 방별 최근 메시지 캐시, 속도 제한, 모더레이션 상태, AI 락, GraphQL Pub/Sub | `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts` |
+| 캐시·Pub/Sub | Redis(ioredis) | 세션·온라인 상태, 방별 최근 메시지 캐시, 속도 제한, 모더레이션 상태, AI 락, GraphQL Pub/Sub, 액세스 토큰 블랙리스트, 인증용 역할 캐시(`user_cache`), 리프레시 세션 ID(`auth:session`) | `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts` |
 | 인증 | Passport JWT, bcrypt | 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키. 역할 가드는 REST와 GraphQL 모두에서 상속이 아니라 조합으로 구성함 | `backend/src/auth/` |
 | AI | Gemini(`@google/genai`) | 방별 성격에 따른 답장. 출력 토큰, 대화 이력, 재시도 상한을 설계 단계에서 둠 | `backend/src/ai/` |
 | 프론트엔드·관리자 | React, Vite, Zustand, Apollo Client | 채팅 UI, 인메모리 토큰, 자동 토큰 갱신. 관리자는 별도 앱 | `frontend/src/`, `admin/src/` |
@@ -102,7 +106,7 @@
 - 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음
 - 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리
 - 보안: DOMPurify를 통한 XSS 방지, CORS 설정에 맞춘 요청, 보호된 페이지를 위한 Route Guard
-- 배포: Vercel 프로젝트로 배포하도록 구성함(`frontend/vercel.json`). 현재 호스팅은 중단한 상태임([호스팅 상태](#호스팅-상태))
+- 배포: Vercel 프로젝트로 구성함(`frontend/vercel.json`). 현재 백엔드는 중단한 상태라 배포된 프론트엔드에서는 로그인과 채팅이 되지 않음([호스팅 상태](#호스팅-상태))
 
 
 ## 기능
@@ -115,9 +119,9 @@
 ### 핵심 기능별 동작과 구현 위치
 | 기능 | 사용자 동작 | 관련 API·코드 | 주목할 점 |
 |---|---|---|---|
-| 메시지 송수신 | 메시지를 보내면 상대 화면에 새로고침 없이 도착함 | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림. Redis Pub/Sub은 at-most-once이고, 발행은 resolver가 커밋 전에 함 |
+| 메시지 송수신 | 메시지를 보내면 상대 화면에 새로고침 없이 도착함 | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림. Redis Pub/Sub은 at-most-once이고 발행은 커밋 전에 일어남([사례 1](#기술적-의사결정과-트러블슈팅)) |
 | 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나이며, 다른 인스턴스에 연결된 이전 소켓도 어댑터를 거쳐 종료함(인스턴스 2개로 확인함, [한계](#향후-확장-계획) 참고) |
-| AI 채팅 | AI 계정과 대화하고 방마다 성격을 고름 | `setAiPersonality` mutation, `AiService.handleReply()` | 방별 Redis 락(`ai:lock:{roomId}`, TTL 30초), `maxOutputTokens` 300, 대화 이력 10개 |
+| AI 채팅 | AI 계정과 대화하고 방마다 성격을 고름 | `setAiPersonality` mutation, `AiService.handleReply()` | 방별 Redis 락, 출력 토큰·대화 이력·재시도 상한(상세는 [AI](#ai)) |
 | 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨. 이미 열린 GraphQL 구독은 밴 이후 그 구독자에게 다음 메시지가 전달될 때 종료되며 그 메시지는 전달되지 않음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음 |
 | 관리자 패널 | 유저·방을 관리하고 감사 로그를 CSV로 내려받음 | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | 별도 앱이고 query·mutation만 사용함(실시간 클라이언트 없음) |
 
@@ -136,7 +140,7 @@ flowchart LR
 ```
 admin은 실시간 클라이언트(`graphql-ws`, `socket.io-client`)가 없어 채팅에는 참여하지 않음. SMTP와 Sentry는 환경 변수가 비어 있으면 동작하지 않는 선택 연동임([backend/.env.example](backend/.env.example)).
 ### 프로젝트 구조
-pnpm 모노레포이며 `backend/`, `frontend/`, `admin/` 세 패키지로 이루어짐. 핵심 코드를 찾기 위한 경로만 적음. 전체 디렉터리 트리는 [ARCHITECTURE.md](ARCHITECTURE.md#모노레포-구조) 참고.
+pnpm 모노레포이며 `backend/`, `frontend/`, `admin/` 세 패키지로 이루어짐. 핵심 코드를 찾기 위한 경로만 적음. 전체 디렉터리 트리는 [ARCHITECTURE.md](ARCHITECTURE.ko.md#모노레포-구조) 참고.
 
 | 경로 | 역할 | 먼저 볼 파일 |
 |---|---|---|
@@ -153,13 +157,9 @@ pnpm 모노레포이며 `backend/`, `frontend/`, `admin/` 세 패키지로 이�
 | `frontend/e2e/`, `admin/e2e/` | Playwright e2e | |
 | `ADR/`, `scripts/` | 설계 결정 기록, 문서 정합성 검사 스크립트 | |
 
-### 세션 저장소 (Redis)
-- Redis: `user:{id}` 해시(`socketId`, `status`)와 `online_users` 집합에 세션·온라인 상태를 저장함. TTL은 `SESSION_TTL_SEC`(기본 86400초)이며 여러 서버 인스턴스가 같은 값을 봄
-- Socket 객체는 직렬화할 수 없어 Redis에 넣지 않음. 연결된 소켓은 각 프로세스의 Socket.IO 서버가 가지고 있음
-- 이전에는 `userId → Socket` 인메모리 Map(`clientConnection`)을 썼고, Redis 세션 캐시로 대체함(`backend/src/redis/redis.service.ts`). 이유와 구조는 [기술적 의사결정과 트러블슈팅](#기술적-의사결정과-트러블슈팅)의 사례 5 참고
-
-### Redis Pub/Sub
-- `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. 커밋 후 리졸버가 `receiveMessage :${roomId}` 채널에 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신함.
+### Redis
+- 세션·온라인 상태는 `user:{id}` 해시와 `online_users` 집합에 TTL(`SESSION_TTL_SEC`)과 함께 저장되어 모든 서버 인스턴스가 같은 값을 봄. Socket 객체는 직렬화할 수 없어 Redis에 넣지 않고, 연결된 소켓은 각 프로세스의 Socket.IO 서버가 가지고 있음. 이유와 대체한 인메모리 Map은 [기술적 의사결정과 트러블슈팅](#기술적-의사결정과-트러블슈팅)의 사례 5 참고
+- `RedisPubSub` 싱글톤 (`pubsub.service.ts`): GraphQL 뮤테이션과 활성 구독 간의 브리지 역할. `receiveMessage :${roomId}` 채널로 발행하면, 연결된 모든 `receiveMessage` 구독자가 실시간으로 메시지를 수신함.
 - `PubSubService.publish()`는 발행 시점에 부수효과로 `SessionCacheService.cacheMessage()`를 호출해 메시지를 캐싱함. 사람 메시지와 AI 메시지 모두 이 지점에서만 캐싱되며, 리졸버나 `AiService`가 직접 `cacheMessage()`를 호출하지 않음.
 
 ### 엔티티 (TypeORM)
@@ -262,6 +262,9 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
   1.1. 백엔드가 응답 body로 `accessToken`을 반환하고, `refreshToken`은 httpOnly 쿠키로 설정
        (`secure`, `sameSite: 'none'` — 프론트엔드와 백엔드가 서로 다른 출처이기 때문)
   1.2. 프론트엔드는 `setTokens(accessToken, userId)` 호출; 토큰은 `localStorage`에 기록되지 않음
+  1.3. 리프레시 토큰은 `jti`를 가지며, 백엔드가 이를 Redis에 `auth:session:{userId}`로 저장함
+       (TTL은 리프레시 토큰 수명). 이후 로그인이 이 값을 교체하고, 이전 리프레시 토큰은
+       "Session Superseded"로 거부됨
 
 2. 인증된 요청
   2.1. `authLink`가 요청 시점에 `useAuthStore.getState().accessToken`을 읽어
@@ -312,15 +315,15 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **검증 결과**:
   - `redis.service.spec.ts`에 `created`가 없는 캐시 항목이 Invalid Date가 되는 동작을 고정하는 케이스가 있음. `pubsub.service.spec.ts`는 발행 시 캐시 동작을 검증함
   - 현재 `backend/src/ai/`에는 `cacheMessage` 호출이 없음(검색으로 확인함)
-  - `pnpm test` 14 suites 258 tests 통과
+  - `pnpm test` 통과(개수는 [검증 상태](#검증-상태) 참고)
   - 한계: 수정 뒤 같은 브라우저 시나리오(백엔드 재시작 후 새로고침)를 따로 재현해 확인하지는 않았고, 이후 앱을 사용하는 동안 동일한 오류가 나타나지 않았음.
 
 ### 사례 4: 마이그레이션 생성이 ON DELETE CASCADE를 되돌리는 문제
 - **문제**: `pnpm migration:generate`가 ManyToMany 조인 테이블 FK `FK_501a0aef55632e3cf2894bda97f`(`room_entity_participants_user_entity`)를 `ON DELETE NO ACTION`으로 다시 만들어, 유저 삭제 시 방 참여 기록 정리에 쓰는 `ON DELETE CASCADE`가 조용히 되돌아감. 되돌아가면 유저 삭제가 FK 위반으로 실패함([CLAUDE.md](CLAUDE.md)).
 - **원인**: 해당 ManyToMany 관계에 `onDelete`가 선언되어 있지 않아, TypeORM이 DB의 CASCADE를 선언과 다른 상태로 보고 되돌리는 변경을 생성함.
-- **해결**: 생성된 마이그레이션에서 해당 FK 줄을 지우는 절차를 정함. 사람이 놓치는 경우를 대비해 정적 가드 `migration-cascade-guard.spec.ts`를 추가함. 이 가드는 마이그레이션 `up()`의 소스를 텍스트로 스캔해 CASCADE가 유지되는지 확인하고, `pnpm test`에 포함되어 로컬과 CI에서 걸림. 프로덕션에서는 돌리지 않음(부팅 시점엔 이미 마이그레이션이 적용된 뒤라 늦음). 보호할 FK를 늘리려면 spec의 `GUARDED_FKS` 배열에 항목을 추가함.
+- **해결**: 생성된 마이그레이션에서 해당 FK 줄을 지우는 수동 리뷰 절차를 둠([CLAUDE.md](CLAUDE.md), [ADR 0003](ADR/0003-database-transaction-strategy.ko.md)). 사람이 놓칠 수 있어 정적 가드 `migration-cascade-guard.spec.ts`를 추가함. 이 가드는 마이그레이션 `up()`의 소스를 텍스트로 스캔해 CASCADE가 유지되는지 확인하고, `pnpm test`에 포함되어 로컬과 CI에서 걸림. 프로덕션에서는 돌리지 않음(부팅 시점엔 이미 마이그레이션이 적용된 뒤라 늦음). 보호할 FK를 늘리려면 spec의 `GUARDED_FKS` 배열에 항목을 추가함.
 - **검증 결과**:
-  - 해당 spec이 포함된 `pnpm test` 14 suites 258 tests 통과
+  - 해당 spec이 포함된 `pnpm test` 통과
   - 한계: 실행 중인 DB에서 FK의 삭제 동작(`confdeltype`)을 조회하는 확인은 이번에 하지 않음
 
 ### 사례 5: 메모리 소켓 맵에서 Redis 세션으로
@@ -349,7 +352,6 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
   - 코드로 확인한 것: 위 구조, `chat.gateway.ts`의 어댑터 연결, `redis.service.spec.ts`와 `chat.service.spec.ts` 단위 테스트
   - 설계상 기대(미검증): 어댑터가 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에만 전달됨
   - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행): 수정 전에는 같은 계정이 다른 인스턴스에서 두 번째로 접속해도 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않았음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회했기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않았음. 조회를 어댑터를 거치는 `server.in(socketId)`로 바꾼 뒤 같은 시나리오에서 첫 소켓이 `forceLogout`을 받고 끊기며, 밴도 다른 인스턴스의 소켓에 닿음. `forceLogout`이 끊김보다 먼저 도착하는지 20회 반복해 20회 모두 확인함(로컬 한 환경의 관찰이며 순서를 보장하는 것은 아님). 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
-  - 저장된 값 확인(로컬 단독 컨테이너, 비밀번호 없음): `docker exec -it redis-chat redis-cli`로 접속해 `KEYS user:*`, `HGETALL user:<유저 ID>`, `TTL user:<유저 ID>`를 실행함. docker compose의 Redis는 `requirepass`가 켜져 있어 비밀번호가 필요함(compose 헬스체크와 같은 방식의 `redis-cli -a "$REDIS_PASSWORD"`를 쓰며, 이 명령은 이번에 실행해 보지 않음)
 
 
 ## AI 보조 개발 사례
@@ -367,7 +369,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 
 ## 빠른 시작
 - 요구 사항
-  - Node.js 24.x(`.nvmrc`), pnpm >= 10(고정 버전은 [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites) 참고)
+  - Node.js 24.x(`.nvmrc`), pnpm >= 10(고정 버전은 [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md#사전-준비물) 참고)
   - Docker >= v28.xx — 아래 A 경로는 로컬에 PostgreSQL·Redis를 따로 설치하지 않아도 됨
   - `GEMINI_API_KEY`는 필수 환경 변수라 없으면 부팅이 실패함([`app.module.ts`](backend/src/app.module.ts)). AI 답장을 실제로 쓰려면 Gemini API 키가 필요함
 
@@ -449,7 +451,7 @@ PostgreSQL에 DB를 만드는 절차는 이 문서에서 다루지 않음. front
 | B 경로 | `build` 후 `migration:run`까지 확인함. `start:dev`와 빈 DB에서의 최초 마이그레이션은 확인하지 않음 |
 | Playwright e2e | 이번 로컬 실행에서는 실행하지 않음. CI의 2026-10-19 main push 실행([#39287345174](https://github.com/Bluecode77732/Chat-project/actions/runs/39287345174))에서는 `e2e`와 `admin-e2e` job이 모두 success였음. 다만 `ai-chat.spec.ts`는 Gemini 키가 없어도 폴백 메시지로 통과하므로 실제 Gemini 답장을 검증하지는 않음 |
 | AI 실제 답장, 모더레이션 동작 | 이번 실행에서는 확인하지 않음 |
-| 단위 테스트 | backend 14 suites 258 tests(2026-10-26), frontend 21 tests, admin 14 tests 통과 |
+| 단위 테스트 | backend 14 suites 258 tests, frontend 4 files 21 tests, admin 3 files 14 tests 통과(2026-10-27 `dev` `bd1213f`에서 재실행) |
 
 **테스트 실행**
 ```bash
@@ -462,7 +464,7 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 
 **Swagger UI** — 백엔드를 실행한 상태에서 http://localhost:3000/document
 
-**채팅 확인** — 송수신을 직접 해 보는 방법은 [API 문서](#api-문서)의 GraphQL 예제를 참고하세요.
+**채팅 확인** — Altair/Postman으로 직접 해 보는 절차는 [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md#graphql-api-직접-호출)를 참고하세요.
 
 ### 문제 해결
 실행 중 자주 만나는 문제와 해결책임.
@@ -473,11 +475,6 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
   
   - 해결책 
     - ✅ 터미널에서 `docker start redis-chat` 실행
-
-- DB에 메시지 저장 실패
-
-  - 해결책 
-    - ✅ 트랜잭션 요소(`commitTransaction()`, `rollbackTransaction()`, `release()`)는 `backend/src/chat/interceptor/gql-transaction.interceptor.ts`에서 확인하세요. 커밋은 리졸버가 반환한 이후에 실행되므로, 커밋 이후 로직은 `ctx.req.transactionCommitted`를 대기하는지 확인하세요.
 
 - `pnpm migration:run`에서 `Unable to open file ... dist/data-source.js`
   - 해결책
@@ -491,7 +488,7 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - `sendMessage`가 비멱등이라 타임아웃 뒤 클라이언트가 재시도하면 같은 메시지가 중복 저장될 수 있음
 - 방 생성·조회 로직이 정확히 두 명을 전제로 해서 그룹 채팅은 지원하지 않음([ROADMAP.ko.md](ROADMAP.ko.md))
 - `GEMINI_API_KEY`가 필수 환경 변수라 키 없이는 부팅되지 않음
-- 호스팅이 중단된 상태라 배포 환경에서의 동작은 확인하지 않음
+- 백엔드가 중단된 상태라 배포 환경에서의 동작은 확인하지 않음
 - 밴된 사용자의 `receiveMessage` 구독은 밴 즉시가 아니라 그 구독자에게 다음 메시지가 전달될 때 종료됨(그 메시지는 전달되지 않음). 메시지마다 `isUserBanned`로 DB를 조회하므로 구독자 수와 메시지 수에 비례한 조회 비용이 있고, 이 비용은 측정하지 않음
 - 관리자 강제 로그아웃(`UserService.forceLogout`)은 소켓만 끊고 열린 GraphQL 구독은 닫지 않으며, 이미 발급된 액세스 토큰도 폐기하지 않음
 - 다중 인스턴스 부하는 측정하지 않음
@@ -531,32 +528,9 @@ REST(`Auth`, `User`, `Audit Log`)의 엔드포인트별 파라미터와 응답 �
 | `GET /audit-log` | admin | `userId`는 actor 또는 target으로 매칭함 |
 | `GET /audit-log/export` | admin | 같은 필터 결과를 CSV로 내보내며 최대 10,000행임(권한 관련 데이터라 양이 적어 커서 스트리밍 대신 단순한 상한을 선택함) |
 
-**채팅 (GraphQL)** — 전체 스키마는 NestJS가 코드에서 생성하는 `backend/src/schema.gql`에 있음. Altair로는 Mutation을, Postman으로는 Subscription을 테스트할 수 없으므로 두 도구를 나눠 씀. 채팅 메시지는 GraphQL로만 오가고, Socket.IO는 연결 인증과 `CreateRoom` 알림만 처리함.
+**채팅 (GraphQL)** — 전체 스키마는 NestJS가 코드에서 생성하는 `backend/src/schema.gql`에 있음. 채팅 메시지는 GraphQL로만 오가고, Socket.IO는 연결 인증과 `CreateRoom` 알림만 처리함. Altair/Postman 사용 절차는 [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md#graphql-api-직접-호출)에 있음.
 
-- Altair (구독): URL `http://localhost:3000/graphql`, Subscription type은 WebSocket(graphql-ws), Connection Parameters는 `{ "authorization": "Bearer <token>" }`
-  ```graphql
-  subscription {
-    receiveMessage(roomId: "19") {
-      id
-      message
-      participant { id }
-    }
-  }
-  ```
-- Postman 등 (뮤테이션): 헤더 `authorization: Bearer <token>`
-  ```graphql
-  mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
-    sendMessage(input: $input, recipientId: $recipientId) {
-      id
-      message
-      roomId
-      createdAt
-    }
-  }
-  ```
-  변수: `{ "input": { "message": "Sent from Postman" }, "recipientId": 2 }`
 - `getMessages(roomId, cursor)`는 커서 이전 메시지를 최대 15개 반환함. `getAllRooms`, `deleteRoom`은 admin 전용임
-- Socket.IO: `ws://localhost:3000`에 `authorization: Bearer <token>` 헤더로 연결하면 새 방이 생길 때 `CreateRoom` 이벤트를 받음
 
 
 ## 상세 레퍼런스
@@ -612,7 +586,7 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
 - **복구 및 감사** — `POST /user/:id/unban`(admin)이 밴/뮤트/스트라이크를 해제하고 auth 캐시를 무효화함. 모든 액션은 감사 로그 항목(`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`)을 남김.
 - **저장소** — `user_entity.status`(`active` | `banned`)와 `bannedUntil`이 영구 밴을 뒷받침하고, 스트라이크와 뮤트는 Redis 전용(`moderation:*` 키, 전부 TTL 있음)임. 시작 전 `AddModerationColumns` 마이그레이션을 실행하세요.
 
-조정 가능한 환경 변수(선택, 적절한 기본값이 적용됨): `MODERATION_STRIKE_WINDOW_SEC`, `MODERATION_WARN_THRESHOLD`, `MODERATION_MUTE_THRESHOLD`, `MODERATION_MUTE_DURATION_SEC`, `MODERATION_BAN_THRESHOLD`, `MODERATION_BAN_DURATION_SEC`, `MODERATION_DUP_WINDOW_SEC`, `MODERATION_DUP_THRESHOLD`.
+여덟 가지 임계값은 모두 기본값이 있는 선택 `MODERATION_*` 환경 변수임(이름은 [backend/.env.example](backend/.env.example) 참고).
 
 > 이 절에 인용된 기본값은 네 곳(여기, CLAUDE.md, `backend/.env.example`, 코드)에 중복되어 있음. `backend/src/moderation/constants/moderation.constants.ts`의 `MODERATION_DEFAULTS`가 단일 진실 공급원이므로, 값을 바꿀 때는 그곳을 먼저 수정한 뒤 나머지 세 곳을 다시 동기화하세요.
 
@@ -649,13 +623,9 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 
 역할 숫자: `user = 0`, `admin = 1`, `superadmin = 2`
 
-**Railway 사용 시**
-1. Railway Dashboard → PostgreSQL 서비스 → **Query** 탭 열기
-2. 위의 INSERT 구문 실행
-
 
 ### Admin 패널
-admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 배포됨([ARCHITECTURE.md의 배포 토폴로지](ARCHITECTURE.ko.md#배포-토폴로지) 참고).
+admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 구성됨([ARCHITECTURE.md의 배포 토폴로지](ARCHITECTURE.ko.md#배포-토폴로지) 참고).
 
 - **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 모더레이션 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
 - **Users** — 페이지네이션/정렬/검색을 지원하는 목록이며 모더레이션 상태(active/banned)로 필터할 수 있음. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림.
@@ -679,9 +649,7 @@ Google Gemini 2.5 Flash 기반이고 `AiService`(답장 생성)와 `AiRoomServic
 서비스 계층 중심의 Jest 유닛 테스트, frontend·admin의 Vitest, 양쪽 앱의 Playwright e2e로 구성함. 커버리지는 서비스 계층을 중심으로 측정하고, 정책(측정 제외 대상, `bcrypt` 목)은 [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md#테스트-컨벤션)에 있음. 실행 명령은 [빠른 시작](#빠른-시작) 참고.
 
 #### 테스트 커버리지
-**테스트 결과**
-- Test Suites: 14 passed, 14 total (258 tests, 2026-10-26 재측정)
-- frontend Vitest: 4 files, 21 tests 통과 / admin Vitest: 3 files, 14 tests 통과
+테스트 개수는 [검증 상태](#검증-상태)에 있음.
 
 **커버리지 결과** (% Stmts 기준, `pnpm test:cov` — 2026-10-26 재측정, Chat Service 외에는 2026-07-16 값과 동일)
 - Auth Service: 98.29%
@@ -773,9 +741,9 @@ Google Gemini 2.5 Flash 기반이고 `AiService`(답장 생성)와 `AiRoomServic
 
 
 ## 관련 문서
-- [ARCHITECTURE.md](ARCHITECTURE.md) — 모듈 의존성 그래프, 가드 체인, 배포 토폴로지
-- [CONTRIBUTING.md](CONTRIBUTING.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
-- [CHANGELOG.md](CHANGELOG.md) — 전체 커밋 이력
+- [ARCHITECTURE.ko.md](ARCHITECTURE.ko.md) — 모듈 의존성 그래프, 가드 체인, 배포 토폴로지
+- [CONTRIBUTING.ko.md](CONTRIBUTING.ko.md) — 로컬 설정, 브랜치/커밋 컨벤션, PR 체크리스트
+- [CHANGELOG.ko.md](CHANGELOG.ko.md) — 전체 커밋 이력
 - [ROADMAP.ko.md](ROADMAP.ko.md) — 미구현 백로그 상세
 - [backend/.env.example](backend/.env.example) — 환경 변수 전체 목록
 - [ADR/](ADR/) — 아키텍처 결정 기록(한글판 `*.ko.md` 포함)

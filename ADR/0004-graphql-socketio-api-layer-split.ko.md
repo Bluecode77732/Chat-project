@@ -25,6 +25,12 @@ Accepted
 - Redis Pub/Sub(`graphql-redis-subscriptions`)은 `receiveMessage`에 대해 최대 한 번(at-most-once)
   전달만 보장함. 발행 시점에 연결되어 있지 않은 구독자는 그 메시지를 영구히 놓치며,
   재전송은 없음.
+- `sendMessage`는 리졸버 안에서(`chat.resolver.ts:210`) `receiveMessage :${roomId}`로 발행하며,
+  `GqlTransactionInterceptor`가 리졸버 반환 이후에 커밋하므로([0003](0003-database-transaction-strategy.ko.md))
+  발행은 커밋보다 먼저 일어남. 이후 커밋이 실패하면 구독자가 이미 받은 메시지가 저장되지 않을 수
+  있음(코드 구조상 가능한 상황이며 재현하지는 않음). 방 생성 알림, 모더레이션 평가, AI 답장처럼
+  쓰기가 확정된 뒤에 해야 하는 작업은 `ctx.req.transactionCommitted`를 기다리며, 이 Promise는
+  커밋이 성공해야 resolve됨. 위의 최대 한 번 전달 한계와 같은 이유로 라이브 채팅에서는 받아들임.
 - 고려했다가 배제한 대안:
   - **메시지 전송을 순수 Socket.IO에 그대로 두는 것**(마이그레이션 이전 상태): 배제함.
     순수 소켓 핸들러로는 `GqlTransactionInterceptor`가 룸 생성 + 메시지 저장 쓰기에 제공하는

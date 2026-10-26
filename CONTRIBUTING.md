@@ -48,6 +48,39 @@ cd frontend && pnpm dev        # Vite dev server, :5173
 cd admin && pnpm dev           # Vite dev server, :5174
 ```
 
+### Trying the GraphQL API by hand
+
+With the backend running and a registered account, use Altair for the subscription and Postman (or any
+HTTP GraphQL client) for the mutation — Altair can't test mutations and Postman can't test
+subscriptions. The full schema is `backend/src/schema.gql`. Chat messages travel over GraphQL only;
+Socket.IO only handles connection auth and the `CreateRoom` notice.
+
+- Altair (subscription): URL `http://localhost:3000/graphql`, subscription type WebSocket (graphql-ws),
+  connection parameters `{ "authorization": "Bearer <token>" }`
+  ```graphql
+  subscription {
+    receiveMessage(roomId: "19") {
+      id
+      message
+      participant { id }
+    }
+  }
+  ```
+- Postman or any HTTP GraphQL client (mutation): header `authorization: Bearer <token>`
+  ```graphql
+  mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+    sendMessage(input: $input, recipientId: $recipientId) {
+      id
+      message
+      roomId
+      createdAt
+    }
+  }
+  ```
+  Variables: `{ "input": { "message": "Sent from Postman" }, "recipientId": 2 }`
+- Socket.IO: connect to `ws://localhost:3000` with an `authorization: Bearer <token>` header and you
+  receive a `CreateRoom` event when a new room is created
+
 ## Branch model
 
 - `main` — the deploy branch. `.github/workflows/deploy.yml`'s `deploy` job triggers only on push to
@@ -137,7 +170,7 @@ CLAUDE.md's Scope Discipline.
 - Mock repositories rather than hitting a real DB — see the pattern in
   [CLAUDE.md's Testing section](CLAUDE.md#testing).
 - `frontend/e2e/` and `admin/e2e/` hold their own Playwright suites, run independently in CI.
-- `admin/` (vitest, 14 specs) and `frontend/` (vitest, 21 specs) both have unit test coverage now,
+- `admin/` (vitest) and `frontend/` (vitest) both have unit test coverage now,
   same setup (`src/test/setup.ts`, same devDependency versions). `frontend/`'s suite ports admin's
   three files (axios/protected-route/auth.store, adapted for its simpler no-role auth model) plus a
   new one for `session-guard.ts` -- the in-flight refresh dedup and cross-tab conflict-detection logic
