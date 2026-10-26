@@ -9,8 +9,17 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-26
+
+- Docs: 어긋난 문서 서술 정정 (ARCHITECTURE 줄 번호 인용, down -v 안내, 배포·e2e 표기)
+
+## 2026-10-24
+
+- Docs: README 상세 매뉴얼을 기존 문서로 분리하고 설계 중심으로 재편
+
 ## 2026-10-23
 
+- Docs: CHANGELOG 동기화 (README 개편 커밋 반영)
 - Docs: README를 면접관 관점으로 재구성하고 프로젝트 구조 트리를 ARCHITECTURE로 이동
 
 ## 2026-10-19
