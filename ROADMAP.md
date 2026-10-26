@@ -191,8 +191,7 @@ timeline or priority order.
   `RateLimitGuard`) except this one. Its `canActivate` only runs once per subscribe, so the guard
   would throttle resubscribe attempts, not per-message delivery volume — whether that's worth adding
   on its own is not yet decided.
-- Close open `receiveMessage` subscriptions when a user is banned or force-logged-out — the ban checks run only when a subscription starts, so a subscription opened before the ban keeps delivering new messages after it (confirmed in a local run on 2026-10-26). The direction is open: close the `graphql-ws` connection from the ban/force-logout path, or re-check ban status per delivered message.
-- Make session eviction and ban-time disconnects work with more than one backend instance — `kickPreviousSession()` and `disconnectSocket()` (`chat.service.ts`) look sockets up in the current process only (`this.server.sockets.sockets`), so with two instances the first socket is neither told `forceLogout` nor disconnected (confirmed in a local run on 2026-10-26). `notifyRoomParticipants` already goes through the adapter (`server.to(...)`/`server.in(...)`); the direction is to do the same here, which has not been tried.
+- Close open `receiveMessage` subscriptions when a user is force-logged-out — a ban already ends a subscription by re-checking `isUserBanned` before each delivered message, but `UserService.forceLogout` only disconnects the socket and leaves an open subscription (and an already-issued access token) alive.
 
 ### Frontend
 

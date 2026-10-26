@@ -6,7 +6,7 @@ Accepted
 
 ## 배경
 
-`sendMessage`는 사람이 보낸 메시지를 `receiveMessage :${roomId}`로 발행함(`chat.resolver.ts:206-208`).
+`sendMessage`는 사람이 보낸 메시지를 `receiveMessage :${roomId}`로 발행함(`chat.resolver.ts:210-212`).
 그런데 같은 룸에 메시지를 전달해야 하는 자동화된 소스가 두 개 더 있음. AI 동반자
 답장(`AiService.handleReply()`)과 모더레이션 시스템 알림(경고/뮤트/차단 문구,
 `ModerationService.sendSystemMessage()` 경유)임. 공유된 규칙이 없으면 새 자동화 소스가
@@ -19,11 +19,11 @@ Accepted
 `pubSub.publish(`receiveMessage :${roomId}`, { receiveMessage: msg })` 호출과 `ChatEntity`
 형태의 페이로드로 발행함.
 
-- 사람: `chat.resolver.ts:206-208`, `sendMessage` 리졸버 안에 인라인으로.
-- AI: `chat.resolver.ts:285-289`, 커밋 이후 `ChatResolver`가 `AiService.handleReply()`에
+- 사람: `chat.resolver.ts:210-212`, `sendMessage` 리졸버 안에 인라인으로.
+- AI: `chat.resolver.ts:289-292`, 커밋 이후 `ChatResolver`가 `AiService.handleReply()`에
   넘겨주는 `publishFn` 콜백을 통해 전달됨. [ADR 0007](0007-ai-reply-distributed-lock.ko.md)이
   이 호출을 감싸는 룸 단위 락을 다루며, 이 ADR은 전달 형태만 다룸.
-- 모더레이션: `chat.resolver.ts:240-243`, `ModerationService.evaluateMessage()`에 넘겨주는
+- 모더레이션: `chat.resolver.ts:244-247`, `ModerationService.evaluateMessage()`에 넘겨주는
   동일한 `publishFn` 콜백을 통해. `ModerationService.sendSystemMessage()`(`moderation.service.ts:320-339`)가
   먼저 그 알림을 실제 `ChatEntity` 행으로 저장한 뒤(AI 메시지와 동일하게 시스템 유저 명의)
   발행함. 저장되지 않는 일시적 브로드캐스트가 아님.

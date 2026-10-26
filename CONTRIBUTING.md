@@ -178,7 +178,7 @@ reset afterward.
    accrue** until the mute expires.
 3. **Timed ban (auto)** — after the mute expires, resume flooding to cross the ban threshold.
    Expect: A is disconnected immediately; a reconnect is refused at `handleConnection`; a token
-   refresh is refused — a still-valid access token cannot bypass it. A GraphQL subscription opened before the ban is not closed and still receives new messages (a known gap, listed under the limits in README). After `bannedUntil`
+   refresh is refused — a still-valid access token cannot bypass it. A GraphQL subscription opened before the ban ends when the next message would be delivered to A, and that message is not delivered. After `bannedUntil`
    elapses, A can use the app again.
 4. **Manual ban (admin)** — `POST /user/:id/ban` on A → immediate session eviction (reuses
    `forceLogout`) and the same auth-layer rejection as the automatic ban.

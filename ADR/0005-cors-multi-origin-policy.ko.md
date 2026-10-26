@@ -13,7 +13,7 @@ Accepted
 
 ## 결정
 
-- `CORS_ORIGIN`(`backend/src/app.module.ts:38`에서 `Joi.string().pattern(/\S/).required()`로
+- `CORS_ORIGIN`(`backend/src/app.module.ts:78`에서 `Joi.string().pattern(/\S/).required()`로
   검증)은 허용된 오리진들을 콤마로 구분해 담는 환경변수 하나임. 이 패턴 검사는
   `.required()`만으로는 통과했을 공백 문자열을 걸러내어, 빈 허용 목록이 만들어지는 것을 막음.
 - `backend/src/main.ts:58`에서 이 값을 배열로 분리하고(`.split(',').map(origin => origin.trim())`),

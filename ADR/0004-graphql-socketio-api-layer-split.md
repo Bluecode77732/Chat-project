@@ -21,7 +21,7 @@ can't provide (see [0003](0003-database-transaction-strategy.md)).
   session conflict. It has no `@SubscribeMessage` handler for chat messages and emits none.
 - AI-generated replies and any future automated/system message source publish through the identical
   `receiveMessage :${roomId}` channel and shape as human messages
-  (`chat.resolver.ts:284-289` vs `:206`) — one delivery path, no sender-type branching in clients.
+  (`chat.resolver.ts:289-292` vs `:210`) — one delivery path, no sender-type branching in clients.
 - Redis Pub/Sub (`graphql-redis-subscriptions`) provides at-most-once delivery for `receiveMessage` — a
   subscriber not connected at publish time misses the message permanently, with no replay.
 - Alternatives considered and rejected:

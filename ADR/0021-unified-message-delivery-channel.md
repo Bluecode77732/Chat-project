@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-`sendMessage` publishes a human-sent message to `receiveMessage :${roomId}` (`chat.resolver.ts:206-208`).
+`sendMessage` publishes a human-sent message to `receiveMessage :${roomId}` (`chat.resolver.ts:210-212`).
 Two automated sources also need to deliver messages into the same rooms: AI-companion replies
 (`AiService.handleReply()`) and moderation system notices (warn/mute/ban text, via
 `ModerationService.sendSystemMessage()`). Without a shared rule, each new automated source could
@@ -19,11 +19,11 @@ Every message source — human, AI, moderation — publishes through the identic
 `pubSub.publish(`receiveMessage :${roomId}`, { receiveMessage: msg })` call and `ChatEntity`-shaped
 payload:
 
-- Human: `chat.resolver.ts:206-208`, inline in the `sendMessage` resolver.
-- AI: `chat.resolver.ts:285-289`, via a `publishFn` callback `ChatResolver` hands to
+- Human: `chat.resolver.ts:210-212`, inline in the `sendMessage` resolver.
+- AI: `chat.resolver.ts:289-292`, via a `publishFn` callback `ChatResolver` hands to
   `AiService.handleReply()` post-commit ([ADR 0007](0007-ai-reply-distributed-lock.md) covers the
   per-room lock around this call; this ADR covers only the delivery shape).
-- Moderation: `chat.resolver.ts:240-243`, via an identical `publishFn` callback handed to
+- Moderation: `chat.resolver.ts:244-247`, via an identical `publishFn` callback handed to
   `ModerationService.evaluateMessage()`, which `ModerationService.sendSystemMessage()`
   (`moderation.service.ts:320-339`) calls after first persisting the notice as a real `ChatEntity` row
   (attributed to the system user, same as AI's messages) — not a transient, unpersisted broadcast.

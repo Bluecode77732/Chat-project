@@ -13,7 +13,7 @@ incompatible with credentialed requests and is a Never Do regardless.
 
 ## Decision
 
-- `CORS_ORIGIN` (validated as required in `backend/src/app.module.ts:38`, via
+- `CORS_ORIGIN` (validated as required in `backend/src/app.module.ts:78`, via
   `Joi.string().pattern(/\S/).required()` — the pattern check specifically rejects a
   whitespace-only string that would otherwise satisfy `.required()` and produce an empty allowlist) is
   a single env var holding a comma-separated list of allowed origins.

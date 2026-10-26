@@ -18,7 +18,7 @@ Accepted
 
 ## 결정
 
-- **Helmet**(`helmet@^8.3.0`)을 `app.use(helmet({ contentSecurityPolicy: false }))`(`main.ts:37`)로
+- **Helmet**(`helmet@^8.3.0`)을 `app.use(helmet({ contentSecurityPolicy: false }))`(`main.ts:35`)로
   백엔드 전역에 적용함. Helmet의 나머지 기본 보호(`X-Frame-Options`,
   `X-Content-Type-Options` 등)는 받으면서 Helmet 자체의 CSP 생성만 명시적으로 끔.
   `backend`에 CSP 헤더를 걸어봐야 보호 대상은 `/document`(Swagger)뿐인데, Swagger는 어차피
@@ -33,7 +33,7 @@ Accepted
   렌더링되는데, CSP의 `style-src`는 `'unsafe-inline'`이나 nonce/hash 없이는 이를 막음.
   `admin`에는 그런 사용처가 전혀 없음. 즉 admin 쪽 정책이 더 엄격한 것은 명시적으로 기록된 결정이 아니라
   결과적으로 그렇게 된 것임.
-- `app.set('trust proxy', 1)`(`main.ts:29`)은 바로 앞 리버스 프록시(Railway) 딱 한 단계만
+- `app.set('trust proxy', 1)`(`main.ts:28`)은 바로 앞 리버스 프록시(Railway) 딱 한 단계만
   신뢰함. 이 설정으로 `req.ip`가 Railway 프록시 자신의 주소 대신 실제 클라이언트 IP로
   해석되며, 이게 없으면 모든 클라이언트가 하나의 공유 레이트리밋 버킷으로 뭉개지므로 다음
   항목의 전제가 됨.

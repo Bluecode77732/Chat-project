@@ -186,8 +186,7 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
   GraphQL 엔드포인트에는 이제 레이트리밋 가드(`QueryRateLimitGuard` 또는 `RateLimitGuard`)가
   있지만 이것만 없음. `canActivate`가 구독 시점에 한 번만 실행되므로 붙여도 재구독 시도만
   제한될 뿐 메시지 수신량 자체는 못 막음 — 그것만으로 추가할 가치가 있는지는 아직 미정.
-- 유저가 밴되거나 강제 로그아웃될 때 열려 있는 `receiveMessage` 구독 종료 — 권한 확인이 구독 시작 시점에만 실행되므로 밴 이전에 열린 구독은 밴 이후에도 새 메시지를 계속 전달함(2026-10-26 로컬 실행으로 확인함). 방향은 미정: 밴·강제 로그아웃 경로에서 `graphql-ws` 연결을 닫거나, 전달되는 메시지마다 밴 상태를 다시 확인하는 방식.
-- 세션 축출과 밴 시 소켓 끊기가 백엔드 인스턴스 둘 이상에서도 동작하게 하기 — `kickPreviousSession()`과 `disconnectSocket()`(`chat.service.ts`)이 현재 프로세스의 소켓만 조회하므로(`this.server.sockets.sockets`), 인스턴스가 둘이면 첫 소켓에 `forceLogout`도 가지 않고 끊기지도 않음(2026-10-26 로컬 실행으로 확인함). `notifyRoomParticipants`는 이미 어댑터를 거치므로(`server.to(...)`/`server.in(...)`) 같은 방식으로 바꾸는 것이 방향이지만 시도하지는 않았음.
+- 유저가 강제 로그아웃될 때 열려 있는 `receiveMessage` 구독 종료 — 밴은 전달하기 직전마다 `isUserBanned`를 다시 확인해 구독을 이미 종료하지만, `UserService.forceLogout`은 소켓만 끊고 열린 구독(과 이미 발급된 액세스 토큰)은 그대로 둠.
 
 ### 프론트엔드
 

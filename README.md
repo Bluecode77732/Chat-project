@@ -26,7 +26,7 @@ A one-to-one real-time chat with an AI companion, behavioral moderation, and a s
 - Moderation: duplicate, flood, and velocity strikes escalate warn → mute → timed ban → permanent ban, and an admin can reverse them
 - AI chat: Google Gemini 2.5 Flash with four selectable personalities. Capped output tokens, truncated history, a retry ceiling, and a per-room Redis lock. The AI's name `Chattey` is an alias set in the system prompt (`backend/src/ai/constants/system-prompts.ts`), different from the service name Chatterley
 - Admin panel: a separate React app for user/room management, moderation actions, and audit-log CSV export
-- Tests: backend Jest 13 suites / 254 tests, frontend Vitest 21 tests, and admin Vitest 14 tests pass (local run on 2026-10-22, commit `d684b19`). Playwright e2e for frontend and admin runs in CI ([Test Coverage](#test-coverage))
+- Tests: backend Jest 14 suites / 258 tests (local run on 2026-10-26), frontend Vitest 21 tests, and admin Vitest 14 tests (local run on 2026-10-22, commit `d684b19`) pass. Playwright e2e for frontend and admin runs in CI ([Test Coverage](#test-coverage))
 - History: built solo over 730 commits since 2026-01 (as of `d684b19`). Full history in [CHANGELOG.md](CHANGELOG.md)
 - Docs: [ARCHITECTURE.md](ARCHITECTURE.md) · [ADR/](ADR/) · [ROADMAP.md](ROADMAP.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -117,9 +117,9 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 | Feature | What the user does | API / code | Worth noting |
 |---|---|---|---|
 | Messaging | A sent message shows up on the other side without a reload | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`. Redis Pub/Sub is at-most-once, and the resolver publishes before the commit |
-| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user (confirmed with a single instance only; see [Scale Up In Future](#scale-up-in-future)) |
+| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user, and a previous socket on another instance is also closed through the adapter (confirmed with two instances; see [Scale Up In Future](#scale-up-in-future)) |
 | AI chat | Talks to the AI account and picks a personality per room | `setAiPersonality` mutation, `AiService.handleReply()` | Per-room Redis lock (`ai:lock:{roomId}`, 30 s TTL), `maxOutputTokens` 300, 10 messages of history |
-| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP and GraphQL requests, socket connections, and token refresh. A GraphQL subscription that is already open keeps receiving after a ban ([limits](#scale-up-in-future)). Every action is audit-logged |
+| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP and GraphQL requests, socket connections, and token refresh. A GraphQL subscription that is already open ends when the next message would be delivered to that subscriber, and that message is not delivered ([limits](#scale-up-in-future)). Every action is audit-logged |
 | Admin panel | Manage users and rooms, export the audit log as CSV | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | A separate app that only uses queries and mutations (no realtime client) |
 
 
@@ -314,7 +314,7 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 - **Verification**:
   - `redis.service.spec.ts` has a case that pins the behavior where a cache entry with no `created` field becomes an Invalid Date, and `pubsub.service.spec.ts` covers the cache-on-publish behavior
   - `backend/src/ai/` no longer contains a `cacheMessage` call (confirmed by search)
-  - `pnpm test` passes 13 suites / 254 tests
+  - `pnpm test` passes 14 suites / 258 tests
   - Limit: the same browser scenario (restart the backend, then reload) was not replayed on purpose; the error did not show up again during later use of the app
 
 ### Case 4: A generated migration reverts ON DELETE CASCADE
@@ -322,7 +322,7 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 - **Cause**: The ManyToMany relation declares no `onDelete`, so TypeORM sees the DB's CASCADE as different from the declaration and generates a change that reverts it.
 - **Fix**: A step was set to strip that FK line from every generated migration. As a safety net for human slips there is a static guard, `migration-cascade-guard.spec.ts`, which scans the source of each migration's `up()` as text and requires the CASCADE to survive. It rides `pnpm test`, so it fires locally and in CI. It is not run in production, where migrations have already been applied by boot time. To guard more FKs, add an entry to the spec's `GUARDED_FKS` array.
 - **Verification**:
-  - `pnpm test` with that spec passes 13 suites / 254 tests
+  - `pnpm test` with that spec passes 14 suites / 258 tests
   - Limit: the FK's delete behavior (`confdeltype`) on a running DB was not queried in this run
 
 ### Case 5: From an in-memory socket map to a Redis session
@@ -350,7 +350,7 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 - **Verification**:
   - Confirmed in code: the structure above, the adapter wiring in `chat.gateway.ts`, and the unit tests in `redis.service.spec.ts` and `chat.service.spec.ts`
   - Design expectation (not verified): without the adapter, `server.to(room).emit(...)` reaches only clients connected to the same process
-  - Measurement (2026-10-26, two instances attached to the same Postgres and Redis): when the same account logs in a second time on another instance, the first socket gets no `forceLogout` and is not disconnected, because `kickPreviousSession` looks only at the current process's sockets; for the same reason a socket on another instance is not disconnected by a ban. Load and performance were not measured, and there is no number showing it got faster
+  - Measurement (2026-10-26, two instances attached to the same Postgres and Redis): before the fix, when the same account logged in a second time on another instance, the first socket got no `forceLogout` and was not disconnected, because `kickPreviousSession` looked only at the current process's sockets; for the same reason a socket on another instance was not disconnected by a ban. After switching the lookup to `server.in(socketId)`, which goes through the adapter, the first socket receives `forceLogout` and is disconnected in the same scenario, and a ban reaches sockets on the other instance. Whether `forceLogout` arrives before the disconnect was checked in 20 repeated runs and held in all 20 (an observation from one local environment, not an ordering guarantee). Load and performance were not measured, and there is no number showing it got faster
   - Checking the stored values (standalone local container, no password): connect with `docker exec -it redis-chat redis-cli` and run `KEYS user:*`, `HGETALL user:<user ID>`, and `TTL user:<user ID>`. The Redis in docker compose has `requirepass` on and needs a password (use `redis-cli -a "$REDIS_PASSWORD"`, the same way the compose healthcheck does; this command was not run here)
 
 
@@ -451,7 +451,7 @@ Checked on 2026-10-22 on Windows 10, Docker 28.5.1 / Compose 2.40.0, Node 24.8.0
 | Path B | Confirmed up to `build` then `migration:run`. `start:dev` and the first migration on an empty DB were not |
 | Playwright e2e | Not run in this local run. In CI, the 2026-10-19 main push run ([#39287345174](https://github.com/Bluecode77732/Chat-project/actions/runs/39287345174)) passed both the `e2e` and `admin-e2e` jobs. However `ai-chat.spec.ts` passes on the fallback message even without a Gemini key, so it does not verify a real Gemini reply |
 | Real AI replies, moderation behavior | Not checked in this run |
-| Unit tests | backend 13 suites / 254 tests, frontend 21 tests, admin 14 tests pass |
+| Unit tests | backend 14 suites / 258 tests, frontend 21 tests, admin 14 tests pass |
 
 **Run the tests**
 ```bash
@@ -494,8 +494,8 @@ List of Troubleshooting when the program runs
 - Room create/lookup logic assumes exactly two participants, so group chat is not supported ([ROADMAP.md](ROADMAP.md))
 - `GEMINI_API_KEY` is a required env var, so the app does not boot without a key
 - Hosting is stopped, so behavior on a deployed environment was not checked
-- With more than one instance, evicting the previous session (`forceLogout`) and disconnecting a banned user's socket only reach sockets in the same process (confirmed with two instances). The repository's configuration runs one instance, so this has no effect today
-- A GraphQL subscription that is already open keeps receiving new messages after a ban (confirmed with a single instance too)
+- A banned user's `receiveMessage` subscription ends when the next message would be delivered to that subscriber, not at the moment of the ban (that message is not delivered). Every message costs one `isUserBanned` DB lookup, so the cost grows with subscribers and messages; it was not measured
+- An admin forced logout (`UserService.forceLogout`) only disconnects the socket: it does not close an open GraphQL subscription and does not revoke an access token that was already issued
 - Load on multiple instances was not measured
 - The first superadmin has to be inserted into the DB by hand
 - The `admin-e2e` job is not blocking yet, and the Windows `test` job passes even when it fails ([deploy.yml](.github/workflows/deploy.yml))
@@ -507,8 +507,7 @@ List of Troubleshooting when the program runs
 - User-facing room and conversation deletion
 - "User is typing" indicator
 - Rate limiting on the `receiveMessage` subscription
-- Closing open GraphQL subscriptions on a ban or forced logout
-- Session eviction that works with more than one instance (calls routed through the adapter)
+- Closing open GraphQL subscriptions on a forced logout
 - Error tracking for frontend and admin
 
 
@@ -612,7 +611,7 @@ Behavioral abuse detection that escalates automatically and is reversible by an 
   - **3 strikes → warning** — a System-account message is posted into the room (rendered as a centered notice).
   - **5 strikes → temporary mute** — 10 min, Redis-backed; the user stays connected but cannot send.
   - **7 strikes → timed ban** — 7 days; a repeat ban (a second `USER_BANNED`) becomes **permanent**.
-- **Enforcement** — a banned user is rejected at `jwt.strategy` (HTTP/GraphQL), at `handleConnection` (socket), and at token refresh, so a still-valid token cannot open a new connection, make a request, or refresh. A GraphQL subscription opened before the ban is not closed, though, and keeps receiving new messages after the ban (confirmed in a local run on 2026-10-26; the permission check runs only when the subscription starts). A mute only blocks sending.
+- **Enforcement** — a banned user is rejected at `jwt.strategy` (HTTP/GraphQL), at `handleConnection` (socket), and at token refresh, so a still-valid token cannot open a new connection, make a request, or refresh. A GraphQL subscription opened before the ban is re-checked with `isUserBanned` each time a message is about to be delivered to that subscriber; it ends without delivering that message (confirmed in a local run on 2026-10-26; the check is separate from the permission check when the subscription starts). A mute only blocks sending.
 - **Recovery & audit** — `POST /user/:id/unban` (admin) clears ban/mute/strikes and invalidates the auth cache. Every action writes an audit entry (`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`).
 - **Storage** — `user_entity.status` (`active` | `banned`) and `bannedUntil` back persistent bans; strikes and mutes are Redis-only (`moderation:*` keys, all with TTL). Run the `AddModerationColumns` migration before starting.
 
@@ -680,12 +679,12 @@ Service-layer Jest unit tests, Vitest for frontend and admin, and Playwright e2e
 
 #### Test Coverage
 **Test Results**
-- Test Suites: 13 passed, 13 total (254 tests, re-measured on 2026-10-22)
+- Test Suites: 14 passed, 14 total (258 tests, re-measured on 2026-10-26)
 - frontend Vitest: 4 files, 21 tests pass / admin Vitest: 3 files, 14 tests pass
 
-**Coverage Results** (% Stmts, `pnpm test:cov` — re-measured on 2026-10-22, same values as 2026-07-16)
+**Coverage Results** (% Stmts, `pnpm test:cov` — re-measured on 2026-10-26, same values as 2026-07-16 except Chat Service)
 - Auth Service: 98.29%
-- Chat Service: 97.72%
+- Chat Service: 98.44%
 - Redis Service: 96.34%
 - User Service: 100%
 - AI Service: 96.7%
