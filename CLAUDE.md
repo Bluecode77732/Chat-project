@@ -786,9 +786,10 @@ one of these is violated, follow Principle Conflict Protocol.
 
 **Single Active Session Enforcement**
 - Breakdown: a concrete instance of a consistency invariant — at most one live socket
-  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:55-60`), which emits a
+  per user. Enforced via `kickPreviousSession()` (`chat.service.ts:55-61`), which emits a
   `forceLogout` event and disconnects the previous socket when a new connection registers for
-  the same user.
+  the same user. It addresses the socket through `server.in(socketId)` (the Redis adapter), so it
+  also reaches a socket connected to another backend instance.
 - Rationale: without this, a user with two open tabs/devices could receive duplicate or
   conflicting real-time state.
 - Goal: any new per-user real-time registration (not just the existing socket path)
@@ -874,7 +875,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: the backend validates message shape (`@IsString()`,
   `create-chat.dto.ts`) but does not sanitize or escape HTML — `ChatEntity.message` is
   stored exactly as submitted. The only sanitization point today is the React render
-  boundary (`DOMpurify.sanitize` -- note the library's actual export casing, `chat-page.tsx:733,771`).
+  boundary (`DOMpurify.sanitize` -- note the library's actual export casing, `chat-page.tsx:740,781`).
 - Rationale: this means stored content is untrusted by default; any other surface that
   later reads `ChatEntity.message` (an admin viewer, an export, a log line, an AI prompt
   context) inherits that risk if it assumes the value is already safe.
@@ -885,7 +886,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Breakdown: AI-generated replies publish through the exact same channel and shape as
   human messages — `aiService.handleReply()` is given a `publishFn` that calls
   `pubSub.publish('receiveMessage :${roomId}', { receiveMessage: msg })`
-  (`chat.resolver.ts:284-289`), identical to the human-message publish call (`:206`).
+  (`chat.resolver.ts:289-292`), identical to the human-message publish call (`:210`).
 - Rationale: this is what lets the frontend render AI and human messages through one
   code path with no sender-type branching.
 - Delivery guarantee: Redis PubSub provides at-most-once delivery — a subscriber not
@@ -1022,7 +1023,7 @@ Do not suggest alternatives to these decisions without explicit request.
 - **Never suggest**: mixing Socket.IO and GraphQL Subscription for the same event
 
 ### CORS
-- `CORS_ORIGIN` (`backend/src/app.module.ts:38`, `Joi.string().pattern(/\S/).required()` — the
+- `CORS_ORIGIN` (`backend/src/app.module.ts:78`, `Joi.string().pattern(/\S/).required()` — the
   pattern rejects a whitespace-only string that would otherwise satisfy `.required()` and produce an
   empty allowlist) is a single env var holding a **comma-separated list** of allowed origins, split
   into an array in `backend/src/main.ts:58` before being passed to `app.enableCors({ origin })`
@@ -1139,11 +1140,12 @@ container attempt migrations against a DB/cache that isn't accepting connections
   enforcement, the system-account seed, system-message dispatch) and `ModerationGuard` (thin
   ban/mute check only — SRP split, see `moderation.guard.ts`)
 - Guard position on `sendMessage`: `@UseGuards(GraphQLAuthGuard, ModerationGuard, RateLimitGuard)` —
-  order is load-bearing (`chat.resolver.ts:186-188`): `ModerationGuard` must gate a muted/banned user
+  order is load-bearing (`chat.resolver.ts:190-192`): `ModerationGuard` must gate a muted/banned user
   **before** `RateLimitGuard` spends its velocity budget on them
 - Socket.IO `handleConnection` applies the same ban gate as `jwt.strategy` (via
   `moderationService.isUserBanned()`) so a still-valid token can't bypass a ban by connecting over a
-  socket instead
+  socket instead; an already-open `receiveMessage` subscription re-checks the same ban before each
+  delivered message and ends (`ChatResolver.endWhenBanned`)
 - Escalation ladder: warn → mute → timed ban → permanent ban, driven by 8 optional env vars (all fall
   back to `MODERATION_DEFAULTS` in `moderation.constants.ts` if unset): `MODERATION_STRIKE_WINDOW_SEC`
   (default 86400), `MODERATION_WARN_THRESHOLD` (3), `MODERATION_MUTE_THRESHOLD` (5),

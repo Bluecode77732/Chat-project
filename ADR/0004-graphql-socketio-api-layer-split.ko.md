@@ -20,7 +20,7 @@ Accepted
   `handleDisconnect`), 새 룸 생성 시 `CreateRoom` 이벤트 푸시, 세션 충돌 시 `forceLogout`.
   채팅 메시지를 받는 `@SubscribeMessage` 핸들러도 없고, 메시지를 emit하지도 않음.
 - AI가 생성한 답장을 포함해 앞으로 추가될 모든 자동/시스템 메시지도 사람이 보낸 메시지와 동일한
-  `receiveMessage :${roomId}` 채널과 형태로 발행함(`chat.resolver.ts:284-289` vs `:206`).
+  `receiveMessage :${roomId}` 채널과 형태로 발행함(`chat.resolver.ts:289-292` vs `:210`).
   전달 경로가 하나뿐이므로 클라이언트에는 발신자 유형별 분기가 없음.
 - Redis Pub/Sub(`graphql-redis-subscriptions`)은 `receiveMessage`에 대해 최대 한 번(at-most-once)
   전달만 보장함. 발행 시점에 연결되어 있지 않은 구독자는 그 메시지를 영구히 놓치며,

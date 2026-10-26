@@ -178,7 +178,7 @@ reset afterward.
    accrue** until the mute expires.
 3. **Timed ban (auto)** — after the mute expires, resume flooding to cross the ban threshold.
    Expect: A is disconnected immediately; a reconnect is refused at `handleConnection`; a token
-   refresh is refused — a still-valid access token cannot bypass it. A GraphQL subscription opened before the ban is not closed and still receives new messages (a known gap, listed under the limits in README). After `bannedUntil`
+   refresh is refused — a still-valid access token cannot bypass it. A GraphQL subscription opened before the ban ends when the next message would be delivered to A, and that message is not delivered. After `bannedUntil`
    elapses, A can use the app again.
 4. **Manual ban (admin)** — `POST /user/:id/ban` on A → immediate session eviction (reuses
    `forceLogout`) and the same auth-layer rejection as the automatic ban.
@@ -186,6 +186,24 @@ reset afterward.
    cleared, auth cache invalidated; A can send again immediately.
 6. **Audit** — each step above writes an admin-visible audit entry (`USER_MUTED` /
    `USER_BANNED` / `USER_UNBAN`).
+
+### Manual multi-instance verification
+
+Nothing in CI runs two backend instances, so check session eviction and ban handling by hand after
+touching `chat.service.ts`, `chat.gateway.ts`, or the `receiveMessage` subscription. Start a second
+backend process or container with the same Postgres and Redis settings and a different `PORT`, then
+log in as the same account on each instance (use a throwaway account, never real credentials):
+
+1. **Session eviction** — connect a socket to instance 1, then connect with the same account to
+   instance 2. Expect: the first socket receives `forceLogout` and then disconnects.
+2. **Ban reach** — connect a socket to instance 2 and ban the account through instance 1. Expect:
+   the socket is disconnected.
+3. **Subscription** — subscribe to `receiveMessage` as the account, ban it, then send a message to the
+   room. Expect: the subscription ends and the message is not delivered
+   ([ADR 0023](ADR/0023-subscription-ban-recheck.md)).
+
+When testing in Docker, give the second container its own host port and never run
+`docker compose down -v`, which deletes the Postgres volume.
 
 ## Reporting issues
 

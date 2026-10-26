@@ -9,8 +9,17 @@ from early development (see [CONTRIBUTING.md](CONTRIBUTING.md#commit-convention)
 commits should follow). Nothing below has been reworded, curated, or omitted.
 
 
+## 2026-10-27
+
+- Docs: 구독 밴 재확인 ADR 0023과 다중 인스턴스 수동 검증 절차 추가
+- Docs: CHANGELOG 동기화 (구독 종료와 세션 종료 수정 커밋 반영)
+- Docs: 구독 종료와 어댑터 경유 세션 종료 반영, 오래된 인용 위치 정정
+
 ## 2026-10-26
 
+- Fix: 밴된 구독자에게는 새 메시지를 전달하지 않고 receiveMessage 구독을 종료
+- Fix: 세션 종료와 밴 소켓 끊기가 다른 인스턴스에도 닿도록 어댑터를 거치게 변경
+- Docs: CHANGELOG 동기화 (다중 인스턴스 한계 문서 반영 커밋)
 - Docs: 다중 인스턴스 세션 종료와 밴 후 구독 유지 한계를 관련 문서에 반영
 - Docs: CHANGELOG 동기화 (문서 정정 커밋 반영)
 - Docs: 어긋난 문서 서술 정정 (ARCHITECTURE 줄 번호 인용, down -v 안내, 배포·e2e 표기)

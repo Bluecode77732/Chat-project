@@ -47,8 +47,8 @@ philosophy in [ADR 0010](0010-railway-vercel-deployment.md).
 - `backend/src/main.ts:1` imports `./instrument` as the literal first line, before `NestFactory` --
   load-bearing per Sentry's docs, since its auto-instrumentation patches modules that must not
   already be loaded by the time `Sentry.init()` runs.
-- `backend/src/app.module.ts:78` adds `SentryModule.forRoot()` to `imports` (from
-  `@sentry/nestjs/setup`), and `:67` adds `SENTRY_DSN: Joi.string().optional()` to the Joi schema,
+- `backend/src/app.module.ts:118` adds `SentryModule.forRoot()` to `imports` (from
+  `@sentry/nestjs/setup`), and `:107` adds `SENTRY_DSN: Joi.string().optional()` to the Joi schema,
   following the exact `SMTP_HOST` precedent already in the same schema.
 - `backend/src/base/filter/all-exceptions.filter.ts:55-57` adds one manual
   `Sentry.captureException(exception, { extra: { stack, isGraphQL } })` call, gated on

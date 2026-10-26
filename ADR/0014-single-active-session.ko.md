@@ -16,7 +16,7 @@ Accepted
 
 `ChatGateway.handleConnection()`이 호출하는 `ChatService.registerClient()`는 새 소켓을 먼저
 현재 세션으로 기록하고, 같은 사용자에 대해 이전에 다른 소켓이 등록되어 있었다면 그다음에
-`kickPreviousSession()`(`chat.service.ts:55-60`)을 호출함. 이 함수는 대체된 소켓에
+`kickPreviousSession()`(`chat.service.ts:55-61`)을 호출함. 이 함수는 대체된 소켓에
 `forceLogout` 이벤트를 emit하고 연결을 끊음. "먼저 기록하고 나중에 축출"하는 순서는
 의도된 것임. 반대로 새 세션을 기록하기 전에 이전 소켓을 먼저 끊으면, 이전 소켓의
 disconnect 핸들러(`removeClient`, `chat.service.ts:64-68`)가 새 세션의 온라인 상태를 도로
@@ -31,7 +31,7 @@ disconnect 핸들러(`removeClient`, `chat.service.ts:64-68`)가 새 세션의 �
 
 ## 결과
 
-- 백엔드 인스턴스 하나에서는 어느 시점이든 사용자당 라이브 소켓은 최대 하나임. 이 기존 Socket.IO 경로뿐 아니라
+- 이전 소켓이 다른 백엔드 인스턴스에 있어도 어느 시점이든 사용자당 라이브 소켓은 최대 하나임. 이 기존 Socket.IO 경로뿐 아니라
   새로 만드는 사용자별 실시간 등록도 똑같이 이전 등록을 확인하고 축출해야 하며, 다른 곳에서
   사용자당 연결 하나가 보장된다고 가정하면 안 됨.
 - 대체된 세션의 프론트엔드는 조용히 끊기는 대신 명시적인 `forceLogout` 이벤트를 받음. 이
@@ -40,4 +40,4 @@ disconnect 핸들러(`removeClient`, `chat.service.ts:64-68`)가 새 세션의 �
 - `registerClient`의 순서를 바꿔 새 세션 기록 전에 이전 세션을 먼저 축출하는 것도 절대
   제안하지 않음. 현재 순서가 막고 있는 바로 그 레이스가 도로 열림(`chat.service.ts:41-46`의
   인라인 주석 참고).
-- **알려진 한계(2026-10-26 확인):** 백엔드 인스턴스가 둘이면 이 보장이 성립하지 않음. `kickPreviousSession()`이 `this.server.sockets.sockets`로 이전 소켓을 찾는데, 이 맵에는 현재 프로세스의 소켓만 있어서 다른 인스턴스의 소켓에는 `forceLogout`도 가지 않고 끊기지도 않음. 저장소는 인스턴스 하나로 배포하므로 지금은 잠재적인 문제이고, 고치려면 축출을 Socket.IO 어댑터를 거치는 호출(`server.in(socketId)`)로 바꿔야 하지만 이번에는 시도하지 않았음.
+- **인스턴스 간 축출(2026-10-26 수정·확인):** `kickPreviousSession()`은 `this.server.sockets.sockets`로 이전 소켓을 찾았는데, 이 맵에는 현재 프로세스의 소켓만 있어서 백엔드 인스턴스가 둘이면 다른 인스턴스의 소켓에는 `forceLogout`도 가지 않고 끊기지도 않았음. 지금은 `server.in(socketId)`로 소켓을 지정해 Socket.IO Redis 어댑터를 거치며, 해당 소켓이 없으면 아무 일도 일어나지 않음. 인스턴스 2개에서 첫 소켓이 끊김보다 먼저 `forceLogout`을 받는 것을 20회 중 20회 확인함. 이 순서는 로컬 한 환경의 관찰이며, 두 호출은 각각 별도의 어댑터 브로드캐스트라 순서를 보장한다는 문서는 없음.

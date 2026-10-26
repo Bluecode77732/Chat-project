@@ -116,10 +116,12 @@ describe('ChatService', () => {
       jest
         .spyOn(redisService, 'getUserStatus')
         .mockResolvedValue({ socketId: '1', status: 'online' });
-      const mockServer = { sockets: { sockets: new Map() } };
+      const mockServer = { in: jest.fn() };
       (chatService as unknown as { server: unknown }).server = mockServer;
 
       await chatService.registerClient(1, mockSocket as Socket);
+
+      expect(mockServer.in).not.toHaveBeenCalled();
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(redisService.sethUserOnline)).toHaveBeenCalledWith(
@@ -132,18 +134,18 @@ describe('ChatService', () => {
       jest
         .spyOn(redisService, 'getUserStatus')
         .mockResolvedValue({ socketId: 'old-socket', status: 'online' });
-      const oldSocket = { emit: jest.fn(), disconnect: jest.fn() };
-      const mockServer = {
-        sockets: { sockets: new Map([['old-socket', oldSocket]]) },
-      };
+      const target = { emit: jest.fn(), disconnectSockets: jest.fn() };
+      const mockServer = { in: jest.fn().mockReturnValue(target) };
       (chatService as unknown as { server: unknown }).server = mockServer;
 
       await chatService.registerClient(1, mockSocket as Socket);
 
-      expect(oldSocket.emit).toHaveBeenCalledWith('forceLogout', {
+      // 어댑터를 거치는 server.in(socketId)로 보내야 다른 인스턴스의 소켓에도 닿음
+      expect(mockServer.in).toHaveBeenCalledWith('old-socket');
+      expect(target.emit).toHaveBeenCalledWith('forceLogout', {
         reason: 'conflict',
       });
-      expect(oldSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(target.disconnectSockets).toHaveBeenCalledWith(true);
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(jest.mocked(redisService.sethUserOnline)).toHaveBeenCalledWith(
         1,
@@ -884,22 +886,25 @@ describe('ChatService', () => {
   });
 
   describe('disconnectSocket', () => {
-    it('should disconnect the matching socket when present', () => {
-      const mockDisconnect = jest.fn();
+    it('should disconnect through the adapter so a socket on another instance is reached', () => {
+      const mockDisconnectSockets = jest.fn();
       const mockServer = {
-        sockets: {
-          sockets: new Map([['abc', { disconnect: mockDisconnect }]]),
-        },
+        in: jest
+          .fn()
+          .mockReturnValue({ disconnectSockets: mockDisconnectSockets }),
       };
       chatService.setServer(mockServer as any);
 
       chatService.disconnectSocket('abc');
 
-      expect(mockDisconnect).toHaveBeenCalledWith(true);
+      expect(mockServer.in).toHaveBeenCalledWith('abc');
+      expect(mockDisconnectSockets).toHaveBeenCalledWith(true);
     });
 
-    it('should do nothing when the socket is not found', () => {
-      const mockServer = { sockets: { sockets: new Map() } };
+    it('should not throw when no socket matches', () => {
+      const mockServer = {
+        in: jest.fn().mockReturnValue({ disconnectSockets: jest.fn() }),
+      };
       chatService.setServer(mockServer as any);
 
       expect(() => chatService.disconnectSocket('missing')).not.toThrow();

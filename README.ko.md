@@ -26,7 +26,7 @@
 - 모더레이션: 중복·도배·속도 위반 스트라이크가 경고 → 뮤트 → 기간제 밴 → 영구 밴으로 에스컬레이션되고, admin이 되돌릴 수 있음
 - AI 채팅: Google Gemini 2.5 Flash, 선택 가능한 성격 4종. 출력 토큰 상한, 대화 이력 절단, 재시도 상한, 방별 Redis 락을 둠. AI의 이름 `Chattey`는 시스템 프롬프트(`backend/src/ai/constants/system-prompts.ts`)에서 지정한 별칭이고 서비스명 Chatterley와 다름
 - Admin 패널: 유저·방 관리, 모더레이션 액션, 감사 로그 CSV export를 위한 별도 React 앱
-- 테스트: backend Jest 13 suites / 254 tests, frontend Vitest 21 tests, admin Vitest 14 tests가 통과함(2026-10-22 로컬 실행, 커밋 `d684b19`). Playwright e2e(frontend, admin)는 CI에서 실행됨([테스트 커버리지](#테스트-커버리지))
+- 테스트: backend Jest 14 suites / 258 tests(2026-10-26 로컬 실행), frontend Vitest 21 tests와 admin Vitest 14 tests(2026-10-22 로컬 실행, 커밋 `d684b19`)가 통과함. Playwright e2e(frontend, admin)는 CI에서 실행됨([테스트 커버리지](#테스트-커버리지))
 - 이력: 2026-01부터 730개 커밋(`d684b19` 기준)에 걸쳐 혼자 반복 개발함. 전체 이력은 [CHANGELOG.md](CHANGELOG.md) 참고
 - 문서: [ARCHITECTURE.md](ARCHITECTURE.md) · [ADR/](ADR/) · [ROADMAP.ko.md](ROADMAP.ko.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -116,9 +116,9 @@
 | 기능 | 사용자 동작 | 관련 API·코드 | 주목할 점 |
 |---|---|---|---|
 | 메시지 송수신 | 메시지를 보내면 상대 화면에 새로고침 없이 도착함 | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림. Redis Pub/Sub은 at-most-once이고, 발행은 resolver가 커밋 전에 함 |
-| 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나임(인스턴스 하나일 때만 확인함, [한계](#향후-확장-계획) 참고) |
+| 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나이며, 다른 인스턴스에 연결된 이전 소켓도 어댑터를 거쳐 종료함(인스턴스 2개로 확인함, [한계](#향후-확장-계획) 참고) |
 | AI 채팅 | AI 계정과 대화하고 방마다 성격을 고름 | `setAiPersonality` mutation, `AiService.handleReply()` | 방별 Redis 락(`ai:lock:{roomId}`, TTL 30초), `maxOutputTokens` 300, 대화 이력 10개 |
-| 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨. 이미 열린 GraphQL 구독은 밴 이후에도 새 메시지를 받음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음 |
+| 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨. 이미 열린 GraphQL 구독은 밴 이후 그 구독자에게 다음 메시지가 전달될 때 종료되며 그 메시지는 전달되지 않음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음 |
 | 관리자 패널 | 유저·방을 관리하고 감사 로그를 CSV로 내려받음 | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | 별도 앱이고 query·mutation만 사용함(실시간 클라이언트 없음) |
 
 
@@ -312,7 +312,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **검증 결과**:
   - `redis.service.spec.ts`에 `created`가 없는 캐시 항목이 Invalid Date가 되는 동작을 고정하는 케이스가 있음. `pubsub.service.spec.ts`는 발행 시 캐시 동작을 검증함
   - 현재 `backend/src/ai/`에는 `cacheMessage` 호출이 없음(검색으로 확인함)
-  - `pnpm test` 13 suites 254 tests 통과
+  - `pnpm test` 14 suites 258 tests 통과
   - 한계: 수정 뒤 같은 브라우저 시나리오(백엔드 재시작 후 새로고침)를 따로 재현해 확인하지는 않았고, 이후 앱을 사용하는 동안 동일한 오류가 나타나지 않았음.
 
 ### 사례 4: 마이그레이션 생성이 ON DELETE CASCADE를 되돌리는 문제
@@ -320,7 +320,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **원인**: 해당 ManyToMany 관계에 `onDelete`가 선언되어 있지 않아, TypeORM이 DB의 CASCADE를 선언과 다른 상태로 보고 되돌리는 변경을 생성함.
 - **해결**: 생성된 마이그레이션에서 해당 FK 줄을 지우는 절차를 정함. 사람이 놓치는 경우를 대비해 정적 가드 `migration-cascade-guard.spec.ts`를 추가함. 이 가드는 마이그레이션 `up()`의 소스를 텍스트로 스캔해 CASCADE가 유지되는지 확인하고, `pnpm test`에 포함되어 로컬과 CI에서 걸림. 프로덕션에서는 돌리지 않음(부팅 시점엔 이미 마이그레이션이 적용된 뒤라 늦음). 보호할 FK를 늘리려면 spec의 `GUARDED_FKS` 배열에 항목을 추가함.
 - **검증 결과**:
-  - 해당 spec이 포함된 `pnpm test` 13 suites 254 tests 통과
+  - 해당 spec이 포함된 `pnpm test` 14 suites 258 tests 통과
   - 한계: 실행 중인 DB에서 FK의 삭제 동작(`confdeltype`)을 조회하는 확인은 이번에 하지 않음
 
 ### 사례 5: 메모리 소켓 맵에서 Redis 세션으로
@@ -348,7 +348,7 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **검증 결과**:
   - 코드로 확인한 것: 위 구조, `chat.gateway.ts`의 어댑터 연결, `redis.service.spec.ts`와 `chat.service.spec.ts` 단위 테스트
   - 설계상 기대(미검증): 어댑터가 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에만 전달됨
-  - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행): 같은 계정이 다른 인스턴스에서 두 번째로 접속하면 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회하기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않음. 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
+  - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행): 수정 전에는 같은 계정이 다른 인스턴스에서 두 번째로 접속해도 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않았음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회했기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않았음. 조회를 어댑터를 거치는 `server.in(socketId)`로 바꾼 뒤 같은 시나리오에서 첫 소켓이 `forceLogout`을 받고 끊기며, 밴도 다른 인스턴스의 소켓에 닿음. `forceLogout`이 끊김보다 먼저 도착하는지 20회 반복해 20회 모두 확인함(로컬 한 환경의 관찰이며 순서를 보장하는 것은 아님). 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
   - 저장된 값 확인(로컬 단독 컨테이너, 비밀번호 없음): `docker exec -it redis-chat redis-cli`로 접속해 `KEYS user:*`, `HGETALL user:<유저 ID>`, `TTL user:<유저 ID>`를 실행함. docker compose의 Redis는 `requirepass`가 켜져 있어 비밀번호가 필요함(compose 헬스체크와 같은 방식의 `redis-cli -a "$REDIS_PASSWORD"`를 쓰며, 이 명령은 이번에 실행해 보지 않음)
 
 
@@ -449,7 +449,7 @@ PostgreSQL에 DB를 만드는 절차는 이 문서에서 다루지 않음. front
 | B 경로 | `build` 후 `migration:run`까지 확인함. `start:dev`와 빈 DB에서의 최초 마이그레이션은 확인하지 않음 |
 | Playwright e2e | 이번 로컬 실행에서는 실행하지 않음. CI의 2026-10-19 main push 실행([#39287345174](https://github.com/Bluecode77732/Chat-project/actions/runs/39287345174))에서는 `e2e`와 `admin-e2e` job이 모두 success였음. 다만 `ai-chat.spec.ts`는 Gemini 키가 없어도 폴백 메시지로 통과하므로 실제 Gemini 답장을 검증하지는 않음 |
 | AI 실제 답장, 모더레이션 동작 | 이번 실행에서는 확인하지 않음 |
-| 단위 테스트 | backend 13 suites 254 tests, frontend 21 tests, admin 14 tests 통과 |
+| 단위 테스트 | backend 14 suites 258 tests(2026-10-26), frontend 21 tests, admin 14 tests 통과 |
 
 **테스트 실행**
 ```bash
@@ -492,8 +492,8 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - 방 생성·조회 로직이 정확히 두 명을 전제로 해서 그룹 채팅은 지원하지 않음([ROADMAP.ko.md](ROADMAP.ko.md))
 - `GEMINI_API_KEY`가 필수 환경 변수라 키 없이는 부팅되지 않음
 - 호스팅이 중단된 상태라 배포 환경에서의 동작은 확인하지 않음
-- 다중 인스턴스에서는 이전 세션 종료(`forceLogout`)와 밴에 따른 소켓 끊기가 같은 프로세스의 소켓에만 적용됨(인스턴스 2개로 직접 확인함). 저장소 구성은 인스턴스 하나라 지금은 영향이 없음
-- 밴 이후에도 이미 열린 GraphQL 구독은 새 메시지를 계속 받음(단일 인스턴스에서도 직접 확인함)
+- 밴된 사용자의 `receiveMessage` 구독은 밴 즉시가 아니라 그 구독자에게 다음 메시지가 전달될 때 종료됨(그 메시지는 전달되지 않음). 메시지마다 `isUserBanned`로 DB를 조회하므로 구독자 수와 메시지 수에 비례한 조회 비용이 있고, 이 비용은 측정하지 않음
+- 관리자 강제 로그아웃(`UserService.forceLogout`)은 소켓만 끊고 열린 GraphQL 구독은 닫지 않으며, 이미 발급된 액세스 토큰도 폐기하지 않음
 - 다중 인스턴스 부하는 측정하지 않음
 - 최초 superadmin은 DB에 직접 INSERT해야 함
 - `admin-e2e` job은 아직 blocking이 아니고 Windows `test` job은 실패해도 통과 처리됨([deploy.yml](.github/workflows/deploy.yml))
@@ -505,8 +505,7 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - 사용자 측 방·대화 삭제
 - 입력 중 표시
 - `receiveMessage` 구독의 속도 제한
-- 밴·강제 로그아웃 시 열린 GraphQL 구독 종료
-- 다중 인스턴스에서도 동작하는 세션 종료(어댑터를 거치는 호출로 변경)
+- 강제 로그아웃 시 열린 GraphQL 구독 종료
 - frontend·admin 에러 트래킹
 
 
@@ -609,7 +608,7 @@ superadmin이 1명뿐이고 그 계정이 탈취된 경우엔 앱 내 대응 경
   - **3 스트라이크 → 경고** — 방에 System 계정 메시지가 게시됨(가운데 정렬된 알림으로 렌더링)
   - **5 스트라이크 → 임시 뮤트** — 10분, Redis 기반; 연결은 유지되지만 전송 불가
   - **7 스트라이크 → 기간제 밴** — 7일; 재범(두 번째 `USER_BANNED`)은 **영구** 밴이 됨
-- **집행** — 밴된 사용자는 `jwt.strategy`(HTTP/GraphQL), `handleConnection`(소켓), 토큰 갱신 시점에서 거부되어, 여전히 유효한 토큰으로는 새 연결·요청·갱신을 할 수 없음. 다만 밴 이전에 열어 둔 GraphQL 구독은 닫히지 않아 밴 이후에도 새 메시지를 계속 받음(2026-10-26 로컬 실행으로 확인함. 구독의 권한 확인이 구독 시작 시점에만 일어남). 뮤트는 전송만 차단함.
+- **집행** — 밴된 사용자는 `jwt.strategy`(HTTP/GraphQL), `handleConnection`(소켓), 토큰 갱신 시점에서 거부되어, 여전히 유효한 토큰으로는 새 연결·요청·갱신을 할 수 없음. 밴 이전에 열어 둔 GraphQL 구독은 그 구독자에게 다음 메시지가 전달될 때 `isUserBanned`로 다시 확인해 종료하며 그 메시지는 전달하지 않음(2026-10-26 로컬 실행으로 확인함. 이 확인은 구독을 시작할 때의 권한 확인과 별개로 메시지마다 실행됨). 뮤트는 전송만 차단함.
 - **복구 및 감사** — `POST /user/:id/unban`(admin)이 밴/뮤트/스트라이크를 해제하고 auth 캐시를 무효화함. 모든 액션은 감사 로그 항목(`USER_MUTED` / `USER_BANNED` / `USER_UNBAN`)을 남김.
 - **저장소** — `user_entity.status`(`active` | `banned`)와 `bannedUntil`이 영구 밴을 뒷받침하고, 스트라이크와 뮤트는 Redis 전용(`moderation:*` 키, 전부 TTL 있음)임. 시작 전 `AddModerationColumns` 마이그레이션을 실행하세요.
 
@@ -681,12 +680,12 @@ Google Gemini 2.5 Flash 기반이고 `AiService`(답장 생성)와 `AiRoomServic
 
 #### 테스트 커버리지
 **테스트 결과**
-- Test Suites: 13 passed, 13 total (254 tests, 2026-10-22 재측정)
+- Test Suites: 14 passed, 14 total (258 tests, 2026-10-26 재측정)
 - frontend Vitest: 4 files, 21 tests 통과 / admin Vitest: 3 files, 14 tests 통과
 
-**커버리지 결과** (% Stmts 기준, `pnpm test:cov` — 2026-10-22 재측정, 2026-07-16 값과 동일)
+**커버리지 결과** (% Stmts 기준, `pnpm test:cov` — 2026-10-26 재측정, Chat Service 외에는 2026-07-16 값과 동일)
 - Auth Service: 98.29%
-- Chat Service: 97.72%
+- Chat Service: 98.44%
 - Redis Service: 96.34%
 - User Service: 100%
 - AI Service: 96.7%
