@@ -324,8 +324,50 @@ export class ChatResolver {
     if (!(await this.chatService.isRoomParticipant(userId, roomId))) {
       throw new ForbiddenException('Access denied to this room');
     }
-    return this.pubSub.asyncIterableIterator(
-      `receiveMessage :${roomId}`,
-    ) as AsyncIterableIterator<{ receiveMessage: MessageType }>;
+    return this.endWhenBanned(
+      this.pubSub.asyncIterableIterator(
+        `receiveMessage :${roomId}`,
+      ) as AsyncIterableIterator<{ receiveMessage: MessageType }>,
+      userId,
+    );
+  }
+
+  // 구독의 권한 확인(GraphQLAuthGuard, 룸 멤버십)은 구독 시작 시점에만 실행되므로, 밴 이전에
+  // 열린 구독은 밴 이후에도 새 메시지를 계속 받음. 메시지를 전달하기 직전에 밴 여부를 다시
+  // 확인해, 밴이면 그 메시지를 보내지 않고 구독을 끝냄. async generator 대신 반복자 객체를 쓰는
+  // 이유는 return()이 대기 중인 next() 뒤에 줄 서지 않고 원본 반복자로 바로 전달되어, 클라이언트가
+  // 구독을 끊을 때 Pub/Sub 구독이 즉시 해제되게 하려는 것.
+  private endWhenBanned<T>(
+    source: AsyncIterableIterator<T>,
+    userId: number,
+  ): AsyncIterableIterator<T> {
+    let ended = false;
+    return {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next: async () => {
+        if (ended) return { value: undefined, done: true };
+        const result = await source.next();
+        if (result.done) return result;
+        if (await this.moderationService.isUserBanned(userId)) {
+          ended = true;
+          await source.return?.();
+          return { value: undefined, done: true };
+        }
+        return result;
+      },
+      return: async (value?: unknown) => {
+        ended = true;
+        return source.return
+          ? source.return(value)
+          : { value: undefined, done: true as const };
+      },
+      throw: async (error?: unknown) => {
+        ended = true;
+        if (source.throw) return source.throw(error);
+        throw error;
+      },
+    };
   }
 }
