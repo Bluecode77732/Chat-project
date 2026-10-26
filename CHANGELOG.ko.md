@@ -12,6 +12,9 @@
 
 ## 2026-10-27
 
+- Chore: check:adr 검사 대상에 README 영/한 추가
+- Docs: README 서술 오류 정정과 중복 정리, ADR 0001·0004에 jti 세션과 발행·커밋 순서 추가
+- Docs: CHANGELOG 동기화 (ADR 0023 추가 커밋 반영)
 - Docs: 구독 밴 재확인 ADR 0023과 다중 인스턴스 수동 검증 절차 추가
 - Docs: CHANGELOG 동기화 (구독 종료와 세션 종료 수정 커밋 반영)
 - Docs: 구독 종료와 어댑터 경유 세션 종료 반영, 오래된 인용 위치 정정
