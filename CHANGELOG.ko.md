@@ -12,6 +12,8 @@
 
 ## 2026-10-27
 
+- Docs: README 표를 목록으로 바꾸고 사례 불릿을 나눠 가독성 개선, 의존성 목록과 check:deps 폐지
+- Docs: CHANGELOG 동기화 (README 정정 커밋 반영)
 - Chore: check:adr 검사 대상에 README 영/한 추가
 - Docs: README 서술 오류 정정과 중복 정리, ADR 0001·0004에 jti 세션과 발행·커밋 순서 추가
 - Docs: CHANGELOG 동기화 (ADR 0023 추가 커밋 반영)
