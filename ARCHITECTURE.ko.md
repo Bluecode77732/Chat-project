@@ -167,12 +167,12 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 
 `main.ts`에 한 번 등록되어 모듈과 무관하게 모든 라우트에 적용되는 횡단 관심사 설정임:
 
-- **`app.set('trust proxy', 1)`** (`main.ts:29`) — Railway가 리버스 프록시로 앞단에 있음. 이
+- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway가 리버스 프록시로 앞단에 있음. 이
   설정이 없으면 `req.ip`가 매 요청 프록시 자신의 주소로 해석되어, `AuthRateLimitGuard`의
   클라이언트별 IP 버킷이 전부 하나의 공유 버킷으로 뭉개짐(아래 [가드 체인](#가드-체인) 참고).
-  `1`은 `X-Forwarded-For` 체인 전체가 아니라 바로 앞 홉 하나만 신뢰한다는 뜻임(`main.ts:25-28`
+  `1`은 `X-Forwarded-For` 체인 전체가 아니라 바로 앞 홉 하나만 신뢰한다는 뜻임(`main.ts:25-27`
   코드 주석 근거).
-- **`helmet`** (`main.ts:37`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의
+- **`helmet`** (`main.ts:35`, `app.use(helmet({ contentSecurityPolicy: false }))`) — Express의
   표준 보안 HTTP 응답 헤더를 설정함. CSP는 의도적으로 꺼져 있음. 이 백엔드는 HTML을 거의
   서빙하지 않음(REST/GraphQL 응답은 전부 JSON). 백엔드가 설정하는 CSP 헤더가 실제로 적용될
   페이지는 Swagger UI(`/document`) 하나뿐인데, Swagger의 인라인 부트스트랩 스크립트는 CSP를 켜면
@@ -189,7 +189,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
   프로덕션 백엔드 오리진을 HTTPS(양쪽) + WSS(`frontend`만 — GraphQL 구독 + Socket.IO용, `admin`은
   실시간 의존성 없음)로 화이트리스트함.
   전체 내용(위의 Helmet 포함)은 [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) 참고.
-- **전역 `ValidationPipe`** (`main.ts:45-54`) — `whitelist: true` + `forbidNonWhitelisted: true`
+- **전역 `ValidationPipe`** (`main.ts:43-52`) — `whitelist: true` + `forbidNonWhitelisted: true`
   (대상 DTO 클래스에 선언되지 않은 속성은 제거/거부)와 `transform: true`(들어온 페이로드를 DTO
   클래스 인스턴스로 변환)로 설정되어 있음. CLAUDE.md의 Never Do Group 3 "Raw `@Body()`
   without DTO" 규칙이 실제로 강제되는 지점임. DTO 타입으로 선언된 모든 컨트롤러/리졸버
@@ -197,8 +197,8 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 - **`app.enableShutdownHooks()`** (`main.ts:23`) — 이게 없으면 `OnModuleDestroy` 훅
   (`PubSubService`, `SessionCacheService`, `ChatGateway`)이 `SIGTERM`/`SIGINT`에서 실행되지 않아,
   배포할 때마다 Redis 연결이 정상 종료 대신 거칠게 끊김(`main.ts:20-22`의 코드 주석 근거).
-- **Body 파서 한도를 3mb로 상향** (`main.ts:42-43`, `json`/`urlencoded` 둘 다) — Express
-  기본값(100kb)이 사용자가 업로드하는 base64 이미지보다 훨씬 작기 때문임(`main.ts:40-41` 코드
+- **Body 파서 한도를 3mb로 상향** (`main.ts:40-41`, `json`/`urlencoded` 둘 다) — Express
+  기본값(100kb)이 사용자가 업로드하는 base64 이미지보다 훨씬 작기 때문임(`main.ts:38-39` 코드
   주석). 이 한도를 넘는 요청을 잡아내는 것이 바로 아래 [에러 처리](#에러-처리)의
   `AllExceptionsFilter` payload-too-large → `413` 분기임.
 
@@ -206,7 +206,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 
 `AllExceptionsFilter`(`backend/src/base/filter/all-exceptions.filter.ts`)는 HTTP와 GraphQL을 모두
 커버하는 단일 전역 필터로 등록되어 있음(`app.useGlobalFilters(new AllExceptionsFilter())`,
-`main.ts:38`). 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기함.
+`main.ts:36`). 필터를 둘로 나누는 대신 `host.getType<'http' | 'ws' | 'graphql'>()`으로 분기함.
 `HttpException`이 아닌 에러는 기본적으로 `500`/`INTERNAL_SERVER_ERROR`로 처리함. 다만
 `body-parser`의 "entity.too.large" 에러만은 구조적으로 감지해서(`body-parser`가 일반 `Error`를
 던지므로 `instanceof HttpException`으로는 구분되지 않음) `413 PAYLOAD_TOO_LARGE`로 재매핑함. 운영
@@ -242,14 +242,14 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 | REST(보호된 라우트) | `JwtAuthGuard` → `RbacGuard` | `user.controller.ts` |
 | GraphQL, admin 전용 | `GraphQLAuthGuard` → `GraphQLRBACGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` (주석: "`GraphQLAuthGuard`가 `req.user`를 채우고, `GraphQLRBACGuard`가 그것을 읽는다") — `getAllRooms`, `deleteRoom` |
 | GraphQL, 그 외 인증된 query/mutation | `GraphQLAuthGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` — `getMyRooms`, `getMessages`, `getOnlineUser`, `getRoom`, `getAllUsers`, `getUserNicknames`, `getAiPersonalityInfo`, `setAiPersonality`. `RateLimitGuard`와 달리 보안/어뷰징 게이트가 아니라 Redis 에러 시 fail-**open**함 — [ADR 0016](ADR/0016-redis-unavailability-policy.md) 참고 |
-| GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
+| GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:190-192` — `RateLimitGuard`가 뮤트/밴 당한 유저에게 속도 제한 예산을 소모하기 전에 `ModerationGuard`가 먼저 걸러야 함 |
 | Socket.IO `handleConnection` | JWT 파싱 → `moderationService.isUserBanned()` 확인 | `chat.gateway.ts` — HTTP/GraphQL에서 `jwt.strategy`가 적용하는 것과 동일한 밴 게이트로, 유효한 토큰이라도 소켓 연결로는 밴을 우회할 수 없음 |
-| GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:309-326` |
+| GraphQL, `receiveMessage` 구독 | `GraphQLAuthGuard` → `isRoomParticipant()` 룸 멤버십 확인 | `chat.resolver.ts:313-330` |
 | REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — userId가 아니라 IP 기준임(인증 전이라 userId가 없음). 원자적 Lua `INCR`+`EXPIRE`로 60초당 10회 제한하고, Redis 에러 시 fail-closed(거부)함. [ADR 0016](ADR/0016-redis-unavailability-policy.md)의 다른 DB fallback 없는 보안 체크들과 동일한 fail-closed 정책이고, (위의 Helmet/CSP 분리와 함께) [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md)으로 정식화되어 있음 |
 
 **`receiveMessage`는 HTTP가 아니라 `graphql-ws` 위에서 동작함** — 이 표에서 유일하게 그런
 경로임. `GraphQLAuthGuard`는 `ctx.req.headers.authorization`을 읽는데, 구독에는 실제 HTTP
-요청이 없음. 그래서 GraphQL `context()` 함수(`app.module.ts:110-130`)가 `graphql-ws`의
+요청이 없음. 그래서 GraphQL `context()` 함수(`app.module.ts:140-170`)가 `graphql-ws`의
 `connectionParams`(`onConnect`에서 캡처되어 `extra`로 전달됨)로부터 synthetic한
 `req.headers.authorization`을 만들어냄. 이것이 실제 메시지 *전달* 쪽 가드임.
 `sendMessage`의 가드 체인(위)은 쓰기 쪽만 막고, 모든 구독자는 구독 시점에 인증과 룸 멤버십을
@@ -299,7 +299,7 @@ AI 응답과 동일한 트리거 패턴). 경고/뮤트/밴 알림용 시스템 
 정밀도인지는 [ADR 0007](ADR/0007-ai-reply-distributed-lock.md)을 참고하세요.
 
 - **위험:** `evaluateMessage()`는 `pubSub.publish()`가 이미 구독자에게 메시지를 전달한 *이후*에
-  실행되는 `setImmediate` 블록 안에 있음(`chat.resolver.ts:206`의 발행이 모더레이션 블록보다
+  실행되는 `setImmediate` 블록 안에 있음(`chat.resolver.ts:210`의 발행이 모더레이션 블록보다
   먼저 시작됨). 즉 위반 메시지 자체는 전달 전에 차단되는 일이 없고, 뮤트/밴이 발동된 *이후*
   에 보낸 메시지만 막힘. 모더레이션 평가가 `sendMessage`에 왕복 시간을 더하지 않도록 의도한
   지연 시간 트레이드오프이지 실수가 아님. 다만 스트라이크를 유발한 그 메시지에 대해서는

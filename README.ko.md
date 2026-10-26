@@ -102,7 +102,7 @@
 - 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음
 - 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리
 - 보안: DOMPurify를 통한 XSS 방지, CORS 설정에 맞춘 요청, 보호된 페이지를 위한 Route Guard
-- 배포: Vercel (푸시 시 자동 배포)
+- 배포: Vercel 프로젝트로 배포하도록 구성함(`frontend/vercel.json`). 현재 호스팅은 중단한 상태임([호스팅 상태](#호스팅-상태))
 
 
 ## 기능
@@ -447,7 +447,7 @@ PostgreSQL에 DB를 만드는 절차는 이 문서에서 다루지 않음. front
 | superadmin INSERT 후 관리자 로그인과 `GET /user` | 확인함 |
 | frontend, admin 개발 서버 | 응답(200)만 확인함. 브라우저에서 로그인·채팅 화면은 확인하지 않음 |
 | B 경로 | `build` 후 `migration:run`까지 확인함. `start:dev`와 빈 DB에서의 최초 마이그레이션은 확인하지 않음 |
-| Playwright e2e | 이번 실행에서는 실행하지 않음. CI에서는 실행되며, `ai-chat.spec.ts`는 Gemini 키가 없어도 폴백 메시지로 통과하므로 실제 Gemini 답장을 검증하지는 않음 |
+| Playwright e2e | 이번 로컬 실행에서는 실행하지 않음. CI의 2026-10-19 main push 실행([#39287345174](https://github.com/Bluecode77732/Chat-project/actions/runs/39287345174))에서는 `e2e`와 `admin-e2e` job이 모두 success였음. 다만 `ai-chat.spec.ts`는 Gemini 키가 없어도 폴백 메시지로 통과하므로 실제 Gemini 답장을 검증하지는 않음 |
 | AI 실제 답장, 모더레이션 동작 | 이번 실행에서는 확인하지 않음 |
 | 단위 테스트 | backend 13 suites 254 tests, frontend 21 tests, admin 14 tests 통과 |
 

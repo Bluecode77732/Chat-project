@@ -37,7 +37,8 @@ cp admin/.env.example admin/.env.local
 sequence):
 ```bash
 docker compose up -d --build   # requires .env.docker at the project root
-docker compose down -v         # tear down
+docker compose down            # stop the containers (keeps the Postgres/Redis data)
+docker compose down -v         # also deletes the Postgres/Redis volumes (data is lost)
 ```
 
 **Per-package, without Docker**:
@@ -96,7 +97,7 @@ mirrors), `check:deps` (README's dependency lists vs `backend/package.json`), `c
 `check:changelog` tolerates exactly **one** unrecorded newest commit — the one doing the recording.
 So a single commit needs no changelog edit, but stacking a second on top makes the first one fail:
 when a PR carries more than one commit, add each commit's own subject line to both `CHANGELOG.md` and
-`CHANGELOG.ko.md` (verbatim, English subject in both files) as part of that commit.
+`CHANGELOG.ko.md` (verbatim and untranslated, so a Korean subject stays Korean in both files) as part of that commit.
 
 > Note: CI's `e2e`/`admin-e2e` run against `postgres:16` service containers, while local Docker
 > (`docker-compose.yml`) and the documented local prerequisite use `postgres:18` — an intentional

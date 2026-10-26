@@ -36,7 +36,8 @@ cp admin/.env.example admin/.env.local
 **Docker로 풀스택 실행** (backend 작업에 권장 — 운영 환경과 동일한 "마이그레이션 후 시작" 순서):
 ```bash
 docker compose up -d --build   # 프로젝트 루트에 .env.docker가 필요합니다
-docker compose down -v         # 종료
+docker compose down            # 컨테이너 종료(데이터 유지)
+docker compose down -v         # PostgreSQL·Redis 볼륨까지 삭제(데이터가 사라짐)
 ```
 
 **Docker 없이 패키지별 실행**:
@@ -95,7 +96,7 @@ PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 
 `check:changelog`는 기록되지 않은 최신 커밋을 **하나만** 허용함. 기록을 수행하는 그 커밋
 자신임. 커밋이 하나뿐이면 CHANGELOG를 건드릴 필요가 없지만, 그 위에 두 번째 커밋을 쌓는
 순간 첫 번째 커밋에서 검사가 실패함. PR에 커밋이 둘 이상이라면 각 커밋의 제목 줄을 그 커밋
-안에서 `CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(두 파일 모두 영문 제목 원문) 추가하세요.
+안에서 `CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(번역하지 않은 원문, 한국어 제목이면 두 파일 모두 한국어로) 추가하세요.
 
 > 참고: CI의 `e2e`/`admin-e2e`는 `postgres:16` 서비스 컨테이너로 실행되지만, 로컬 Docker
 > (`docker-compose.yml`)와 문서상의 로컬 사전 요구사항은 `postgres:18`을 사용함. 드리프트가

@@ -103,7 +103,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Auth: access token in memory (Zustand), refresh token in a backend-set httpOnly cookie — never in localStorage ✔
 - Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
 - Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
-- Deployment: Vercel (auto-deploy on push) ✔
+- Deployment: configured to deploy as a Vercel project (`frontend/vercel.json`). Hosting is currently stopped (see [Hosting Status](#hosting-status))
 
 
 ## Features
@@ -449,7 +449,7 @@ Checked on 2026-10-22 on Windows 10, Docker 28.5.1 / Compose 2.40.0, Node 24.8.0
 | Superadmin INSERT, then admin sign-in and `GET /user` | Confirmed |
 | frontend and admin dev servers | Only the response (200) was checked. Sign-in and the chat screen in a browser were not |
 | Path B | Confirmed up to `build` then `migration:run`. `start:dev` and the first migration on an empty DB were not |
-| Playwright e2e | Not run in this run. It runs in CI, and `ai-chat.spec.ts` passes on the fallback message even without a Gemini key, so it does not verify a real Gemini reply |
+| Playwright e2e | Not run in this local run. In CI, the 2026-10-19 main push run ([#39287345174](https://github.com/Bluecode77732/Chat-project/actions/runs/39287345174)) passed both the `e2e` and `admin-e2e` jobs. However `ai-chat.spec.ts` passes on the fallback message even without a Gemini key, so it does not verify a real Gemini reply |
 | Real AI replies, moderation behavior | Not checked in this run |
 | Unit tests | backend 13 suites / 254 tests, frontend 21 tests, admin 14 tests pass |
 
