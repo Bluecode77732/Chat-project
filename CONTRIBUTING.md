@@ -187,6 +187,24 @@ reset afterward.
 6. **Audit** — each step above writes an admin-visible audit entry (`USER_MUTED` /
    `USER_BANNED` / `USER_UNBAN`).
 
+### Manual multi-instance verification
+
+Nothing in CI runs two backend instances, so check session eviction and ban handling by hand after
+touching `chat.service.ts`, `chat.gateway.ts`, or the `receiveMessage` subscription. Start a second
+backend process or container with the same Postgres and Redis settings and a different `PORT`, then
+log in as the same account on each instance (use a throwaway account, never real credentials):
+
+1. **Session eviction** — connect a socket to instance 1, then connect with the same account to
+   instance 2. Expect: the first socket receives `forceLogout` and then disconnects.
+2. **Ban reach** — connect a socket to instance 2 and ban the account through instance 1. Expect:
+   the socket is disconnected.
+3. **Subscription** — subscribe to `receiveMessage` as the account, ban it, then send a message to the
+   room. Expect: the subscription ends and the message is not delivered
+   ([ADR 0023](ADR/0023-subscription-ban-recheck.md)).
+
+When testing in Docker, give the second container its own host port and never run
+`docker compose down -v`, which deletes the Postgres volume.
+
 ## Reporting issues
 
 The only issue template configured is `.github/ISSUE_TEMPLATE/architecture-completeness-sweep.md`,

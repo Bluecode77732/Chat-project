@@ -79,6 +79,7 @@ A reversal therefore always produces two file edits (new ADR + old Status line) 
 | [0020](0020-security-headers-and-auth-rate-limit.md) | Security headers split (Helmet backend / CSP frontend+admin) and IP-based auth rate limiting | Accepted |
 | [0021](0021-unified-message-delivery-channel.md) | Single delivery channel/shape for human, AI, and moderation system messages | Accepted |
 | [0022](0022-node-env-runtime-env-split.md) | Split NODE_ENV (standard) from RUNTIME_ENV (native\|docker) | Accepted |
+| [0023](0023-subscription-ban-recheck.md) | Re-check the ban per delivered message on `receiveMessage` subscriptions | Accepted |
 
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
