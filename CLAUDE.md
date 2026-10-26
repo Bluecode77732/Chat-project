@@ -1321,8 +1321,7 @@ GitHub Actions (`.github/workflows/deploy.yml`), triggered on push to `main` and
    `pnpm --filter admin lint` → `pnpm --filter admin test` → `pnpm --filter frontend lint` →
    `pnpm --filter frontend test` → `pnpm check:adr` (broken links/anchors,
    stale citations, missing `.ko.md` pairs, EN/KO heading-structure parity) → `pnpm check:config`
-   (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:deps` (README's
-   Dependencies/DevDependencies lists in sync with `backend/package.json`) → `pnpm check:changelog`
+   (`MODERATION_DEFAULTS` in sync across its 4 documented mirrors) → `pnpm check:changelog`
    (CHANGELOG.md/.ko.md list every commit under matching newest-first date headings, EN/KO in sync).
    No step has a `|| true` fallback — any failure hard-fails the job.
 2. **`e2e`** (needs `test`; real Postgres 16 + Redis 7 service containers) — builds backend, runs

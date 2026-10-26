@@ -115,15 +115,14 @@ PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 
 
 | Job | 하는 일 | 필수 통과? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
 | `e2e` | 백엔드 jest e2e 부팅 스모크 테스트를 돌린 뒤 `frontend/` 대상 Playwright e2e 실행 — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 | `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`. 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않음 |
 
-`test` 잡의 마지막 네 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패하면 빌드를 막음:
+`test` 잡의 마지막 세 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패하면 빌드를 막음:
 `check:adr`(깨진 ADR 링크/앵커, 낡은 `file:line` 인용, 누락된 `.ko.md` 짝, EN/KO 헤딩 구조 패리티),
 `check:config`(`MODERATION_DEFAULTS`가 문서화된 미러들 사이에서 동기화되어 있는지),
-`check:deps`(README의 의존성 목록과 `backend/package.json`의 일치 여부),
 `check:changelog`(`CHANGELOG.md`/`.ko.md`가 `git log`의 모든 커밋을 올바른 날짜 헤딩 아래 담고 있는지).
 
 `check:changelog`는 기록되지 않은 최신 커밋을 **하나만** 허용함. 기록을 수행하는 그 커밋
@@ -149,7 +148,7 @@ pnpm --filter admin lint
 pnpm --filter admin test
 pnpm --filter frontend lint
 pnpm --filter frontend test
-pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
+pnpm check:adr && pnpm check:config && pnpm check:changelog
 ```
 
 코드 스타일은 `backend/.prettierrc`(`singleQuote: true`, `trailingComma: "all"`)와 ESLint

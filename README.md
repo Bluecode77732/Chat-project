@@ -85,20 +85,29 @@ To run the app, follow [Quick Start](#quick-start) locally.
 
 
 ## Stacks
-Only the technologies tied directly to the core design are listed. Full dependencies are in [Total Installation](#total-installation) and [ARCHITECTURE.md](ARCHITECTURE.md#tech-stack).
+Only the technologies tied directly to the core design are listed. Full dependencies are in each package's `package.json` and [ARCHITECTURE.md](ARCHITECTURE.md#tech-stack).
 
 ### Role and Code Location by Technology
-| Area | Technology | Role and why it was chosen | Code location |
-|---|---|---|---|
-| Backend | NestJS 11, TypeScript, Node.js 24 | A single-deployable monolith split by DI-based module boundaries into auth/chat/user/ai/moderation/audit-log and others, which kept coupling low as it grew from one resolver to about ten modules. Static typing catches at compile time the `undefined`-property bugs hit repeatedly early on. Non-blocking I/O suits a connection-heavy chat workload | `backend/src/` |
-| API | GraphQL (Apollo), graphql-ws | The mutation to send a message and the per-room subscription to receive it. Messages first went straight over Socket.IO and were moved mid-project to get transactional guarantees around persistence ([Case 1](#technical-decisions-and-troubleshooting)) | `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/` |
-| Realtime | Socket.IO, `@socket.io/redis-adapter` | JWT auth on connect, room-creation notice, `forceLogout` on a second login. Without the adapter, room broadcasts don't cross server instances | `backend/src/chat/chat.gateway.ts` |
-| Database | PostgreSQL, TypeORM | Relational data where users, rooms, messages, and the audit log depend on each other. Schema changes go through migrations only so they stay reviewable (`synchronize: false`) | `backend/src/migrations/`, `backend/src/data-source.ts` |
-| Cache / Pub-Sub | Redis (ioredis) | Session and online state, per-room recent-message cache, rate limits, moderation state, AI lock, GraphQL Pub/Sub, access-token blacklist, auth role cache (`user_cache`), refresh-session id (`auth:session`) | `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts` |
-| Auth | Passport JWT, bcrypt | Access token in memory, refresh token in an httpOnly cookie. Role guards are composed at both the REST and GraphQL layer, not subclassed | `backend/src/auth/` |
-| AI | Gemini (`@google/genai`) | Replies driven by a per-room personality. Output-token, history, and retry caps were set at design time | `backend/src/ai/` |
-| Frontend / Admin | React, Vite, Zustand, Apollo Client | Chat UI, in-memory token, silent token refresh. Admin is a separate app | `frontend/src/`, `admin/src/` |
-| Tests / CI | Jest, Vitest, Playwright, Docker Compose, GitHub Actions | Service unit tests, component/store tests, e2e, local full stack, doc-integrity checks | `backend/src/**/*.spec.ts`, `frontend/e2e/`, `admin/e2e/`, `docker-compose.yml`, `.github/workflows/deploy.yml` |
+- **Backend** — NestJS 11, TypeScript, Node.js 24 · `backend/src/`
+  - A single-deployable monolith split into DI-based modules (auth, chat, user, ai, moderation, audit-log, and others), which kept coupling low as it grew from one resolver to about ten modules
+  - Static typing catches the `undefined`-property bugs hit repeatedly early on, and non-blocking I/O suits a connection-heavy chat workload
+- **API** — GraphQL (Apollo), graphql-ws · `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/`
+  - The mutation to send a message and the per-room subscription to receive it. Messages first went straight over Socket.IO and were moved mid-project to get transactional guarantees around persistence ([Case 1](#technical-decisions-and-troubleshooting))
+- **Realtime** — Socket.IO, `@socket.io/redis-adapter` · `backend/src/chat/chat.gateway.ts`
+  - JWT auth on connect, room-creation notice, `forceLogout` on a second login. Without the adapter, room broadcasts don't cross server instances
+- **Database** — PostgreSQL, TypeORM · `backend/src/migrations/`, `backend/src/data-source.ts`
+  - Relational data where users, rooms, messages, and the audit log depend on each other. Schema changes go through migrations only so they stay reviewable (`synchronize: false`)
+- **Cache / Pub-Sub** — Redis (ioredis) · `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts`
+  - Session and online state, per-room recent-message cache, rate limits, moderation state, AI lock, GraphQL Pub/Sub
+  - For auth: access-token blacklist, role cache (`user_cache`), refresh-session id (`auth:session`)
+- **Auth** — Passport JWT, bcrypt · `backend/src/auth/`
+  - Access token in memory, refresh token in an httpOnly cookie. Role guards are composed at both the REST and GraphQL layer, not subclassed
+- **AI** — Gemini (`@google/genai`) · `backend/src/ai/`
+  - Replies driven by a per-room personality. Output-token, history, and retry caps were set at design time
+- **Frontend / Admin** — React, Vite, Zustand, Apollo Client · `frontend/src/`, `admin/src/`
+  - Chat UI, in-memory token, silent token refresh. Admin is a separate app
+- **Tests / CI** — Jest, Vitest, Playwright, Docker Compose, GitHub Actions · `backend/src/**/*.spec.ts`, `frontend/e2e/`, `admin/e2e/`, `docker-compose.yml`, `.github/workflows/deploy.yml`
+  - Service unit tests, component/store tests, e2e, local full stack, doc-integrity checks
 
 ### Frontend
 A minimal React + TypeScript client built to demonstrate end-to-end integration with the backend.
@@ -118,13 +127,19 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Accessibility and UX: `/` focuses the message input, and an `aria-live` region announces moderation notices
 
 ### Core Features and Where They Live
-| Feature | What the user does | API / code | Worth noting |
-|---|---|---|---|
-| Messaging | A sent message shows up on the other side without a reload | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`. Redis Pub/Sub is at-most-once and the publish happens before the commit ([Case 1](#technical-decisions-and-troubleshooting)) |
-| Auth and session | Stays signed in across reloads. Signing in as another account in another tab logs this tab out | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request. One active socket per user, and a previous socket on another instance is also closed through the adapter (confirmed with two instances; see [Scale Up In Future](#scale-up-in-future)) |
-| AI chat | Talks to the AI account and picks a personality per room | `setAiPersonality` mutation, `AiService.handleReply()` | Per-room Redis lock, capped output tokens, history, and retries (details in [AI](#ai)) |
-| Moderation | Flooding gets a warning, then a mute, then a ban | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | Thresholds are env-tunable. A ban is enforced over HTTP and GraphQL requests, socket connections, and token refresh. A GraphQL subscription that is already open ends when the next message would be delivered to that subscriber, and that message is not delivered ([limits](#scale-up-in-future)). Every action is audit-logged |
-| Admin panel | Manage users and rooms, export the audit log as CSV | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | A separate app that only uses queries and mutations (no realtime client) |
+- **Messaging** — `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`). A sent message shows up on the other side without a reload
+  - `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`
+  - Redis Pub/Sub is at-most-once and the publish happens before the commit ([Case 1](#technical-decisions-and-troubleshooting))
+- **Auth and session** — `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts`. Stays signed in across reloads; signing in as another account in another tab logs this tab out
+  - Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request
+  - One active socket per user, and a previous socket on another instance is also closed through the adapter (confirmed with two instances; see [Scale Up In Future](#scale-up-in-future))
+- **AI chat** — `setAiPersonality` mutation, `AiService.handleReply()`. Talks to the AI account and picks a personality per room
+  - Per-room Redis lock, capped output tokens, history, and retries (details in [AI](#ai))
+- **Moderation** — `ModerationService`, `ModerationGuard`, `POST /user/:id/unban`. Flooding gets a warning, then a mute, then a ban
+  - Thresholds are env-tunable. A ban is enforced over HTTP and GraphQL requests, socket connections, and token refresh
+  - A GraphQL subscription that is already open ends when the next message would be delivered to that subscriber, and that message is not delivered ([limits](#scale-up-in-future)). Every action is audit-logged
+- **Admin panel** — `admin/src/`, `GET /audit-log`, `GET /audit-log/export`. Manage users and rooms, export the audit log as CSV
+  - A separate app that only uses queries and mutations (no realtime client)
 
 
 ## Architecture
@@ -293,7 +308,10 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 ### Case 1: Moving the message path from Socket.IO to GraphQL
 - **Problem**: At first a Socket.IO handler received, saved, and delivered messages. A socket handler had no way to wrap a write that touches several tables, such as creating a room and saving a message, in one transaction.
 - **Cause**: A socket handler has no layer that owns the transaction lifecycle per request (open the `QueryRunner`, commit, roll back, `release()`). Managing it by hand at every call site risks a missed `release()` leaking connections out of the pool, as [ADR 0003](ADR/0003-database-transaction-strategy.md) records.
-- **Fix**: Sending moved to the `sendMessage` mutation and receiving to the `receiveMessage` subscription, with `GqlTransactionInterceptor` owning the transaction lifecycle. Socket.IO kept only connection auth, room-creation notices, and `forceLogout`. Keeping both paths was rejected because the same event could be duplicated or arrive out of order ([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md)). The change was made on an app that already worked, and both paths coexisted for about 4.5 months until the old Socket.IO message handler was deleted on 2026-06-11 ([ROADMAP.md](ROADMAP.md)).
+- **Fix**:
+  - Sending moved to the `sendMessage` mutation and receiving to the `receiveMessage` subscription, with `GqlTransactionInterceptor` owning the transaction lifecycle. Socket.IO kept only connection auth, room-creation notices, and `forceLogout`
+  - Keeping both paths was rejected because the same event could be duplicated or arrive out of order ([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.md))
+  - The change was made on an app that already worked, and both paths coexisted for about 4.5 months until the old Socket.IO message handler was deleted on 2026-06-11 ([ROADMAP.md](ROADMAP.md))
 - **Verification**:
   - `gql-transaction.interceptor.spec.ts` covers the success path (no result is emitted before the commit finishes), the error path (rollback, one `release`, `InternalServerErrorException`), and the case where the commit itself fails
   - In a local Docker run, sign-up → `sendMessage` → delivery to another account's `receiveMessage` subscription → `getMessages` was confirmed at the API level
@@ -304,7 +322,10 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 ### Case 2: Dev DB and Redis ports exposed to the internet
 - **Problem**: During development PostgreSQL (5432), Redis (6379), and the backend (3000) were reachable from the internet. An automated ransomware bot logged in to PostgreSQL with default credentials, wiped the dev database, and left a ransom note.
 - **Cause**: The ports in `docker-compose.yml` were bound to `0.0.0.0`, and the Windows Firewall profile of the Ethernet adapter that held a public IP was set to "Private (trusted)", so a Docker Desktop rule allowed inbound traffic on every port.
-- **Fix**: Close the access path first (port bindings to `127.0.0.1`, loopback-only host in development, and the firewall profile switched to Public by hand), then rotate the DB and Redis passwords and the JWT secrets, and only then clean up the attacker's database. Cleaning first would let the bot recreate it at once, so the order was contain → rotate → clean. The AI did not read the attacker's table; a person did (prompt-injection prevention). To keep it from happening again, Redis `requirepass` was turned on and boot is refused when `ENV=prod` has a `REDIS_URL` without a password. Details in [AI-Assisted Development Notes](#ai-assisted-development-notes) and [ADR 0013](ADR/0013-local-dev-network-binding.md).
+- **Fix**:
+  - Order: contain → rotate → clean. Close the access path first (port bindings to `127.0.0.1`, loopback-only host in development, and the firewall profile switched to Public by hand), then rotate the DB and Redis passwords and the JWT secrets, and only then clean up the attacker's database. Cleaning first would let the bot recreate it at once
+  - The AI did not read the attacker's table; a person did (prompt-injection prevention)
+  - To keep it from happening again, Redis `requirepass` was turned on and boot is refused when `ENV=prod` has a `REDIS_URL` without a password. Details in [AI-Assisted Development Notes](#ai-assisted-development-notes) and [ADR 0013](ADR/0013-local-dev-network-binding.md)
 - **Verification**:
   - The settings were confirmed in code: the `127.0.0.1` bindings and `requirepass` in `docker-compose.yml`, the loopback branch in `main.ts`, and the `REDIS_URL` password check in `app.module.ts`
   - In a local Docker run, `docker compose ps` showed 3000, 5432, and 6379 bound to `127.0.0.1` only
@@ -323,7 +344,10 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 ### Case 4: A generated migration reverts ON DELETE CASCADE
 - **Problem**: `pnpm migration:generate` re-emits the ManyToMany join-table FK `FK_501a0aef55632e3cf2894bda97f` (`room_entity_participants_user_entity`) as `ON DELETE NO ACTION`, which quietly reverts the `ON DELETE CASCADE` that user deletion uses to clear room membership. Once reverted, deleting a user fails on an FK violation ([CLAUDE.md](CLAUDE.md)).
 - **Cause**: The ManyToMany relation declares no `onDelete`, so TypeORM sees the DB's CASCADE as different from the declaration and generates a change that reverts it.
-- **Fix**: A manual review step ([CLAUDE.md](CLAUDE.md), [ADR 0003](ADR/0003-database-transaction-strategy.md)) strips that FK line from every generated migration. Because a person can miss it, there is also a static guard, `migration-cascade-guard.spec.ts`, which scans the source of each migration's `up()` as text and requires the CASCADE to survive. It rides `pnpm test`, so it fires locally and in CI. It is not run in production, where migrations have already been applied by boot time. To guard more FKs, add an entry to the spec's `GUARDED_FKS` array.
+- **Fix**:
+  - A manual review step ([CLAUDE.md](CLAUDE.md), [ADR 0003](ADR/0003-database-transaction-strategy.md)) strips that FK line from every generated migration
+  - Because a person can miss it, there is also a static guard, `migration-cascade-guard.spec.ts`, which scans the source of each migration's `up()` as text and requires the CASCADE to survive. It rides `pnpm test`, so it fires locally and in CI. It is not run in production, where migrations have already been applied by boot time
+  - To guard more FKs, add an entry to the spec's `GUARDED_FKS` array
 - **Verification**:
   - `pnpm test` with that spec passes
   - Limit: the FK's delete behavior (`confdeltype`) on a running DB was not queried in this run
@@ -353,7 +377,11 @@ Each case reads problem → cause → fix → verification. **Verification** lis
 - **Verification**:
   - Confirmed in code: the structure above, the adapter wiring in `chat.gateway.ts`, and the unit tests in `redis.service.spec.ts` and `chat.service.spec.ts`
   - Design expectation (not verified): without the adapter, `server.to(room).emit(...)` reaches only clients connected to the same process
-  - Measurement (2026-10-26, two instances attached to the same Postgres and Redis): before the fix, when the same account logged in a second time on another instance, the first socket got no `forceLogout` and was not disconnected, because `kickPreviousSession` looked only at the current process's sockets; for the same reason a socket on another instance was not disconnected by a ban. After switching the lookup to `server.in(socketId)`, which goes through the adapter, the first socket receives `forceLogout` and is disconnected in the same scenario, and a ban reaches sockets on the other instance. Whether `forceLogout` arrives before the disconnect was checked in 20 repeated runs and held in all 20 (an observation from one local environment, not an ordering guarantee). Load and performance were not measured, and there is no number showing it got faster
+  - Measurement (2026-10-26, two instances attached to the same Postgres and Redis):
+    - Before the fix, when the same account logged in a second time on another instance, the first socket got no `forceLogout` and was not disconnected, because `kickPreviousSession` looked only at the current process's sockets. For the same reason a socket on another instance was not disconnected by a ban
+    - After switching the lookup to `server.in(socketId)`, which goes through the adapter, the first socket receives `forceLogout` and is disconnected in the same scenario, and a ban reaches sockets on the other instance
+    - Whether `forceLogout` arrives before the disconnect was checked in 20 repeated runs and held in all 20 (an observation from one local environment, not an ordering guarantee)
+    - Load and performance were not measured, and there is no number showing it got faster
 
 
 ## AI-Assisted Development Notes
@@ -662,81 +690,6 @@ Test counts are in [Verification Status](#verification-status).
 - Mail Service: 100%
 
 The static guard that stops a migration from reverting `ON DELETE CASCADE` (`migration-cascade-guard.spec.ts`) is in [Case 4](#technical-decisions-and-troubleshooting).
-
-### Total Installation
-Dependencies (44)
-- @apollo/server
-- @as-integrations/express5
-- @google/genai
-- @nestjs/apollo
-- @nestjs/common
-- @nestjs/config
-- @nestjs/core
-- @nestjs/graphql
-- @nestjs/jwt
-- @nestjs/mapped-types
-- @nestjs/passport
-- @nestjs/platform-express
-- @nestjs/platform-socket.io
-- @nestjs/swagger
-- @nestjs/typeorm
-- @nestjs/websockets
-- @sentry/nestjs
-- @socket.io/redis-adapter
-- @types/bcrypt
-- @types/passport-jwt
-- bcrypt
-- class-transformer
-- class-validator
-- cookie-parser
-- dotenv
-- graphql
-- graphql-redis-subscriptions
-- graphql-subscriptions
-- helmet
-- ioredis
-- joi
-- jwt-decode
-- nest-winston
-- nodemailer
-- passport
-- passport-jwt
-- pg
-- reflect-metadata
-- rxjs
-- socket.io
-- socket.io-client
-- tsconfig-paths
-- typeorm
-- winston
-
-DevDependencies (26)
-- @eslint/eslintrc
-- @eslint/js
-- @nestjs/cli
-- @nestjs/schematics
-- @nestjs/testing
-- @types/cookie-parser
-- @types/express
-- @types/jest
-- @types/node
-- @types/nodemailer
-- @types/supertest
-- @types/winston
-- cross-env
-- eslint
-- eslint-config-prettier
-- eslint-plugin-prettier
-- globals
-- jest
-- prettier
-- source-map-support
-- supertest
-- ts-jest (custom jest config)
-- ts-loader
-- ts-node
-- typescript
-- typescript-eslint
 
 
 ## Related Documents

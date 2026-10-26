@@ -84,20 +84,29 @@
 
 
 ## 기술 스택
-핵심 설계와 직접 관련된 기술만 적음. 전체 의존성은 [전체 설치](#전체-설치)와 [ARCHITECTURE.md](ARCHITECTURE.ko.md#기술-스택)에 있음.
+핵심 설계와 직접 관련된 기술만 적음. 전체 의존성은 각 패키지의 `package.json`과 [ARCHITECTURE.md](ARCHITECTURE.ko.md#기술-스택)에 있음.
 
 ### 기술별 역할과 코드 위치
-| 영역 | 기술 | 역할과 선택 이유 | 코드 위치 |
-|---|---|---|---|
-| 백엔드 | NestJS 11, TypeScript, Node.js 24 | DI 기반 모듈 경계로 auth/chat/user/ai/moderation/audit-log 등을 나눈 단일 배포 모놀리스. 리졸버 하나였던 규모에서 모듈 10개 안팎으로 커지는 동안 결합도를 낮게 유지함. 정적 타이핑은 초기에 반복해서 겪은 `undefined` 프로퍼티 접근 버그를 컴파일 시점에 잡기 위함. 논블로킹 I/O는 연결이 많은 채팅 워크로드에 맞음 | `backend/src/` |
-| API | GraphQL(Apollo), graphql-ws | 메시지 전송 mutation과 방별 수신 subscription. 처음에는 Socket.IO로 직접 보내다가 메시지 저장에 트랜잭션 보장을 주려고 프로젝트 중반에 옮김([사례 1](#기술적-의사결정과-트러블슈팅)) | `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/` |
-| 실시간 | Socket.IO, `@socket.io/redis-adapter` | 연결 시 JWT 인증, 방 생성 알림, 중복 로그인 시 `forceLogout`. 어댑터가 없으면 방 브로드캐스트가 서버 인스턴스 간에 전달되지 않음 | `backend/src/chat/chat.gateway.ts` |
-| DB | PostgreSQL, TypeORM | 유저·방·메시지·감사 로그가 서로 얽힌 관계형 데이터. 스키마는 마이그레이션으로만 바꿔 변경을 리뷰할 수 있게 함(`synchronize: false`) | `backend/src/migrations/`, `backend/src/data-source.ts` |
-| 캐시·Pub/Sub | Redis(ioredis) | 세션·온라인 상태, 방별 최근 메시지 캐시, 속도 제한, 모더레이션 상태, AI 락, GraphQL Pub/Sub, 액세스 토큰 블랙리스트, 인증용 역할 캐시(`user_cache`), 리프레시 세션 ID(`auth:session`) | `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts` |
-| 인증 | Passport JWT, bcrypt | 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키. 역할 가드는 REST와 GraphQL 모두에서 상속이 아니라 조합으로 구성함 | `backend/src/auth/` |
-| AI | Gemini(`@google/genai`) | 방별 성격에 따른 답장. 출력 토큰, 대화 이력, 재시도 상한을 설계 단계에서 둠 | `backend/src/ai/` |
-| 프론트엔드·관리자 | React, Vite, Zustand, Apollo Client | 채팅 UI, 인메모리 토큰, 자동 토큰 갱신. 관리자는 별도 앱 | `frontend/src/`, `admin/src/` |
-| 테스트·CI | Jest, Vitest, Playwright, Docker Compose, GitHub Actions | 서비스 단위 테스트, 컴포넌트·스토어 테스트, e2e, 로컬 풀스택, 문서 정합성 검사 | `backend/src/**/*.spec.ts`, `frontend/e2e/`, `admin/e2e/`, `docker-compose.yml`, `.github/workflows/deploy.yml` |
+- **백엔드** — NestJS 11, TypeScript, Node.js 24 · `backend/src/`
+  - DI 기반 모듈 경계로 auth/chat/user/ai/moderation/audit-log 등을 나눈 단일 배포 모놀리스. 리졸버 하나였던 규모에서 모듈 10개 안팎으로 커지는 동안 결합도를 낮게 유지함
+  - 정적 타이핑은 초기에 반복해서 겪은 `undefined` 프로퍼티 접근 버그를 컴파일 시점에 잡기 위함이고, 논블로킹 I/O는 연결이 많은 채팅 워크로드에 맞음
+- **API** — GraphQL(Apollo), graphql-ws · `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/`
+  - 메시지 전송 mutation과 방별 수신 subscription. 처음에는 Socket.IO로 직접 보내다가 메시지 저장에 트랜잭션 보장을 주려고 프로젝트 중반에 옮김([사례 1](#기술적-의사결정과-트러블슈팅))
+- **실시간** — Socket.IO, `@socket.io/redis-adapter` · `backend/src/chat/chat.gateway.ts`
+  - 연결 시 JWT 인증, 방 생성 알림, 중복 로그인 시 `forceLogout`. 어댑터가 없으면 방 브로드캐스트가 서버 인스턴스 간에 전달되지 않음
+- **DB** — PostgreSQL, TypeORM · `backend/src/migrations/`, `backend/src/data-source.ts`
+  - 유저·방·메시지·감사 로그가 서로 얽힌 관계형 데이터. 스키마는 마이그레이션으로만 바꿔 변경을 리뷰할 수 있게 함(`synchronize: false`)
+- **캐시·Pub/Sub** — Redis(ioredis) · `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts`
+  - 세션·온라인 상태, 방별 최근 메시지 캐시, 속도 제한, 모더레이션 상태, AI 락, GraphQL Pub/Sub
+  - 인증용: 액세스 토큰 블랙리스트, 역할 캐시(`user_cache`), 리프레시 세션 ID(`auth:session`)
+- **인증** — Passport JWT, bcrypt · `backend/src/auth/`
+  - 액세스 토큰은 메모리, 리프레시 토큰은 httpOnly 쿠키. 역할 가드는 REST와 GraphQL 모두에서 상속이 아니라 조합으로 구성함
+- **AI** — Gemini(`@google/genai`) · `backend/src/ai/`
+  - 방별 성격에 따른 답장. 출력 토큰, 대화 이력, 재시도 상한을 설계 단계에서 둠
+- **프론트엔드·관리자** — React, Vite, Zustand, Apollo Client · `frontend/src/`, `admin/src/`
+  - 채팅 UI, 인메모리 토큰, 자동 토큰 갱신. 관리자는 별도 앱
+- **테스트·CI** — Jest, Vitest, Playwright, Docker Compose, GitHub Actions · `backend/src/**/*.spec.ts`, `frontend/e2e/`, `admin/e2e/`, `docker-compose.yml`, `.github/workflows/deploy.yml`
+  - 서비스 단위 테스트, 컴포넌트·스토어 테스트, e2e, 로컬 풀스택, 문서 정합성 검사
 
 ### 프론트엔드
 백엔드와의 엔드투엔드 통합을 보여주기 위해 필요한 기능만 갖춘 React + TypeScript 클라이언트임.
@@ -117,13 +126,19 @@
 - 접근성·UX: `/` 키로 입력창 포커스, 모더레이션 알림용 `aria-live` 리전
 
 ### 핵심 기능별 동작과 구현 위치
-| 기능 | 사용자 동작 | 관련 API·코드 | 주목할 점 |
-|---|---|---|---|
-| 메시지 송수신 | 메시지를 보내면 상대 화면에 새로고침 없이 도착함 | `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`) | 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림. Redis Pub/Sub은 at-most-once이고 발행은 커밋 전에 일어남([사례 1](#기술적-의사결정과-트러블슈팅)) |
-| 인증·세션 | 로그인 후 새로고침해도 유지됨. 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨 | `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts` | 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함. 한 유저당 활성 소켓은 하나이며, 다른 인스턴스에 연결된 이전 소켓도 어댑터를 거쳐 종료함(인스턴스 2개로 확인함, [한계](#향후-확장-계획) 참고) |
-| AI 채팅 | AI 계정과 대화하고 방마다 성격을 고름 | `setAiPersonality` mutation, `AiService.handleReply()` | 방별 Redis 락, 출력 토큰·대화 이력·재시도 상한(상세는 [AI](#ai)) |
-| 모더레이션 | 도배하면 경고, 뮤트, 밴 순으로 제재됨 | `ModerationService`, `ModerationGuard`, `POST /user/:id/unban` | 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨. 이미 열린 GraphQL 구독은 밴 이후 그 구독자에게 다음 메시지가 전달될 때 종료되며 그 메시지는 전달되지 않음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음 |
-| 관리자 패널 | 유저·방을 관리하고 감사 로그를 CSV로 내려받음 | `admin/src/`, `GET /audit-log`, `GET /audit-log/export` | 별도 앱이고 query·mutation만 사용함(실시간 클라이언트 없음) |
+- **메시지 송수신** — `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`). 메시지를 보내면 상대 화면에 새로고침 없이 도착함
+  - 저장은 `GqlTransactionInterceptor`가 resolver 반환 이후 커밋하고, 커밋에 의존하는 로직은 `ctx.req.transactionCommitted`를 기다림
+  - Redis Pub/Sub은 at-most-once이고 발행은 커밋 전에 일어남([사례 1](#기술적-의사결정과-트러블슈팅))
+- **인증·세션** — `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts`. 로그인 후 새로고침해도 유지되고, 다른 탭에서 다른 계정으로 로그인하면 이 탭이 로그아웃됨
+  - 갱신 호출은 `refreshAccessTokenSafely()` 하나로 모이고 동시 호출은 요청 하나를 공유함
+  - 한 유저당 활성 소켓은 하나이며, 다른 인스턴스에 연결된 이전 소켓도 어댑터를 거쳐 종료함(인스턴스 2개로 확인함, [한계](#향후-확장-계획) 참고)
+- **AI 채팅** — `setAiPersonality` mutation, `AiService.handleReply()`. AI 계정과 대화하고 방마다 성격을 고름
+  - 방별 Redis 락, 출력 토큰·대화 이력·재시도 상한(상세는 [AI](#ai))
+- **모더레이션** — `ModerationService`, `ModerationGuard`, `POST /user/:id/unban`. 도배하면 경고, 뮤트, 밴 순으로 제재됨
+  - 임계값은 환경 변수로 조정함. 밴은 HTTP·GraphQL 요청, 소켓 연결, 토큰 갱신에서 거부됨
+  - 이미 열린 GraphQL 구독은 밴 이후 그 구독자에게 다음 메시지가 전달될 때 종료되며 그 메시지는 전달되지 않음([한계](#향후-확장-계획)). 모든 조치가 감사 로그에 남음
+- **관리자 패널** — `admin/src/`, `GET /audit-log`, `GET /audit-log/export`. 유저·방을 관리하고 감사 로그를 CSV로 내려받음
+  - 별도 앱이고 query·mutation만 사용함(실시간 클라이언트 없음)
 
 
 ## 아키텍처
@@ -291,7 +306,10 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 ### 사례 1: Socket.IO에서 GraphQL로 메시지 경로 이관
 - **문제**: 처음에는 Socket.IO 핸들러가 메시지를 받아 저장하고 전달함. 방 생성과 메시지 저장처럼 여러 테이블에 쓰는 작업을 하나의 트랜잭션으로 묶을 방법이 소켓 핸들러에는 없었음.
 - **원인**: 소켓 핸들러에는 요청 단위로 트랜잭션 수명(`QueryRunner` 열기, 커밋, 롤백, `release()`)을 맡아 줄 계층이 없음. 호출 지점마다 직접 관리하면 `release()` 누락으로 커넥션이 풀에서 새는 위험이 있다고 [ADR 0003](ADR/0003-database-transaction-strategy.ko.md)에 기록함.
-- **해결**: 전송을 `sendMessage` mutation, 수신을 `receiveMessage` subscription으로 옮기고 `GqlTransactionInterceptor`가 트랜잭션 수명을 맡도록 함. Socket.IO에는 연결 인증, 방 생성 알림, `forceLogout`만 남김. 두 경로를 함께 두는 안은 같은 이벤트의 중복·순서 역전 위험 때문에 배제함([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.ko.md)). 이미 동작하던 앱에서 진행해, 구 Socket.IO 메시지 핸들러를 지운 2026-06-11까지 약 4.5개월 두 경로가 공존함([ROADMAP.ko.md](ROADMAP.ko.md)).
+- **해결**:
+  - 전송을 `sendMessage` mutation, 수신을 `receiveMessage` subscription으로 옮기고 `GqlTransactionInterceptor`가 트랜잭션 수명을 맡도록 함. Socket.IO에는 연결 인증, 방 생성 알림, `forceLogout`만 남김
+  - 두 경로를 함께 두는 안은 같은 이벤트의 중복·순서 역전 위험 때문에 배제함([ADR 0004](ADR/0004-graphql-socketio-api-layer-split.ko.md))
+  - 이미 동작하던 앱에서 진행해, 구 Socket.IO 메시지 핸들러를 지운 2026-06-11까지 약 4.5개월 두 경로가 공존함([ROADMAP.ko.md](ROADMAP.ko.md))
 - **검증 결과**:
   - `gql-transaction.interceptor.spec.ts`가 성공 경로(커밋이 끝나기 전에는 결과를 내보내지 않음), 오류 경로(롤백 후 `release` 1회, `InternalServerErrorException`), 커밋 자체가 실패한 경우를 검증함
   - 로컬 Docker 실행에서 가입 → `sendMessage` → 다른 계정의 `receiveMessage` 구독 수신 → `getMessages`를 API 수준으로 확인함
@@ -302,7 +320,10 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 ### 사례 2: 개발 DB·Redis 포트 외부 노출 사고
 - **문제**: 개발 중 PostgreSQL(5432), Redis(6379), 백엔드(3000)가 인터넷에서 접근 가능한 상태였고, 자동화된 랜섬웨어 봇이 PostgreSQL 기본 자격증명으로 접속해 개발 DB를 삭제한 뒤 요구문을 남김.
 - **원인**: `docker-compose.yml`의 포트가 `0.0.0.0`으로 바인딩되어 있었고, 공인 IP가 붙은 Ethernet 어댑터의 Windows 방화벽 프로필이 "Private(신뢰)"이라 Docker Desktop 규칙이 모든 포트의 인바운드를 허용함.
-- **해결**: 접근 경로를 먼저 막고(포트 바인딩 `127.0.0.1`, 개발 환경 호스트 loopback 제한, 방화벽 프로필 Public 전환은 직접 수행), 그다음 DB·Redis 비밀번호와 JWT 시크릿을 교체하고, 마지막에 공격자가 만든 DB를 정리함. 정리를 먼저 하면 봇이 바로 다시 만들 수 있어 순서를 봉쇄 → 교체 → 정리로 정함. 공격자가 만든 테이블의 내용은 AI가 읽지 않고 사람이 직접 확인함(프롬프트 인젝션 방지). 재발 방지로 Redis `requirepass`를 켜고, `ENV=prod`에서 비밀번호 없는 `REDIS_URL`은 부팅을 막음. 상세는 [AI 보조 개발 사례](#ai-보조-개발-사례)와 [ADR 0013](ADR/0013-local-dev-network-binding.ko.md) 참고.
+- **해결**:
+  - 순서는 봉쇄 → 교체 → 정리. 접근 경로를 먼저 막고(포트 바인딩 `127.0.0.1`, 개발 환경 호스트 loopback 제한, 방화벽 프로필 Public 전환은 직접 수행), 그다음 DB·Redis 비밀번호와 JWT 시크릿을 교체하고, 마지막에 공격자가 만든 DB를 정리함. 정리를 먼저 하면 봇이 바로 다시 만들 수 있음
+  - 공격자가 만든 테이블의 내용은 AI가 읽지 않고 사람이 직접 확인함(프롬프트 인젝션 방지)
+  - 재발 방지로 Redis `requirepass`를 켜고, `ENV=prod`에서 비밀번호 없는 `REDIS_URL`은 부팅을 막음. 상세는 [AI 보조 개발 사례](#ai-보조-개발-사례)와 [ADR 0013](ADR/0013-local-dev-network-binding.ko.md) 참고
 - **검증 결과**:
   - 설정은 코드에서 확인함: `docker-compose.yml`의 `127.0.0.1` 바인딩과 `requirepass`, `main.ts`의 loopback 분기, `app.module.ts`의 `REDIS_URL` 비밀번호 검증
   - 로컬 Docker 실행에서 `docker compose ps`가 3000, 5432, 6379를 모두 `127.0.0.1`에만 바인딩한 것으로 표시함
@@ -321,7 +342,10 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 ### 사례 4: 마이그레이션 생성이 ON DELETE CASCADE를 되돌리는 문제
 - **문제**: `pnpm migration:generate`가 ManyToMany 조인 테이블 FK `FK_501a0aef55632e3cf2894bda97f`(`room_entity_participants_user_entity`)를 `ON DELETE NO ACTION`으로 다시 만들어, 유저 삭제 시 방 참여 기록 정리에 쓰는 `ON DELETE CASCADE`가 조용히 되돌아감. 되돌아가면 유저 삭제가 FK 위반으로 실패함([CLAUDE.md](CLAUDE.md)).
 - **원인**: 해당 ManyToMany 관계에 `onDelete`가 선언되어 있지 않아, TypeORM이 DB의 CASCADE를 선언과 다른 상태로 보고 되돌리는 변경을 생성함.
-- **해결**: 생성된 마이그레이션에서 해당 FK 줄을 지우는 수동 리뷰 절차를 둠([CLAUDE.md](CLAUDE.md), [ADR 0003](ADR/0003-database-transaction-strategy.ko.md)). 사람이 놓칠 수 있어 정적 가드 `migration-cascade-guard.spec.ts`를 추가함. 이 가드는 마이그레이션 `up()`의 소스를 텍스트로 스캔해 CASCADE가 유지되는지 확인하고, `pnpm test`에 포함되어 로컬과 CI에서 걸림. 프로덕션에서는 돌리지 않음(부팅 시점엔 이미 마이그레이션이 적용된 뒤라 늦음). 보호할 FK를 늘리려면 spec의 `GUARDED_FKS` 배열에 항목을 추가함.
+- **해결**:
+  - 생성된 마이그레이션에서 해당 FK 줄을 지우는 수동 리뷰 절차를 둠([CLAUDE.md](CLAUDE.md), [ADR 0003](ADR/0003-database-transaction-strategy.ko.md))
+  - 사람이 놓칠 수 있어 정적 가드 `migration-cascade-guard.spec.ts`를 추가함. 이 가드는 마이그레이션 `up()`의 소스를 텍스트로 스캔해 CASCADE가 유지되는지 확인하고, `pnpm test`에 포함되어 로컬과 CI에서 걸림. 프로덕션에서는 돌리지 않음(부팅 시점엔 이미 마이그레이션이 적용된 뒤라 늦음)
+  - 보호할 FK를 늘리려면 spec의 `GUARDED_FKS` 배열에 항목을 추가함
 - **검증 결과**:
   - 해당 spec이 포함된 `pnpm test` 통과
   - 한계: 실행 중인 DB에서 FK의 삭제 동작(`confdeltype`)을 조회하는 확인은 이번에 하지 않음
@@ -351,7 +375,11 @@ httpOnly 쿠키에 보관함. 근거는 [ADR 0001](ADR/0001-jwt-auth-token-strat
 - **검증 결과**:
   - 코드로 확인한 것: 위 구조, `chat.gateway.ts`의 어댑터 연결, `redis.service.spec.ts`와 `chat.service.spec.ts` 단위 테스트
   - 설계상 기대(미검증): 어댑터가 없으면 `server.to(room).emit(...)`이 같은 프로세스에 연결된 클라이언트에만 전달됨
-  - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행): 수정 전에는 같은 계정이 다른 인스턴스에서 두 번째로 접속해도 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않았음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회했기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않았음. 조회를 어댑터를 거치는 `server.in(socketId)`로 바꾼 뒤 같은 시나리오에서 첫 소켓이 `forceLogout`을 받고 끊기며, 밴도 다른 인스턴스의 소켓에 닿음. `forceLogout`이 끊김보다 먼저 도착하는지 20회 반복해 20회 모두 확인함(로컬 한 환경의 관찰이며 순서를 보장하는 것은 아님). 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
+  - 실측(2026-10-26, 인스턴스 2개를 같은 Postgres·Redis에 붙여 실행):
+    - 수정 전에는 같은 계정이 다른 인스턴스에서 두 번째로 접속해도 첫 소켓에 `forceLogout`이 가지 않고 끊기지도 않았음. `kickPreviousSession`이 현재 프로세스의 소켓만 조회했기 때문이며, 같은 이유로 다른 인스턴스에 연결된 소켓은 밴으로도 끊기지 않았음
+    - 조회를 어댑터를 거치는 `server.in(socketId)`로 바꾼 뒤 같은 시나리오에서 첫 소켓이 `forceLogout`을 받고 끊기며, 밴도 다른 인스턴스의 소켓에 닿음
+    - `forceLogout`이 끊김보다 먼저 도착하는지 20회 반복해 20회 모두 확인함(로컬 한 환경의 관찰이며 순서를 보장하는 것은 아님)
+    - 부하와 성능은 측정하지 않았고, 성능이 좋아졌다는 수치는 없음
 
 
 ## AI 보조 개발 사례
@@ -663,81 +691,6 @@ Google Gemini 2.5 Flash 기반이고 `AiService`(답장 생성)와 `AiRoomServic
 - Mail Service: 100%
 
 마이그레이션이 `ON DELETE CASCADE`를 되돌리지 않는지 막는 정적 가드(`migration-cascade-guard.spec.ts`)는 [사례 4](#기술적-의사결정과-트러블슈팅)에 있음.
-
-### 전체 설치
-의존성 (44개)
-- @apollo/server
-- @as-integrations/express5
-- @google/genai
-- @nestjs/apollo
-- @nestjs/common
-- @nestjs/config
-- @nestjs/core
-- @nestjs/graphql
-- @nestjs/jwt
-- @nestjs/mapped-types
-- @nestjs/passport
-- @nestjs/platform-express
-- @nestjs/platform-socket.io
-- @nestjs/swagger
-- @nestjs/typeorm
-- @nestjs/websockets
-- @sentry/nestjs
-- @socket.io/redis-adapter
-- @types/bcrypt
-- @types/passport-jwt
-- bcrypt
-- class-transformer
-- class-validator
-- cookie-parser
-- dotenv
-- graphql
-- graphql-redis-subscriptions
-- graphql-subscriptions
-- helmet
-- ioredis
-- joi
-- jwt-decode
-- nest-winston
-- nodemailer
-- passport
-- passport-jwt
-- pg
-- reflect-metadata
-- rxjs
-- socket.io
-- socket.io-client
-- tsconfig-paths
-- typeorm
-- winston
-
-개발 의존성 (26개)
-- @eslint/eslintrc
-- @eslint/js
-- @nestjs/cli
-- @nestjs/schematics
-- @nestjs/testing
-- @types/cookie-parser
-- @types/express
-- @types/jest
-- @types/node
-- @types/nodemailer
-- @types/supertest
-- @types/winston
-- cross-env
-- eslint
-- eslint-config-prettier
-- eslint-plugin-prettier
-- globals
-- jest
-- prettier
-- source-map-support
-- supertest
-- ts-jest (커스텀 jest 설정)
-- ts-loader
-- ts-node
-- typescript
-- typescript-eslint
 
 
 ## 관련 문서

@@ -116,15 +116,15 @@ CI (`.github/workflows/deploy.yml`) runs on every PR to `main`:
 
 | Job | What it does | Blocking? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
 | `test` (windows-latest) | same steps | No — `continue-on-error: true` for this OS in the matrix |
 | `e2e` | backend jest e2e boot smoke test, then Playwright e2e against `frontend/` — both against real Postgres 16 + Redis 7 service containers | Yes — blocks `deploy` (listed in its `needs`) |
 | `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | No — `continue-on-error: true`; kept out of `deploy`'s `needs` until a successful run in the real GitHub Actions environment is confirmed via this workflow's run history (not just local YAML/unit-test validation) |
 
-The last four `test` steps are documentation-integrity checks, and they fail the build exactly like
+The last three `test` steps are documentation-integrity checks, and they fail the build exactly like
 a test does: `check:adr` (broken ADR links/anchors, stale `file:line` citations, missing `.ko.md`
 pairs, EN/KO heading parity), `check:config` (`MODERATION_DEFAULTS` in sync across its documented
-mirrors), `check:deps` (README's dependency lists vs `backend/package.json`), `check:changelog`
+mirrors), `check:changelog`
 (`CHANGELOG.md`/`.ko.md` list every commit in `git log`, under the right date heading).
 
 `check:changelog` tolerates exactly **one** unrecorded newest commit — the one doing the recording.
@@ -150,7 +150,7 @@ pnpm --filter admin lint
 pnpm --filter admin test
 pnpm --filter frontend lint
 pnpm --filter frontend test
-pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
+pnpm check:adr && pnpm check:config && pnpm check:changelog
 ```
 
 Code style is enforced by `backend/.prettierrc` (`singleQuote: true`, `trailingComma: "all"`) and
