@@ -35,7 +35,7 @@
 
 ## 스크린샷
 로컬 스택(backend, Postgres, Redis, Vite 개발 서버)에서 라이트 테마, 가로 1440px로 촬영함.
-현재 백엔드는 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
+현재 배포는 중단한 상태([호스팅 상태](#호스팅-상태) 참고)라 배포 환경에서는 확인하지 않음.
 계정과 메시지는 앱의 실제 API로 만든 일회용 데모 데이터임. 앱에 언어 전환 기능이 없어 영/한 README가 같은 이미지를 씀. UI는 전체가 한국어임. 시각이 보이는 캡처는 브라우저 시간대를 UTC로 고정해 찍어 메시지·로그 시각이 UTC 기준으로 표시됨. 이미지를 누르면 원본이 열림.
 
 [![두 브라우저 창을 나란히 놓고 한쪽에서 보낸 메시지가 새로고침 없이 다른 쪽에 도착하는 모습](docs/images/demo-realtime-chat.gif)](docs/images/demo-realtime-chat.gif)<br>**실시간 전달** — 데모 계정 두 개를 나란히 띄워, 메시지가 새로고침 없이 `receiveMessage` GraphQL 구독으로 도착하는 모습. 메시지 시각은 UTC 기준임(촬영 시 브라우저 시간대를 고정함).
@@ -56,9 +56,9 @@
 
 
 ## 호스팅 상태
-백엔드(Railway)는 비용 문제로 중단한 상태임. 마지막 자동 배포 성공은 2026-05-27이고 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서 확인할 수 있음. `deploy` job은 수동 실행 전용(`workflow_dispatch`)임.
+백엔드(Railway)는 비용 문제로 중단했고, 프론트엔드·admin의 Vercel 배포도 중단한 상태임. 마지막 자동 배포 성공은 2026-05-27이고 [`deploy.yml` 실행 이력](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml)에서 확인할 수 있음. `deploy` job은 수동 실행 전용(`workflow_dispatch`)임.
 
-프론트엔드는 Vercel 프로젝트로 구성되어 있고(`frontend/vercel.json`) GitHub Actions와 별개로 Vercel이 빌드함. `main`의 마지막 확인 결과는 2026-10-19의 `success`이며 이후 푸시는 확인하지 않음. 백엔드가 없어 로그인과 채팅이 되지 않으므로 라이브 URL은 싣지 않음. admin 패널도 별도 Vercel 프로젝트로 구성되어 있으나 배포 상태는 확인하지 못함.
+프론트엔드(`frontend/vercel.json`)와 admin 패널은 각각 Vercel 프로젝트로 구성되어 있으나 두 배포 모두 중단한 상태임. GitHub의 Vercel 상태는 `main`에서 2026-10-19에 `success`였고, `dev` 커밋에서는 2026-10-26부터 `Deployment was blocked`로 표시됨. 라이브 URL은 싣지 않음.
 
 앱은 [빠른 시작](#빠른-시작)으로 로컬에서 실행할 것.
 
@@ -115,7 +115,7 @@
 - 인증: 액세스 토큰은 메모리(Zustand), 리프레시 토큰은 백엔드가 설정하는 httpOnly 쿠키 — localStorage에 저장하지 않음
 - 실시간: Socket.IO로 연결/방 관리, GraphQL Mutation/Subscription으로 메시지 처리
 - 보안: DOMPurify를 통한 XSS 방지, CORS 설정에 맞춘 요청, 보호된 페이지를 위한 Route Guard
-- 배포: Vercel 프로젝트로 구성함(`frontend/vercel.json`). 현재 백엔드는 중단한 상태라 배포된 프론트엔드에서는 로그인과 채팅이 되지 않음([호스팅 상태](#호스팅-상태))
+- 배포: Vercel 프로젝트로 구성했으나 현재 배포는 중단한 상태임(`frontend/vercel.json`, [호스팅 상태](#호스팅-상태))
 
 
 ## 기능
@@ -516,7 +516,7 @@ e2e(Playwright)는 `pnpm --filter frontend e2e`, `pnpm --filter admin e2e`로 �
 - `sendMessage`가 비멱등이라 타임아웃 뒤 클라이언트가 재시도하면 같은 메시지가 중복 저장될 수 있음
 - 방 생성·조회 로직이 정확히 두 명을 전제로 해서 그룹 채팅은 지원하지 않음([ROADMAP.ko.md](ROADMAP.ko.md))
 - `GEMINI_API_KEY`가 필수 환경 변수라 키 없이는 부팅되지 않음
-- 백엔드가 중단된 상태라 배포 환경에서의 동작은 확인하지 않음
+- 배포를 중단한 상태라 배포 환경에서의 동작은 확인하지 않음
 - 밴된 사용자의 `receiveMessage` 구독은 밴 즉시가 아니라 그 구독자에게 다음 메시지가 전달될 때 종료됨(그 메시지는 전달되지 않음). 메시지마다 `isUserBanned`로 DB를 조회하므로 구독자 수와 메시지 수에 비례한 조회 비용이 있고, 이 비용은 측정하지 않음
 - 관리자 강제 로그아웃(`UserService.forceLogout`)은 소켓만 끊고 열린 GraphQL 구독은 닫지 않으며, 이미 발급된 액세스 토큰도 폐기하지 않음
 - 다중 인스턴스 부하는 측정하지 않음
@@ -653,7 +653,7 @@ VALUES ('superadmin@example.com', '<1단계에서 생성한 해시>', 2, false);
 
 
 ### Admin 패널
-admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 구성됨([ARCHITECTURE.md의 배포 토폴로지](ARCHITECTURE.ko.md#배포-토폴로지) 참고).
+admin/superadmin 계정용 별도 React 앱(`admin/`)임. 로컬에서는 `http://localhost:5174`([빠른 시작](#빠른-시작) 참고)에서 실행되고, 자체 Vercel 프로젝트로 구성되어 있으나 현재 배포는 중단한 상태임([ARCHITECTURE.md의 배포 토폴로지](ARCHITECTURE.ko.md#배포-토폴로지) 참고).
 
 - **Dashboard** — 총 유저 수(`humanOnly`, AI 계정과 모더레이션 시스템 계정 제외), 총 방 수, 현재 접속자 수, 최근 감사 로그 5건
 - **Users** — 페이지네이션/정렬/검색을 지원하는 목록이며 모더레이션 상태(active/banned)로 필터할 수 있음. 행을 클릭하면 모더레이션 상태와 최근 감사 이력을 담은 상세 패널이 열림.

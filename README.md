@@ -35,7 +35,7 @@ The incidents, bugs, and design decisions met along the way are written up in [T
 
 ## Screenshots
 Captured on a local stack (backend, Postgres, Redis, Vite dev servers), light theme, 1440 px wide.
-The backend is currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
+Deployments are currently stopped (see [Hosting Status](#hosting-status)), so none of this was checked on a
 deployed environment. Accounts and messages are throwaway demo data created through the app's own API.
 The app has no language switch, so both READMEs use the same images. The UI is Korean throughout. Captures that show times were taken with the browser time zone fixed to UTC, so message and log times are UTC. Click an image to open the full-size file.
 
@@ -57,9 +57,9 @@ black. The overlay uses `bg-opacity-40`, which Tailwind 4 no longer provides.
 
 
 ## Hosting Status
-The backend (Railway) is stopped for cost reasons. The last successful automatic deploy was on 2026-05-27; see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml). The `deploy` job is manual-only (`workflow_dispatch`).
+The backend (Railway) is stopped for cost reasons, and the Vercel deployments of the frontend and admin are stopped as well. The last successful automatic deploy was on 2026-05-27; see the [`deploy.yml` run history](https://github.com/Bluecode77732/Chat-project/actions/workflows/deploy.yml). The `deploy` job is manual-only (`workflow_dispatch`).
 
-The frontend is configured as a Vercel project (`frontend/vercel.json`) that Vercel builds outside GitHub Actions. Its latest check on `main` was `success` on 2026-10-19; later pushes were not checked. Without a backend it cannot sign in or chat, so no live URL is listed. The admin panel is configured as its own Vercel project, and its deployment status was not verified.
+The frontend (`frontend/vercel.json`) and the admin panel are each configured as a Vercel project, but both deployments are stopped. GitHub's Vercel status was `success` on `main` on 2026-10-19 and has shown `Deployment was blocked` on `dev` commits since 2026-10-26. No live URL is listed.
 
 To run the app, follow [Quick Start](#quick-start) locally.
 
@@ -116,7 +116,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 - Auth: access token in memory (Zustand), refresh token in a backend-set httpOnly cookie — never in localStorage ✔
 - Real-time: Socket.IO for connection/room management, GraphQL Mutation/Subscription for messaging ✔
 - Security: XSS prevention via DOMPurify, CORS-compliant requests, Route Guard for protected pages ✔
-- Deployment: configured as a Vercel project (`frontend/vercel.json`). The backend is currently stopped, so a deployed frontend cannot sign in or chat (see [Hosting Status](#hosting-status))
+- Deployment: configured as a Vercel project (`frontend/vercel.json`), but the deployment is currently stopped (see [Hosting Status](#hosting-status))
 
 
 ## Features
@@ -518,7 +518,7 @@ List of Troubleshooting when the program runs
 - `sendMessage` is not idempotent, so a client retry after a timeout can save the same message twice
 - Room create/lookup logic assumes exactly two participants, so group chat is not supported ([ROADMAP.md](ROADMAP.md))
 - `GEMINI_API_KEY` is a required env var, so the app does not boot without a key
-- The backend is stopped, so behavior on a deployed environment was not checked
+- Deployments are stopped, so behavior on a deployed environment was not checked
 - A banned user's `receiveMessage` subscription ends when the next message would be delivered to that subscriber, not at the moment of the ban (that message is not delivered). Every message costs one `isUserBanned` DB lookup, so the cost grows with subscribers and messages; it was not measured
 - An admin forced logout (`UserService.forceLogout`) only disconnects the socket: it does not close an open GraphQL subscription and does not revoke an access token that was already issued
 - Load on multiple instances was not measured
@@ -656,7 +656,7 @@ Role values: `user = 0`, `admin = 1`, `superadmin = 2`
 
 
 ### Admin Panel
-A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and configured as its own Vercel project (see [ARCHITECTURE.md's Deployment Topology](ARCHITECTURE.md#deployment-topology)).
+A separate React app (`admin/`) for admin/superadmin accounts, run locally at `http://localhost:5174` (see [Quick Start](#quick-start)) and configured as its own Vercel project, currently stopped (see [ARCHITECTURE.md's Deployment Topology](ARCHITECTURE.md#deployment-topology)).
 
 - **Dashboard** — total users (`humanOnly`, excludes the AI and moderation-system accounts), total rooms, users currently online, and the 5 most recent audit log entries.
 - **Users** — paginated, sortable, searchable list; filter by moderation status (active/banned). Clicking a row opens a detail panel with moderation status and recent audit history. Actions (superadmin only where noted): promote/demote between `user`/`admin`; force logout, manual ban (optional reason, permanent or timed) / unban, and delete are restricted to accounts with a strictly lower role; a superadmin additionally gets a separate **Demote (superadmin)** action on peer superadmin accounts (see [Compromised Superadmin Containment](#compromised-superadmin-containment)); the AI/moderation-system accounts can never be deleted (see [Role](#role) invariants).
