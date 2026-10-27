@@ -54,6 +54,8 @@ commits should follow). Nothing below has been reworded, curated, or omitted.
 - Docs: UI 언어 통일 반영 (README 스크린샷 서술, CHANGELOG 동기화)
 - Feat: 백엔드 사용자 노출 메시지와 감사 로그 라벨·날짜 로캘을 한글로 통일
 - Feat: frontend·admin 화면 문구를 한글로 통일
+- Docs: CHANGELOG 동기화 (누락된 커밋 2건 반영)
+- Docs: README 호스팅 상태를 사실에 맞게 정정 (백엔드만 중단, 프론트엔드는 Vercel 배포 지속)
 
 ## 2026-10-16
 
