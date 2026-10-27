@@ -11,6 +11,8 @@ commits should follow). Nothing below has been reworded, curated, or omitted.
 
 ## 2026-10-27
 
+- Docs: README 호스팅 상태에 Vercel 배포 중단과 확인 날짜 명시
+- Docs: CHANGELOG 동기화 (README 가독성 개선 직전 커밋 반영)
 - Docs: README 표를 목록으로 바꾸고 사례 불릿을 나눠 가독성 개선, 의존성 목록과 check:deps 폐지
 - Docs: CHANGELOG 동기화 (README 정정 커밋 반영)
 - Chore: check:adr 검사 대상에 README 영/한 추가
