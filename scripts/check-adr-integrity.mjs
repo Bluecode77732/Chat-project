@@ -353,7 +353,7 @@ for (const file of adrFiles) {
 // 적용 안 됨. ARCHITECTURE.md는 링크/번호 체크만 포함함: 저장소에서 ADR 상호
 // 링크를 가장 많이 쓰는 문서라(CLAUDE.md보다 훨씬 많음) 번호 불일치가 나타날
 // 가능성이 가장 높은 곳임.
-const extraDocs = ['CLAUDE.md', 'ARCHITECTURE.md', 'ARCHITECTURE.ko.md', 'ADR/README.md', 'ADR/README.ko.md'];
+const extraDocs = ['CLAUDE.md', 'README.md', 'README.ko.md', 'ARCHITECTURE.md', 'ARCHITECTURE.ko.md', 'ADR/README.md', 'ADR/README.ko.md'];
 for (const relPath of extraDocs) {
   const fullPath = join(repoRoot, relPath);
   if (!existsSync(fullPath)) continue;

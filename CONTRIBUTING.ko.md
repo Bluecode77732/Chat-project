@@ -36,7 +36,8 @@ cp admin/.env.example admin/.env.local
 **Docker로 풀스택 실행** (backend 작업에 권장 — 운영 환경과 동일한 "마이그레이션 후 시작" 순서):
 ```bash
 docker compose up -d --build   # 프로젝트 루트에 .env.docker가 필요합니다
-docker compose down -v         # 종료
+docker compose down            # 컨테이너 종료(데이터 유지)
+docker compose down -v         # PostgreSQL·Redis 볼륨까지 삭제(데이터가 사라짐)
 ```
 
 **Docker 없이 패키지별 실행**:
@@ -45,6 +46,39 @@ cd backend && pnpm start:dev   # NODE_ENV=development, 127.0.0.1:3000에 바인�
 cd frontend && pnpm dev        # Vite 개발 서버, :5173
 cd admin && pnpm dev           # Vite 개발 서버, :5174
 ```
+
+### GraphQL API 직접 호출
+
+백엔드를 실행하고 가입한 계정이 있는 상태에서, 구독은 Altair로, 뮤테이션은 Postman(또는 HTTP
+GraphQL 클라이언트)으로 테스트함. Altair로는 뮤테이션을, Postman으로는 구독을 테스트할 수 없음.
+전체 스키마는 `backend/src/schema.gql`임. 채팅 메시지는 GraphQL로만 오가고, Socket.IO는 연결
+인증과 `CreateRoom` 알림만 처리함.
+
+- Altair (구독): URL `http://localhost:3000/graphql`, Subscription type은 WebSocket(graphql-ws),
+  Connection Parameters는 `{ "authorization": "Bearer <token>" }`
+  ```graphql
+  subscription {
+    receiveMessage(roomId: "19") {
+      id
+      message
+      participant { id }
+    }
+  }
+  ```
+- Postman 등 (뮤테이션): 헤더 `authorization: Bearer <token>`
+  ```graphql
+  mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+    sendMessage(input: $input, recipientId: $recipientId) {
+      id
+      message
+      roomId
+      createdAt
+    }
+  }
+  ```
+  변수: `{ "input": { "message": "Sent from Postman" }, "recipientId": 2 }`
+- Socket.IO: `ws://localhost:3000`에 `authorization: Bearer <token>` 헤더로 연결하면 새 방이 생길 때
+  `CreateRoom` 이벤트를 받음
 
 ## 브랜치 모델
 
@@ -81,21 +115,20 @@ PR은 `main`을 대상으로 열어주세요. `.github/workflows/deploy.yml`의 
 
 | Job | 하는 일 | 필수 통과? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:changelog` — `\|\| true` 폴백이 없어 어느 단계든 실패하면 잡 전체가 실패 | 예 |
 | `test` (windows-latest) | 동일 단계 | 아니오 — 이 OS는 매트릭스에서 `continue-on-error: true` |
 | `e2e` | 백엔드 jest e2e 부팅 스모크 테스트를 돌린 뒤 `frontend/` 대상 Playwright e2e 실행 — 둘 다 실제 Postgres 16 + Redis 7 서비스 컨테이너 사용 | 예 — `deploy`의 `needs`에 포함되어 실패 시 배포를 막음 |
 | `admin-e2e` | superadmin 시드 후 `admin/` 대상 Playwright e2e 실행 | 아니오 — `continue-on-error: true`. 실제 GitHub Actions 환경에서 성공 실행이 확인되기 전까지는(로컬 YAML/유닛테스트 검증만으로는 불충분) `deploy`의 `needs`에 넣지 않음 |
 
-`test` 잡의 마지막 네 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패하면 빌드를 막음:
+`test` 잡의 마지막 세 단계는 문서 무결성 검사이며, 테스트와 똑같이 실패하면 빌드를 막음:
 `check:adr`(깨진 ADR 링크/앵커, 낡은 `file:line` 인용, 누락된 `.ko.md` 짝, EN/KO 헤딩 구조 패리티),
 `check:config`(`MODERATION_DEFAULTS`가 문서화된 미러들 사이에서 동기화되어 있는지),
-`check:deps`(README의 의존성 목록과 `backend/package.json`의 일치 여부),
 `check:changelog`(`CHANGELOG.md`/`.ko.md`가 `git log`의 모든 커밋을 올바른 날짜 헤딩 아래 담고 있는지).
 
 `check:changelog`는 기록되지 않은 최신 커밋을 **하나만** 허용함. 기록을 수행하는 그 커밋
 자신임. 커밋이 하나뿐이면 CHANGELOG를 건드릴 필요가 없지만, 그 위에 두 번째 커밋을 쌓는
 순간 첫 번째 커밋에서 검사가 실패함. PR에 커밋이 둘 이상이라면 각 커밋의 제목 줄을 그 커밋
-안에서 `CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(두 파일 모두 영문 제목 원문) 추가하세요.
+안에서 `CHANGELOG.md`와 `CHANGELOG.ko.md` 양쪽에 그대로(번역하지 않은 원문, 한국어 제목이면 두 파일 모두 한국어로) 추가하세요.
 
 > 참고: CI의 `e2e`/`admin-e2e`는 `postgres:16` 서비스 컨테이너로 실행되지만, 로컬 Docker
 > (`docker-compose.yml`)와 문서상의 로컬 사전 요구사항은 `postgres:18`을 사용함. 드리프트가
@@ -115,7 +148,7 @@ pnpm --filter admin lint
 pnpm --filter admin test
 pnpm --filter frontend lint
 pnpm --filter frontend test
-pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
+pnpm check:adr && pnpm check:config && pnpm check:changelog
 ```
 
 코드 스타일은 `backend/.prettierrc`(`singleQuote: true`, `trailingComma: "all"`)와 ESLint
@@ -136,7 +169,7 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   [CLAUDE.md의 Testing 절](CLAUDE.md#testing)에 있음.
 - `frontend/e2e/`와 `admin/e2e/`는 각자의 Playwright 스위트를 가지며 CI에서 독립적으로
   실행됨.
-- `admin/`(vitest, 14개)과 `frontend/`(vitest, 21개) 둘 다 이제 유닛테스트를 갖추고 있으며,
+- `admin/`(vitest)과 `frontend/`(vitest) 둘 다 이제 유닛테스트를 갖추고 있으며,
   동일한 설정(`src/test/setup.ts`, 동일 버전의 devDependency)을 씀. `frontend/` 스위트는
   admin의 기존 3개 파일(axios/protected-route/auth.store — frontend의 더 단순한, role 없는
   인증 모델에 맞게 조정)을 포팅하고, `session-guard.ts`용 테스트를 새로 추가함.
@@ -159,6 +192,48 @@ backend 코드를 건드리기 전에 반드시 먼저 읽어보세요. 특히 `
   `@sentry/nestjs` 설정을 그대로 본떠서) 두 앱의 `main.tsx`에 최상위 에러 바운더리를 두세요.
   동시에 `errorLink`에서 현재 조용히 지나가는 non-auth 분기(`frontend/src/api/apollo.ts`,
   `admin/src/api/apollo.ts`)도 함께 보고하도록 연결하세요.
+
+### 수동 모더레이션 검증
+
+`frontend/e2e/moderation.spec.ts`가 같은 메시지 반복 → 시스템 경고 → 뮤트 알림까지는 자동으로 검증함. 밴, 언밴, 감사 로그는 자동화되어 있지 않으므로 직접 검증함. 세 계정 — **A**(위반자),
+**B**(수신자), **admin** — 으로 검증하세요. 상위 단계에 빨리 도달하려면 `.env`에서 임계값을
+일시적으로 낮추되, 값들은 반드시 서로 다르게(`warn < mute < ban`) 유지해야 함. 값이 겹치면
+`escalate()`의 값 일치 검사가 충돌함. 예: `MODERATION_WARN_THRESHOLD=2`,
+`MODERATION_MUTE_THRESHOLD=3`, `MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30`.
+백엔드를 재시작해 적용하고, 검증이 끝나면 원래 값으로 되돌리세요.
+
+1. **경고** — A에서 B에게 *동일한* 메시지를 반복 전송(`DUP_WINDOW` 이내, 속도 제한 이하). warn
+   임계값에서 방에 가운데 정렬된 System 계정 알림이 나타남; 새로고침해도 유지됨(저장된
+   `ChatEntity`이기 때문).
+2. **뮤트** — 계속 전송. mute 임계값에서 A의 다음 전송이 거부됨(`ModerationGuard` → FORBIDDEN,
+   프론트엔드가 뮤트 알림 표시); A는 연결은 유지되고 B의 메시지를 계속 *수신*함. 참고: 뮤트
+   상태에서는 `sendMessage`가 가드에서 차단되므로 뮤트가 풀릴 때까지 **추가 스트라이크가
+   쌓이지 않음**.
+3. **기간제 밴(자동)** — 뮤트가 풀린 후 다시 도배해 ban 임계값을 넘김. 예상: A는 즉시 연결
+   종료됨; 재연결은 `handleConnection`에서 거부됨; 토큰 갱신도 거부됨 — 여전히 유효한
+   액세스 토큰이라도 우회 불가. 밴 이전에 열린 GraphQL 구독은 A에게 다음 메시지가 전달될 때 종료되며 그 메시지는 전달되지 않음. `bannedUntil`이 지나면 A는 다시 앱을 사용할 수 있음.
+4. **수동 밴(admin)** — A에 `POST /user/:id/ban` → 즉시 세션 종료(`forceLogout` 재사용)와
+   자동 밴과 동일한 auth 계층 거부.
+5. **언밴(admin)** — A에 `POST /user/:id/unban` → `status`가 `active`로 복구, 스트라이크/뮤트
+   해제, auth 캐시 무효화; A는 즉시 다시 전송 가능.
+6. **감사** — 위 각 단계는 admin이 볼 수 있는 감사 로그 항목(`USER_MUTED` / `USER_BANNED` /
+   `USER_UNBAN`)을 남김.
+
+### 다중 인스턴스 수동 검증
+
+CI에서는 백엔드 인스턴스를 둘 띄우지 않으므로, `chat.service.ts`, `chat.gateway.ts`, `receiveMessage` 구독을
+건드린 뒤에는 세션 축출과 밴 처리를 직접 확인할 것. 같은 Postgres·Redis 설정에 `PORT`만 다른 백엔드
+프로세스나 컨테이너를 하나 더 띄우고, 각 인스턴스에 같은 계정으로 접속함(임시 계정을 쓰고 실제
+자격 증명은 쓰지 말 것):
+
+1. **세션 축출** — 인스턴스 1에 소켓을 연결한 뒤 같은 계정으로 인스턴스 2에 연결함. 기대: 첫 소켓이
+   `forceLogout`을 받고 이어서 끊김.
+2. **밴 도달** — 인스턴스 2에 소켓을 연결하고 인스턴스 1을 통해 그 계정을 밴함. 기대: 소켓이 끊김.
+3. **구독** — 그 계정으로 `receiveMessage`를 구독하고 밴한 뒤 방에 메시지를 보냄. 기대: 구독이 끝나고
+   메시지는 전달되지 않음([ADR 0023](ADR/0023-subscription-ban-recheck.ko.md)).
+
+Docker로 시험할 때는 두 번째 컨테이너에 별도 호스트 포트를 주고, Postgres 볼륨을 지우는
+`docker compose down -v`는 실행하지 말 것.
 
 ## 이슈 리포트
 

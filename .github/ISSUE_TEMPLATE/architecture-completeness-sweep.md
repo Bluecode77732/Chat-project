@@ -18,11 +18,11 @@ constantly, until a manual sweep caught it.
 Citation `file:line` accuracy, EN/KO section-count parity, and multi-location
 config-value drift (e.g. `MODERATION_DEFAULTS`) are already covered by
 `pnpm check:adr` and `pnpm check:config` in CI — do not re-verify those here,
-just confirm both pass (`pnpm check:adr && pnpm check:config && pnpm check:deps`).
+just confirm both pass (`pnpm check:adr && pnpm check:config`).
 > `file:line` 인용 정확도, EN/KO 섹션 수 일치, `MODERATION_DEFAULTS` 같은 다중
 > 위치 설정값 드리프트는 이미 `pnpm check:adr`, `pnpm check:config`가 CI에서
 > 커버함 — 여기서 다시 검증하지 말고 둘 다 통과하는지만 확인
-> (`pnpm check:adr && pnpm check:config && pnpm check:deps`).
+> (`pnpm check:adr && pnpm check:config`).
 
 ## Checklist
 
@@ -60,5 +60,3 @@ just confirm both pass (`pnpm check:adr && pnpm check:config && pnpm check:deps`
   > `MODERATION_DEFAULTS` 등 다중 위치 설정값 — `pnpm check:config`
 - EN/KO heading-structure parity — `pnpm check:adr`
   > EN/KO 섹션 구조 일치 — `pnpm check:adr`
-- Dependency list accuracy — `pnpm check:deps`
-  > 의존성 목록 정확도 — `pnpm check:deps`

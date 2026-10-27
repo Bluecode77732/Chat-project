@@ -18,7 +18,7 @@ still needed a velocity limit.
 ## Decision
 
 - **Helmet** (`helmet@^8.3.0`) is applied backend-wide via `app.use(helmet({ contentSecurityPolicy:
-  false }))` (`main.ts:37`), giving the rest of Helmet's default protections (`X-Frame-Options`,
+  false }))` (`main.ts:35`), giving the rest of Helmet's default protections (`X-Frame-Options`,
   `X-Content-Type-Options`, etc.) while explicitly disabling Helmet's own CSP generation — a CSP header
   on `backend` would only ever protect `/document` (Swagger), which needs broad inline-script exceptions
   anyway, and can't reach the actual XSS-relevant surface (a different origin).
@@ -30,7 +30,7 @@ still needed a velocity limit.
   inline `style={{...}}` prop (which renders as an inline `style` attribute CSP's `style-src` blocks
   without `'unsafe-inline'` or a nonce/hash); `admin` has zero such usages, so its policy is stricter by
   default rather than by an explicit decision recorded anywhere.
-- `app.set('trust proxy', 1)` (`main.ts:29`) trusts exactly the immediate reverse-proxy hop (Railway) so
+- `app.set('trust proxy', 1)` (`main.ts:28`) trusts exactly the immediate reverse-proxy hop (Railway) so
   `req.ip` resolves to the real client IP instead of Railway's proxy address — load-bearing for the next
   point, since without it every client would collapse into one shared rate-limit bucket.
 - `AuthRateLimitGuard` (`backend/src/auth/guard/auth-rate-limit.guard.ts`) rate-limits `signin`/`register`

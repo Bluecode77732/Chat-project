@@ -16,7 +16,7 @@ or a room broadcast could reach a stale socket the user no longer considers acti
 
 `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records the new socket as
 the current session first, then — if a different socket was previously registered for the same user —
-calls `kickPreviousSession()` (`chat.service.ts:55-60`), which emits a `forceLogout` event to the
+calls `kickPreviousSession()` (`chat.service.ts:55-61`), which emits a `forceLogout` event to the
 superseded socket and disconnects it. The write-then-kick order is deliberate: recording the new
 session before kicking the old one avoids a race where the old socket's own disconnect handler
 (`removeClient`, `chat.service.ts:64-68`) could otherwise clobber the new session's online status back
@@ -31,7 +31,7 @@ to offline (`chat.service.ts:41-46`, inline comment).
 
 ## Consequences
 
-- At most one live socket per user at any time — any new per-user real-time registration (not just
+- At most one live socket per user at any time, including when the previous socket is on another backend instance — any new per-user real-time registration (not just
   this existing Socket.IO path) must check for and evict a prior registration the same way, rather than
   assuming one connection per user is guaranteed elsewhere.
 - The superseded session's frontend receives an explicit `forceLogout` event rather than silently
@@ -40,3 +40,4 @@ to offline (`chat.service.ts:41-46`, inline comment).
 - Never suggest reordering `registerClient` to kick the previous session before recording the new
   one — that reopens the specific race the current order was written to avoid (see the inline comment
   at `chat.service.ts:41-46`).
+- **Cross-instance eviction (fixed and confirmed 2026-10-26):** `kickPreviousSession()` used to find the previous socket through `this.server.sockets.sockets`, which lists only the current process's sockets, so with two backend instances a socket on the other one was neither sent `forceLogout` nor disconnected. It now addresses the socket with `server.in(socketId)`, which goes through the Socket.IO Redis adapter; a missing socket is a no-op. With two instances the first socket received `forceLogout` before the disconnect in 20 of 20 runs. That order is an observation from one local environment: both calls are separate adapter broadcasts, and no ordering guarantee is documented.

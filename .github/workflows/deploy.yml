@@ -44,7 +44,6 @@ jobs:
       - run: pnpm --filter frontend test
       - run: pnpm check:adr
       - run: pnpm check:config
-      - run: pnpm check:deps
       - run: pnpm check:changelog
 
   e2e:

@@ -4,7 +4,7 @@ This document is the technical deep-dive companion to [README.md](README.md). RE
 project pitch, quick start, and feature list; [CLAUDE.md](CLAUDE.md) covers AI-agent conventions and
 guardrails. This file covers structure that neither of those fully spells out: the module dependency
 graph, guard-chain composition, global bootstrap/error handling, and deployment topology. Where README already documents something well
-(project structure tree, entity relationships, the `sendMessage` data flow), this file links to it
+(entity relationships, the `sendMessage` data flow), this file links to it
 instead of restating it, to avoid the two drifting out of sync. Design-intent explanations below are
 grounded in code and, where the reasoning isn't derivable from code alone, in the developer's own
 stated motivation — never invented.
@@ -35,8 +35,69 @@ flowchart LR
 ## Monorepo Layout
 
 pnpm workspace with three packages: `backend/` (NestJS API, the only deployable that talks to
-Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). See README's
-[Project Structure](README.md#project-structure) for the full directory tree.
+Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). The full directory tree is below; README's
+[Project Structure](README.md#project-structure) lists only the key paths.
+
+Folder-level summary; some files and subfolders are omitted.
+
+```
+Chat Project/                   <= monorepo root
+├── backend/                    <= NestJS application
+│   └── src/
+│       ├── ai/                 <= Gemini AI (AiService, AiRoomService)
+│       │   ├── constants/      <= system-prompts.ts, AI_USER_EMAIL
+│       │   ├── entities/       <= AiRoomEntity (room's active AI personality, split out of RoomEntity)
+│       │   └── enums/          <= ai-personality.enum.ts
+│       ├── audit-log/          <= AuditLogController, AuditLogService (privileged-action audit trail, CSV export)
+│       │   └── dto/            <= AuditLogQueryDto, AuditLogExportQueryDto
+│       ├── auth/               <= JWT auth, guards, strategies
+│       │   ├── decorator/
+│       │   ├── dto/
+│       │   ├── guard/          <= JwtAuthGuard, RbacGuard, GraphqlAuthGuard
+│       │   ├── interface/      <= Payload (JWT payload shape)
+│       │   ├── role/
+│       │   └── strategy/       <= passport-jwt
+│       ├── base/
+│       │   ├── entity/         <= EntityBase (created/updated timestamps)
+│       │   ├── filter/         <= AllExceptionsFilter (global HTTP+GraphQL error normalization)
+│       │   └── logger/         <= winston logger
+│       ├── chat/               <= ChatGateway, ChatService, ChatResolver
+│       │   ├── decorator/      <= gql-query-runner.decorator
+│       │   ├── entities/       <= ChatEntity, RoomEntity
+│       │   │   └── dto/        <= CreateChatDto
+│       │   ├── guard/          <= RateLimitGuard
+│       │   └── interceptor/    <= GqlTransactionInterceptor
+│       ├── graphql/            <= PubSubService, GraphQL input/return types
+│       ├── health/             <= HealthController (liveness probe, GET /health)
+│       ├── mail/                <= MailService (SMTP notifications, e.g. role-change emails)
+│       ├── migrations/         <= TypeORM migration files
+│       ├── mocks/              <= bcrypt mock for tests
+│       ├── moderation/         <= ModerationService, ModerationGuard (strike ladder, ban/mute enforcement)
+│       │   ├── constants/      <= thresholds, system-account email, notice texts, redis keys
+│       │   └── enums/          <= moderation-status.enum.ts (active | banned)
+│       ├── redis/              <= RedisModule, SessionCacheService
+│       │   └── interface/      <= CachableMessage (shared with graphql/pubsub.service.ts)
+│       └── user/               <= UserController, UserService, UserEntity
+│           ├── dto/
+│           └── entities/
+├── frontend/                   <= React + Vite application (chat UI, port 5173)
+│   └── src/
+│       ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+│       ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
+│       ├── components/         <= ProtectedRoute, AiPersonalitySelector, EmptyStateNotice, RateLimitNotice
+│       ├── pages/               <= ChatPage, SigninPage, RegisterPage, AccountPage
+│       ├── socket/              <= socket.ts (Socket.IO singleton)
+│       ├── store/                <= auth.store.ts (Zustand)
+│       └── types/
+└── admin/                       <= React + Vite admin dashboard (port 5174) — see Admin Panel
+    └── src/
+        ├── api/                <= apollo.ts, axios.ts, graphql-operations.ts
+        ├── auth/               <= session-guard.ts (silent token refresh, cross-tab conflict detection)
+        ├── components/         <= ProtectedRoute
+        ├── pages/               <= LoginPage, DashboardPage, UsersPage, RoomsPage, LogsPage
+        ├── store/                <= auth.store.ts (Zustand)
+        └── test/                 <= Vitest setup (jest-dom matchers, RTL cleanup)
+```
 
 - **Why:** solo-project scale — one developer maintaining three packages that share a GraphQL contract
   makes monorepo overhead lower than coordinating three separate repos (per the developer: "1인
@@ -112,21 +173,21 @@ request.
 | REST (protected) | `JwtAuthGuard` → `RbacGuard` | `user.controller.ts` |
 | GraphQL, admin-gated | `GraphQLAuthGuard` → `GraphQLRBACGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` (comment: "`GraphQLAuthGuard` populates `req.user`; `GraphQLRBACGuard` reads it") — `getAllRooms`, `deleteRoom` |
 | GraphQL, other authenticated query/mutation | `GraphQLAuthGuard` → `QueryRateLimitGuard` | `chat.resolver.ts` — `getMyRooms`, `getMessages`, `getOnlineUser`, `getRoom`, `getAllUsers`, `getUserNicknames`, `getAiPersonalityInfo`, `setAiPersonality`; unlike `RateLimitGuard` this fails **open** on a Redis error, since it isn't a security/abuse gate — see [ADR 0016](ADR/0016-redis-unavailability-policy.md) |
-| GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:186-188` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
+| GraphQL, `sendMessage` | `GraphQLAuthGuard` → `ModerationGuard` → `RateLimitGuard` | `chat.resolver.ts:190-192` — `ModerationGuard` must gate muted/banned users **before** `RateLimitGuard` spends its velocity budget on them |
 | Socket.IO `handleConnection` | JWT parse → `moderationService.isUserBanned()` check | `chat.gateway.ts` — same ban gate `jwt.strategy` applies over HTTP/GraphQL, so a still-valid token can't bypass a ban by connecting over a socket instead |
-| GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:309-326` |
+| GraphQL, `receiveMessage` subscription | `GraphQLAuthGuard` → `isRoomParticipant()` room-membership check | `chat.resolver.ts:313-330` |
 | REST, `register`/`signin` | `AuthRateLimitGuard` | `auth.controller.ts:44-45,66-67` — IP-keyed (not userId-keyed, since no user exists pre-auth), 10 attempts/60s via atomic Lua `INCR`+`EXPIRE`, fails closed (denies) on a Redis error — same fail-closed policy as [ADR 0016](ADR/0016-redis-unavailability-policy.md)'s other no-DB-fallback security checks; formalized (alongside the Helmet/CSP split above) as [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) |
 
 **`receiveMessage` runs over `graphql-ws`, not HTTP** — the only guard chain in this table that does.
 `GraphQLAuthGuard` reads `ctx.req.headers.authorization`, but a subscription has no HTTP request; the
-GraphQL `context()` function (`app.module.ts:110-130`) builds a synthetic `req.headers.authorization`
+GraphQL `context()` function (`app.module.ts:140-170`) builds a synthetic `req.headers.authorization`
 from `graphql-ws`'s `connectionParams`, captured during `onConnect` and threaded through as `extra`.
 This is the actual message-*delivery* guard — `sendMessage`'s guard chain (above) only gates the write
 side; every subscriber independently re-proves both authentication and room membership on subscribe,
 so a token revoked or a room left after subscribing isn't re-checked mid-stream (the check runs once,
-at `receiveMessage` call time, not per delivered message).
+at `receiveMessage` call time, not per delivered message). A ban is the exception: `ChatResolver.endWhenBanned()` wraps the subscription iterator and re-checks `ModerationService.isUserBanned()` each time a message is about to be delivered, so a subscriber banned after subscribing gets no further messages and the subscription ends (confirmed in a local run on 2026-10-26). The cost is one DB lookup per delivered message. A forced logout does not close an open subscription.
 
-**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:55-60`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md).
+**Session-conflict eviction order is deliberate**: `ChatService.registerClient()` (called by `ChatGateway.handleConnection()`) records a new socket as the current session *before* evicting a prior one (`kickPreviousSession()`, `chat.service.ts:55-61`) — recording first avoids a race where the superseded socket's own `disconnect` handler could clobber the new session's online status back to offline. See [ADR 0014](ADR/0014-single-active-session.md). **Works across instances:** `kickPreviousSession()` and `disconnectSocket()` address the socket through `this.server.in(socketId)`, which goes through the Redis adapter, so the eviction reaches a socket connected to another backend instance (confirmed with two instances on 2026-10-26). They used to look the socket up in `this.server.sockets.sockets`, which holds only the current process's sockets.
 
 `ModerationGuard` itself (`moderation.guard.ts`) only checks ban/mute status — it's deliberately thin
 (SRP); all strike accrual and enforcement side effects live in `ModerationService`.
@@ -144,12 +205,12 @@ at `receiveMessage` call time, not per delivered message).
 Cross-cutting request-handling setup registered once in `main.ts`, applying to every route regardless
 of module:
 
-- **`app.set('trust proxy', 1)`** (`main.ts:29`) — Railway sits in front as a reverse proxy; without
+- **`app.set('trust proxy', 1)`** (`main.ts:28`) — Railway sits in front as a reverse proxy; without
   this, `req.ip` resolves to the proxy's own address for every request, which would collapse
   `AuthRateLimitGuard`'s per-client IP buckets into one shared bucket (see [Guard
   Chains](#guard-chains)). `1` trusts exactly the immediate hop rather than the full
-  `X-Forwarded-For` chain, per the code comment at `main.ts:25-28`.
-- **`helmet`** (`main.ts:37`, `app.use(helmet({ contentSecurityPolicy: false }))`) — sets Express's
+  `X-Forwarded-For` chain, per the code comment at `main.ts:25-27`.
+- **`helmet`** (`main.ts:35`, `app.use(helmet({ contentSecurityPolicy: false }))`) — sets Express's
   standard security-related HTTP response headers. CSP is deliberately left off here: this backend
   serves almost no HTML — REST/GraphQL responses are JSON, so the only page a backend-set CSP header
   would ever apply to is Swagger UI (`/document`) itself, and Swagger's inline bootstrap script would
@@ -167,7 +228,7 @@ of module:
   WSS (`frontend` only — GraphQL subscriptions + Socket.IO; `admin` has no realtime deps). See
   [ADR 0020](ADR/0020-security-headers-and-auth-rate-limit.md) for the full breakdown of this split,
   including the Helmet side above.
-- **`ValidationPipe`** (`main.ts:45-54`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
+- **`ValidationPipe`** (`main.ts:43-52`) — global, with `whitelist: true` + `forbidNonWhitelisted: true`
   (strips/rejects any property not declared on the target DTO class) and `transform: true` (coerces
   incoming payloads into DTO class instances). This is the enforcement mechanism behind CLAUDE.md's
   Never Do Group 3 "Raw `@Body()` without DTO" rule — validation runs once here for every
@@ -176,15 +237,15 @@ of module:
   (`PubSubService`, `SessionCacheService`, `ChatGateway`) never run on `SIGTERM`/`SIGINT`, so every
   deploy would drop Redis connections abruptly instead of closing them gracefully (per the code
   comment at `main.ts:20-22`).
-- **Body parser limit raised to 3mb** (`main.ts:42-43`, both `json` and `urlencoded`) — the Express
+- **Body parser limit raised to 3mb** (`main.ts:40-41`, both `json` and `urlencoded`) — the Express
   default (100kb) is far smaller than a base64-encoded user-uploaded image, per the code comment at
-  `main.ts:40-41`. This is what `AllExceptionsFilter`'s payload-too-large → `413` branch (see
+  `main.ts:38-39`. This is what `AllExceptionsFilter`'s payload-too-large → `413` branch (see
   [Error Handling](#error-handling) below) exists to catch when a request exceeds it.
 
 ## Error Handling
 
 `AllExceptionsFilter` (`backend/src/base/filter/all-exceptions.filter.ts`) is registered as a single
-global filter (`app.useGlobalFilters(new AllExceptionsFilter())`, `main.ts:38`) covering both HTTP and
+global filter (`app.useGlobalFilters(new AllExceptionsFilter())`, `main.ts:36`) covering both HTTP and
 GraphQL — it branches on `host.getType<'http' | 'ws' | 'graphql'>()` rather than being split into two
 filters. Non-`HttpException` errors default to `500`/`INTERNAL_SERVER_ERROR`, except a `body-parser`
 "entity.too.large" error, which it detects structurally (not via `instanceof HttpException`, since
@@ -241,7 +302,7 @@ see [ADR 0007](ADR/0007-ai-reply-distributed-lock.md) for why a skip-not-queue l
 was chosen over alternatives.
 
 - **Risk:** `evaluateMessage()` runs in a `setImmediate` block that fires *after* `pubSub.publish()`
-  has already delivered the triggering message to subscribers (`chat.resolver.ts:206` publishes before
+  has already delivered the triggering message to subscribers (`chat.resolver.ts:210` publishes before
   the moderation block starts). The offending message itself is never blocked pre-delivery — only
   messages sent *after* a mute/ban takes effect are prevented. This is a deliberate latency tradeoff
   (moderation evaluation adds no round-trip time to `sendMessage`), not an oversight, but it does mean

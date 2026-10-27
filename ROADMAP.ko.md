@@ -186,6 +186,7 @@ README의 옛 "향후 확장 계획" 절에서 옮겨온 백로그임. 확정된
   GraphQL 엔드포인트에는 이제 레이트리밋 가드(`QueryRateLimitGuard` 또는 `RateLimitGuard`)가
   있지만 이것만 없음. `canActivate`가 구독 시점에 한 번만 실행되므로 붙여도 재구독 시도만
   제한될 뿐 메시지 수신량 자체는 못 막음 — 그것만으로 추가할 가치가 있는지는 아직 미정.
+- 유저가 강제 로그아웃될 때 열려 있는 `receiveMessage` 구독 종료 — 밴은 전달하기 직전마다 `isUserBanned`를 다시 확인해 구독을 이미 종료하지만, `UserService.forceLogout`은 소켓만 끊고 열린 구독(과 이미 발급된 액세스 토큰)은 그대로 둠.
 
 ### 프론트엔드
 

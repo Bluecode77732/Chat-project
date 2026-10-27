@@ -191,6 +191,7 @@ timeline or priority order.
   `RateLimitGuard`) except this one. Its `canActivate` only runs once per subscribe, so the guard
   would throttle resubscribe attempts, not per-message delivery volume — whether that's worth adding
   on its own is not yet decided.
+- Close open `receiveMessage` subscriptions when a user is force-logged-out — a ban already ends a subscription by re-checking `isUserBanned` before each delivered message, but `UserService.forceLogout` only disconnects the socket and leaves an open subscription (and an already-issued access token) alive.
 
 ### Frontend
 

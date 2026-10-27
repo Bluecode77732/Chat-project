@@ -83,6 +83,7 @@
 | [0020](0020-security-headers-and-auth-rate-limit.ko.md) | 보안 헤더 분리(Helmet은 backend / CSP는 frontend+admin)와 IP 기반 인증 레이트리밋 | Accepted |
 | [0021](0021-unified-message-delivery-channel.ko.md) | 사람·AI·모더레이션 시스템 메시지의 단일 전달 채널/형태 | Accepted |
 | [0022](0022-node-env-runtime-env-split.ko.md) | NODE_ENV(표준)와 RUNTIME_ENV(native\|docker) 분리 | Accepted |
+| [0023](0023-subscription-ban-recheck.ko.md) | `receiveMessage` 구독에서 전달되는 메시지마다 밴 상태를 다시 확인 | Accepted |
 
 범위 참고: 0001–0005는 CLAUDE.md에 이미 서술되어 있던 결정을 정식화한 것임. 0006–0007은
 소스 파일의 인라인 주석으로만 존재하던 코드 레벨 근거를 정식화한 것임. 0008, 0010, 0012,

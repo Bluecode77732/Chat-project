@@ -52,11 +52,12 @@ export class ChatService {
     }
   }
 
+  // 이전 소켓이 다른 백엔드 인스턴스에 있을 수 있으므로, 현재 프로세스의 소켓 맵
+  // (`server.sockets.sockets`)이 아니라 어댑터를 거치는 `server.in(socketId)`로 보냄 —
+  // 소켓은 자기 id 이름의 방에 자동으로 들어가고, 해당 소켓이 없으면 아무 일도 일어나지 않음.
   private kickPreviousSession(socketId: string): void {
-    const previousSocket = this.server?.sockets.sockets.get(socketId);
-    if (!previousSocket) return;
-    previousSocket.emit('forceLogout', { reason: 'conflict' });
-    previousSocket.disconnect(true);
+    this.server?.in(socketId).emit('forceLogout', { reason: 'conflict' });
+    this.server?.in(socketId).disconnectSockets(true);
   }
 
   // 소켓 연결 해제
@@ -291,8 +292,9 @@ export class ChatService {
       .filter((r): r is { roomId: number; recipientId: number } => r !== null);
   }
 
+  // kickPreviousSession과 같은 이유로 어댑터를 거쳐 다른 인스턴스의 소켓도 끊음.
   disconnectSocket(socketId: string): void {
-    this.server?.sockets.sockets.get(socketId)?.disconnect(true);
+    this.server?.in(socketId).disconnectSockets(true);
   }
 
   async findAllRooms(

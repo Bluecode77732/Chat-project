@@ -37,7 +37,8 @@ cp admin/.env.example admin/.env.local
 sequence):
 ```bash
 docker compose up -d --build   # requires .env.docker at the project root
-docker compose down -v         # tear down
+docker compose down            # stop the containers (keeps the Postgres/Redis data)
+docker compose down -v         # also deletes the Postgres/Redis volumes (data is lost)
 ```
 
 **Per-package, without Docker**:
@@ -46,6 +47,39 @@ cd backend && pnpm start:dev   # NODE_ENV=development, binds 127.0.0.1:3000
 cd frontend && pnpm dev        # Vite dev server, :5173
 cd admin && pnpm dev           # Vite dev server, :5174
 ```
+
+### Trying the GraphQL API by hand
+
+With the backend running and a registered account, use Altair for the subscription and Postman (or any
+HTTP GraphQL client) for the mutation — Altair can't test mutations and Postman can't test
+subscriptions. The full schema is `backend/src/schema.gql`. Chat messages travel over GraphQL only;
+Socket.IO only handles connection auth and the `CreateRoom` notice.
+
+- Altair (subscription): URL `http://localhost:3000/graphql`, subscription type WebSocket (graphql-ws),
+  connection parameters `{ "authorization": "Bearer <token>" }`
+  ```graphql
+  subscription {
+    receiveMessage(roomId: "19") {
+      id
+      message
+      participant { id }
+    }
+  }
+  ```
+- Postman or any HTTP GraphQL client (mutation): header `authorization: Bearer <token>`
+  ```graphql
+  mutation SendMessage($input: CreateChatInput!, $recipientId: Int!) {
+    sendMessage(input: $input, recipientId: $recipientId) {
+      id
+      message
+      roomId
+      createdAt
+    }
+  }
+  ```
+  Variables: `{ "input": { "message": "Sent from Postman" }, "recipientId": 2 }`
+- Socket.IO: connect to `ws://localhost:3000` with an `authorization: Bearer <token>` header and you
+  receive a `CreateRoom` event when a new room is created
 
 ## Branch model
 
@@ -82,21 +116,21 @@ CI (`.github/workflows/deploy.yml`) runs on every PR to `main`:
 
 | Job | What it does | Blocking? |
 |---|---|---|
-| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:deps`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
+| `test` (ubuntu-latest) | `pnpm --filter backend lint`, `pnpm --filter backend test`, `pnpm --filter admin lint`, `pnpm --filter admin test`, `pnpm --filter frontend lint`, `pnpm --filter frontend test`, `pnpm check:adr`, `pnpm check:config`, `pnpm check:changelog` — no step has a `\|\| true` fallback, so any failure hard-fails the job | Yes |
 | `test` (windows-latest) | same steps | No — `continue-on-error: true` for this OS in the matrix |
 | `e2e` | backend jest e2e boot smoke test, then Playwright e2e against `frontend/` — both against real Postgres 16 + Redis 7 service containers | Yes — blocks `deploy` (listed in its `needs`) |
 | `admin-e2e` | seeds a superadmin, runs Playwright e2e against `admin/` | No — `continue-on-error: true`; kept out of `deploy`'s `needs` until a successful run in the real GitHub Actions environment is confirmed via this workflow's run history (not just local YAML/unit-test validation) |
 
-The last four `test` steps are documentation-integrity checks, and they fail the build exactly like
+The last three `test` steps are documentation-integrity checks, and they fail the build exactly like
 a test does: `check:adr` (broken ADR links/anchors, stale `file:line` citations, missing `.ko.md`
 pairs, EN/KO heading parity), `check:config` (`MODERATION_DEFAULTS` in sync across its documented
-mirrors), `check:deps` (README's dependency lists vs `backend/package.json`), `check:changelog`
+mirrors), `check:changelog`
 (`CHANGELOG.md`/`.ko.md` list every commit in `git log`, under the right date heading).
 
 `check:changelog` tolerates exactly **one** unrecorded newest commit — the one doing the recording.
 So a single commit needs no changelog edit, but stacking a second on top makes the first one fail:
 when a PR carries more than one commit, add each commit's own subject line to both `CHANGELOG.md` and
-`CHANGELOG.ko.md` (verbatim, English subject in both files) as part of that commit.
+`CHANGELOG.ko.md` (verbatim and untranslated, so a Korean subject stays Korean in both files) as part of that commit.
 
 > Note: CI's `e2e`/`admin-e2e` run against `postgres:16` service containers, while local Docker
 > (`docker-compose.yml`) and the documented local prerequisite use `postgres:18` — an intentional
@@ -116,7 +150,7 @@ pnpm --filter admin lint
 pnpm --filter admin test
 pnpm --filter frontend lint
 pnpm --filter frontend test
-pnpm check:adr && pnpm check:config && pnpm check:deps && pnpm check:changelog
+pnpm check:adr && pnpm check:config && pnpm check:changelog
 ```
 
 Code style is enforced by `backend/.prettierrc` (`singleQuote: true`, `trailingComma: "all"`) and
@@ -136,7 +170,7 @@ CLAUDE.md's Scope Discipline.
 - Mock repositories rather than hitting a real DB — see the pattern in
   [CLAUDE.md's Testing section](CLAUDE.md#testing).
 - `frontend/e2e/` and `admin/e2e/` hold their own Playwright suites, run independently in CI.
-- `admin/` (vitest, 14 specs) and `frontend/` (vitest, 21 specs) both have unit test coverage now,
+- `admin/` (vitest) and `frontend/` (vitest) both have unit test coverage now,
   same setup (`src/test/setup.ts`, same devDependency versions). `frontend/`'s suite ports admin's
   three files (axios/protected-route/auth.store, adapted for its simpler no-role auth model) plus a
   new one for `session-guard.ts` -- the in-flight refresh dedup and cross-tab conflict-detection logic
@@ -158,6 +192,51 @@ CLAUDE.md's Scope Discipline.
   decision. Pick this up by adding `@sentry/react` (mirroring the backend's `@sentry/nestjs` setup)
   with a top-level error boundary in both apps' `main.tsx`, plus wiring `errorLink`'s currently-silent
   non-auth branch (`frontend/src/api/apollo.ts`, `admin/src/api/apollo.ts`) to report as well.
+
+### Manual moderation verification
+
+`frontend/e2e/moderation.spec.ts` automates repeated identical messages escalating to a system warning and then a mute notice. Ban, unban, and the audit log are not automated, so verify them by hand. Verify with three accounts — **A** (offender),
+**B** (recipient), and an **admin**. To reach the higher tiers quickly, temporarily lower the
+thresholds in `.env` — keep them distinct (`warn < mute < ban`) or `escalate()`'s exact-match
+checks collide, e.g. `MODERATION_WARN_THRESHOLD=2`, `MODERATION_MUTE_THRESHOLD=3`,
+`MODERATION_BAN_THRESHOLD=4`, `MODERATION_MUTE_DURATION_SEC=30` — then restart the backend and
+reset afterward.
+
+1. **Warning** — from A, send B the *same* message repeatedly (within `DUP_WINDOW`, under the
+   rate limit). At the warn threshold a centered System-account notice appears in the room;
+   refresh the page → it persists (it is a stored `ChatEntity`).
+2. **Mute** — keep sending. At the mute threshold A's next send is rejected (`ModerationGuard`
+   → FORBIDDEN, frontend shows the mute notice); A stays connected and still *receives* B's
+   messages. Note: while muted, `sendMessage` is blocked at the guard, so **no further strikes
+   accrue** until the mute expires.
+3. **Timed ban (auto)** — after the mute expires, resume flooding to cross the ban threshold.
+   Expect: A is disconnected immediately; a reconnect is refused at `handleConnection`; a token
+   refresh is refused — a still-valid access token cannot bypass it. A GraphQL subscription opened before the ban ends when the next message would be delivered to A, and that message is not delivered. After `bannedUntil`
+   elapses, A can use the app again.
+4. **Manual ban (admin)** — `POST /user/:id/ban` on A → immediate session eviction (reuses
+   `forceLogout`) and the same auth-layer rejection as the automatic ban.
+5. **Unban (admin)** — `POST /user/:id/unban` on A → `status` back to `active`, strikes/mute
+   cleared, auth cache invalidated; A can send again immediately.
+6. **Audit** — each step above writes an admin-visible audit entry (`USER_MUTED` /
+   `USER_BANNED` / `USER_UNBAN`).
+
+### Manual multi-instance verification
+
+Nothing in CI runs two backend instances, so check session eviction and ban handling by hand after
+touching `chat.service.ts`, `chat.gateway.ts`, or the `receiveMessage` subscription. Start a second
+backend process or container with the same Postgres and Redis settings and a different `PORT`, then
+log in as the same account on each instance (use a throwaway account, never real credentials):
+
+1. **Session eviction** — connect a socket to instance 1, then connect with the same account to
+   instance 2. Expect: the first socket receives `forceLogout` and then disconnects.
+2. **Ban reach** — connect a socket to instance 2 and ban the account through instance 1. Expect:
+   the socket is disconnected.
+3. **Subscription** — subscribe to `receiveMessage` as the account, ban it, then send a message to the
+   room. Expect: the subscription ends and the message is not delivered
+   ([ADR 0023](ADR/0023-subscription-ban-recheck.md)).
+
+When testing in Docker, give the second container its own host port and never run
+`docker compose down -v`, which deletes the Postgres volume.
 
 ## Reporting issues
 
