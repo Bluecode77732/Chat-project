@@ -12,6 +12,8 @@
 
 ## 2026-10-28
 
+- Docs: README 번호 목록 줄바꿈 누락과 굵게 표시가 풀리지 않던 곳 정정
+- Docs: CHANGELOG 동기화 (README 목록 들여쓰기 정정 커밋 반영)
 - Docs: 한글 README 토큰 생명주기 목록의 중첩 들여쓰기 정정
 - Docs: CHANGELOG 동기화 (README 링크 복구 직전 커밋 반영)
 - Docs: 한글 README 직접 수정본 반영, 사라진 링크 복구와 바뀐 소제목 앵커 정정
