@@ -284,14 +284,14 @@ sequenceDiagram
   2-1. 인증 요청이 필요할 때마다 `authLink`가 현재 시점의 `useAuthStore.getState().accessToken` 값을 읽고, 이를 `Authorization: Bearer` 헤더로 자동 설정합니다.
 
 3. 자동 갱신  
-- 페이지를 새로고침하거나(메모리가 비어 있는 상태) `errorLink`에서 401 오류를 감지하면 자동으로 토큰을 갱신합니다.
+   - 페이지를 새로고침하거나(메모리가 비어 있는 상태) `errorLink`에서 401 오류를 감지하면 자동으로 토큰을 갱신합니다.
   3.1. 모든 요청은 반드시 `session-guard.ts`의 `refreshAccessTokenSafely()`를 거치며, 여러 요청이 동시에 들어올 경우엔 진행 중인 갱신 요청 하나를 공유합니다.  
   3.2. `POST /auth/token/refreshaccess` 요청은 `credentials: 'include'` 옵션과 함께 전송하므로, 브라우저가 자동으로 쿠키를 첨부하고 JavaScript에서 리프레시 토큰을 직접 다루지 않아도 됩니다.  
   3.3. 새롭게 발급된 `accessToken`은 응답 본문에서 받아 다시 메모리에 저장합니다.  
   3.4. 만약 갱신된 결과의 계정 정보가 이 탭에서 마지막으로 인증했던 계정(`sessionStorage['chat:sessionUserId']`)과 다르다면, 사용자가 모르게 신원이 바뀌는 일을 막기 위해 해당 탭은 바로 로그아웃 처리합니다.
 
 4. 로그아웃  
-- `POST /auth/signOut` 요청을 보내 로그아웃 처리합니다.
+   - `POST /auth/signOut` 요청을 보내 로그아웃 처리합니다.
   4.1. 백엔드는 액세스 토큰을 블랙리스트에 등록하고, `res.clearCookie('refreshToken')`을 호출해 토큰이 만료되었거나 유효하지 않더라도 쿠키를 삭제합니다.  
   4.2. 프론트엔드는 Zustand 스토어를 초기화하고, 리다이렉트로 사용자를 로그아웃 상태로 돌려놓습니다.
 
