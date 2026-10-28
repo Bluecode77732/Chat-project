@@ -83,7 +83,7 @@ A reversal therefore always produces two file edits (new ADR + old Status line) 
 
 Scope note: 0001–0005 formalize decisions already stated in CLAUDE.md; 0006–0007 formalize code-level
 rationale that previously existed only as inline comments at their source file. 0008, 0010, 0012, 0013
-extend coverage to decisions previously documented only in ARCHITECTURE.md or README.md; 0014–0015
+extend coverage to decisions previously documented only in ARCHITECTURE.md or README.en.md; 0014–0015
 formalize rationale already stated in CLAUDE.md's Project-Specific Principles. 0009 and 0011 required a
 fresh interview with the developer — the admin-app split's motivation and the Gemini choice's
 motivation were not recorded anywhere in code or prior docs before this pass. 0016 formalizes a policy

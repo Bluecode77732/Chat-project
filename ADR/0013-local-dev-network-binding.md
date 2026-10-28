@@ -13,7 +13,7 @@ firewall rule allowing inbound connections on any port. As a result, PostgreSQL 
 and the backend (3000) were reachable from the internet, and an automated ransomware bot accessed
 PostgreSQL using default credentials, wiped the databases, and left a ransom note in a
 `readme_to_recover` database. Full write-up in README's
-[AI-Assisted Development Notes](../README.md#ai-assisted-development-notes).
+[AI-Assisted Development Notes](../README.en.md#ai-assisted-development-notes).
 
 ## Decision
 

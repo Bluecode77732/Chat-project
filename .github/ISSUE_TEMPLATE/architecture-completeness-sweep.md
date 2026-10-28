@@ -47,7 +47,7 @@ just confirm both pass (`pnpm check:adr && pnpm check:config`).
       > 본문에서 자주 언급되지만 구조적으로 설명된 적 없는 컴포넌트 2-3개 골라
       > 실제 소스를 다시 읽고 문서 설명이 여전히 맞는지 확인 (이 방식으로
       > `PubSubService` 갭과 "Redis client count" 과소집계를 둘 다 찾음)
-- [ ] README.md's Features / Project Structure / Entities sections — any
+- [ ] README.en.md's Features / Project Structure / Entities sections — any
       recent PR that added a user-visible feature without a matching update?
       > README.md의 Features/Project Structure/Entities 섹션 — 최근 PR이
       > 사용자에게 보이는 기능을 추가했는데 문서 갱신이 빠진 게 있는지

@@ -35,7 +35,7 @@ flowchart LR
 
 pnpm 워크스페이스로 세 패키지를 구성함. `backend/`(NestJS API, Postgres/Redis와 통신하는
 유일한 배포 단위), `frontend/`(채팅 클라이언트), `admin/`(관리 대시보드)임. 전체 디렉터리
-트리는 아래와 같고, README의 [프로젝트 구조](README.ko.md#프로젝트-구조)에는 핵심 경로만 있음.
+트리는 아래와 같고, README의 [프로젝트 구조](README.md#프로젝트-구조)에는 핵심 경로만 있음.
 
 폴더 수준 요약이며 일부 파일과 하위 폴더는 생략돼 있음.
 
@@ -274,7 +274,7 @@ effect(`publishFn`, `disconnectFn`)를 `ChatResolver`가 호출 시점에 콜백
 ## 데이터 흐름
 
 `sendMessage` GraphQL mutation 경로와 Socket.IO 연결 라이프사이클은 이미 README의
-[흐름](README.ko.md#흐름) 절에 단계별로 도식화되어 있음. 트랜잭션 경계, 커밋 이후 AI 응답
+[흐름](README.md#흐름) 절에 단계별로 도식화되어 있음. 트랜잭션 경계, 커밋 이후 AI 응답
 트리거, Redis Pub/Sub 전달까지 그쪽이 정본임. 트랜잭션 경계 결정 자체는
 [ADR 0003](ADR/0003-database-transaction-strategy.md)으로 공식화되어 있음. 여기서 추가할
 내용은 두 가지이고, 둘 다 README가 설명하는 것과 동일한 `receiveMessage :${roomId}` 채널 위에서
@@ -327,7 +327,7 @@ flowchart LR
 
 - **로컬**: `docker compose up -d --build` — 서비스 3개(`chat`, `postgres:18`, `redis:alpine`),
   모든 포트는 `127.0.0.1`에만 바인딩됨(과거 `0.0.0.0`으로 노출되었던 사고가 있음 —
-  README의 [AI-Assisted Development Notes](README.ko.md#ai-보조-개발-사례) 참고). `chat` 서비스는
+  README의 [AI-Assisted Development Notes](README.md#ai-보조-개발-사례) 참고). `chat` 서비스는
   시작 시 `pnpm migration:run && node dist/main`을 실행하며, 운영 환경과 동일함.
 
   - **되돌렸을 때의 위험:** 이미 문서화된 바로 그 사고임. 공인 IP를 가진 머신에서 개발용
@@ -393,7 +393,7 @@ flowchart LR
 ## 기술 스택
 
 각 패키지의 실제 `dependencies`(`devDependencies` 제외)를 직접 확인한 목록이며, `package.json`과
-항상 맞음. 이 선택들의 원래 근거는 README의 [기술 스택](README.ko.md#기술-스택) 절이 다루고,
+항상 맞음. 이 선택들의 원래 근거는 README의 [기술 스택](README.md#기술-스택) 절이 다루고,
 아래에서는 주요 아키텍처 선택마다 README의 기술 스택 절에는 없는 비용/위험을 함께 다룸.
 
 - **backend**: NestJS 11(`common`/`core`/`config`/`graphql`/`jwt`/`passport`/`platform-express`/
@@ -491,7 +491,7 @@ flowchart LR
 
 ## 엔티티
 
-필드 단위 상세 내용은 README의 [엔티티](README.ko.md#엔티티-typeorm) 절을 참고하세요
+필드 단위 상세 내용은 README의 [엔티티](README.md#엔티티-typeorm) 절을 참고하세요
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`). 최신 상태로 유지되고
 있으므로 여기서 다시 쓰지 않음.
 

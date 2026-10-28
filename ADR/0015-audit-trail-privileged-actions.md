@@ -28,7 +28,7 @@ separate, queryable entity, independent of the application log stream:
   by `applyBan` to decide whether a repeat ban on the same user should escalate to permanent — the
   audit log is a write-once record consumed as read-side state, not append-only-and-ignored.
 - Admin-facing audit-log CSV export is one of `admin/`'s stated features (see README's
-  [Admin Panel](../README.md#admin-panel) section).
+  [Admin Panel](../README.en.md#admin-panel) section).
 - Alternatives considered and rejected:
   - **Rely on the winston application logs alone**: this is the pre-existing gap described in Context,
     not a viable option — the logs rotate, are unstructured, and were never meant to answer "who did

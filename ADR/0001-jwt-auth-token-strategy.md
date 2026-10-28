@@ -43,7 +43,7 @@ subscriptions) and a Socket.IO connection, without forcing a session store looku
     access/refresh split lets the access token stay short-lived without that UX cost.
   - **`accessToken` in `localStorage`**: rejected on XSS-exposure grounds — this project self-discovered
     an XSS/localStorage token-storage vulnerability during development (see README's
-    [Project Motivation](../README.md#project-motivation)), which is the concrete incident behind this
+    [Project Motivation](../README.en.md#project-motivation)), which is the concrete incident behind this
     rule, not a hypothetical concern.
   - **`refreshToken` returned in the response body instead of an httpOnly cookie**: rejected for the same
     reason as `localStorage` — anything JavaScript can read, an XSS payload can read.

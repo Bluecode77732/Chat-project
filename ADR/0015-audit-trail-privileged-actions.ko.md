@@ -27,7 +27,7 @@ Accepted
   `applyBan`이 같은 사용자에 대한 재차 차단을 영구 차단으로 격상할지 판단할 때 다시
   읽음. 즉 감사 로그는 한 번 쓰고 잊는 append-only 기록이 아니라 읽기 쪽 상태로도
   소비됨.
-- 관리자용 감사 로그 CSV 내보내기는 README의 [Admin 패널](../README.ko.md#admin-패널) 절에
+- 관리자용 감사 로그 CSV 내보내기는 README의 [Admin 패널](../README.md#admin-패널) 절에
   명시된 `admin/`의 기능 중 하나임.
 - 고려했다가 배제한 대안:
   - **winston 애플리케이션 로그에만 의존**: 배경 절에서 서술한 기존 결함 그 자체라 실행

@@ -34,7 +34,7 @@ gantt
 
 1. **기반 구축** (2026-01-02 ~ 2026-01-21) — 첫 커밋: "Built user, auth, chat entities, relations,
    guard, interceptors, etc." 기본 JWT 인증, TypeORM 엔티티, 초기 Socket.IO 채팅 프로토타입.
-   *이유:* README의 [Project Motivation](README.ko.md#프로젝트-동기)에 따르면, 다른 것을 그 위에
+   *이유:* README의 [Project Motivation](README.md#프로젝트-동기)에 따르면, 다른 것을 그 위에
    쌓기 전에 인증/인가(Basic/Bearer/JWT, RBAC 가드)를 end-to-end로 연습하기 위함.
 
 2. **Socket.IO → GraphQL 메시징 마이그레이션** (2026-01-22 ~ 2026-06-11) — 가장 오래 걸린
@@ -66,7 +66,7 @@ gantt
 
 6. **보안 사고 대응** (2026-06-18) — "Fix: password leak via missing serializer, stale role cache,
    RBAC bypass on audit log, admin signout method, and bind local dev server to loopback." 전체
-   경위는 README의 [AI-Assisted Development Notes](README.ko.md#ai-보조-개발-사례) 참고.
+   경위는 README의 [AI-Assisted Development Notes](README.md#ai-보조-개발-사례) 참고.
    *이유:* 계획된 작업이 아니었음. 실제 사고(노출된 개발 포트로 랜섬웨어 봇이 개발 DB를 삭제)가
    발생했고, 조용히 덮지 않고 봉쇄와 자격증명 교체까지 끝까지 처리한 뒤 문서화함.
 
