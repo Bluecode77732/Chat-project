@@ -442,7 +442,7 @@ flowchart LR
     `SessionCacheService`가 사용), `pubClient`/`subClient`(`chat.gateway.ts`의 `afterInit`,
     `@socket.io/redis-adapter`용), 그리고 `publisher`/`subscriber`(`graphql/pubsub.service.ts`의
     생성자에서 만들어 `super({ publisher, subscriber })`로 전달 — `PubSubService`는 `RedisPubSub`를
-    감싸는 게 아니라 **상속(extends)**함; CLAUDE.md의 Cache 절 참고: "pub/sub uses a dedicated
+    감싸는 게 아니라 <strong>상속(extends)</strong>함; CLAUDE.md의 Cache 절 참고: "pub/sub uses a dedicated
     subscriber connection, separate from the publisher connection, created inline in
     `graphql/pubsub.service.ts`"). `redis.module.ts`, `chat.gateway.ts`, `graphql/pubsub.service.ts`
     셋 다 각각 독립적으로 `REDIS_URL`을 파싱하고 `rediss:`를 감지해 TLS를 켬. 연결 설정

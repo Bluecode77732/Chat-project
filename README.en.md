@@ -222,18 +222,18 @@ All chat messages are sent and delivered through the **GraphQL Mutation Path**. 
 `@SubscribeMessage` handler for chat messages and emits none.
 
 ### Socket.IO Connection Lifecycle
-1. Client connects WebSocket, `handleConnection` runs in `chat.gateway.ts`
-  1.1. Authenticate JWT token via `AuthService.parseBearerToken()`
-  1.2. `ChatService.registerClient()` records `userId` => `socketId` in Redis
-  1.3. `ChatService.joinRooms()` joins the client to their existing rooms
+1. Client connects WebSocket, `handleConnection` runs in `chat.gateway.ts`  
+  1.1. Authenticate JWT token via `AuthService.parseBearerToken()`  
+  1.2. `ChatService.registerClient()` records `userId` => `socketId` in Redis  
+  1.3. `ChatService.joinRooms()` joins the client to their existing rooms  
   1.4. On a session conflict, the previous socket for that user receives `forceLogout` and is disconnected
 
-2. Room creation notification
+2. Room creation notification  
   2.1. When `ChatService` creates a new `RoomEntity` (first message between two users), it
        emits `CreateRoom` to the recipient's socket so their client can join the new room
 
-3. Client disconnects
-  3.1. `handleDisconnect` runs in `chat.gateway.ts`
+3. Client disconnects  
+  3.1. `handleDisconnect` runs in `chat.gateway.ts`  
   3.2. `ChatService.removeClient()` marks the user offline in Redis only if the current session is this socket (ignored if a newer session already replaced it)
 
 ### GraphQL Mutation Path (`sendMessage`)
@@ -274,31 +274,31 @@ The two tokens live in deliberately different places: the short-lived `accessTok
 (Zustand, excluded from `persist`), the long-lived `refreshToken` in a backend-set httpOnly cookie
 that JavaScript cannot read. See [ADR 0001](ADR/0001-jwt-auth-token-strategy.md) for the rationale.
 
-1. Sign-in — `POST /auth/signin` (Basic auth)
+1. Sign-in — `POST /auth/signin` (Basic auth)  
   1.1. Backend returns `accessToken` in the response body and sets `refreshToken` as an httpOnly
-       cookie (`secure`, `sameSite: 'none'` — frontend and backend are separate origins)
-  1.2. Frontend calls `setTokens(accessToken, userId)`; no token is written to `localStorage`
+       cookie (`secure`, `sameSite: 'none'` — frontend and backend are separate origins)  
+  1.2. Frontend calls `setTokens(accessToken, userId)`; no token is written to `localStorage`  
   1.3. The refresh token carries a `jti` that the backend stores in Redis as `auth:session:{userId}`
        (TTL = refresh token lifetime). A later sign-in replaces it, and the earlier refresh token is
        then rejected as "Session Superseded"
 
-2. Authenticated request
+2. Authenticated request  
   2.1. `authLink` reads `useAuthStore.getState().accessToken` at request time and sets
        `Authorization: Bearer`
 
-3. Silent refresh — on page reload (memory is empty) or on a 401 surfaced by `errorLink`
+3. Silent refresh — on page reload (memory is empty) or on a 401 surfaced by `errorLink`  
   3.1. Every call site goes through `refreshAccessTokenSafely()` (`session-guard.ts`); concurrent
-       callers share one in-flight request
+       callers share one in-flight request  
   3.2. `POST /auth/token/refreshaccess` is sent with `credentials: 'include'` — the browser attaches
-       the cookie automatically, so JavaScript never reads the refresh token
-  3.3. A fresh `accessToken` comes back in the body and goes into memory again
+       the cookie automatically, so JavaScript never reads the refresh token  
+  3.3. A fresh `accessToken` comes back in the body and goes into memory again  
   3.4. If the refresh resolves to a different account than this tab last authenticated as
        (`sessionStorage['chat:sessionUserId']`), the tab is logged out instead of silently
        switching identity
 
-4. Sign-out — `POST /auth/signOut`
+4. Sign-out — `POST /auth/signOut`  
   4.1. Backend blacklists the access token and calls `res.clearCookie('refreshToken')` — the cookie
-       is cleared even if the token is already expired or invalid
+       is cleared even if the token is already expired or invalid  
   4.2. Frontend clears the Zustand store and redirects
 
 

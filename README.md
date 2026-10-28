@@ -226,17 +226,17 @@ EntityBase (네 엔티티 모두 상속)
 모든 채팅 메시지는 GraphQL mutation으로 전송하고, GraphQL subscription으로만 받습니다(즉, **GraphQL Mutation 경로**만 사용합니다). Socket.IO(`ChatGateway`)는 오직 WebSocket 연결의 생명주기만 관리하며, 채팅 메시지를 처리하는 `@SubscribeMessage` 핸들러는 없습니다. 따라서 어떤 메시지도 emit하지 않습니다.
 
 ### Socket.IO 연결 생명주기
-1. 클라이언트가 `chat.gateway.ts`의 handleConnection을 통해 WebSocket에 연결합니다.
-   1.1. `AuthService.parseBearerToken()`에서 JWT 토큰으로 인증합니다.
-   1.2. `ChatService.registerClient()`가 Redis에 `userId`와 대응하는 `socketId`를 저장합니다.
-   1.3. `ChatService.joinRooms()`로 클라이언트가 기존 방에 자동으로 참여합니다.
+1. 클라이언트가 `chat.gateway.ts`의 handleConnection을 통해 WebSocket에 연결합니다.  
+   1.1. `AuthService.parseBearerToken()`에서 JWT 토큰으로 인증합니다.  
+   1.2. `ChatService.registerClient()`가 Redis에 `userId`와 대응하는 `socketId`를 저장합니다.  
+   1.3. `ChatService.joinRooms()`로 클라이언트가 기존 방에 자동으로 참여합니다.  
    1.4. 만약 세션이 충돌하면, 해당 유저의 기존 소켓에는 `forceLogout`을 보내 연결을 끊습니다.
 
-2. 방 생성 알림
+2. 방 생성 알림  
    2.1. `ChatService`가 새 `RoomEntity`를 만들 때(두 사용자가 처음 메시지를 보낼 때), 수신자 소켓에 `CreateRoom`을 보내서 클라이언트가 새 방에 들어올 수 있도록 안내합니다.
 
-3. 클라이언트 연결 해제
-   3.1. 연결이 끊기면 `chat.gateway.ts`에서 `handleDisconnect`가 실행됩니다.
+3. 클라이언트 연결 해제  
+   3.1. 연결이 끊기면 `chat.gateway.ts`에서 `handleDisconnect`가 실행됩니다.  
    3.2. `ChatService.removeClient()`는 Redis에 기록된 세션이 이 소켓과 일치할 때만 해당 사용자를 offline으로 처리합니다. 이미 더 최근 세션이 등록됐다면 아무런 처리도 하지 않습니다.
 
 ### GraphQL Mutation 경로 (`sendMessage`)
@@ -284,14 +284,14 @@ sequenceDiagram
   2-1. 인증 요청이 필요할 때마다 `authLink`가 현재 시점의 `useAuthStore.getState().accessToken` 값을 읽고, 이를 `Authorization: Bearer` 헤더로 자동 설정합니다.
 
 3. 자동 갱신  
-   - 페이지를 새로고침하거나(메모리가 비어 있는 상태) `errorLink`에서 401 오류를 감지하면 자동으로 토큰을 갱신합니다.
+   - 페이지를 새로고침하거나(메모리가 비어 있는 상태) `errorLink`에서 401 오류를 감지하면 자동으로 토큰을 갱신합니다.  
   3.1. 모든 요청은 반드시 `session-guard.ts`의 `refreshAccessTokenSafely()`를 거치며, 여러 요청이 동시에 들어올 경우엔 진행 중인 갱신 요청 하나를 공유합니다.  
   3.2. `POST /auth/token/refreshaccess` 요청은 `credentials: 'include'` 옵션과 함께 전송하므로, 브라우저가 자동으로 쿠키를 첨부하고 JavaScript에서 리프레시 토큰을 직접 다루지 않아도 됩니다.  
   3.3. 새롭게 발급된 `accessToken`은 응답 본문에서 받아 다시 메모리에 저장합니다.  
   3.4. 만약 갱신된 결과의 계정 정보가 이 탭에서 마지막으로 인증했던 계정(`sessionStorage['chat:sessionUserId']`)과 다르다면, 사용자가 모르게 신원이 바뀌는 일을 막기 위해 해당 탭은 바로 로그아웃 처리합니다.
 
 4. 로그아웃  
-   - `POST /auth/signOut` 요청을 보내 로그아웃 처리합니다.
+   - `POST /auth/signOut` 요청을 보내 로그아웃 처리합니다.  
   4.1. 백엔드는 액세스 토큰을 블랙리스트에 등록하고, `res.clearCookie('refreshToken')`을 호출해 토큰이 만료되었거나 유효하지 않더라도 쿠키를 삭제합니다.  
   4.2. 프론트엔드는 Zustand 스토어를 초기화하고, 리다이렉트로 사용자를 로그아웃 상태로 돌려놓습니다.
 
@@ -582,7 +582,7 @@ REST(`Auth`, `User`, `Audit Log`)의 엔드포인트별 파라미터와 응답 �
 운영 지침상 superadmin 계정은 항상 최소 2명이 되어야 합니다. 만약 한 명뿐이라 그 계정이 탈취된다면, 위에서 설명한 마지막-superadmin 불변식 때문에 조치할 방법이 없어집니다. 반면에 2명 이상 superadmin이 있을 경우, 계정 봉쇄나 권한 조정은 별도의 데이터베이스 접근 없이도 평소처럼 앱 내부에서 처리할 수 있습니다.
 
 1. 탈취되지 않은 다른 superadmin 계정으로 Admin 패널에 로그인합니다.  
-2. Users 목록에서 탈취된 계정을 찾아 **Demote (superadmin)**을 클릭하세요. 그러면 해당 사용자는 바로 다음 요청부터 `admin` 권한으로 내려갑니다. 이때 기존에 발급된 액세스 토큰이 남아 있더라도 매 요청마다 [DB나 캐시에서 현재 권한을 다시 확인](#역할)하기 때문에 실제 권한도 바로 변경됩니다. 즉, 굳이 토큰이 만료될 때까지 기다릴 필요가 없습니다.
+2. Users 목록에서 탈취된 계정을 찾아 <strong>Demote (superadmin)</strong>을 클릭하세요. 그러면 해당 사용자는 바로 다음 요청부터 `admin` 권한으로 내려갑니다. 이때 기존에 발급된 액세스 토큰이 남아 있더라도 매 요청마다 [DB나 캐시에서 현재 권한을 다시 확인](#역할)하기 때문에 실제 권한도 바로 변경됩니다. 즉, 굳이 토큰이 만료될 때까지 기다릴 필요가 없습니다.
 3. 권한이 강등된 이후에는 평소 하던 대로 **Force logout**, **Ban**, **Delete**와 같은 admin 작업을 적용하시면 됩니다.
 4. 신뢰할 수 있는 계정을 superadmin으로 다시 올려, 최소 2명의 superadmin이 유지되도록 하세요.
 5. 감사 로그(해당 사용자 ID의 `ROLE_CHANGE`, `FORCE_LOGOUT`, `USER_BANNED` 등)를 살펴보며, 계정이 탈취된 동안 어떤 활동이 있었는지 확인합니다.
