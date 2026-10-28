@@ -81,7 +81,7 @@ To run the app, follow [Quick Start](#quick-start) locally.
 - Moved the message path from direct Socket.IO to a GraphQL Mutation/Subscription split on an app that already worked, to feel what changing a live system really costs ([Case 1](#technical-decisions-and-troubleshooting))
 - Built authentication and authorization end to end — Basic/Bearer/JWT and RBAC guards — including finding and fixing a self-discovered XSS/localStorage token-storage vulnerability
 - Handled the exposed dev database as an incident, in the order contain → rotate → clean, and kept the record ([Case 2](#technical-decisions-and-troubleshooting))
-- Went past a feature demo: a behavioral moderation pipeline, a separate admin panel, and CI/CD (GitHub Actions + Railway/Vercel)
+- Went past a feature demo: a behavioral moderation pipeline, a separate admin panel, and CI plus a manual-trigger deploy workflow (GitHub Actions + Railway/Vercel)
 
 
 ## Stacks
@@ -89,12 +89,12 @@ Only the technologies tied directly to the core design are listed. Full dependen
 
 ### Role and Code Location by Technology
 - **Backend** — NestJS 11, TypeScript, Node.js 24 · `backend/src/`
-  - A single-deployable monolith split into DI-based modules (auth, chat, user, ai, moderation, audit-log, and others), which kept coupling low as it grew from one resolver to about ten modules
-  - Static typing catches the `undefined`-property bugs hit repeatedly early on, and non-blocking I/O suits a connection-heavy chat workload
+  - A single-deployable monolith split into DI-based modules (auth, chat, user, ai, moderation, audit-log, and others), which grew from one resolver to about ten modules, with the dependency directions recorded in [ADR 0006](ADR/0006-moderation-one-directional-dependency.md) (one-way dependency) and [ADR 0017](ADR/0017-auth-user-chat-circular-dependency.md) (circular dependency handling)
+  - Static typing catches the `undefined`-property bugs hit repeatedly early on
 - **API** — GraphQL (Apollo), graphql-ws · `backend/src/chat/chat.resolver.ts`, `backend/src/graphql/`
-  - The mutation to send a message and the per-room subscription to receive it. Messages first went straight over Socket.IO and were moved mid-project to get transactional guarantees around persistence ([Case 1](#technical-decisions-and-troubleshooting))
+  - The mutation to send a message and the per-room subscription to receive it. Messages first went straight over Socket.IO and were moved mid-project to manage multi-table writes such as room creation and message saving in one transaction ([Case 1](#technical-decisions-and-troubleshooting))
 - **Realtime** — Socket.IO, `@socket.io/redis-adapter` · `backend/src/chat/chat.gateway.ts`
-  - JWT auth on connect, room-creation notice, `forceLogout` on a second login. Without the adapter, room broadcasts don't cross server instances
+  - JWT auth on connect, room-creation notice, `forceLogout` on a second login. With the adapter, room broadcasts and `forceLogout`/disconnects through `server.in(socketId)` reach sockets on other instances
 - **Database** — PostgreSQL, TypeORM · `backend/src/migrations/`, `backend/src/data-source.ts`
   - Relational data where users, rooms, messages, and the audit log depend on each other. Schema changes go through migrations only so they stay reviewable (`synchronize: false`)
 - **Cache / Pub-Sub** — Redis (ioredis) · `backend/src/redis/redis.service.ts`, `backend/src/graphql/pubsub.service.ts`
@@ -129,7 +129,7 @@ A minimal React + TypeScript client built to demonstrate end-to-end integration 
 ### Core Features and Where They Live
 - **Messaging** — `sendMessage` mutation, `receiveMessage(roomId)` subscription (`chat.resolver.ts`). A sent message shows up on the other side without a reload
   - `GqlTransactionInterceptor` commits after the resolver returns, and logic that depends on the commit awaits `ctx.req.transactionCommitted`
-  - Redis Pub/Sub is at-most-once and the publish happens before the commit ([Case 1](#technical-decisions-and-troubleshooting))
+  - Redis Pub/Sub is at-most-once, and the publish currently happens before the DB commit ([Case 1](#technical-decisions-and-troubleshooting))
 - **Auth and session** — `POST /auth/signin`, `POST /auth/token/refreshaccess`, `frontend/src/auth/session-guard.ts`. Stays signed in across reloads; signing in as another account in another tab logs this tab out
   - Every refresh goes through `refreshAccessTokenSafely()` and concurrent calls share one request
   - One active socket per user, and a previous socket on another instance is also closed through the adapter (confirmed with two instances; see [Scale Up In Future](#scale-up-in-future))
