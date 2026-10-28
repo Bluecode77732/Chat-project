@@ -34,7 +34,7 @@ gantt
 
 1. **기반 구축** (2026-01-02 ~ 2026-01-21) — 첫 커밋: "Built user, auth, chat entities, relations,
    guard, interceptors, etc." 기본 JWT 인증, TypeORM 엔티티, 초기 Socket.IO 채팅 프로토타입.
-   *이유:* README의 [Project Motivation](README.md#프로젝트-동기)에 따르면, 다른 것을 그 위에
+   *이유:* README의 [Project Motivation](README.md#프로젝트를-시작하게-된-계기)에 따르면, 다른 것을 그 위에
    쌓기 전에 인증/인가(Basic/Bearer/JWT, RBAC 가드)를 end-to-end로 연습하기 위함.
 
 2. **Socket.IO → GraphQL 메시징 마이그레이션** (2026-01-22 ~ 2026-06-11) — 가장 오래 걸린
