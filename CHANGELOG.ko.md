@@ -10,8 +10,13 @@
 번역하지 않고 그대로 둠 — 번역하면 실제로 쓰이지 않은 말을 지어내는 셈이 되기 때문.
 
 
+## 2026-10-28
+
+- Docs: README를 한글 README.md와 영문 README.en.md로 이름 변경하고 참조 정정
+
 ## 2026-10-27
 
+- Docs: CHANGELOG 동기화 (README 호스팅 상태 수정 커밋 반영)
 - Docs: README 호스팅 상태에 Vercel 배포 중단과 확인 날짜 명시
 - Docs: CHANGELOG 동기화 (README 가독성 개선 직전 커밋 반영)
 - Docs: README 표를 목록으로 바꾸고 사례 불릿을 나눠 가독성 개선, 의존성 목록과 check:deps 폐지
