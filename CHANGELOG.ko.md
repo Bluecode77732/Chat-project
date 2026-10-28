@@ -10,8 +10,21 @@
 번역하지 않고 그대로 둠 — 번역하면 실제로 쓰이지 않은 말을 지어내는 셈이 되기 때문.
 
 
+## 2026-10-28
+
+- Docs: README 번호 목록 줄바꿈 누락과 굵게 표시가 풀리지 않던 곳 정정
+- Docs: CHANGELOG 동기화 (README 목록 들여쓰기 정정 커밋 반영)
+- Docs: 한글 README 토큰 생명주기 목록의 중첩 들여쓰기 정정
+- Docs: CHANGELOG 동기화 (README 링크 복구 직전 커밋 반영)
+- Docs: 한글 README 직접 수정본 반영, 사라진 링크 복구와 바뀐 소제목 앵커 정정
+- Docs: CHANGELOG 동기화 (README 정중체 전환 커밋 반영)
+- Docs: 한글 README 표현을 정리하고 정중체로 전환, 영문 README 사실 정정 반영
+- Docs: CHANGELOG 동기화 (README 이름 변경 커밋 반영)
+- Docs: README를 한글 README.md와 영문 README.en.md로 이름 변경하고 참조 정정
+
 ## 2026-10-27
 
+- Docs: CHANGELOG 동기화 (README 호스팅 상태 수정 커밋 반영)
 - Docs: README 호스팅 상태에 Vercel 배포 중단과 확인 날짜 명시
 - Docs: CHANGELOG 동기화 (README 가독성 개선 직전 커밋 반영)
 - Docs: README 표를 목록으로 바꾸고 사례 불릿을 나눠 가독성 개선, 의존성 목록과 check:deps 폐지

@@ -1,6 +1,6 @@
 // 목적: MODERATION_DEFAULTS 값(단일 진실 공급원은 moderation.constants.ts)이
 //   이를 미러링하는 나머지 세 곳 -- CLAUDE.md, backend/.env.example,
-//   README.md/README.ko.md의 Moderation 섹션 -- 과 동기화 상태인지 검증함.
+//   README.en.md/README.md의 Moderation 섹션 -- 과 동기화 상태인지 검증함.
 //   README 자신의 blockquote가 명시하며 사람이 수동으로 맞춰 달라고 요청하는
 //   정확히 그 네 곳임.
 // 사용처: `pnpm check:config` (루트 스크립트).
@@ -95,7 +95,7 @@ for (const envName of Object.values(FIELD_MAP)) {
   }
 }
 
-// ---- 4. README.md / README.ko.md: 나레이티브 프로즈에 원시 초 단위가 아닌
+// ---- 4. README.en.md / README.md: 나레이티브 프로즈에 원시 초 단위가 아닌
 // 사람이 읽는 단위(시간/분/일/횟수)로 박혀 있는 값. 아래 각 패턴은 Moderation
 // 섹션의 "현재" 문구에 맞춰져 있음; 그 프로즈가 다시 쓰이면 패턴이 더 이상
 // 매치되지 않고 이 체크는 "위치를 못 찾음" 경고를 내지, stale된 데이터를 조용히
@@ -120,7 +120,7 @@ function checkReadmeProse(path, patterns) {
   }
 }
 
-checkReadmeProse('README.md', [
+checkReadmeProse('README.en.md', [
   { env: 'MODERATION_DUP_WINDOW_SEC', re: /(\d+)×?\s+within\s+(\d+)s\s+adds\s+a\s+strike/, unit: 1, group: 2 },
   { env: 'MODERATION_DUP_THRESHOLD', re: /(\d+)×\s+within\s+(\d+)s\s+adds\s+a\s+strike/, unit: 1, group: 1 },
   { env: 'MODERATION_STRIKE_WINDOW_SEC', re: /rolling\s+(\d+)h\s+window/, unit: 3600 },
@@ -131,7 +131,7 @@ checkReadmeProse('README.md', [
   { env: 'MODERATION_BAN_DURATION_SEC', re: /timed ban\*\*\s*—\s*(\d+)\s*days?/, unit: 86400 },
 ]);
 
-checkReadmeProse('README.ko.md', [
+checkReadmeProse('README.md', [
   { env: 'MODERATION_DUP_WINDOW_SEC', re: /(\d+)초\s*내에\s*(\d+)회\s*전송하면\s*스트라이크/, unit: 1, group: 1 },
   { env: 'MODERATION_DUP_THRESHOLD', re: /(\d+)초\s*내에\s*(\d+)회\s*전송하면\s*스트라이크/, unit: 1, group: 2 },
   { env: 'MODERATION_STRIKE_WINDOW_SEC', re: /(\d+)시간\s*롤링\s*윈도우/, unit: 3600 },

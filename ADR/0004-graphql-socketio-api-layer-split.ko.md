@@ -8,7 +8,7 @@ Accepted
 
 실시간 채팅에는 두 가지가 모두 필요함. 메시지를 트랜잭션 안전하게 쓰는 경로와, 지연이 낮은
 연결 관리(접속 시 인증, 룸 join/leave, 세션 충돌 시 강제 로그아웃)임. README의
-[Stacks](../README.md#stacks) 절에 따르면 메시지는 원래 순수 Socket.IO로 직접 전송되다가
+[Stacks](../README.md#기술-스택) 절에 따르면 메시지는 원래 순수 Socket.IO로 직접 전송되다가
 프로젝트 중반에 GraphQL로 옮겨짐. 순수 소켓 핸들러로는 얻을 수 없는 트랜잭션 보장을
 확보하기 위해서였음([0003](0003-database-transaction-strategy.ko.md) 참고).
 

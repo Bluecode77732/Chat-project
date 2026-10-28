@@ -44,7 +44,7 @@ Accepted
     액세스 토큰을 짧게 유지하면서도 이 UX 비용이 사라짐.
   - **`accessToken`을 `localStorage`에 저장**: XSS에 노출되므로 배제함. 이 프로젝트가
     개발 중 실제로 발견해 고친 XSS/localStorage 토큰 저장 취약점(README의
-    [프로젝트 동기](../README.ko.md#프로젝트-동기) 참고)이 이 규칙의 배경임 — 가상의
+    [프로젝트 동기](../README.md#프로젝트를-시작하게-된-계기) 참고)이 이 규칙의 배경임 — 가상의
     우려가 아니라 실제 사례임.
   - **`refreshToken`을 응답 바디로 반환**: `localStorage`와 같은 이유로 배제함. JS가
     읽을 수 있는 저장소는 XSS 페이로드도 똑같이 읽을 수 있음.

@@ -8,6 +8,7 @@ dist
 .dockerignore
 docker-compose.yml
 README.md
+README.en.md
 coverage
 *.log
 .eslintrc*

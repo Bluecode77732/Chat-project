@@ -1,6 +1,6 @@
 # Architecture
 
-This document is the technical deep-dive companion to [README.md](README.md). README covers the
+This document is the technical deep-dive companion to [README.en.md](README.en.md). README covers the
 project pitch, quick start, and feature list; [CLAUDE.md](CLAUDE.md) covers AI-agent conventions and
 guardrails. This file covers structure that neither of those fully spells out: the module dependency
 graph, guard-chain composition, global bootstrap/error handling, and deployment topology. Where README already documents something well
@@ -36,7 +36,7 @@ flowchart LR
 
 pnpm workspace with three packages: `backend/` (NestJS API, the only deployable that talks to
 Postgres/Redis), `frontend/` (the chat client), and `admin/` (the management dashboard). The full directory tree is below; README's
-[Project Structure](README.md#project-structure) lists only the key paths.
+[Project Structure](README.en.md#project-structure) lists only the key paths.
 
 Folder-level summary; some files and subfolders are omitted.
 
@@ -277,7 +277,7 @@ trace in error response" rule.
 ## Data Flow
 
 The `sendMessage` GraphQL mutation path and the Socket.IO connection lifecycle are both already
-diagrammed step-by-step in README's [Flow](README.md#flow) section — read that for the authoritative
+diagrammed step-by-step in README's [Flow](README.en.md#flow) section — read that for the authoritative
 walkthrough (transaction boundary, post-commit AI reply trigger, Redis Pub/Sub delivery); the
 transaction-boundary decision itself is formalized in [ADR 0003](ADR/0003-database-transaction-strategy.md).
 Two additions are relevant here, both riding on the same `receiveMessage :${roomId}` channel README
@@ -331,7 +331,7 @@ flowchart LR
 
 - **Local**: `docker compose up -d --build` — three services (`chat`, `postgres:18`, `redis:alpine`),
   all ports bound to `127.0.0.1` only (a prior incident exposed these to `0.0.0.0`; see README's
-  [AI-Assisted Development Notes](README.md#ai-assisted-development-notes)). `chat` runs
+  [AI-Assisted Development Notes](README.en.md#ai-assisted-development-notes)). `chat` runs
   `pnpm migration:run && node dist/main` on start, same as production.
 
   - **Risk if this were reverted:** the exact incident already documented — an exposed dev port on a
@@ -392,7 +392,7 @@ choice.
 ## Tech Stack
 
 Verified against each package's actual `dependencies` (not `devDependencies`) — kept current with
-`package.json`. README's [Stacks](README.md#stacks) section covers the original rationale for these
+`package.json`. README's [Stacks](README.en.md#stacks) section covers the original rationale for these
 choices; below, each major architectural choice also carries its accepted cost/risk, which README's
 Stacks section doesn't state.
 
@@ -493,7 +493,7 @@ Stacks section doesn't state.
 
 ## Entities
 
-See README's [Entities](README.md#entities-typeorm) section for the full field-level breakdown
+See README's [Entities](README.en.md#entities-typeorm) section for the full field-level breakdown
 (`UserEntity`, `ChatEntity`, `RoomEntity`, `AiRoomEntity`, `EntityBase`) — kept current there, no need
 to duplicate it here.
 
@@ -531,7 +531,7 @@ as accidental `pnpm add` mistakes. Confirmed unused and removed.
 
 ## Related Documents
 
-- [README.md](README.md) — pitch, quick start, features, full data-flow walkthrough
+- [README.en.md](README.en.md) — pitch, quick start, features, full data-flow walkthrough
 - [CLAUDE.md](CLAUDE.md) — AI-agent conventions, Never Do rules, architecture decisions
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local setup, branch/commit conventions, PR checklist
 - [ADR/](ADR/) — formal records of decisions from CLAUDE.md's Architecture Decisions and

@@ -36,7 +36,7 @@ gantt
    relations, guard, interceptors, etc." Base JWT auth, TypeORM entities, and an initial Socket.IO
    chat prototype.
    *Why:* practicing authentication/authorization end-to-end (Basic/Bearer/JWT, RBAC guards) —
-   per README's [Project Motivation](README.md#project-motivation) — before building anything else on
+   per README's [Project Motivation](README.en.md#project-motivation) — before building anything else on
    top of it.
 
 2. **Socket.IO → GraphQL messaging migration** (2026-01-22 ~ 2026-06-11) — the longest-running phase,
@@ -67,7 +67,7 @@ gantt
 
 6. **Security incident response** (2026-06-18) — "Fix: password leak via missing serializer, stale
    role cache, RBAC bypass on audit log, admin signout method, and bind local dev server to loopback."
-   Full write-up in README's [AI-Assisted Development Notes](README.md#ai-assisted-development-notes).
+   Full write-up in README's [AI-Assisted Development Notes](README.en.md#ai-assisted-development-notes).
    *Why:* not planned work — a live incident (exposed dev port led to a ransomware bot wiping the dev
    database) that got contained, rotated, and documented end-to-end rather than quietly patched over.
 
@@ -180,7 +180,7 @@ timeline or priority order.
   (`chat.resolver.ts`), matching the `getAiPersonalityInfo` pattern; traced call sites confirmed
   `frontend/src/pages/chat-page.tsx` only calls them from behind `ProtectedRoute`, and `admin/` never
   calls them, so no unauthenticated flow depended on the old behavior. `ping` is left unguarded on
-  purpose — it's documented in README.md as an unauthenticated health check, mirrors the same
+  purpose — it's documented in README.en.md as an unauthenticated health check, mirrors the same
   intentional no-guard pattern already used by the REST `/health` liveness endpoint
   (`health.controller.ts`), and does no DB/Redis/compute work, so the exposure is equivalent to that
   endpoint's. Note: `QueryRateLimitGuard` couldn't be bolted onto `ping` alone even if desired — it
@@ -316,6 +316,6 @@ and found consistent; not listed here.
 
 ## Related documents
 
-- [README.md](README.md) — current feature set
+- [README.en.md](README.en.md) — current feature set
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system structure these items would extend
 - [CHANGELOG.md](CHANGELOG.md) — full commit-by-commit record

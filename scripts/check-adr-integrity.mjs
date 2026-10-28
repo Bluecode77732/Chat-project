@@ -353,7 +353,7 @@ for (const file of adrFiles) {
 // 적용 안 됨. ARCHITECTURE.md는 링크/번호 체크만 포함함: 저장소에서 ADR 상호
 // 링크를 가장 많이 쓰는 문서라(CLAUDE.md보다 훨씬 많음) 번호 불일치가 나타날
 // 가능성이 가장 높은 곳임.
-const extraDocs = ['CLAUDE.md', 'README.md', 'README.ko.md', 'ARCHITECTURE.md', 'ARCHITECTURE.ko.md', 'ADR/README.md', 'ADR/README.ko.md'];
+const extraDocs = ['CLAUDE.md', 'README.en.md', 'README.md', 'ARCHITECTURE.md', 'ARCHITECTURE.ko.md', 'ADR/README.md', 'ADR/README.ko.md'];
 for (const relPath of extraDocs) {
   const fullPath = join(repoRoot, relPath);
   if (!existsSync(fullPath)) continue;
@@ -365,10 +365,14 @@ for (const relPath of extraDocs) {
 
 // 전체 en/ko 짝을 가진 루트 문서 (CLAUDE.md는 설계상 짝이 없어 제외). checkHeadingParity는
 // 두 경로가 존재하기만 하면 되므로 별도의 루트 전용 메커니즘을 추가하는 대신 재사용함.
-const rootPairs = ['README.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md', 'ROADMAP.md', 'CHANGELOG.md', 'ADR/README.md'];
+const rootPairs = ['README.en.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md', 'ROADMAP.md', 'CHANGELOG.md', 'ADR/README.md'];
 for (const relPath of rootPairs) {
   const enPath = join(repoRoot, relPath);
-  const koPath = join(repoRoot, relPath.replace(/\.md$/, '.ko.md'));
+  // README만 영문이 README.en.md, 한글이 README.md라 일반 규칙(.md -> .ko.md)에서 예외임.
+  const koPath = join(
+    repoRoot,
+    relPath === 'README.en.md' ? 'README.md' : relPath.replace(/\.md$/, '.ko.md'),
+  );
   checkHeadingParity(enPath, koPath);
 }
 

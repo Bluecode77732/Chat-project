@@ -8,7 +8,7 @@ Accepted
 
 Real-time chat needs both a transactionally-safe write path for messages and low-latency connection
 management (auth-on-connect, room join/leave, forced logout on session conflict). Per README's
-[Stacks](../README.md#stacks) section, messages were originally sent directly over raw Socket.IO and
+[Stacks](../README.en.md#stacks) section, messages were originally sent directly over raw Socket.IO and
 migrated to GraphQL mid-project specifically to get the transactional guarantees a bare socket handler
 can't provide (see [0003](0003-database-transaction-strategy.md)).
 

@@ -286,7 +286,7 @@ After completing any implementation, apply the review perspective that matches w
 
 ## Writing Style (문체)
 
-Applies to Markdown docs (this file, `README.md`, ADRs, `CONTRIBUTING.md`), code comments, commit
+Applies to Markdown docs (this file, `README.en.md`, `README.md`, ADRs, `CONTRIBUTING.md`), code comments, commit
 messages, and the Change Summary below — anywhere content is written for a person to read rather
 than for the compiler.
 
@@ -338,7 +338,7 @@ After completing any task, always append a brief summary in this format:
 - Why: <the stated reason>
 - Side effects: <impact on: schema.gql / Redis key set / guard chain / frontend graphql-operations.ts>
 - Guard chain impact: <any change to guard order or new guard added — list affected endpoints; omit if no guard was touched>
-- README impact: <update README.md if a user-visible feature was added, modified, or removed; omit if no feature surface changed>
+- README impact: <update README.en.md and README.md if a user-visible feature was added, modified, or removed; omit if no feature surface changed>
 - Pending: <anything deferred, left incomplete, or requiring follow-up>
 ```
 
@@ -833,7 +833,7 @@ one of these is violated, follow Principle Conflict Protocol.
   request (`jwt.strategy.ts:59-113`), and `updateRole` deletes that cache entry
   (`user.service.ts:290`) before returning. Once demoted, the account's role is lower than
   the acting superadmin's, so `forceLogout`/`ban`/`remove` become available for cleanup.
-  Operator-facing runbook: [README.md § Compromised Superadmin Containment](README.md#compromised-superadmin-containment).
+  Operator-facing runbook: [README.en.md § Compromised Superadmin Containment](README.en.md#compromised-superadmin-containment).
 - Rationale: the only case this doesn't cover is exactly one superadmin remaining and that
   one being compromised — the last-superadmin invariant blocks demoting it, and there is no
   peer left to act. That single-point-of-failure is closed by an operational policy
@@ -964,7 +964,7 @@ one of these is violated, follow Principle Conflict Protocol.
 - Goal: when any artifact of unknown or external origin is found, report its location, name,
   and approximate size — then stop. Do not issue a SELECT, Read, WebFetch, or Bash command to
   display the content. Ask the developer to read it directly and report back. A documented
-  instance of this pattern in practice is in `README.md` § "AI-Assisted Development Notes".
+  instance of this pattern in practice is in `README.en.md` § "AI-Assisted Development Notes".
 
 **Containment Before Cleanup**
 - Breakdown: a concrete instance of Reliability > Fail Securely. During a security incident,
