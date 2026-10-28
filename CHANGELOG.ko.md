@@ -12,6 +12,8 @@
 
 ## 2026-10-28
 
+- Docs: 한글 README 직접 수정본 반영, 사라진 링크 복구와 바뀐 소제목 앵커 정정
+- Docs: CHANGELOG 동기화 (README 정중체 전환 커밋 반영)
 - Docs: 한글 README 표현을 정리하고 정중체로 전환, 영문 README 사실 정정 반영
 - Docs: CHANGELOG 동기화 (README 이름 변경 커밋 반영)
 - Docs: README를 한글 README.md와 영문 README.en.md로 이름 변경하고 참조 정정
